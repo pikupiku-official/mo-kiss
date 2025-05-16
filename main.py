@@ -51,7 +51,6 @@ face_pos = {
 }
 
 # 表示フラグ
-show_character = True
 show_face_parts = True
 show_text = True
 
@@ -71,14 +70,7 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
-            elif event.key == pygame.K_SPACE: # 消去予定
-                show_character = not show_character
-                if show_character:
-                    print("キャラクターを表示しました")
-                else:
-                    print("キャラクターを非表示にしました")
-                    show_face_parts = False
-            elif event.key == pygame.K_f and show_character:
+            elif event.key == pygame.K_f:
                 show_face_parts = not show_face_parts
                 if show_face_parts:
                     print("顔パーツを表示しました")
@@ -122,7 +114,7 @@ while running:
             bgm_manager.stop_bgm()  # ループしない場合は停止
 
     # キャラクターの描画
-    if show_character and char_name in images["characters"]:
+    if char_name in images["characters"]:
         screen.blit(images["characters"][char_name], character_pos)
 
         # 顔パーツの描画
@@ -158,10 +150,6 @@ while running:
     if show_text:
         text_renderer.set_dialogue(dialogue_text, display_name)
         text_renderer.render_paragraph()
-        
-        # 次のテキストがある場合はインジケーターを表示
-        if current_paragraph < len(dialogue_data) - 1:
-            text_renderer.render_next_indicator()
 
     # FPSを設定
     clock.tick(30)
