@@ -16,9 +16,6 @@ class TextRenderer:
         self.text_padding = TEXT_PADDING
         self.text_box_width = TEXT_BOX_WIDTH
         self.text_max_width = TEXT_MAX_WIDTH
-        self.next_indicator_color = NEXT_INDICATOR_COLOR
-        self.next_indicator_pos = NEXT_INDICATOR_POS
-        self.next_indicator_text = NEXT_INDICATOR_TEXT
         
         # 現在の会話データ
         self.current_text = ""
@@ -60,8 +57,3 @@ class TextRenderer:
             y += self.text_line_height
 
         return box_height  # テキストの高さを返す
-
-    def render_next_indicator(self):
-        """次のテキストがあることを示すインジケーターを描画する"""
-        next_indicator_surface = self.fonts["text"].render(self.next_indicator_text, True, self.next_indicator_color)
-        self.screen.blit(next_indicator_surface, self.next_indicator_pos)
