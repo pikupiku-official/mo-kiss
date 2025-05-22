@@ -155,10 +155,6 @@ def normalize_dialogue_data(raw_data):
             elif entry_type == 'hide':
                 # キャラクター退場コマンドを正規化形式で追加
                 hide_command = f"_CHARA_HIDE_{entry['character']}"
-
-                if DEBUG:
-                    print(f"退場コマンド生成:'char_name={entry['character']}', 'hide_command={hide_command}'")
-
                 normalized_data.append([
                     current_bg, entry['character'], current_eye, current_mouth, current_brow,
                     hide_command, current_bgm, current_bgm_volume, current_bgm_loop, entry['character']
@@ -436,17 +432,9 @@ def advance_dialogue(game_state):
         # キャラクターが新しい場合はアクティブリストに追加
         if current_dialogue[1] and current_dialogue[1] in CHARACTER_IMAGE_MAP:
             if current_dialogue[1] not in game_state['active_characters']:
-                prev_paragraph = game_state['current_paragraph'] - 1
-                if (prev_paragraph >= 0 and 
-                    len(game_state['dialogue_data'][prev_paragraph]) > 5 and
-                    game_state['dialogue_data'][prev_paragraph][5] and
-                    game_state['dialogue_data'][prev_paragraph][5].startswith(f"_CHARA_HIDE_{current_dialogue[1]}")):
-                    if DEBUG:
-                        print(f"退場直後のキャラクター '{current_dialogue[1]}' の自動追加をスキップしました")
-                else:
-                    game_state['active_characters'].append(current_dialogue[1])
-                    if DEBUG:
-                        print(f"セリフ時に新しいキャラクター '{current_dialogue[1]}' をアクティブリストに追加")
+                game_state['active_characters'].append(current_dialogue[1])
+                if DEBUG:
+                    print(f"新しいキャラクター '{current_dialogue[1]}' をアクティブリストに追加")
         
     return True
 

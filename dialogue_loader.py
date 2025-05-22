@@ -55,7 +55,7 @@ class DialogueLoader:
         current_bgm_volume = DEFAULT_BGM_VOLUME
         current_bgm_loop = DEFAULT_BGM_LOOP
 
-            # 行ごとに処理
+        # 行ごとに処理
         lines = content.split('\n')
         for line_num, line in enumerate(lines, 1):
             try:
@@ -82,17 +82,24 @@ class DialogueLoader:
                 # キャラクターを検出
                 elif "[chara_show" in line:
                     try:
+                        # name属性またはsub属性を検索
                         char_name = re.search(r'name="([^"]+)"', line)
+                        if not char_name:
+                            char_name = re.search(r'sub="([^"]+)"', line)
+                        
                         eye_type = re.search(r'eye="([^"]+)"', line)
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
-                        if char_name and eye_type and mouth_type and brow_type:
+                        
+                        if char_name:
                             current_char = char_name.group(1)
-                            current_eye = eye_type.group(1)
-                            current_mouth = mouth_type.group(1)
-                            current_brow = brow_type.group(1)
+                            # 属性が指定されていない場合はデフォルト値を使用
+                            current_eye = eye_type.group(1) if eye_type else "eye1"
+                            current_mouth = mouth_type.group(1) if mouth_type else "mouth1"
+                            current_brow = brow_type.group(1) if brow_type else "brow1"
+                            
                             if self.debug:
-                                print(f"キャラクター名称: {current_char}, キャラクター目: {current_eye}, キャラクター口: {current_mouth}, キャラクター眉: {current_brow}") 
+                                print(f"キャラクター登場: {current_char}, 目: {current_eye}, 口: {current_mouth}, 眉: {current_brow}") 
 
                             dialogue_data.append({
                                 'type': 'character',
@@ -100,7 +107,10 @@ class DialogueLoader:
                                 'eye': current_eye,
                                 'mouth': current_mouth,
                                 'brow': current_brow
-                            })            
+                            })
+                        else:
+                            if self.debug:
+                                print(f"キャラクター名が見つかりません: {line}")
 
                     except Exception as e:
                         if self.debug:
@@ -139,38 +149,6 @@ class DialogueLoader:
                         if self.debug:
                             print(f"BGM解析エラー（行 {line_num}）: {e} - {line}")
                         
-
-                # セリフを検出
-                elif "「" in line and "」" in line:
-                    try:
-                        # [en]タグを除去してからセリフを抽出（消去予定）
-                        clean_line = re.sub(r'\[en\]', '', line)
-                        dialogue_matches = re.findall(r'「([^」]+)」', clean_line)
-                        
-                        for dialogue_text in dialogue_matches:
-                            dialogue_text = dialogue_text.strip()
-                            if dialogue_text:
-                                if self.debug:
-                                    print(f"セリフ: {dialogue_text}")
-                                
-                                # 対話データを追加
-                                dialogue_data.append({
-                                    'type': 'dialogue',
-                                    'text': dialogue_text,
-                                    'character': current_char,
-                                    'eye': current_eye,
-                                    'mouth': current_mouth,
-                                    'brow': current_brow,
-                                    'background': current_bg,
-                                    'bgm': current_bgm,
-                                    'bgm_volume': current_bgm_volume,
-                                    'bgm_loop': current_bgm_loop
-                                })
-                    
-                    except Exception as e:
-                        if self.debug:
-                            print(f"セリフ解析エラー（行 {line_num}）: {e} - {line}")
-
                 # キャラクター移動コマンドを検出
                 elif "[chara_move" in line:
                     try:
@@ -216,9 +194,44 @@ class DialogueLoader:
                                 'character': char_name
                             })
 
+                            # 退場したキャラクターが現在のキャラクターだった場合、リセット
+                            if current_char == char_name:
+                                current_char = None
+
                     except Exception as e:
                         if self.debug:
                             print(f"キャラクター退場解析エラー（行 {line_num}）: {e} - {line}")
+
+                # セリフを検出
+                elif "「" in line and "」" in line:
+                    try:
+                        # [en]タグを除去してからセリフを抽出（消去予定）
+                        clean_line = re.sub(r'\[en\]', '', line)
+                        dialogue_matches = re.findall(r'「([^」]+)」', clean_line)
+                        
+                        for dialogue_text in dialogue_matches:
+                            dialogue_text = dialogue_text.strip()
+                            if dialogue_text:
+                                if self.debug:
+                                    print(f"セリフ: {dialogue_text}")
+                                
+                                # 対話データを追加
+                                dialogue_data.append({
+                                    'type': 'dialogue',
+                                    'text': dialogue_text,
+                                    'character': current_char,
+                                    'eye': current_eye,
+                                    'mouth': current_mouth,
+                                    'brow': current_brow,
+                                    'background': current_bg,
+                                    'bgm': current_bgm,
+                                    'bgm_volume': current_bgm_volume,
+                                    'bgm_loop': current_bgm_loop
+                                })
+                    
+                    except Exception as e:
+                        if self.debug:
+                            print(f"セリフ解析エラー（行 {line_num}）: {e} - {line}")
 
             except Exception as e:
                     if self.debug:
