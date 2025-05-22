@@ -25,7 +25,7 @@
 [WINhide]
 
 [SLP30]
-[chara_move sub="桃子" time="400" left="+100" top="+50"]
+[chara_move sub="桃子" time="400" left="100" top="50"]
 [WINshow]
 	「会話の2番目の部分です。」[en]
 [WINhide]
@@ -60,7 +60,7 @@
 [WINhide]
 
 [SLP30]
-[chara_move sub="サナコ" time="600" left="-200" top="60"]
+[chara_move sub="サナコ" time="600" left="-200" top="-60"]
 [WINshow]
 	「これは最後のテキストです。」[en]
 [WINhide]
