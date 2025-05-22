@@ -57,6 +57,15 @@ def initialize_game():
     # キャラクター移動アニメーション
     character_anim = {}
 
+    # 各キャラクターの現在の表情を記録
+    character_expressions = {}
+    for char_name in CHARACTER_IMAGE_MAP.keys():
+        character_expressions[char_name] = {
+            'eye': CHARACTER_DEFAULTS[char_name]['eye'],
+            'mouth': CHARACTER_DEFAULTS[char_name]['mouth'],
+            'brow': CHARACTER_DEFAULTS[char_name]['brow']
+        }
+
     # 顔のパーツの相対位置を設定
     face_pos = {
         "eye": (char_width * FACE_POS["eye"][0], char_height * FACE_POS["eye"][1]),
@@ -76,6 +85,7 @@ def initialize_game():
         'dialogue_data': dialogue_data,
         'character_pos': character_pos,
         'character_anim': character_anim,
+        'character_expressions': character_expressions,
         'face_pos': face_pos,
         'show_face_parts': True,
         'show_text': True,
@@ -237,19 +247,6 @@ def initialize_first_scene(game_state):
     bgm_success = _initialize_bgm(game_state)
     if DEBUG:
         print(f"BGM初期化結果: {'成功' if bgm_success else '失敗'}") 
-        
-    """# 最初のキャラクターを見つけてアクティブリストに追加
-    characters_found = set()
-    for entry in game_state['dialogue_data']:
-        if len(entry) > 1 and entry[1] and entry[1] in CHARACTER_IMAGE_MAP:  # 有効なキャラクター名のみ
-            characters_found.add(entry[1])
-    
-    # 見つかったキャラクターをアクティブリストに追加
-    for char_name in characters_found:
-        if char_name not in game_state['active_characters']:
-            game_state['active_characters'].append(char_name)
-            if DEBUG:
-                print(f"キャラクター '{char_name}' をアクティブリストに追加しました")"""
     
     # 最初のテキストを設定
     if game_state['dialogue_data']:
@@ -379,6 +376,13 @@ def advance_dialogue(game_state):
             char_name = parts[2]
             if char_name in CHARACTER_IMAGE_MAP and char_name not in game_state['active_characters']:
                 game_state['active_characters'].append(char_name)
+                # キャラクターの表情を更新
+                if len(current_dialogue) >= 5:
+                    game_state['character_expressions'][char_name] = {
+                        'eye': current_dialogue[2] if current_dialogue[2] else CHARACTER_DEFAULTS[char_name]['eye'],
+                        'mouth': current_dialogue[3] if current_dialogue[3] else CHARACTER_DEFAULTS[char_name]['mouth'],
+                        'brow': current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]['brow']
+                    }
                 if DEBUG:
                     print(f"キャラクター '{char_name}' が登場しました")
             
@@ -435,6 +439,15 @@ def advance_dialogue(game_state):
                 game_state['active_characters'].append(current_dialogue[1])
                 if DEBUG:
                     print(f"新しいキャラクター '{current_dialogue[1]}' をアクティブリストに追加")
+
+            # 話し手の表情を更新
+            char_name = current_dialogue[1]
+            if len(current_dialogue) >= 5:
+                game_state['character_expressions'][char_name] = {
+                    'eye': current_dialogue[2] if current_dialogue[2] else CHARACTER_DEFAULTS[char_name]['eye'],
+                    'mouth': current_dialogue[3] if current_dialogue[3] else CHARACTER_DEFAULTS[char_name]['mouth'],
+                    'brow': current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]['brow']
+                }
         
     return True
 
@@ -466,10 +479,6 @@ def move_character(game_state, character_name, target_x, target_y, duration=600)
     
     # 現在の位置を取得
     current_x, current_y = game_state['character_pos'][character_name]
-
-    """# 目標位置を計算（相対値の処理）
-    final_target_x = target_x
-    final_target_y = target_y"""
     
     # 目標位置を計算（相対値の処理）
     if isinstance(target_x, str):
@@ -590,6 +599,9 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type):
 
 def draw_characters(game_state):
     """画面上にキャラクターを描画する"""
+    current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']] if game_state['dialogue_data'] else None
+    current_speaker = current_dialogue[1] if current_dialogue and len(current_dialogue) > 1 else None
+
     for char_name in game_state['active_characters']:
         if char_name in game_state['character_pos']:
             # キャラクター画像の取得
@@ -606,15 +618,19 @@ def draw_characters(game_state):
             # 画面に描画
             game_state['screen'].blit(char_img, (x, y))
 
-            # 現在の会話データを取得して表情パーツを決定
-            current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
-            
-            # 現在のキャラクターが話し手である場合のみ、顔パーツを表示
-            if len(current_dialogue) > 1 and current_dialogue[1] == char_name and game_state['show_face_parts']:
-                # パーツ情報を取得
-                eye_type = current_dialogue[2] if len(current_dialogue) > 2 else CHARACTER_DEFAULTS[char_name]["eye"]
-                mouth_type = current_dialogue[3] if len(current_dialogue) > 3 else CHARACTER_DEFAULTS[char_name]["mouth"]
-                brow_type = current_dialogue[4] if len(current_dialogue) > 4 else CHARACTER_DEFAULTS[char_name]["brow"]
+            # 表情パーツを表示
+            if game_state['show_face_parts']:
+                # 現在の話し手の場合は対話データから表情を取得
+                if char_name == current_speaker and current_dialogue and len(current_dialogue) >= 5:
+                    eye_type = current_dialogue[2] if current_dialogue[2] else CHARACTER_DEFAULTS[char_name]["eye"]
+                    mouth_type = current_dialogue[3] if current_dialogue[3] else CHARACTER_DEFAULTS[char_name]["mouth"]
+                    brow_type = current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]["brow"]
+                else:
+                    # 話し手でない場合は記録された表情を使用
+                    expressions = game_state['character_expressions'].get(char_name, CHARACTER_DEFAULTS[char_name])
+                    eye_type = expressions['eye']
+                    mouth_type = expressions['mouth']
+                    brow_type = expressions['brow']
                 
                 # 顔パーツを描画
                 render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type)

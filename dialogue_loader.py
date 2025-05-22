@@ -48,6 +48,7 @@ class DialogueLoader:
         dialogue_data = []
         current_bg = DEFAULT_BACKGROUND
         current_char = None
+        current_speaker = None
         current_eye = "eye1"
         current_mouth = "mouth1"
         current_brow = "brow1"
@@ -60,6 +61,14 @@ class DialogueLoader:
         for line_num, line in enumerate(lines, 1):
             try:
                 line = line.strip()
+
+                # 話者の記述を検出 [キャラクター名]
+                speaker_match = re.match(r'\//([^\]]+)\//', line)
+                if speaker_match:
+                    current_speaker = speaker_match.group(1)
+                    if self.debug:
+                        print(f"話者設定: {current_speaker}")
+                    continue
 
                 # 背景設定を検出
                 if "[bg" in line:
@@ -212,14 +221,15 @@ class DialogueLoader:
                         for dialogue_text in dialogue_matches:
                             dialogue_text = dialogue_text.strip()
                             if dialogue_text:
+                                dialogue_speaker = current_speaker if current_speaker else current_char
                                 if self.debug:
-                                    print(f"セリフ: {dialogue_text}")
+                                    print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}")
                                 
                                 # 対話データを追加
                                 dialogue_data.append({
                                     'type': 'dialogue',
                                     'text': dialogue_text,
-                                    'character': current_char,
+                                    'character': dialogue_speaker,
                                     'eye': current_eye,
                                     'mouth': current_mouth,
                                     'brow': current_brow,
