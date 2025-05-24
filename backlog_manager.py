@@ -57,8 +57,8 @@ class BacklogManager:
         available_height = self.backlog_height - (self.backlog_padding * 2)
         average_item_height = (
             self.fonts["name"].get_height() + 
-            (self.text_line_height * 2) + 
-            self.backlog_item_spacing + 5  # キャラクター名と本文の間の余白
+            self.text_line_height + 
+            self.backlog_item_spacing  # キャラクター名と本文の間の余白
         )
         
         return max(1, int((available_height / average_item_height)))

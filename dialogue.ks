@@ -17,12 +17,12 @@
 	「こんにちは。」
 	「これは最初のテキストです。」
 
-[chara_move subm="桃子" time="400" left="100" top="50"]
+[chara_move subm="桃子" time="400" left="100" top="50" zoom="3"]
 
 	//桃子//
 	「会話の2番目の部分です。」
 
-[chara_move subm="桃子" time="1000" left="100" top="0"]
+[chara_move subm="桃子" time="1000" left="100" top="0" zoom="0.3"]
 
 	//桃子//
 	「言葉は想像力を運ぶ電車です。日本中どこまでも想像力を運ぶ、『私たち』という路線図。」
@@ -47,7 +47,7 @@
 
 [chara_hide subh="桃子"]
 
-[chara_move subm="サナコ" time="600" left="-200" top="-60"]
+[chara_move subm="サナコ" time="600" left="-200" top="-60" zoom="1.7"]
 
 	//サナコ//
 	「これは最後のテキストです。」

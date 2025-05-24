@@ -165,14 +165,16 @@ class DialogueLoader:
                         time = re.search(r'time="([^"]+)"', line)
                         left = re.search(r'left="([^"]+)"', line)
                         top = re.search(r'top="([^"]+)"', line)
-                        if name_parts_m and left and top:
+                        zoom = re.search(r'zoom="([^"]+)"', line)
+                        if name_parts_m and left and top and zoom:
                             char_name = name_parts_m.group(1)
                             move_time = time.group(1) if time else "600"
                             move_left = left.group(1)
                             move_top = top.group(1)
+                            move_zoom = top.group(1)
                             
                             if self.debug:
-                                print(f"キャラクター移動: {char_name}, 位置: ({move_left}, {move_top}), 時間: {move_time}")
+                                print(f"キャラクター移動: {char_name}, 位置: ({move_left}, {move_top}), 時間: {move_time}, 拡大縮小: {move_zoom}")
                             
                             # 移動コマンドをダイアログデータに追加
                             dialogue_data.append({
@@ -180,7 +182,8 @@ class DialogueLoader:
                                 'character': char_name,
                                 'left': move_left,
                                 'top': move_top,
-                                'time': move_time
+                                'time': move_time,
+                                'zoon': move_zoom
                             })
 
                     except Exception as e:
