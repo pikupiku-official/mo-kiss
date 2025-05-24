@@ -171,7 +171,7 @@ class DialogueLoader:
                             move_time = time.group(1) if time else "600"
                             move_left = left.group(1)
                             move_top = top.group(1)
-                            move_zoom = top.group(1)
+                            move_zoom = zoom.group(1) if zoom else "1.0"
                             
                             if self.debug:
                                 print(f"キャラクター移動: {char_name}, 位置: ({move_left}, {move_top}), 時間: {move_time}, 拡大縮小: {move_zoom}")
@@ -183,7 +183,7 @@ class DialogueLoader:
                                 'left': move_left,
                                 'top': move_top,
                                 'time': move_time,
-                                'zoon': move_zoom
+                                'zoom': move_zoom
                             })
 
                     except Exception as e:

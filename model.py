@@ -57,6 +57,11 @@ def initialize_game():
     # キャラクター移動アニメーション
     character_anim = {}
 
+    # キャラクターの拡大縮小倍率を管理
+    character_zoom = {}
+    for char_name in CHARACTER_IMAGE_MAP.keys():
+        character_zoom[char_name] = 1.0  # デフォルトは等倍
+
     # 各キャラクターの現在の表情を記録
     character_expressions = {}
     for char_name in CHARACTER_IMAGE_MAP.keys():
@@ -85,6 +90,7 @@ def initialize_game():
         'dialogue_data': dialogue_data,
         'character_pos': character_pos,
         'character_anim': character_anim,
+        'character_zoom': character_zoom,
         'character_expressions': character_expressions,
         'face_pos': face_pos,
         'show_face_parts': True,
@@ -154,13 +160,14 @@ def normalize_dialogue_data(raw_data):
                     
             elif entry_type == 'move':
                 # 移動コマンドを正規化形式で追加
-                move_command = f"_MOVE_{entry['left']}_{entry['top']}_{entry['time']}"
+                zoom_value = entry.get('zoom', '1.0')
+                move_command = f"_MOVE_{entry['left']}_{entry['top']}_{entry['time']}_{zoom_value}"
                 normalized_data.append([
                     current_bg, entry['character'], current_eye, current_mouth, current_brow,
                     move_command, current_bgm, current_bgm_volume, current_bgm_loop, entry['character']
                 ])
                 if DEBUG:
-                    print(f"移動コマンド追加: {entry['character']} -> ({entry['left']}, {entry['top']})")
+                    print(f"移動コマンド追加: {entry['character']} -> ({entry['left']}, {entry['top']}) zoom: {zoom_value}")
 
             elif entry_type == 'hide':
                 # キャラクター退場コマンドを正規化形式で追加
@@ -412,14 +419,15 @@ def advance_dialogue(game_state):
     if dialogue_text and dialogue_text.startswith("_MOVE_"):
         # 移動コマンドを処理
         parts = dialogue_text.split('_')
-        if len(parts) >= 5:  # _MOVE_left_top_duration
+        if len(parts) >= 5:  # _MOVE_left_top_duration_zoom
             char_name = current_dialogue[1]
             left = int(parts[2])
             top = int(parts[3])
             duration = int(parts[4]) if parts[4].isdigit() else 600
-            move_character(game_state, char_name, left, top, duration)
+            zoom = float(parts[5]) if len(parts) > 5 else 1.0
+            move_character(game_state, char_name, left, top, duration, zoom)
             if DEBUG:
-                print(f"移動コマンド実行: {char_name} -> ({left}, {top})")
+                print(f"移動コマンド実行: {char_name} -> ({left}, {top}, {zoom})")
         
         # 移動コマンドの場合は次の対話に進む
         return advance_dialogue(game_state)
@@ -451,7 +459,7 @@ def advance_dialogue(game_state):
         
     return True
 
-def move_character(game_state, character_name, target_x, target_y, duration=600):
+def move_character(game_state, character_name, target_x, target_y, duration=600, zoom=1.0):
     """キャラクターを指定位置に移動するアニメーションを設定する
     
     Parameters:
@@ -466,6 +474,8 @@ def move_character(game_state, character_name, target_x, target_y, duration=600)
         目標Y座標
     duration : int
         アニメーション時間（ミリ秒）
+    zoom : float
+        拡大縮小率
     """
     if character_name not in game_state['character_pos']:
         print(f"警告: キャラクター '{character_name}' は登録されていません")
@@ -479,6 +489,7 @@ def move_character(game_state, character_name, target_x, target_y, duration=600)
     
     # 現在の位置を取得
     current_x, current_y = game_state['character_pos'][character_name]
+    current_zoom = game_state['character_zoom'].get(character_name, 1.0)
     
     # 目標位置を計算（相対値の処理）
     if isinstance(target_x, str):
@@ -504,6 +515,8 @@ def move_character(game_state, character_name, target_x, target_y, duration=600)
         'start_y': current_y,
         'target_x': final_target_x,
         'target_y': final_target_y,
+        'start_zoom': current_zoom,
+        'target_zoom': zoom,
         'start_time': start_time,
         'duration': duration
     }
@@ -513,7 +526,7 @@ def move_character(game_state, character_name, target_x, target_y, duration=600)
         game_state['active_characters'].append(character_name)
 
     if DEBUG:
-        print(f"移動アニメーション開始: {character_name} ({current_x}, {current_y}) -> ({final_target_x}, {final_target_y}) 時間: {duration}ms")
+        print(f"移動アニメーション開始: {character_name} ({current_x}, {current_y}) -> ({final_target_x}, {final_target_y}), zoom: {current_zoom} -> {zoom}, 時間: {duration}ms")
 
 def hide_character(game_state, character_name):
     """キャラクターを退場させる"""
@@ -546,6 +559,7 @@ def update_character_animations(game_state):
                 anim_data['target_x'],
                 anim_data['target_y']
             ]
+            game_state['character_zoom'][char_name] = anim_data['target_zoom']
             # アニメーション情報を削除
             del game_state['character_anim'][char_name]
         else:
@@ -555,11 +569,13 @@ def update_character_animations(game_state):
             # 現在位置を線形補間で計算
             current_x = anim_data['start_x'] + (anim_data['target_x'] - anim_data['start_x']) * progress
             current_y = anim_data['start_y'] + (anim_data['target_y'] - anim_data['start_y']) * progress
+            current_zoom = anim_data['start_zoom'] + (anim_data['target_zoom'] - anim_data['start_zoom']) * progress
             
             # 位置を更新
             game_state['character_pos'][char_name] = [int(current_x), int(current_y)]
+            game_state['character_zoom'][char_name] = current_zoom
 
-def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type):
+def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zoom_scale):
     """顔パーツの描画"""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
@@ -572,30 +588,48 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type):
     
     # 眉毛を描画
     if brow_type and brow_type in images["brows"]:
+        brow_img = images["brows"][brow_type]
+        if zoom_scale != 1.0:
+            new_width = int(brow_img.get_width() * zoom_scale)
+            new_height = int(brow_img.get_height() * zoom_scale)
+            brow_img = pygame.transform.scale(brow_img, (new_width, new_height))
+        
         brow_pos = (
-            character_pos[0] + face_pos["brow"][0],
-            character_pos[1] + face_pos["brow"][1]
+            character_pos[0] + face_pos["brow"][0] * zoom_scale,
+            character_pos[1] + face_pos["brow"][1] * zoom_scale
         )
-        screen.blit(images["brows"][brow_type], 
-                  image_manager.center_part(images["brows"][brow_type], brow_pos))
+        screen.blit(brow_img, 
+                  image_manager.center_part(brow_img, brow_pos))
 
     # 目を描画
     if eye_type and eye_type in images["eyes"]:
+        eye_img = images["eyes"][eye_type]
+        if zoom_scale != 1.0:
+            new_width = int(eye_img.get_width() * zoom_scale)
+            new_height = int(eye_img.get_height() * zoom_scale)
+            eye_img = pygame.transform.scale(eye_img, (new_width, new_height))
+        
         eye_pos = (
-            character_pos[0] + face_pos["eye"][0],
-            character_pos[1] + face_pos["eye"][1]
+            character_pos[0] + face_pos["eye"][0] * zoom_scale,
+            character_pos[1] + face_pos["eye"][1] * zoom_scale
         )
-        screen.blit(images["eyes"][eye_type], 
-                  image_manager.center_part(images["eyes"][eye_type], eye_pos))
+        screen.blit(eye_img, 
+                  image_manager.center_part(eye_img, eye_pos))
     
     # 口を描画
     if mouth_type and mouth_type in images["mouths"]:
+        mouth_img = images["mouths"][mouth_type]
+        if zoom_scale != 1.0:
+            new_width = int(mouth_img.get_width() * zoom_scale)
+            new_height = int(mouth_img.get_height() * zoom_scale)
+            mouth_img = pygame.transform.scale(mouth_img, (new_width, new_height))
+        
         mouth_pos = (
-            character_pos[0] + face_pos["mouth"][0],
-            character_pos[1] + face_pos["mouth"][1]
+            character_pos[0] + face_pos["mouth"][0] * zoom_scale,
+            character_pos[1] + face_pos["mouth"][1] * zoom_scale
         )
-        screen.blit(images["mouths"][mouth_type], 
-                  image_manager.center_part(images["mouths"][mouth_type], mouth_pos))
+        screen.blit(mouth_img, 
+                  image_manager.center_part(mouth_img, mouth_pos))
 
 def draw_characters(game_state):
     """画面上にキャラクターを描画する"""
@@ -612,11 +646,20 @@ def draw_characters(game_state):
                 continue
             char_img = game_state['images']["characters"][char_img_name]
 
-            # キャラクターの位置を取得
+            # キャラクターの位置とズーム倍率を取得
             x, y = game_state['character_pos'][char_name]
+            zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
+
+            # ズーム倍率を適用してキャラクター画像をスケール
+            if zoom_scale != 1.0:
+                new_width = int(char_img.get_width() * zoom_scale)
+                new_height = int(char_img.get_height() * zoom_scale)
+                scaled_char_img = pygame.transform.scale(char_img, (new_width, new_height))
+            else:
+                scaled_char_img = char_img
             
             # 画面に描画
-            game_state['screen'].blit(char_img, (x, y))
+            game_state['screen'].blit(scaled_char_img, (x, y))
 
             # 表情パーツを表示
             if game_state['show_face_parts']:
@@ -633,4 +676,4 @@ def draw_characters(game_state):
                     brow_type = expressions['brow']
                 
                 # 顔パーツを描画
-                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type)
+                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zoom_scale)
