@@ -55,6 +55,8 @@ class DialogueLoader:
         current_bgm = self.bgm_manager.DEFAULT_BGM
         current_bgm_volume = DEFAULT_BGM_VOLUME
         current_bgm_loop = DEFAULT_BGM_LOOP
+        current_show_x = 0.5
+        current_show_y = 0.5
 
         # 行ごとに処理
         lines = content.split('\n')
@@ -99,6 +101,9 @@ class DialogueLoader:
                         eye_type = re.search(r'eye="([^"]+)"', line)
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
+
+                        show_x = re.search(r'x="([^"]+)"', line)
+                        show_y = re.search(r'y="([^"]+)"', line)
                         
                         if char_name:
                             current_char = char_name.group(1)
@@ -106,6 +111,8 @@ class DialogueLoader:
                             current_eye = eye_type.group(1) if eye_type else "eye1"
                             current_mouth = mouth_type.group(1) if mouth_type else "mouth1"
                             current_brow = brow_type.group(1) if brow_type else "brow1"
+                            current_show_x = show_x.group(1) if show_x else 0.5
+                            current_show_y = show_y.group(1) if show_y else 0.5
                             
                             if self.debug:
                                 print(f"キャラクター登場: {current_char}, 目: {current_eye}, 口: {current_mouth}, 眉: {current_brow}") 
@@ -115,7 +122,9 @@ class DialogueLoader:
                                 'name': current_char,
                                 'eye': current_eye,
                                 'mouth': current_mouth,
-                                'brow': current_brow
+                                'brow': current_brow,
+                                'show_x': current_show_x,
+                                'show_y': current_show_y
                             })
                         else:
                             if self.debug:

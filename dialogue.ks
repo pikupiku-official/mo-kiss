@@ -10,7 +10,7 @@
 [bg storage="school"]
 [BGM bgm="school" volume="0.5" loop="true"]
 
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" brow="brow1"]
+[chara_show name="桃子"　eye="eye1" mouth="mouth1" brow="brow1" x="0.5" y="0.5"]
 
 	//桃子//
 	「こんにちは。」
@@ -37,7 +37,7 @@
 	//桃子//
 	「別の場面に移動しました。」
 
-[chara_show name="サナコ"　eye="eye1" mouth="mouth1" brow="brow1"]
+[chara_show name="サナコ"　eye="eye1" mouth="mouth1" brow="brow1" x="0.2" y="0.2"]
 
 	//サナコ//
 	「わかる人にしかわからない、快速みたいな言葉もあって、一番言葉の集まる駅にしか止まらない、新幹線みたいな言葉もあります。」
