@@ -101,7 +101,6 @@ class DialogueLoader:
                         eye_type = re.search(r'eye="([^"]+)"', line)
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
-
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
                         
@@ -111,11 +110,20 @@ class DialogueLoader:
                             current_eye = eye_type.group(1) if eye_type else "eye1"
                             current_mouth = mouth_type.group(1) if mouth_type else "mouth1"
                             current_brow = brow_type.group(1) if brow_type else "brow1"
-                            current_show_x = show_x.group(1) if show_x else 0.5
-                            current_show_y = show_y.group(1) if show_y else 0.5
+
+                            # x, y を数値として処理
+                            try:
+                                current_show_x = float(show_x.group(1)) if show_x else 0.5
+                            except (ValueError, AttributeError):
+                                current_show_x = 0.5
+                                
+                            try:
+                                current_show_y = float(show_y.group(1)) if show_y else 0.5
+                            except (ValueError, AttributeError):
+                                current_show_y = 0.5
                             
                             if self.debug:
-                                print(f"キャラクター登場: {current_char}, 目: {current_eye}, 口: {current_mouth}, 眉: {current_brow}") 
+                                print(f"キャラクター登場: {current_char}, 目: {current_eye}, 口: {current_mouth}, 眉: {current_brow}, x={current_show_x}, y={current_show_y}") 
 
                             dialogue_data.append({
                                 'type': 'character',

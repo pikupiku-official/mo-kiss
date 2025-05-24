@@ -48,11 +48,6 @@ def initialize_game():
 
     # キャラクター画像を画面中央に配置
     character_pos = {}
-    for char_name in CHARACTER_IMAGE_MAP.keys():
-        character_pos[char_name] = [
-            (SCREEN_WIDTH - char_width) // 2,
-            (SCREEN_HEIGHT - char_height) // 2
-        ]
 
     # キャラクター移動アニメーション
     character_anim = {}
@@ -134,13 +129,18 @@ def normalize_dialogue_data(raw_data):
                 current_eye = entry['eye']
                 current_mouth = entry['mouth']
                 current_brow = entry['brow']
+                show_x = entry.get('show_x', 0.5)
+                show_y = entry.get('show_y', 0.5)
                 if DEBUG:
-                    print(f"キャラクター設定: {current_char}, {current_eye}, {current_mouth}, {current_brow}")
+                    print(f"キャラクター設定: {current_char}, {current_eye}, {current_mouth}, {current_brow}, x={show_x}, y={show_y}")
                 # キャラクター登場コマンドを追加
+                command_text = "_CHARA_NEW_" + current_char + "_" + str(show_x) + "_" + str(show_y)
                 normalized_data.append([
                     current_bg, current_char, current_eye, current_mouth, current_brow,
-                    f"_CHARA_NEW_{current_char}", current_bgm, current_bgm_volume, current_bgm_loop, current_char
+                    command_text, current_bgm, current_bgm_volume, current_bgm_loop, current_char
                 ])
+                if DEBUG:
+                    print(f"キャラクター登場コマンド追加: _CHARA_NEW_{current_char}_{show_x}_{show_y}")
                     
             elif entry_type == 'bgm':
                 current_bgm = entry['file']
@@ -179,7 +179,7 @@ def normalize_dialogue_data(raw_data):
                 if DEBUG:
                     print(f"退場コマンド追加: {entry['character']}")
         
-        # 古い形式のデータ処理（後方互換性のため）
+        """# 古い形式のデータ処理（後方互換性のため）
         else:
             # 背景データの場合
             if len(entry) == 1 and entry[0] and not entry[0].startswith("_"):
@@ -228,7 +228,7 @@ def normalize_dialogue_data(raw_data):
                         text, current_bgm, current_bgm_volume, current_bgm_loop, current_char
                     ])
                     if DEBUG:
-                        print(f"セリフ追加: {current_char}: {text[:20]}...")
+                        print(f"セリフ追加: {current_char}: {text[:20]}...")"""
     
     if not normalized_data:
         return get_default_normalized_dialogue()
@@ -379,10 +379,35 @@ def advance_dialogue(game_state):
     if dialogue_text and dialogue_text.startswith("_CHARA_NEW_"):
         # キャラクター登場コマンドを処理
         parts = dialogue_text.split('_')
+        if DEBUG:
+            print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
+            print(f"キャラクター登場コマンド解析: parts={parts}")
+            
         if len(parts) >= 3:  # _CHARA_NEW_キャラクター名
             char_name = parts[2]
+            
+            try:
+                show_x = float(parts[3]) if len(parts) > 3 else 0.5
+                show_y = float(parts[4]) if len(parts) > 4 else 0.5
+            except (ValueError, IndexError):
+                show_x = 0.5
+                show_y = 0.5
+
             if char_name in CHARACTER_IMAGE_MAP and char_name not in game_state['active_characters']:
                 game_state['active_characters'].append(char_name)
+
+                # x,yパラメーターを使って位置を設定
+                char_img_name = CHARACTER_IMAGE_MAP[char_name]
+                char_img = game_state['images']["characters"][char_img_name]
+                char_width = char_img.get_width()
+                char_height = char_img.get_height()
+
+                # 0.0-1.0の値をピクセル座標に変換
+                pos_x = int(SCREEN_WIDTH * show_x - char_width // 2)
+                pos_y = int(SCREEN_HEIGHT * show_y - char_height // 2)
+                
+                game_state['character_pos'][char_name] = [pos_x, pos_y]
+
                 # キャラクターの表情を更新
                 if len(current_dialogue) >= 5:
                     game_state['character_expressions'][char_name] = {
@@ -391,7 +416,7 @@ def advance_dialogue(game_state):
                         'brow': current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]['brow']
                     }
                 if DEBUG:
-                    print(f"キャラクター '{char_name}' が登場しました")
+                    print(f"キャラクター '{char_name}' が登場しました (x={show_x}, y={show_y}) -> ({pos_x}, {pos_y})")
             
         # キャラクター登場コマンドの場合は次の対話に進む
         return advance_dialogue(game_state)
@@ -441,14 +466,31 @@ def advance_dialogue(game_state):
             
         game_state['text_renderer'].set_dialogue(dialogue_text, display_name)
         
-        # キャラクターが新しい場合はアクティブリストに追加
+        """# キャラクターが新しい場合はアクティブリストに追加
         if current_dialogue[1] and current_dialogue[1] in CHARACTER_IMAGE_MAP:
             if current_dialogue[1] not in game_state['active_characters']:
                 game_state['active_characters'].append(current_dialogue[1])
-                if DEBUG:
-                    print(f"新しいキャラクター '{current_dialogue[1]}' をアクティブリストに追加")
 
-            # 話し手の表情を更新
+                # キャラクターの初期位置を設定
+                char_name = current_dialogue[1]
+                if char_name not in game_state['character_pos']:
+                    # デフォルトで画面中央に配置
+                    char_img_name = CHARACTER_IMAGE_MAP[char_name]
+                    char_img = game_state['images']["characters"][char_img_name]
+                    char_width = char_img.get_width()
+                    char_height = char_img.get_height()
+                    
+                    # デフォルト位置（画面中央）
+                    pos_x = int((SCREEN_WIDTH - char_width) // 2)
+                    pos_y = int((SCREEN_HEIGHT - char_height) // 2)
+                    
+                    game_state['character_pos'][char_name] = [pos_x, pos_y]
+
+                if DEBUG:
+                    print(f"新しいキャラクター '{current_dialogue[1]}' をアクティブリストに追加")"""
+
+        # 話し手の表情を更新
+        if current_dialogue[1] and current_dialogue[1] in game_state['active_characters']:
             char_name = current_dialogue[1]
             if len(current_dialogue) >= 5:
                 game_state['character_expressions'][char_name] = {
