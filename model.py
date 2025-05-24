@@ -257,7 +257,11 @@ def initialize_first_scene(game_state):
     
     # 最初のテキストを設定
     if game_state['dialogue_data']:
-        current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
+        # 最初のエントリから処理を開始
+        game_state['current_paragraph'] = -1  # advance_dialogueで0になる
+        advance_dialogue(game_state)
+
+        """current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
         
         # データの長さをチェック
         if len(current_dialogue) >= 6:
@@ -276,7 +280,7 @@ def initialize_first_scene(game_state):
                 if DEBUG:
                     print(f"初期テキストを設定しました： {dialogue_text[:30]}...")
                     print(f"表示名: {display_name}")
-                    print(f"アクティブキャラクター: {game_state['active_characters']}")
+                    print(f"アクティブキャラクター: {game_state['active_characters']}")"""
 
 def _initialize_bgm(game_state):
     """BGMの初期化を行う（内部関数）"""
@@ -367,6 +371,9 @@ def advance_dialogue(game_state):
     
     game_state['current_paragraph'] += 1
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
+
+    if DEBUG:
+        print(f"段落 {game_state['current_paragraph'] + 1}/{len(game_state['dialogue_data'])} に進みました")
     
     if len(current_dialogue) < 6:
         if DEBUG:
@@ -374,6 +381,8 @@ def advance_dialogue(game_state):
         return False
     
     dialogue_text = current_dialogue[5]
+    if DEBUG:
+        print(f"処理中のテキスト: '{dialogue_text[:50]}...'")
 
     # キャラクター登場コマンドかどうかチェック
     if dialogue_text and dialogue_text.startswith("_CHARA_NEW_"):
@@ -381,19 +390,19 @@ def advance_dialogue(game_state):
         parts = dialogue_text.split('_')
         if DEBUG:
             print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
-            print(f"キャラクター登場コマンド解析: parts={parts}")
-            
-        if len(parts) >= 3:  # _CHARA_NEW_キャラクター名
-            char_name = parts[2]
+            print(f"分割結果: {parts}")
+
+        if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y
+            char_name = parts[3]
             
             try:
-                show_x = float(parts[3]) if len(parts) > 3 else 0.5
-                show_y = float(parts[4]) if len(parts) > 4 else 0.5
+                show_x = float(parts[4])
+                show_y = float(parts[5])
             except (ValueError, IndexError):
                 show_x = 0.5
                 show_y = 0.5
 
-            if char_name in CHARACTER_IMAGE_MAP and char_name not in game_state['active_characters']:
+            if char_name not in game_state['active_characters']:
                 game_state['active_characters'].append(char_name)
 
                 # x,yパラメーターを使って位置を設定
