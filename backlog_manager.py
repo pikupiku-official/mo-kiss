@@ -132,13 +132,13 @@ class BacklogManager:
                 current_y += self.fonts["name"].get_height() + 5
                 item_height += self.fonts["name"].get_height() + 5
             
-            # テキストを26文字ごとに分割して表示
+            # テキストを20文字ごとに分割して表示
             text = item.get('text', '')
             if text:
                 # テキストを26文字ごとに分割
                 lines = []
-                for j in range(0, len(text), 26):
-                    lines.append(text[j:j+26])
+                for j in range(0, len(text), 20):
+                    lines.append(text[j:j+20])
                 
                 for line in lines:
                     if line:

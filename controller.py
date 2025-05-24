@@ -19,12 +19,6 @@ def handle_events(game_state):
                 else:
                     return False
                     
-            elif event.key == pygame.K_f:
-                # バックログが開いている時は無効化
-                if not game_state['backlog_manager'].is_showing():
-                    game_state['show_face_parts'] = not game_state['show_face_parts']
-                    print(f"顔パーツを{'表示' if game_state['show_face_parts'] else '非表示に'}しました")
-                    
             elif event.key == pygame.K_t:
                 # バックログが開いている時は無効化
                 if not game_state['backlog_manager'].is_showing():
