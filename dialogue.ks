@@ -10,8 +10,6 @@
 [bg storage="school"]
 [BGM bgm="school" volume="0.5" loop="true"]
 
-
-[chara_move subm="桃子" time="0" left="100" top="50"]
 [chara_show name="桃子"　eye="eye1" mouth="mouth1" brow="brow1"]
 
 	//桃子//
