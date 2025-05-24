@@ -404,8 +404,8 @@ def advance_dialogue(game_state):
         parts = dialogue_text.split('_')
         if len(parts) >= 5:  # _MOVE_left_top_duration_zoom
             char_name = current_dialogue[1]
-            left = int(parts[2])
-            top = int(parts[3])
+            left = float(parts[2])
+            top = float(parts[3])
             duration = int(parts[4]) if parts[4].isdigit() else 600
             zoom = float(parts[5]) if len(parts) > 5 else 1.0
             move_character(game_state, char_name, left, top, duration, zoom)
@@ -437,23 +437,7 @@ def advance_dialogue(game_state):
     return True
 
 def move_character(game_state, character_name, target_x, target_y, duration=600, zoom=1.0):
-    """キャラクターを指定位置に移動するアニメーションを設定する
-    
-    Parameters:
-    -----------
-    game_state : dict
-        ゲーム状態の辞書
-    character_name : str
-        移動させるキャラクターの名前
-    target_x : int
-        目標X座標
-    target_y : int
-        目標Y座標
-    duration : int
-        アニメーション時間（ミリ秒）
-    zoom : float
-        拡大縮小率
-    """
+    """キャラクターを指定位置に移動するアニメーションを設定する"""
     if character_name not in game_state['character_pos']:
         print(f"警告: キャラクター '{character_name}' は登録されていません")
         # キャラクターがまだ登録されていない場合は、デフォルト位置で登録
@@ -467,23 +451,18 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
     # 現在の位置を取得
     current_x, current_y = game_state['character_pos'][character_name]
     current_zoom = game_state['character_zoom'].get(character_name, 1.0)
-    
-    # 目標位置を計算（相対値の処理）
-    if isinstance(target_x, str):
-        offset_x = int(target_x)
-        final_target_x = current_x + offset_x
-    elif isinstance(target_x, int):
-        final_target_x = current_x + target_x
-    else:
-        final_target_x = current_x
-    
-    if isinstance(target_y, str):
-        offset_y = int(target_y)
-        final_target_y = current_y - offset_y
-    elif isinstance(target_y, int):
-        final_target_y = current_y + target_y
-    else:
-        final_target_y = current_y
+
+    # 目標位置を計算
+    target_x_val = float(target_x)
+    target_y_val = float(target_y)
+
+    # X方向の移動：プラス=右方向、マイナス=左方向
+    offset_x = target_x_val * SCREEN_WIDTH
+    final_target_x = current_x + int(offset_x)
+
+    # Y方向の移動：プラス=下方向、マイナス=上方向
+    offset_y = target_y_val * SCREEN_HEIGHT
+    final_target_y = current_y + int(offset_y)
     
     # アニメーション情報を設定
     start_time = pygame.time.get_ticks()
@@ -498,12 +477,12 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
         'duration': duration
     }
     
-    # キャラクターをアクティブリストに追加（まだない場合）
+    # キャラクターをアクティブリストに追加
     if character_name not in game_state['active_characters']:
         game_state['active_characters'].append(character_name)
 
     if DEBUG:
-        print(f"移動アニメーション開始: {character_name} ({current_x}, {current_y}) -> ({final_target_x}, {final_target_y}), zoom: {current_zoom} -> {zoom}, 時間: {duration}ms")
+        print(f"移動アニメーション開始: {character_name} 比率({target_x}, {target_y}) -> 座標({final_target_x}, {final_target_y}), zoom: {current_zoom} -> {zoom}, 時間: {duration}ms")
 
 def hide_character(game_state, character_name):
     """キャラクターを退場させる"""
