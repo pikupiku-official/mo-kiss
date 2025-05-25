@@ -7,7 +7,7 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
-[bg storage="school"]
+[bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="school" volume="0.5" loop="true"]
 
 [chara_show name="桃子"　eye="eye1" mouth="mouth1" brow="brow1" x="0.5" y="0.5"]
@@ -21,6 +21,7 @@
 	//桃子//
 	「会話の2番目の部分です。」
 
+[bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
 [chara_move subm="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
 
 	//桃子//
@@ -31,7 +32,7 @@
 *scene2|&f.title+"教室のシーン"
 [resetlaypos]
 
-[bg storage="classroom"]
+[bg_show storage="classroom"]
 [BGM bgm="classroom" volume="0.4" loop="true"]
 
 	//桃子//

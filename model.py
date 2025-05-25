@@ -73,6 +73,14 @@ def initialize_game():
         "brow": (char_width * FACE_POS["brow"][0], char_height * FACE_POS["brow"][1])
     }
 
+    # 背景の位置とズーム管理を追加
+    background_state = {
+        'current_bg': DEFAULT_BACKGROUND,
+        'pos': [0, 0],  # 背景の位置（オフセット）
+        'zoom': 1.0,    # 背景のズーム倍率
+        'anim': None    # アニメーション情報
+    }
+
     # ゲーム状態の初期化
     game_state = {
         'screen': screen,
@@ -88,6 +96,7 @@ def initialize_game():
         'character_zoom': character_zoom,
         'character_expressions': character_expressions,
         'face_pos': face_pos,
+        'background_state': background_state,
         'show_face_parts': True,
         'show_text': True,
         'current_paragraph': 0,
@@ -123,6 +132,27 @@ def normalize_dialogue_data(raw_data):
                 current_bg = entry['value']
                 if DEBUG:
                     print(f"背景設定: {current_bg}")
+
+            elif entry_type == 'bg_show':
+                # 背景表示コマンドを追加
+                bg_show_command = f"_BG_SHOW_{entry['storage']}_{entry['x']}_{entry['y']}_{entry['zoom']}"
+                normalized_data.append([
+                    entry['storage'], current_char, current_eye, current_mouth, current_brow,
+                    bg_show_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char
+                ])
+                current_bg = entry['storage']
+                if DEBUG:
+                    print(f"背景表示コマンド追加: {bg_show_command}")
+                    
+            elif entry_type == 'bg_move':
+                # 背景移動コマンドを追加
+                bg_move_command = f"_BG_MOVE_{entry['left']}_{entry['top']}_{entry['time']}_{entry['zoom']}"
+                normalized_data.append([
+                    current_bg, current_char, current_eye, current_mouth, current_brow,
+                    bg_move_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char
+                ])
+                if DEBUG:
+                    print(f"背景移動コマンド追加: {bg_move_command}")
                     
             elif entry_type == 'character':
                 current_char = entry['name']
@@ -399,7 +429,7 @@ def advance_dialogue(game_state):
         return advance_dialogue(game_state)
 
     # 移動コマンドかどうかチェック
-    if dialogue_text and dialogue_text.startswith("_MOVE_"):
+    elif dialogue_text and dialogue_text.startswith("_MOVE_"):
         # 移動コマンドを処理
         parts = dialogue_text.split('_')
         if len(parts) >= 5:  # _MOVE_left_top_duration_zoom
@@ -414,6 +444,54 @@ def advance_dialogue(game_state):
         
         # 移動コマンドの場合は次の対話に進む
         return advance_dialogue(game_state)
+    
+    # 背景表示コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_BG_SHOW_"):
+        # 背景表示コマンドを処理
+        parts = dialogue_text.split('_')
+        if DEBUG:
+            print(f"背景表示コマンド解析: dialogue_text='{dialogue_text}'")
+            print(f"分割結果: {parts}")
+
+        if len(parts) >= 6:  # _BG_SHOW_,背景名,x,y,zoom
+            bg_name = parts[3]
+            
+            try:
+                bg_x = float(parts[4])
+                bg_y = float(parts[5])
+                bg_zoom = float(parts[6])
+            except (ValueError, IndexError):
+                bg_x = 0.5
+                bg_y = 0.5
+                bg_zoom = 1.0
+
+            show_background(game_state, bg_name, bg_x, bg_y, bg_zoom)
+            if DEBUG:
+                print(f"背景 '{bg_name}' を表示しました (x={bg_x}, y={bg_y}, zoom={bg_zoom})")
+            
+        # 背景表示コマンドの場合は次の対話に進む
+        return advance_dialogue(game_state)
+    
+    # 背景移動コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_BG_MOVE_"):
+        # 背景移動コマンドを処理
+        parts = dialogue_text.split('_')
+        if DEBUG:
+            print(f"背景移動コマンド解析: dialogue_text='{dialogue_text}'")
+            print(f"分割結果: {parts}")
+            
+        if len(parts) >= 6:  # _BG_MOVE_left_top_duration_zoom
+            left = float(parts[2])
+            top = float(parts[3])
+            duration = int(parts[4]) if parts[4].isdigit() else 600
+            zoom = float(parts[5]) if len(parts) > 5 else 1.0
+            move_background(game_state, left, top, duration, zoom)
+            if DEBUG:
+                print(f"背景移動コマンド実行: 相対移動({left}, {top}), zoom={zoom}, 時間={duration}ms")
+        
+        # 背景移動コマンドの場合は次の対話に進む
+        return advance_dialogue(game_state)
+
     else:
         # 通常の対話テキスト
         display_name = current_dialogue[9] if len(current_dialogue) > 9 and current_dialogue[9] else current_dialogue[1]
@@ -633,3 +711,112 @@ def draw_characters(game_state):
                 
                 # 顔パーツを描画
                 render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zoom_scale)
+
+def show_background(game_state, bg_name, x, y, zoom):
+    """背景を指定位置とズームで表示する"""
+    bg_state = game_state['background_state']
+    
+    # 背景名を更新
+    bg_state['current_bg'] = bg_name
+    
+    # 位置を計算（0.5が中心）
+    offset_x = (x - 0.5) * SCREEN_WIDTH
+    offset_y = (y - 0.5) * SCREEN_HEIGHT
+    
+    bg_state['pos'] = [offset_x, offset_y]
+    bg_state['zoom'] = zoom
+    
+    # アニメーションをリセット
+    bg_state['anim'] = None
+    
+    if DEBUG:
+        print(f"背景表示: {bg_name}, 位置: ({offset_x}, {offset_y}), ズーム: {zoom}")
+
+def move_background(game_state, target_x, target_y, duration=600, zoom=1.0):
+    """背景を指定位置に移動するアニメーションを設定する"""
+    bg_state = game_state['background_state']
+    
+    # 現在の状態を取得
+    current_x, current_y = bg_state['pos']
+    current_zoom = bg_state['zoom']
+    
+    # 目標位置を計算（相対移動）
+    offset_x = target_x * SCREEN_WIDTH
+    offset_y = target_y * SCREEN_HEIGHT
+    final_target_x = current_x + offset_x
+    final_target_y = current_y + offset_y
+    
+    # アニメーション情報を設定
+    start_time = pygame.time.get_ticks()
+    bg_state['anim'] = {
+        'start_x': current_x,
+        'start_y': current_y,
+        'target_x': final_target_x,
+        'target_y': final_target_y,
+        'start_zoom': current_zoom,
+        'target_zoom': zoom,
+        'start_time': start_time,
+        'duration': duration
+    }
+    
+    if DEBUG:
+        print(f"背景移動アニメーション開始: 相対移動({target_x}, {target_y}) -> 最終位置({final_target_x}, {final_target_y}), zoom: {current_zoom} -> {zoom}, 時間: {duration}ms")
+
+def update_background_animation(game_state):
+    """背景アニメーションを更新する"""
+    bg_state = game_state['background_state']
+    
+    if not bg_state['anim']:
+        return
+    
+    current_time = pygame.time.get_ticks()
+    anim_data = bg_state['anim']
+    
+    # 経過時間の計算
+    elapsed = current_time - anim_data['start_time']
+    
+    if elapsed >= anim_data['duration']:
+        # アニメーション完了
+        bg_state['pos'] = [anim_data['target_x'], anim_data['target_y']]
+        bg_state['zoom'] = anim_data['target_zoom']
+        bg_state['anim'] = None
+    else:
+        # アニメーション進行中
+        progress = elapsed / anim_data['duration']  # 0.0～1.0
+        
+        # 現在位置を線形補間で計算
+        current_x = anim_data['start_x'] + (anim_data['target_x'] - anim_data['start_x']) * progress
+        current_y = anim_data['start_y'] + (anim_data['target_y'] - anim_data['start_y']) * progress
+        current_zoom = anim_data['start_zoom'] + (anim_data['target_zoom'] - anim_data['start_zoom']) * progress
+        
+        # 位置を更新
+        bg_state['pos'] = [current_x, current_y]
+        bg_state['zoom'] = current_zoom
+
+def draw_background(game_state):
+    """背景を描画する"""
+    screen = game_state['screen']
+    bg_state = game_state['background_state']
+    
+    # 現在の背景を取得
+    bg_name = bg_state['current_bg']
+    if bg_name and bg_name in game_state['images']["backgrounds"]:
+        bg_image = game_state['images']["backgrounds"][bg_name]
+        
+        # ズームを適用
+        if bg_state['zoom'] != 1.0:
+            new_width = int(SCREEN_WIDTH * bg_state['zoom'])
+            new_height = int(SCREEN_HEIGHT * bg_state['zoom'])
+            bg_image = pygame.transform.scale(bg_image, (new_width, new_height))
+        
+        # 位置を計算（中心を基準に）
+        x = bg_state['pos'][0] - (bg_image.get_width() - SCREEN_WIDTH) // 2
+        y = bg_state['pos'][1] - (bg_image.get_height() - SCREEN_HEIGHT) // 2
+        
+        # 背景を描画
+        screen.blit(bg_image, (x, y))
+    else:
+        # デフォルト背景を描画
+        default_bg = DEFAULT_BACKGROUND
+        if default_bg in game_state['images']["backgrounds"]:
+            screen.blit(game_state['images']["backgrounds"][default_bg], (0, 0))

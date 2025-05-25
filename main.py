@@ -1,25 +1,14 @@
 import pygame
 import sys
-from model import initialize_game, initialize_first_scene, update_character_animations, draw_characters
+from model import initialize_game, initialize_first_scene, update_character_animations, draw_characters, draw_background, update_background_animation
 from controller import handle_events, update_game
 
 def render_game(game_state):
     """ゲーム画面の描画"""
     screen = game_state['screen']
     
-    # 現在の会話データを取得
-    if game_state['dialogue_data'] and game_state['current_paragraph'] < len(game_state['dialogue_data']):
-        current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
-        bg_name = current_dialogue[0]
-        
-        # 背景画像を描画
-        if bg_name and bg_name in game_state['images']["backgrounds"]:
-            screen.blit(game_state['images']["backgrounds"][bg_name], (0, 0))
-        else:
-            # デフォルト背景を描画
-            default_bg = "school"
-            if default_bg in game_state['images']["backgrounds"]:
-                screen.blit(game_state['images']["backgrounds"][default_bg], (0, 0))
+    # 背景を描画
+    draw_background(game_state)
 
     # キャラクターの描画
     draw_characters(game_state)
@@ -47,8 +36,8 @@ def main():
         # イベント処理
         running = handle_events(game_state)
 
-        # キャラクターの描画
-        draw_characters(game_state)
+        # 背景アニメーションの更新
+        update_background_animation(game_state)
 
         # キャラクターアニメーションの更新
         update_character_animations(game_state)

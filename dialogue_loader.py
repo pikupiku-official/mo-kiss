@@ -73,7 +73,7 @@ class DialogueLoader:
                     continue
 
                 # 背景設定を検出
-                if "[bg" in line:
+                if "[bg" in line and "[bg_show" not in line and "[bg_move" not in line:
                     try:
                         bg_parts = re.search(r'storage="([^"]+)"', line)
                         if bg_parts:
@@ -89,6 +89,71 @@ class DialogueLoader:
                     except Exception as e:
                         if self.debug:
                             print(f"背景解析エラー（行 {line_num}）: {e} - {line}")
+
+                # 背景表示コマンドを検出
+                elif "[bg_show" in line:
+                    try:
+                        storage = re.search(r'storage="([^"]+)"', line)
+                        x_pos = re.search(r'bg_x="([^"]+)"', line)
+                        y_pos = re.search(r'bg_y="([^"]+)"', line)
+                        zoom = re.search(r'bg_zoom="([^"]+)"', line)
+
+                        if storage:
+                            bg_name = storage.group(1)
+                            bg_x = float(x_pos.group(1)) if x_pos else 0.5
+                            bg_y = float(y_pos.group(1)) if y_pos else 0.5
+                            bg_zoom = float(zoom.group(1)) if zoom else 1.0
+
+                            if self.debug:
+                                print(f"背景表示: {bg_name}, bg_x={bg_x}, bg_y={bg_y}, bg_zoom={bg_zoom}")
+
+                            dialogue_data.append({
+                                'type': 'bg_show',
+                                'storage': bg_name,
+                                'x': bg_x,
+                                'y': bg_y,
+                                'zoom': bg_zoom
+                            })
+
+                            current_bg = bg_name
+
+                    except Exception as e:
+                        if self.debug:
+                            print(f"背景表示解析エラー (行{line_num}) : {e} - {line}")
+
+                # 背景移動コマンドを検出 [bg_move]
+                elif "[bg_move" in line:
+                    try:
+                        storage = re.search(r'storage="([^"]+)"', line)
+                        sub = re.search(r'sub="([^"]+)"', line)
+                        time = re.search(r'time="([^"]+)"', line)
+                        left = re.search(r'bg_left="([^"]+)"', line)
+                        top = re.search(r'bg_top="([^"]+)"', line)
+                        zoom = re.search(r'bg_zoom="([^"]+)"', line)
+                        
+                        bg_name = storage.group(1) if storage else (sub.group(1) if sub else None)
+                        
+                        if bg_name and left and top:
+                            move_time = time.group(1) if time else "600"
+                            move_left = left.group(1)
+                            move_top = top.group(1)
+                            move_zoom = zoom.group(1) if zoom else "1.0"
+                            
+                            if self.debug:
+                                print(f"背景移動: {bg_name}, 位置: ({move_left}, {move_top}), 時間: {move_time}, bg_zoom: {move_zoom}")
+                            
+                            dialogue_data.append({
+                                'type': 'bg_move',
+                                'storage': bg_name,
+                                'left': move_left,
+                                'top': move_top,
+                                'time': move_time,
+                                'zoom': move_zoom
+                            })
+
+                    except Exception as e:
+                        if self.debug:
+                            print(f"背景移動解析エラー（行 {line_num}）: {e} - {line}")
 
                 # キャラクターを検出
                 elif "[chara_show" in line:
