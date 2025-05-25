@@ -481,13 +481,13 @@ def advance_dialogue(game_state):
             print(f"分割結果: {parts}")
             
         if len(parts) >= 6:  # _BG_MOVE_left_top_duration_zoom
-            left = float(parts[2])
-            top = float(parts[3])
-            duration = int(parts[4]) if parts[4].isdigit() else 600
-            zoom = float(parts[5]) if len(parts) > 5 else 1.0
-            move_background(game_state, left, top, duration, zoom)
+            bg_left = float(parts[3])
+            bg_top = float(parts[4])
+            bg_duration = int(parts[5]) if parts[5].isdigit() else 600
+            bg_move_zoom = float(parts[6]) if len(parts) > 6 else 1.0
+            move_background(game_state, bg_left, bg_top, bg_duration, bg_move_zoom)
             if DEBUG:
-                print(f"背景移動コマンド実行: 相対移動({left}, {top}), zoom={zoom}, 時間={duration}ms")
+                print(f"背景移動コマンド実行: 相対移動({bg_left}, {bg_top}), zoom={bg_move_zoom}, 時間={bg_duration}ms")
         
         # 背景移動コマンドの場合は次の対話に進む
         return advance_dialogue(game_state)
@@ -712,7 +712,7 @@ def draw_characters(game_state):
                 # 顔パーツを描画
                 render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zoom_scale)
 
-def show_background(game_state, bg_name, x, y, zoom):
+def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom):
     """背景を指定位置とズームで表示する"""
     bg_state = game_state['background_state']
     
@@ -720,17 +720,17 @@ def show_background(game_state, bg_name, x, y, zoom):
     bg_state['current_bg'] = bg_name
     
     # 位置を計算（0.5が中心）
-    offset_x = (x - 0.5) * SCREEN_WIDTH
-    offset_y = (y - 0.5) * SCREEN_HEIGHT
+    offset_x = (bg_x - 0.5) * SCREEN_WIDTH
+    offset_y = (bg_y - 0.5) * SCREEN_HEIGHT
     
     bg_state['pos'] = [offset_x, offset_y]
-    bg_state['zoom'] = zoom
+    bg_state['zoom'] = bg_zoom
     
     # アニメーションをリセット
     bg_state['anim'] = None
     
     if DEBUG:
-        print(f"背景表示: {bg_name}, 位置: ({offset_x}, {offset_y}), ズーム: {zoom}")
+        print(f"背景表示: {bg_name}, 位置: ({offset_x}, {offset_y}), ズーム: {bg_zoom}")
 
 def move_background(game_state, target_x, target_y, duration=600, zoom=1.0):
     """背景を指定位置に移動するアニメーションを設定する"""
