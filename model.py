@@ -716,35 +716,73 @@ def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom):
     """背景を指定位置とズームで表示する"""
     bg_state = game_state['background_state']
     
+    # パラメータの範囲制限
+    bg_x = max(0.0, min(1.0, bg_x))
+    bg_y = max(0.0, min(1.0, bg_y))
+    bg_zoom = max(0.5, min(3.0, bg_zoom))
+
     # 背景名を更新
     bg_state['current_bg'] = bg_name
-    
-    # 位置を計算（0.5が中心）
-    offset_x = (bg_x - 0.5) * SCREEN_WIDTH
-    offset_y = (bg_y - 0.5) * SCREEN_HEIGHT
+
+    # ズーム倍率に応じて移動可能範囲を調整
+    if bg_zoom >= 1.0:
+        # 拡大時：ズーム倍率に応じて移動可能範囲を制限
+        max_offset_x = SCREEN_WIDTH * (bg_zoom - 1.0) / 2
+        max_offset_y = SCREEN_HEIGHT * (bg_zoom - 1.0) / 2
+    else:
+        # 縮小時：画面中央に余白ができるが、少しの位置調整は可能
+        max_offset_x = SCREEN_WIDTH * (1.0 - bg_zoom) / 4  # 縮小時は移動範囲を制限
+        max_offset_y = SCREEN_HEIGHT * (1.0 - bg_zoom) / 4
+
+    offset_x = (bg_x - 0.5) * max_offset_x * 2
+    offset_y = (bg_y - 0.5) * max_offset_y * 2
     
     bg_state['pos'] = [offset_x, offset_y]
     bg_state['zoom'] = bg_zoom
-    
-    # アニメーションをリセット
     bg_state['anim'] = None
     
     if DEBUG:
-        print(f"背景表示: {bg_name}, 位置: ({offset_x}, {offset_y}), ズーム: {bg_zoom}")
+        print(f"背景表示: {bg_name}, オフセット: ({offset_x:.1f}, {offset_y:.1f}), ズーム: {bg_zoom}")
 
 def move_background(game_state, target_x, target_y, duration=600, zoom=1.0):
     """背景を指定位置に移動するアニメーションを設定する"""
     bg_state = game_state['background_state']
+
+    # パラメータの範囲制限
+    target_x = max(-0.3, min(0.3, target_x))
+    target_y = max(-0.3, min(0.3, target_y))
+    zoom = max(0.5, min(3.0, zoom))
     
     # 現在の状態を取得
     current_x, current_y = bg_state['pos']
     current_zoom = bg_state['zoom']
     
-    # 目標位置を計算（相対移動）
-    offset_x = target_x * SCREEN_WIDTH
-    offset_y = target_y * SCREEN_HEIGHT
+    # 目標位置を計算
+    if zoom >= 1.0:
+        # 拡大時の移動範囲
+        max_move_x = SCREEN_WIDTH * (zoom - 1.0) / 2
+        max_move_y = SCREEN_HEIGHT * (zoom - 1.0) / 2
+    else:
+        # 縮小時の移動範囲（制限的）
+        max_move_x = SCREEN_WIDTH * (1.0 - zoom) / 4
+        max_move_y = SCREEN_HEIGHT * (1.0 - zoom) / 4
+    
+    offset_x = target_x * max_move_x * 2
+    offset_y = target_y * max_move_y * 2
+    
     final_target_x = current_x + offset_x
     final_target_y = current_y + offset_y
+    
+    # 最終位置の範囲制限
+    if zoom >= 1.0:
+        max_final_x = SCREEN_WIDTH * (zoom - 1.0) / 2
+        max_final_y = SCREEN_HEIGHT * (zoom - 1.0) / 2
+    else:
+        max_final_x = SCREEN_WIDTH * (1.0 - zoom) / 4
+        max_final_y = SCREEN_HEIGHT * (1.0 - zoom) / 4
+
+    final_target_x = max(-max_final_x, min(max_final_x, final_target_x))
+    final_target_y = max(-max_final_y, min(max_final_y, final_target_y))
     
     # アニメーション情報を設定
     start_time = pygame.time.get_ticks()
@@ -800,21 +838,49 @@ def draw_background(game_state):
     
     # 現在の背景を取得
     bg_name = bg_state['current_bg']
-    if bg_name and bg_name in game_state['images']["backgrounds"]:
+    if not bg_name or bg_name not in game_state['images']["backgrounds"]:
+        bg_name = DEFAULT_BACKGROUND
+        if bg_name not in game_state['images']['backgrounds']:
+            screen.fill((0, 0, 0))
+            return 
+
         bg_image = game_state['images']["backgrounds"][bg_name]
+        zoom = bg_state['zoom']
+
+        # ズームを適用してサイズを計算
+        if zoom >= 1.0:
+            # 拡大時：画面サイズ以上になるように
+            new_width = int(SCREEN_WIDTH * zoom)
+            new_height = int(SCREEN_HEIGHT * zoom)
+        else:
+            # 縮小時：画面サイズより小さくなる（余白が生まれる）
+            new_width = int(SCREEN_WIDTH * zoom)
+            new_height = int(SCREEN_HEIGHT * zoom)
         
-        # ズームを適用
-        if bg_state['zoom'] != 1.0:
-            new_width = int(SCREEN_WIDTH * bg_state['zoom'])
-            new_height = int(SCREEN_HEIGHT * bg_state['zoom'])
-            bg_image = pygame.transform.scale(bg_image, (new_width, new_height))
+        # 背景画像をスケール
+        if new_width != SCREEN_WIDTH or new_height != SCREEN_HEIGHT:
+            scaled_bg = pygame.transform.scale(bg_image, (new_width, new_height))
+        else:
+            scaled_bg = bg_image
         
-        # 位置を計算（中心を基準に）
-        x = bg_state['pos'][0] - (bg_image.get_width() - SCREEN_WIDTH) // 2
-        y = bg_state['pos'][1] - (bg_image.get_height() - SCREEN_HEIGHT) // 2
+        # 描画位置を計算
+        # 背景の中心が画面の中心に来るように、オフセットを適用
+        center_x = SCREEN_WIDTH // 2
+        center_y = SCREEN_HEIGHT // 2
+        
+        pos_x = int(center_x - new_width // 2 + bg_state['pos'][0])
+        pos_y = int(center_y - new_height // 2 + bg_state['pos'][1])
+        
+        # 縮小時は背景色で塗りつぶし（余白部分）
+        if zoom < 1.0:
+            screen.fill((20, 20, 40))  # 暗い青で余白を塗りつぶし
         
         # 背景を描画
-        screen.blit(bg_image, (x, y))
+        screen.blit(scaled_bg, (pos_x, pos_y))
+
+        if DEBUG and pygame.time.get_ticks() % 1000 < 50:  # 1秒に1回程度デバッグ出力
+            print(f"背景描画: {bg_name}, 位置: ({pos_x}, {pos_y}), サイズ: ({new_width}, {new_height}), ズーム: {zoom}")
+
     else:
         # デフォルト背景を描画
         default_bg = DEFAULT_BACKGROUND

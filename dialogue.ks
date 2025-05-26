@@ -32,7 +32,7 @@
 *scene2|&f.title+"教室のシーン"
 [resetlaypos]
 
-[bg_show storage="classroom"]
+[bg_show storage="classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
 [BGM bgm="classroom" volume="0.4" loop="true"]
 
 	//桃子//
@@ -47,6 +47,7 @@
 
 [chara_hide subh="桃子"]
 
+[bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
 [chara_move subm="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
 
 	//サナコ//
