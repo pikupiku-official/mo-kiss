@@ -26,7 +26,7 @@ class BGMManager:
         
         return True
 
-    def play_bgm(self, filename, volume=0.1):
+    def play_bgm(self, filename, volume=0):
         try:
             # ファイル名の有効性をチェック
             if not self.is_valid_bgm_filename(filename):

@@ -226,6 +226,90 @@ def change_bgm(game_state, bgm_filename, volume=0.1):
         print(f"BGMの変更に失敗しました: {bgm_filename}, エラー: {e}")
         return False
 
+def handle_background_command(game_state, dialogue_text):
+    """背景コマンドを処理し、スクロール状態をリセット"""
+    if "_BG_SHOW_" in dialogue_text or "_BG_MOVE_" in dialogue_text:
+        # 背景変更時にスクロール状態をリセット
+        if DEBUG:
+            print(f"背景コマンド検出、スクロール状態をリセット: {dialogue_text}")
+        game_state['text_renderer'].on_background_change()
+        return True
+    return False
+
+def handle_character_command(game_state, dialogue_text):
+    """キャラクターコマンドを処理"""
+    if "_CHARA_HIDE_" in dialogue_text:
+        # キャラクター退場時の処理
+        if DEBUG:
+            print(f"キャラクター退場コマンド検出: {dialogue_text}")
+        return True
+    elif "_CHARA_NEW_" in dialogue_text:
+        # キャラクター登場時の処理
+        if DEBUG:
+            print(f"キャラクター登場コマンド検出: {dialogue_text}")
+        return True
+    return False
+
+def process_dialogue_entry(game_state, entry):
+    """対話エントリーを処理する統合関数"""
+    if not entry or len(entry) < 6:
+        if DEBUG:
+            print("無効な対話エントリー")
+        return False
+    
+    dialogue_text = entry[5]  # テキスト部分
+    
+    # コマンド系の処理
+    if dialogue_text and dialogue_text.startswith("_"):
+        # 背景コマンドの場合
+        if handle_background_command(game_state, dialogue_text):
+            return True
+        
+        # キャラクターコマンドの場合
+        if handle_character_command(game_state, dialogue_text):
+            return True
+        
+        # その他のコマンド（移動など）
+        return True
+    
+    # 通常の対話の場合
+    if dialogue_text and not dialogue_text.startswith("_"):
+        character_name = entry[1] if len(entry) > 1 else None
+        should_scroll = entry[10] if len(entry) > 10 else False
+        background = entry[0] if len(entry) > 0 else None
+        
+        # アクティブキャラクターのリストを取得
+        active_characters = list(game_state.get('active_characters', {}).keys()) if isinstance(game_state.get('active_characters'), dict) else game_state.get('active_characters', [])
+        
+        # テキストレンダラーに対話を設定
+        game_state['text_renderer'].set_dialogue(
+            dialogue_text, 
+            character_name, 
+            should_scroll, 
+            background, 
+            active_characters
+        )
+        
+        if DEBUG:
+            print(f"対話設定: speaker={character_name}, scroll={should_scroll}, bg={background}")
+        
+        return True
+    
+    return False
+
+def reset_scroll_state_for_scene_change(game_state):
+    """シーン変更時のスクロール状態リセット"""
+    if DEBUG:
+        print("シーン変更によるスクロール状態リセット")
+    game_state['text_renderer'].on_scene_change()
+
+def get_active_characters_list(game_state):
+    """アクティブキャラクターのリストを取得"""
+    active_chars = game_state.get('active_characters', [])
+    if isinstance(active_chars, dict):
+        return list(active_chars.keys())
+    return active_chars if active_chars else []
+
 def get_default_normalized_dialogue():
     """デフォルトの正規化された対話データを返す"""
     print("警告: get_default_normalized_dialogue()が呼ばれました")
@@ -234,7 +318,7 @@ def get_default_normalized_dialogue():
 
     return [
         [DEFAULT_BACKGROUND, "桃子", "eye1", "mouth1", "brow1", 
-         "デフォルトのテキストです。", "maou_bgm_8bit29.mp3", 0.1, True, "桃子"],
+         "デフォルトのテキストです。", "maou_bgm_8bit29.mp3", 0.1, True, "桃子", False],
         [DEFAULT_BACKGROUND, "桃子", "eye1", "mouth1", "brow1", 
-         "デフォルトのテキストです。", "maou_bgm_8bit29.mp3", 0.1, True, "桃子"]
+         "デフォルトのテキストです。", "maou_bgm_8bit29.mp3", 0.1, True, "桃子", False]
     ]

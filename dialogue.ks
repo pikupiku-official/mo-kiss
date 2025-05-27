@@ -8,7 +8,7 @@
 [resetlaypos]
 
 [bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[BGM bgm="school" volume="0.5" loop="true"]
+[BGM bgm="school" volume="0" loop="true"]
 
 [chara_show name="桃子"　eye="eye1" mouth="mouth1" brow="brow1" x="0.5" y="0.5"]
 
@@ -33,7 +33,7 @@
 [resetlaypos]
 
 [bg_show storage="classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
-[BGM bgm="classroom" volume="0.4" loop="true"]
+[BGM bgm="classroom" volume="0" loop="true"]
 
 	//桃子//
 	「別の場面に移動しました。」

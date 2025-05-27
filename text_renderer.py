@@ -67,53 +67,44 @@ class TextRenderer:
 
     def set_dialogue(self, text, character_name=None, should_scroll=False, background=None, active_characters=None):
         """会話データを設定する"""
-        print(f"[DEBUG] set_dialogue開始: should_scroll={should_scroll}, speaker={character_name}")
+        if self.debug:
+            scroll_status = "スクロール" if should_scroll else "通常"
+            print(f"[TEXT] {scroll_status}表示: {character_name} - '{text[:30] if text else ''}...'")
         
         # Noneや空文字列の処理
         self.current_text = str(text) if text is not None else ""
         self.current_character_name = str(character_name) if character_name is not None else ""
         
-        # スクロール処理（should_scrollがTrueの場合のみ）
+        # スクロール処理（should_scrollがTrueかつcharacter_nameが存在する場合のみ）
         if should_scroll and character_name:
-            print(f"[DEBUG] スクロール処理開始: speaker={character_name}, background={background}")
-            
             if self.scroll_manager.is_scroll_mode():
-                # スクロール継続
-                print(f"[DEBUG] 既にスクロールモード中、継続判定")
+                # スクロール継続を試行
                 if self.scroll_manager.continue_scroll(character_name, background, active_characters or [], text):
-                    print(f"[DEBUG] スクロール継続成功")
-                    self.displayed_chars = len(self.current_text)
-                    self.is_text_complete = True
-                    self.text_complete_time = pygame.time.get_ticks()
+                    # スクロール継続時は文字送りを開始
+                    self.displayed_chars = 0
+                    self.last_char_time = pygame.time.get_ticks()
+                    self.is_text_complete = False
                     self.reset_auto_timer()
                     return
-                else:
-                    print(f"[DEBUG] スクロール継続失敗、通常表示へ")
             
-            # 新規スクロール開始の判定（必ず実行）
-            print(f"[DEBUG] should_start_scroll呼び出し開始")
+            # 新規スクロール開始の判定
             should_start = self.scroll_manager.should_start_scroll(character_name, background, active_characters or [])
-            print(f"[DEBUG] should_start_scroll結果: {should_start}")
             
             if should_start:
-                print(f"[DEBUG] 新規スクロール開始")
                 self.scroll_manager.start_scroll_mode(character_name, background, active_characters or [], text)
-                self.displayed_chars = len(self.current_text)
-                self.is_text_complete = True
-                self.text_complete_time = pygame.time.get_ticks()
+                # スクロール開始時も文字送りを開始
+                self.displayed_chars = 0
+                self.last_char_time = pygame.time.get_ticks()
+                self.is_text_complete = False
                 self.reset_auto_timer()
                 return
-            else:
-                print(f"[DEBUG] スクロール開始条件未満")
         else:
-            print(f"[DEBUG] スクロール処理スキップ: should_scroll={should_scroll}, character_name={character_name}")
-            # スクロール対象外の場合のみend_scroll_mode()を呼ぶ
-            if not should_scroll:
-                self.scroll_manager.end_scroll_mode()
+            # 通常対話でも状態を記録（次回のスクロール判定のため）
+            if character_name and background:
+                self.scroll_manager._update_state(character_name, background, active_characters or [])
         
-        # 通常のテキスト表示
-        print(f"[DEBUG] 通常表示モード")
-        # should_scroll=Trueでもスクロール開始条件に合わない場合は、状態をリセットしない
+        # 通常のテキスト表示またはスクロール開始しない場合
+        # should_scroll=Falseの場合のみスクロールモードを終了
         if not should_scroll:
             self.scroll_manager.end_scroll_mode()
             
@@ -132,8 +123,13 @@ class TextRenderer:
 
         # 文字表示の更新
         if not self.is_text_complete:
+            # スクロールモード時は文字送り速度を調整
+            char_delay = self.char_delay
+            if self.scroll_manager.is_scroll_mode():
+                char_delay = max(30, self.char_delay // 2)  # スクロール時は2倍速（最小30ms）
+            
             # 文字表示のタイミングチェック
-            if current_time - self.last_char_time >= self.char_delay:
+            if current_time - self.last_char_time >= char_delay:
                 if self.displayed_chars < len(self.current_text):
                     self.displayed_chars += 1
                     self.last_char_time = current_time
@@ -148,8 +144,13 @@ class TextRenderer:
 
         # 自動進行の更新
         elif self.auto_mode and self.is_text_complete and not self.is_ready_for_next:
+            # スクロールモード時は自動進行を速める
+            auto_delay = self.auto_delay
+            if self.scroll_manager.is_scroll_mode():
+                auto_delay = max(500, self.auto_delay // 2)  # スクロール時は待機時間半分
+            
             # テキスト表示完了後の待機時間をチェック
-            if current_time - self.text_complete_time >= self.auto_delay:
+            if current_time - self.text_complete_time >= auto_delay:
                 self.is_ready_for_next = True
                 if self.debug and not self.auto_ready_logged:
                     print("自動進行準備完了")
@@ -209,7 +210,7 @@ class TextRenderer:
         return y
 
     def render_scroll_text(self):
-        """スクロールテキストを描画する"""
+        """スクロールテキストを描画する（文字送り対応）"""
         scroll_lines = self.scroll_manager.get_scroll_lines()
         
         # キャラクター名の描画
@@ -221,13 +222,30 @@ class TextRenderer:
                 if self.debug:
                     print(f"スクロールキャラクター名描画エラー: {e}, 名前: '{self.current_character_name}'")
         
-        # スクロール行を描画（最大3行）
+        # スクロール行を描画（全ての行を表示）
+        # 最新の行だけに文字送り効果を適用
         y = self.text_start_y
-        for line in scroll_lines[-3:]:  # 最新の3行のみ表示
+        for i, line in enumerate(scroll_lines):
             if line:
                 try:
-                    text_surface = self.fonts["text"].render(line, True, self.text_color)
-                    self.screen.blit(text_surface, (self.text_start_x, y))
+                    # 最後の行（最新の行）の場合は文字送り効果を適用
+                    if i == len(scroll_lines) - 1 and not self.is_text_complete:
+                        # 現在のテキストの文字送り進行度を計算
+                        full_text = self.current_text
+                        if full_text:
+                            # 最新行の表示文字数を計算
+                            chars_in_prev_lines = sum(len(scroll_lines[j]) for j in range(len(scroll_lines) - 1))
+                            chars_for_current_line = max(0, self.displayed_chars - chars_in_prev_lines)
+                            
+                            # 最新行のみ部分表示
+                            display_line = line[:chars_for_current_line]
+                            if display_line:
+                                text_surface = self.fonts["text"].render(display_line, True, self.text_color)
+                                self.screen.blit(text_surface, (self.text_start_x, y))
+                    else:
+                        # 完成した行は全て表示
+                        text_surface = self.fonts["text"].render(line, True, self.text_color)
+                        self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
                         print(f"スクロールテキスト描画エラー: {e}, テキスト: '{line}'")
@@ -258,3 +276,20 @@ class TextRenderer:
         if self.current_text and self.backlog_manager:
             char_name = self.current_character_name if self.current_character_name else None
             self.backlog_manager.add_to_backlog(self.current_text, char_name)
+    
+    def reset_scroll_state(self):
+        """スクロール状態をリセット（新しいシーンなどで使用）"""
+        self.scroll_manager.reset_state()
+    
+    def on_background_change(self):
+        """背景変更時に呼び出すメソッド（ソフトリセット）"""
+        if self.debug:
+            print(f"[DEBUG] 背景変更によるスクロールソフトリセット")
+        # スクロールモードのみ終了、継続性情報は保持
+        self.scroll_manager.soft_reset_for_background_change()
+    
+    def on_scene_change(self):
+        """シーン変更時に呼び出すメソッド（完全リセット）"""
+        if self.debug:
+            print(f"[DEBUG] シーン変更によるスクロール状態リセット")
+        self.scroll_manager.reset_state()
