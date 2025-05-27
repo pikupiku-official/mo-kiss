@@ -130,9 +130,9 @@ def _handle_character_move(game_state, dialogue_text, current_dialogue):
 
 def _handle_background_show(game_state, dialogue_text):
     """背景表示コマンドを処理"""
-    # 背景変更前にスクロール状態をソフトリセット
+    # 背景変更前にスクロール状態をリセット
     if DEBUG:
-        print("背景表示コマンドによるスクロールソフトリセット")
+        print("背景表示コマンドによるスクロール完全停止")
     game_state['text_renderer'].on_background_change()
     
     parts = dialogue_text.split('_')
@@ -161,9 +161,9 @@ def _handle_background_show(game_state, dialogue_text):
 
 def _handle_background_move(game_state, dialogue_text):
     """背景移動コマンドを処理"""
-    # 背景移動前にスクロール状態をソフトリセット
+    # 背景移動前にスクロール状態をリセット
     if DEBUG:
-        print("背景移動コマンドによるスクロールソフトリセット")
+        print("背景移動コマンドによるスクロール完全停止")
     game_state['text_renderer'].on_background_change()
     
     parts = dialogue_text.split('_')

@@ -307,13 +307,30 @@ class DialogueLoader:
                             if dialogue_text:
                                 dialogue_speaker = current_speaker if current_speaker else current_char
 
-                                # スクロール継続フラグを追加
+                                # スクロール継続フラグを追加 - 背景変更後は必ずFalse
                                 scroll_continue = False
-                                if (dialogue_data and 
-                                    dialogue_data[-1].get('type') == 'dialogue' and
-                                    dialogue_data[-1].get('character') == dialogue_speaker and
-                                    dialogue_data[-1].get('background') == current_bg):
-                                    scroll_continue = True
+                                if dialogue_data:
+                                    # 後ろから順に検索して、最後の対話を見つける
+                                    for i in range(len(dialogue_data) - 1, -1, -1):
+                                        item = dialogue_data[i]
+                                        if item.get('type') == 'dialogue':
+                                            # 最後の対話が同じ話者なら継続
+                                            if item.get('character') == dialogue_speaker:
+                                                scroll_continue = True
+                                            break
+                                        # 背景変更コマンドがあったら必ず中断
+                                        elif item.get('type') in ['bg_show', 'bg_move']:
+                                            scroll_continue = False
+                                            break
+                                        # キャラクター登場は無視して継続検索
+                                        elif item.get('type') in ['character', 'bgm']:
+                                            continue
+                                        # 移動・退場コマンドがあったら中断
+                                        elif item.get('type') in ['move', 'hide']:
+                                            break
+                                        # その他のコマンドも中断
+                                        else:
+                                            break
 
                                 if self.debug:
                                     print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}, スクロール継続: {scroll_continue}")

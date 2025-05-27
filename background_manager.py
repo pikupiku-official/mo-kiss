@@ -172,10 +172,6 @@ def draw_background(game_state):
         
         # 背景を描画
         screen.blit(scaled_bg, (pos_x, pos_y))
-
-        # デバッグ情報（時々出力）
-        if DEBUG and pygame.time.get_ticks() % 5000 < 50:  # 5秒に1回程度
-            print(f"背景描画: {bg_name}, 位置: ({pos_x}, {pos_y}), サイズ: ({new_width}, {new_height}), ズーム: {zoom:.2f}")
             
     except Exception as e:
         if DEBUG:
