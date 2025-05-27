@@ -94,7 +94,7 @@ def update_game(game_state):
     # 自動進行の処理
     if (game_state['text_renderer'].is_ready_for_auto_advance() and not game_state['backlog_manager'].is_showing()):
         # 自動的に次の対話に進む
-        advance_to_next_dialogue(game_state)
+        success = advance_to_next_dialogue(game_state)
         # 自動進行タイマーをリセット
         game_state['text_renderer'].reset_auto_timer()
 
