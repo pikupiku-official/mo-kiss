@@ -181,8 +181,20 @@ def _handle_dialogue_text(game_state, current_dialogue):
     # 表示名の有効性をチェック
     if display_name and display_name not in CHARACTER_IMAGE_MAP:
         display_name = None
-        
-    game_state['text_renderer'].set_dialogue(dialogue_text, display_name)
+    
+    # スクロール継続フラグをチェック（リストの11番目の要素）
+    should_scroll = False
+    if len(current_dialogue) > 10:
+        should_scroll = current_dialogue[10]
+    
+    # テキストレンダラーに対話を設定（スクロール情報も含む）
+    game_state['text_renderer'].set_dialogue(
+        dialogue_text, 
+        display_name,
+        should_scroll=should_scroll,
+        background=current_dialogue[0],
+        active_characters=game_state['active_characters']
+    )
 
     # 話し手の表情を更新
     if current_dialogue[1] and current_dialogue[1] in game_state['active_characters']:

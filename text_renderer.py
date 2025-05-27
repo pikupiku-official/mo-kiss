@@ -1,5 +1,6 @@
 import pygame
 from config import *
+from scroll_manager import ScrollManager
 
 class TextRenderer:
     def __init__(self, screen, debug=False):
@@ -36,6 +37,9 @@ class TextRenderer:
         # バックログに参照を持つ
         self.backlog_manager = None
 
+        # スクロールマネージャーの追加
+        self.scroll_manager = ScrollManager(debug)
+
     def set_backlog_manager(self, backlog_manager):
         """バックログマネージャーをセットする"""
         self.backlog_manager = backlog_manager
@@ -61,21 +65,64 @@ class TextRenderer:
         self.text_complete_time = 0
         self.auto_ready_logged = False
 
-    def set_dialogue(self, text, character_name=None):
+    def set_dialogue(self, text, character_name=None, should_scroll=False, background=None, active_characters=None):
         """会話データを設定する"""
+        print(f"[DEBUG] set_dialogue開始: should_scroll={should_scroll}, speaker={character_name}")
+        
         # Noneや空文字列の処理
         self.current_text = str(text) if text is not None else ""
         self.current_character_name = str(character_name) if character_name is not None else ""
         
+        # スクロール処理（should_scrollがTrueの場合のみ）
+        if should_scroll and character_name:
+            print(f"[DEBUG] スクロール処理開始: speaker={character_name}, background={background}")
+            
+            if self.scroll_manager.is_scroll_mode():
+                # スクロール継続
+                print(f"[DEBUG] 既にスクロールモード中、継続判定")
+                if self.scroll_manager.continue_scroll(character_name, background, active_characters or [], text):
+                    print(f"[DEBUG] スクロール継続成功")
+                    self.displayed_chars = len(self.current_text)
+                    self.is_text_complete = True
+                    self.text_complete_time = pygame.time.get_ticks()
+                    self.reset_auto_timer()
+                    return
+                else:
+                    print(f"[DEBUG] スクロール継続失敗、通常表示へ")
+            
+            # 新規スクロール開始の判定（必ず実行）
+            print(f"[DEBUG] should_start_scroll呼び出し開始")
+            should_start = self.scroll_manager.should_start_scroll(character_name, background, active_characters or [])
+            print(f"[DEBUG] should_start_scroll結果: {should_start}")
+            
+            if should_start:
+                print(f"[DEBUG] 新規スクロール開始")
+                self.scroll_manager.start_scroll_mode(character_name, background, active_characters or [], text)
+                self.displayed_chars = len(self.current_text)
+                self.is_text_complete = True
+                self.text_complete_time = pygame.time.get_ticks()
+                self.reset_auto_timer()
+                return
+            else:
+                print(f"[DEBUG] スクロール開始条件未満")
+        else:
+            print(f"[DEBUG] スクロール処理スキップ: should_scroll={should_scroll}, character_name={character_name}")
+            # スクロール対象外の場合のみend_scroll_mode()を呼ぶ
+            if not should_scroll:
+                self.scroll_manager.end_scroll_mode()
+        
+        # 通常のテキスト表示
+        print(f"[DEBUG] 通常表示モード")
+        # should_scroll=Trueでもスクロール開始条件に合わない場合は、状態をリセットしない
+        if not should_scroll:
+            self.scroll_manager.end_scroll_mode()
+            
         self.displayed_chars = 0
         self.last_char_time = pygame.time.get_ticks()
         self.is_text_complete = False
-
+        
         # 自動進行タイマーをリセット
         self.reset_auto_timer()
-        
-        if self.debug:
-            print(f"テキスト設定: '{self.current_text}', キャラクター: '{self.current_character_name}'")
 
     def update(self):
         """文字表示の更新"""
@@ -128,15 +175,17 @@ class TextRenderer:
         if not self.current_text:
             return 0
         
+        # スクロールモードの場合
+        if self.scroll_manager.is_scroll_mode():
+            return self.render_scroll_text()
+        
         # 表示する文字列を取得
         display_text = self.current_text[:self.displayed_chars]
-
-        # テキストを26文字ごとに分割
         lines = []
         for i in range(0, len(display_text), 26):
             lines.append(display_text[i:i+26])
 
-        # キャラクター名の描画（空文字列でない場合のみ）
+        # キャラクター名の描画
         if self.current_character_name and self.current_character_name.strip():
             try:
                 name_surface = self.fonts["name"].render(self.current_character_name, True, self.name_color)
@@ -157,7 +206,34 @@ class TextRenderer:
                         print(f"テキスト描画エラー: {e}, テキスト: '{line}'")
             y += self.text_line_height
 
-        return y  # テキストの高さを返す
+        return y
+
+    def render_scroll_text(self):
+        """スクロールテキストを描画する"""
+        scroll_lines = self.scroll_manager.get_scroll_lines()
+        
+        # キャラクター名の描画
+        if self.current_character_name and self.current_character_name.strip():
+            try:
+                name_surface = self.fonts["name"].render(self.current_character_name, True, self.name_color)
+                self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
+            except Exception as e:
+                if self.debug:
+                    print(f"スクロールキャラクター名描画エラー: {e}, 名前: '{self.current_character_name}'")
+        
+        # スクロール行を描画（最大3行）
+        y = self.text_start_y
+        for line in scroll_lines[-3:]:  # 最新の3行のみ表示
+            if line:
+                try:
+                    text_surface = self.fonts["text"].render(line, True, self.text_color)
+                    self.screen.blit(text_surface, (self.text_start_x, y))
+                except Exception as e:
+                    if self.debug:
+                        print(f"スクロールテキスト描画エラー: {e}, テキスト: '{line}'")
+            y += self.text_line_height
+        
+        return y
 
     def render(self):
         """メインの描画メソッド"""

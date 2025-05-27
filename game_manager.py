@@ -39,9 +39,26 @@ def initialize_game():
     # 会話データの読み込みと正規化
     try:
         raw_dialogue_data = dialogue_loader.load_dialogue_from_ks("dialogue.ks")
-        dialogue_data = normalize_dialogue_data(raw_dialogue_data)
+        print(f"game_manager.py: ロードされた生データ数: {len(raw_dialogue_data) if raw_dialogue_data else 0}")
+        
+        if raw_dialogue_data and len(raw_dialogue_data) > 0:
+            print(f"game_manager.py: 生データの最初: {raw_dialogue_data[0]}")
+            dialogue_data = normalize_dialogue_data(raw_dialogue_data)
+            print(f"game_manager.py: 正規化後のデータ数: {len(dialogue_data) if dialogue_data else 0}")
+            
+            if dialogue_data and len(dialogue_data) > 0:
+                print(f"game_manager.py: 正規化後の最初: {dialogue_data[0]}")
+            else:
+                print("game_manager.py: 警告 - 正規化後のデータが空です")
+                dialogue_data = get_default_normalized_dialogue()
+        else:
+            print("game_manager.py: 警告 - 生データが空のためデフォルトデータを使用")
+            dialogue_data = get_default_normalized_dialogue()
+            
     except Exception as e:
         print(f"対話データの読み込みに失敗しました: {e}")
+        import traceback
+        traceback.print_exc()
         dialogue_data = get_default_normalized_dialogue()
 
     # キャラクター画像のサイズを取得
@@ -104,6 +121,15 @@ def initialize_game():
 
 def initialize_first_scene(game_state):
     """最初のシーンを初期化する"""
+    print(f"game_manager.py initialize_first_scene: 対話データ数: {len(game_state['dialogue_data'])}")
+    
+    if not game_state['dialogue_data']:
+        print("会話データがありません")
+        return
+    
+    if len(game_state['dialogue_data']) > 0:
+        print(f"game_manager.py initialize_first_scene: 最初のデータ: {game_state['dialogue_data'][0]}")
+
     if not game_state['dialogue_data']:
         print("会話データがありません")
         return
@@ -202,6 +228,10 @@ def change_bgm(game_state, bgm_filename, volume=0.1):
 
 def get_default_normalized_dialogue():
     """デフォルトの正規化された対話データを返す"""
+    print("警告: get_default_normalized_dialogue()が呼ばれました")
+    import traceback
+    traceback.print_stack()
+
     return [
         [DEFAULT_BACKGROUND, "桃子", "eye1", "mouth1", "brow1", 
          "デフォルトのテキストです。", "maou_bgm_8bit29.mp3", 0.1, True, "桃子"],
