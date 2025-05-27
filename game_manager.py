@@ -96,7 +96,8 @@ def initialize_game():
         'show_face_parts': True,
         'show_text': True,
         'current_paragraph': 0,
-        'active_characters': []
+        'active_characters': [],
+        'last_dialogue_logged': False
     }
 
     return game_state

@@ -21,14 +21,6 @@ def main():
     clock = pygame.time.Clock()
     running = True
     
-    print("=== ゲーム開始 ===")
-    print("操作方法:")
-    print("  ENTER: 次の対話に進む")
-    print("  SPACE: テキスト表示をスキップ")
-    print("  B: バックログ表示切り替え")
-    print("  ESC: 終了")
-    print("================")
-    
     # メインゲームループ
     while running:
         try:
