@@ -5,8 +5,8 @@ class ScrollManager:
     def __init__(self, debug=False):
         self.debug = debug
         self.scroll_mode = False  # スクロールモードのON/OFF
-        self.scroll_lines = []  # スクロール表示用の行データ
-        self.max_lines = 3  # 最大表示行数
+        self.scroll_lines = []  # スクロール表示用の行データ (完全なテキストブロックを格納)
+        self.max_lines = 3  # 最大表示ブロック数 (以前は行数だったが、ここではブロック単位)
         self.current_speaker = None  # 現在の話者
         self.last_background = None  # 最後の背景
         self.verbose_debug = False  # 詳細デバッグフラグ
@@ -17,32 +17,26 @@ class ScrollManager:
             print(f"[DEBUG] should_start_scroll: speaker={speaker}, current={self.current_speaker}")
             print(f"[DEBUG] background={background}, last_bg={self.last_background}")
         
-        # 既にスクロールモードの場合は開始判定しない
         if self.scroll_mode:
             return False
         
-        # 話者が存在しない場合はスクロールしない
         if not speaker:
             self._update_state(speaker, background, active_characters)
             return False
         
-        # 前回の対話情報がない場合（初回）は記録のみ
         if self.current_speaker is None:
             if self.debug:
                 print(f"[SCROLL] 初回対話記録: {speaker} @{background}")
             self._update_state(speaker, background, active_characters)
             return False
         
-        # スクロール開始の条件：話者が同じ場合（背景変更は無視）
         same_speaker = (self.current_speaker == speaker)
         
         if self.verbose_debug:
             print(f"[DEBUG] same_speaker={same_speaker}")
         
-        # 状態を更新（判定前に更新）
         self._update_state(speaker, background, active_characters)
         
-        # 同じ話者の場合はスクロール開始
         if same_speaker:
             if self.debug:
                 print(f"[SCROLL] スクロール開始: {speaker} (同一話者)")
@@ -63,11 +57,9 @@ class ScrollManager:
         if self.verbose_debug:
             print(f"[DEBUG] should_continue_scroll: speaker={speaker}, current={self.current_speaker}")
         
-        # スクロールモードでない場合は継続不可
         if not self.scroll_mode:
             return False
             
-        # 話者が変わった場合は継続不可
         if speaker != self.current_speaker:
             if self.debug:
                 print(f"[SCROLL] 話者変更によりスクロール終了: {self.current_speaker} -> {speaker}")
@@ -87,47 +79,33 @@ class ScrollManager:
         self.last_background = background
         self.scroll_lines = []
         
-        # 初期テキストを行に分割して追加
         if initial_text:
             self.add_text_to_scroll(initial_text)
     
     def add_text_to_scroll(self, text):
-        """テキストをスクロール表示に追加（26文字で改行、正確なログ表示）"""
+        """テキストをスクロール表示に追加（テキストブロック単位）"""
         if not text:
             return
             
         if self.verbose_debug:
-            print(f"[DEBUG] スクロールにテキスト追加: '{text[:20]}...'")
+            print(f"[DEBUG] スクロールにテキスト追加: '{text[:30]}...'")
         
-        # テキストを26文字ごとに分割
-        lines = []
-        for i in range(0, len(text), 26):
-            lines.append(text[i:i+26])
-        
-        # 古い行数を記録
-        old_line_count = len(self.scroll_lines)
-        
-        # 全ての行を追加（26文字改行を維持）
-        for line in lines:
-            self.scroll_lines.append(line)
-            if self.verbose_debug:
-                print(f"[DEBUG] 行追加: '{line}'")
+        # テキストをそのまま1つのブロックとして追加
+        self.scroll_lines.append(text)
+        if self.verbose_debug:
+            print(f"[DEBUG] テキストブロック追加: '{text}'")
             
-            # 3行を超えた場合のみ古い行を削除
-            while len(self.scroll_lines) > self.max_lines:
-                removed_line = self.scroll_lines.pop(0)
-                if self.verbose_debug:
-                    print(f"[DEBUG] 行削除: '{removed_line}'")
+        # 最大ブロック数を超えた場合のみ古いブロックを削除
+        while len(self.scroll_lines) > self.max_lines:
+            removed_line = self.scroll_lines.pop(0)
+            if self.verbose_debug:
+                print(f"[DEBUG] テキストブロック削除: '{removed_line}'")
         
-        # 実際に増加した行数を計算（削除された行も考慮）
-        new_line_count = len(self.scroll_lines)
-        actual_added_lines = min(len(lines), self.max_lines)
+        new_block_count = len(self.scroll_lines)
         
         if self.debug:
-            if actual_added_lines == 1:
-                print(f"[SCROLL] 1行追加, 合計{new_line_count}行")
-            else:
-                print(f"[SCROLL] {actual_added_lines}行追加, 合計{new_line_count}行")
+            # 1つのテキストブロックが追加されたことを示す
+            print(f"[SCROLL] 1テキストブロック追加, 合計{new_block_count}ブロック")
     
     def continue_scroll(self, speaker, background, active_characters, new_text):
         """スクロールを継続"""
@@ -135,7 +113,6 @@ class ScrollManager:
             print(f"[DEBUG] continue_scroll呼び出し: speaker={speaker}")
         
         if self.should_continue_scroll(speaker, background, active_characters):
-            # 状態を更新してからテキスト追加
             self._update_state(speaker, background, active_characters)
             self.add_text_to_scroll(new_text)
             if self.debug:
@@ -160,7 +137,7 @@ class ScrollManager:
         return self.scroll_mode
     
     def get_scroll_lines(self):
-        """現在のスクロール行を取得"""
+        """現在のスクロールテキストブロックを取得"""
         return self.scroll_lines.copy()
     
     def reset_state(self):
@@ -176,9 +153,7 @@ class ScrollManager:
         """背景変更時のソフトリセット（スクロールモードは維持）"""
         if self.debug:
             print(f"[DEBUG] 背景変更用ソフトリセット - スクロールモード維持")
-        # 背景変更時はスクロールモードを維持
-        # スクロール行も維持（話者が同じなら継続可能）
-        self.last_background = None  # 背景情報のみリセット
+        self.last_background = None
     
     def force_end_scroll_and_reset(self):
         """スクロール強制終了と状態リセット（完全リセット時）"""
@@ -186,22 +161,18 @@ class ScrollManager:
             print(f"[DEBUG] スクロール強制終了と状態リセット")
         self.scroll_mode = False
         self.scroll_lines = []
-        # 完全リセット
         self.current_speaker = None
         self.last_background = None
     
     def get_current_line_count(self):
-        """現在のスクロール行数を取得"""
+        """現在のスクロールブロック数を取得"""
         return len(self.scroll_lines)
     
     def get_last_added_lines_count(self, text):
-        """最後に追加されたテキストの行数を計算"""
+        """最後に追加されたテキストが何ブロック分に相当するかを計算（常に1ブロック）"""
         if not text:
             return 0
-        lines = 0
-        for i in range(0, len(text), 26):
-            lines += 1
-        return lines
+        return 1 # テキストは1ブロックとして扱われる
     
     def is_continuing_same_speaker(self, speaker):
         """同じ話者による継続かどうか"""
