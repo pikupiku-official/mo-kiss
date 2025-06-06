@@ -1,5 +1,11 @@
 import pygame
 import tkinter as tk  # 画面サイズを取得するために一時的に使用
+import sys
+import os
+import json
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QTextEdit
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QFontDatabase
 
 # tkinterを使用して画面サイズを取得
 root = tk.Tk()
@@ -38,12 +44,32 @@ NAME_START_X = SCREEN_WIDTH / 20
 NAME_START_Y = TEXT_START_Y
 TEXT_PADDING = 10
 
-# フォント設定
-def init_fonts():
+def init_fonts(self):
+    # フォントの設定
+    bold_font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "fonts", "MPLUSRounded1c-Bold.ttf")
+    medium_font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "fonts", "MPLUSRounded1c-Regular.ttf")
+
+    # Boldフォントの読み込み
+    bold_font_id = QFontDatabase.addApplicationFont(bold_font_path)
+    # Mediumフォントの読み込み
+    medium_font_id = QFontDatabase.addApplicationFont(medium_font_path)
+
+    if bold_font_id != -1 and medium_font_id != -1:
+        bold_font_family = QFontDatabase.applicationFontFamilies(bold_font_id)[0]
+        medium_font_family = QFontDatabase.applicationFontFamilies(medium_font_id)[0]
+        
+        # 人物名用のフォント（Bold）
+        self.name_font = QFont(bold_font_family, 48)
+        
+        # セリフ用のフォント（Medium）
+        self.speech_font = QFont(medium_font_family, 48)
+    else:
+        print("Warning: Rounded Mplus font not found, using system font")
+
     return {
-        "default": pygame.font.SysFont(None, int(SCREEN_HEIGHT * 0.027)),  # 相対サイズに調整
-        "text": pygame.font.SysFont('meiryo', int(SCREEN_HEIGHT * 0.056)),  # 相対サイズに調整
-        "name": pygame.font.SysFont('meiryo', int(SCREEN_HEIGHT * 0.056))   # 相対サイズに調整
+        "default": pygame.font.SysFont(None, int(SCREEN_HEIGHT * 0.027)),
+        "text": self.speech_font,
+        "name": self.name_font
     }
 
 # 顔のパーツの相対位置を設定

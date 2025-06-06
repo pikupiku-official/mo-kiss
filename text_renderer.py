@@ -6,7 +6,7 @@ class TextRenderer:
     def __init__(self, screen, debug=False):
         self.screen = screen
         self.debug = debug
-        self.fonts = init_fonts()
+        self.fonts = init_fonts(self)
         self.text_color = TEXT_COLOR
         self.name_color = TEXT_COLOR
         self.text_bg_color = TEXT_BG_COLOR
@@ -62,27 +62,76 @@ class TextRenderer:
         self.current_text = str(text) if text is not None else ""
         self.current_character_name = str(character_name) if character_name is not None else ""
         
+        # 現在の話者を記録（前回の話者との比較用）
+        if not hasattr(self, 'last_speaker'):
+            self.last_speaker = None
+        
+        # スクロール表示の処理
         if should_scroll and character_name:
+            # 既にスクロールモード中で同じ話者の場合は継続
             if self.scroll_manager.is_scroll_mode() and self.scroll_manager.current_speaker == character_name:
-                if self.scroll_manager.continue_scroll(character_name, background, active_characters or [], text):
+                if self.scroll_manager.continue_scroll(character_name, text):
                     self._start_text_display()
                     return
             
-            if self.scroll_manager.should_start_scroll(character_name, background, active_characters or []):
-                self.scroll_manager.start_scroll_mode(character_name, background, active_characters or [], text)
+            # 話者が変わった場合は、スクロールを完全にリセットして新規開始
+            if self.scroll_manager.is_scroll_mode() and self.scroll_manager.current_speaker != character_name:
+                if self.debug:
+                    print(f"[SCROLL] 話者変更によりスクロールリセット: {self.scroll_manager.current_speaker} -> {character_name}")
+                self.scroll_manager.end_scroll_mode()
+            
+            # スクロールモードでない場合で、前回の話者と同じ場合は前のテキストを保持
+            if (not self.scroll_manager.is_scroll_mode() and 
+                self.last_speaker == character_name):
+                if self.debug:
+                    print(f"[SCROLL] 同一話者での通常→スクロール表示のため前テキスト保持: {character_name}")
+                self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=True)
                 self._start_text_display()
+                self.last_speaker = character_name
+                return
+            
+            # 新しくスクロール開始（前のテキストはクリア）
+            self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+            self._start_text_display()
+            self.last_speaker = character_name
+            return
+        
+        # 通常表示の処理
+        if not should_scroll:
+            # 通常表示の場合で、スクロールモード中かつ同一話者の場合のみ継続
+            if (self.scroll_manager.is_scroll_mode() and 
+                character_name and 
+                self.scroll_manager.current_speaker == character_name):
+                # 同一話者での通常表示をスクロールに追加
+                if self.debug:
+                    print(f"[SCROLL] 同一話者の通常表示をスクロールに追加: {character_name}")
+                self.scroll_manager.add_text_to_scroll(text)
+                self.scroll_manager.current_speaker = character_name
+                self._start_text_display()
+                self.last_speaker = character_name
+                return
+            else:
+                # 話者が変わった場合や、スクロールモードでない場合は通常表示
+                if self.scroll_manager.is_scroll_mode():
+                    if self.debug:
+                        print(f"[DEBUG] 話者変更または通常表示によりスクロールモード終了")
+                    self.scroll_manager.end_scroll_mode()
+                
+                # 通常表示として処理し、前回テキストを保持（ScrollManagerに追加）
+                if character_name:
+                    if self.debug:
+                        print(f"[SCROLL] 通常表示テキストを保持: {character_name}")
+                    # 新しいスクロールモードを開始して、このテキストを最初に追加
+                    self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+                    # ただし、スクロールモードは無効にして通常表示として扱う
+                    self.scroll_manager.scroll_mode = False
+                
+                self._start_text_display()
+                self.last_speaker = character_name
                 return
         
-        if not should_scroll:
-            if self.scroll_manager.is_scroll_mode():
-                if self.debug:
-                    print(f"[DEBUG] スクロールモード終了")
-                self.scroll_manager.end_scroll_mode()
-        
-        if character_name and background and not self.scroll_manager.is_scroll_mode():
-            self.scroll_manager._update_state(character_name, background, active_characters or [])
-            
         self._start_text_display()
+        self.last_speaker = character_name
 
     def _start_text_display(self):
         self.displayed_chars = 0
@@ -174,13 +223,16 @@ class TextRenderer:
         if not scroll_text_blocks:
             return self.text_start_y
         
-        if self.current_character_name and self.current_character_name.strip():
+        # スクロールモードでは現在のスピーカーの名前を表示
+        display_name = self.scroll_manager.current_speaker if self.scroll_manager.current_speaker else self.current_character_name
+        
+        if display_name and display_name.strip():
             try:
-                name_surface = self.fonts["name"].render(self.current_character_name, True, self.name_color)
+                name_surface = self.fonts["name"].render(display_name, True, self.name_color)
                 self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
             except Exception as e:
                 if self.debug:
-                    print(f"スクロールキャラクター名描画エラー: {e}, 名前: '{self.current_character_name}'")
+                    print(f"スクロールキャラクター名描画エラー: {e}, 名前: '{display_name}'")
         
         y = self.text_start_y
         for block_index, text_block_content in enumerate(scroll_text_blocks):
