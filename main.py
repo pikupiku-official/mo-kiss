@@ -82,6 +82,9 @@ def render_game(game_state):
         
         # キャラクターを描画
         draw_characters(game_state)
+
+        # UI要素（テキストボックス、ボタン類）を描画
+        draw_ui_elements(game_state)
         
         # テキストを描画
         if game_state['show_text']:
@@ -99,6 +102,22 @@ def render_game(game_state):
         # エラー時は赤い画面で警告
         screen.fill((100, 0, 0))
         pygame.display.flip()
+
+def draw_ui_elements(game_state):
+    """UI要素を描画する"""
+    try:
+        if 'image_manager' in game_state and 'images' in game_state:
+            image_manager = game_state['image_manager']
+            images = game_state['images']
+            screen = game_state['screen']
+            show_text = game_state.get('show_text', True)
+            
+            # ImageManagerのdraw_ui_elementsメソッドを使用
+            image_manager.draw_ui_elements(screen, images, show_text)
+            
+    except Exception as e:
+        if DEBUG:
+            print(f"UI描画エラー: {e}")
 
 def cleanup_game():
     """ゲーム終了時のクリーンアップ"""
