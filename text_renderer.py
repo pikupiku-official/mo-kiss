@@ -1,12 +1,19 @@
 import pygame
 from config import *
 from scroll_manager import ScrollManager
+import os
+from PyQt5.QtGui import QFont, QFontDatabase
+from PyQt5.QtWidgets import QApplication
 
 class TextRenderer:
     def __init__(self, screen, debug=False):
         self.screen = screen
         self.debug = debug
-        self.fonts = init_fonts(self)
+
+        if QApplication.instance() is None:
+            init_qt_application()
+
+        self.fonts = self._init_fonts()
         self.text_color = TEXT_COLOR
         self.name_color = TEXT_COLOR
         self.text_bg_color = TEXT_BG_COLOR
@@ -14,8 +21,13 @@ class TextRenderer:
         self.text_start_y = TEXT_START_Y
         self.name_start_x = NAME_START_X
         self.name_start_y = NAME_START_Y
-        self.text_line_height = self.fonts["text"].get_height()
+        self.text_line_height = self.fonts["text_pygame"].get_height()
         self.text_padding = TEXT_PADDING
+
+        self.pygame_fonts = {
+            "text": self.fonts["text_pygame"],
+            "name": self.fonts["name_pygame"]
+        }
         
         self.current_text = ""
         self.current_character_name = None
@@ -33,6 +45,81 @@ class TextRenderer:
         
         self.backlog_manager = None
         self.scroll_manager = ScrollManager(debug)
+
+    def _init_fonts(self):
+        """フォントを初期化する（PyQt5 + Pygame混在版）"""
+        try:
+            # フォントサイズをスクリーンサイズに基づいて計算
+            name_font_size = int(SCREEN_HEIGHT * 0.075)
+            text_font_size = int(SCREEN_HEIGHT * 0.075)
+            default_font_size = int(SCREEN_HEIGHT * 0.027)  # 画面高さの2.7%
+            
+            # フォントファイルのパスを設定
+            font_dir = os.path.join(os.path.dirname(__file__), "fonts")
+            bold_font_path = os.path.join(font_dir, "MPLUSRounded1c-Bold.ttf")
+            medium_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
+
+            fonts = {}
+            
+            # PyQt5フォントの初期化
+            if os.path.exists(bold_font_path) and os.path.exists(medium_font_path):
+                try:
+                    # Boldフォントの読み込み
+                    bold_font_id = QFontDatabase.addApplicationFont(bold_font_path)
+                    # Mediumフォントの読み込み
+                    medium_font_id = QFontDatabase.addApplicationFont(medium_font_path)
+
+                    if bold_font_id != -1 and medium_font_id != -1:
+                        bold_font_family = QFontDatabase.applicationFontFamilies(bold_font_id)[0]
+                        medium_font_family = QFontDatabase.applicationFontFamilies(medium_font_id)[0]
+                        
+                        # PyQt5フォント（BacklogManager用）
+                        fonts["name"] = QFont(bold_font_family, name_font_size)
+                        fonts["text"] = QFont(medium_font_family, text_font_size)
+                        
+                        # Pygameフォント（TextRenderer用）
+                        fonts["name_pygame"] = pygame.font.Font(bold_font_path, name_font_size)
+                        fonts["text_pygame"] = pygame.font.Font(medium_font_path, text_font_size)
+                        
+                        if self.debug:
+                            print("PyQt5とPygameのカスタムフォント読み込み成功")
+                    else:
+                        raise Exception("PyQt5フォントID取得失敗")
+                        
+                except Exception as e:
+                    if self.debug:
+                        print(f"カスタムフォント読み込み失敗: {e}")
+                    # フォールバック
+                    fonts.update(self._get_fallback_fonts(name_font_size, text_font_size, default_font_size))
+            else:
+                if self.debug:
+                    print(f"フォントファイルが見つかりません: {bold_font_path}, {medium_font_path}")
+                # フォールバック
+                fonts.update(self._get_fallback_fonts(name_font_size, text_font_size, default_font_size))
+            
+            # デフォルトフォント
+            fonts["default"] = pygame.font.SysFont(None, default_font_size)
+            
+            return fonts
+            
+        except Exception as e:
+            print(f"フォント初期化エラー: {e}")
+            # エラーが発生した場合はフォールバック
+            return self._get_fallback_fonts(
+                int(SCREEN_HEIGHT * 0.05),
+                int(SCREEN_HEIGHT * 0.04),
+                int(SCREEN_HEIGHT * 0.027)
+            )
+        
+    def _get_fallback_fonts(self, name_size, text_size, default_size):
+        """フォールバックフォントを取得"""
+        return {
+            "default": pygame.font.SysFont(None, default_size),
+            "text": QFont("MS Gothic", text_size),  # PyQt5用
+            "name": QFont("MS Gothic", name_size),  # PyQt5用
+            "text_pygame": pygame.font.SysFont("msgothic", text_size),  # Pygame用
+            "name_pygame": pygame.font.SysFont("msgothic", name_size)   # Pygame用
+        }
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager
@@ -198,7 +285,7 @@ class TextRenderer:
 
         if self.current_character_name and self.current_character_name.strip():
             try:
-                name_surface = self.fonts["name"].render(self.current_character_name, True, self.name_color)
+                name_surface = self.pygame_fonts["name"].render(self.current_character_name, True, self.name_color)
                 self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
             except Exception as e:
                 if self.debug:
@@ -208,7 +295,7 @@ class TextRenderer:
         for single_line in lines_to_draw:
             if single_line: # 空の行は描画しない (明示的に空行を描画したい場合はこの条件を外す)
                 try:
-                    text_surface = self.fonts["text"].render(single_line, True, self.text_color)
+                    text_surface = self.pygame_fonts["text"].render(single_line, True, self.text_color)
                     self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
@@ -228,7 +315,7 @@ class TextRenderer:
         
         if display_name and display_name.strip():
             try:
-                name_surface = self.fonts["name"].render(display_name, True, self.name_color)
+                name_surface = self.pygame_fonts["name"].render(display_name, True, self.name_color)
                 self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
             except Exception as e:
                 if self.debug:
@@ -251,7 +338,7 @@ class TextRenderer:
             for single_line in lines_in_block_to_draw:
                 if single_line: # 空の行は描画しない
                     try:
-                        text_surface = self.fonts["text"].render(single_line, True, self.text_color)
+                        text_surface = self.pygame_fonts["text"].render(single_line, True, self.text_color)
                         self.screen.blit(text_surface, (self.text_start_x, y))
                     except Exception as e:
                         if self.debug:

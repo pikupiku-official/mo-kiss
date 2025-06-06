@@ -19,7 +19,7 @@ class BacklogManager:
         self.backlog_item_spacing = 10
         self.text_color = TEXT_COLOR
         self.name_color = TEXT_COLOR
-        self.text_line_height = self.fonts["text"].get_height()
+        self.text_line_height = self.fonts["text_pygame"].get_height()
         
         # バックログウィンドウのサイズと位置
         self.backlog_width = self.screen.get_width() - 100
@@ -32,10 +32,17 @@ class BacklogManager:
         if not text:
             return
             
-        self.backlog.append({
-            'text': text,
-            'char_name': char_name
-        })
+        # 同じキャラクターの連続したセリフは統合する
+        if (self.backlog and 
+            self.backlog[-1].get('char_name') == char_name and char_name is not None):
+            # 前のエントリにテキストを追加
+            self.backlog[-1]['text'] += text
+        else:
+            # 新しいエントリを作成
+            self.backlog.append({
+                'text': text,
+                'char_name': char_name
+            })
 
         # 最大保存数を超えた場合、古いメッセージを削除
         if len(self.backlog) > self.backlog_max_items:
@@ -58,7 +65,7 @@ class BacklogManager:
         average_item_height = (
             self.fonts["name"].get_height() + 
             self.text_line_height + 
-            self.backlog_item_spacing  # キャラクター名と本文の間の余白
+            self.backlog_item_spacing
         )
         
         return max(1, int((available_height / average_item_height)))
@@ -108,21 +115,18 @@ class BacklogManager:
                         (self.backlog_x, self.backlog_y, self.backlog_width, self.backlog_height), 2)
         
         # バックログアイテムを描画
-        visible_items = self.get_visible_backlog_items()
         start_y = self.backlog_y + self.backlog_padding
         current_y = start_y
         
         start_index = int(self.backlog_scroll)
-        end_index = min(start_index + visible_items, len(self.backlog))
 
         # 描画領域の下端
         bottom_boundary = self.backlog_y + self.backlog_height - self.backlog_padding
         
-        for i in range(start_index, end_index):
+        for i in range(start_index, len(self.backlog)):
             item = self.backlog[i]
-            item_height = 0
             
-            # キャラクター名
+            # キャラクター名を一度だけ表示
             character_name = item.get('char_name', None)
             if character_name:
                 if current_y + self.fonts["name"].get_height() > bottom_boundary:
@@ -130,15 +134,26 @@ class BacklogManager:
                 name_surface = self.fonts["name"].render(character_name, True, self.name_color)
                 self.screen.blit(name_surface, (self.backlog_x + self.backlog_padding, current_y))
                 current_y += self.fonts["name"].get_height() + 5
-                item_height += self.fonts["name"].get_height() + 5
-            
-            # テキストを20文字ごとに分割して表示
+
+            # テキストを句点（。）で分割して表示
             text = item.get('text', '')
             if text:
-                # テキストを26文字ごとに分割
+                # 句点で分割し、句点も含める
                 lines = []
-                for j in range(0, len(text), 20):
-                    lines.append(text[j:j+20])
+                sentences = text.split('。')
+                for k, sentence in enumerate(sentences):
+                    if sentence.strip():  # 空でない文の場合
+                        if k < len(sentences) - 1:  # 最後の要素でない場合は句点を追加
+                            full_sentence = sentence + '。'
+                        else:  # 最後の要素の場合
+                            full_sentence = sentence
+
+                        # 29字を超える場合は29字ごとに分割
+                        if len(full_sentence) > 29:
+                            for j in range(0, len(full_sentence), 29):
+                                lines.append(full_sentence[j:j+29])
+                        else:
+                            lines.append(full_sentence)
                 
                 for line in lines:
                     if line:
@@ -147,21 +162,19 @@ class BacklogManager:
                         text_surface = self.fonts["text"].render(line, True, self.text_color)
                         self.screen.blit(text_surface, (self.backlog_x + self.backlog_padding, current_y))
                         current_y += self.text_line_height
-                        item_height += self.text_line_height
 
-            # アイテム間の余白を追加する前に境界チェック
+            # アイテム間の余白を追加
             if current_y + self.backlog_item_spacing > bottom_boundary:
                 break
             
             current_y += self.backlog_item_spacing
-            item_height += self.backlog_item_spacing
             
             # 描画範囲を超えた場合は中断
             if current_y > self.backlog_y + self.backlog_height - self.backlog_padding:
                 break
         
         # スクロールバーを描画
-        if len(self.backlog) > visible_items:
+        if len(self.backlog) > 1:
             self.render_scrollbar()
 
     def render_scrollbar(self):
@@ -176,17 +189,15 @@ class BacklogManager:
                         (scrollbar_x, scrollbar_y, scrollbar_width, scrollbar_height))
         
         # スクロールハンドル
-        visible_items = self.get_visible_backlog_items()
         total_items = len(self.backlog)
 
-        if total_items > 0: # ゼロ除算を防ぐ
-            handle_height = max(20, int((visible_items / total_items) * scrollbar_height))
+        if total_items > 1: # ゼロ除算を防ぐ
+            handle_height = max(20, scrollbar_height // 4)
             
-            # total_items - visible_items が0の場合の対応
-            if total_items <= visible_items:
+            if total_items <= 1:
                 handle_position = 0
             else:
-                handle_position = int(self.backlog_scroll) / (total_items - visible_items)
+                handle_position = self.backlog_scroll / (total_items - 1)
                 
             handle_y = scrollbar_y + int(handle_position * (scrollbar_height - handle_height))
             

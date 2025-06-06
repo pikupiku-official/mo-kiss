@@ -10,6 +10,7 @@ from data_normalizer import normalize_dialogue_data
 def initialize_game():
     """ゲームの初期化を行う"""
     # Pygameを初期化
+    init_qt_application()
     pygame.init()
     pygame.mixer.init()
 
@@ -24,6 +25,11 @@ def initialize_game():
     text_renderer = TextRenderer(screen, DEBUG)
     
     # バックログマネージャーの初期化
+    backlog_fonts = {
+        "default": text_renderer.fonts["default"],
+        "text": text_renderer.fonts["text"],      # PyQt5フォント
+        "name": text_renderer.fonts["name"]       # PyQt5フォント
+    }
     backlog_manager = BacklogManager(screen, text_renderer.fonts)
     
     # TextRendererにBacklogManagerを設定
