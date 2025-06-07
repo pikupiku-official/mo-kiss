@@ -74,7 +74,7 @@ class ImageManager:
                                 original_height = original_image.get_height()
                                 
                                 # 新しい幅を画面幅の 275/302 に設定
-                                new_width = int(screen_width * 275 / 302)
+                                new_width = int(screen_width * 259 / 302)
                                 
                                 # アスペクト比を維持して高さを計算
                                 aspect_ratio = original_height / original_width
