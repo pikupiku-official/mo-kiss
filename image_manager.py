@@ -67,17 +67,20 @@ class ImageManager:
                     elif "ui" in file:
                         ui_name = file.split('.')[1] if len(file.split('.')) >= 3 else file.split('.')[0]
                         if ui_name == "text-box":
-                            # テキストボックスのみスケールを適用
-                            from config import TEXTBOX_SCALE
+                            # テキストボックスを画面幅に合わせてリサイズ
                             original_image = self.load_image(file_path)
                             if original_image:
                                 original_width = original_image.get_width()
                                 original_height = original_image.get_height()
-                                new_width = int(original_width * TEXTBOX_SCALE)
-                                new_height = int(original_height * TEXTBOX_SCALE)
+                                
+                                # 新しい幅を画面幅の 275/302 に設定
+                                new_width = int(screen_width * 275 / 302)
+                                
+                                # アスペクト比を維持して高さを計算
+                                aspect_ratio = original_height / original_width
+                                new_height = int(new_width * aspect_ratio)
+                                
                                 images["ui"][ui_name] = pygame.transform.scale(original_image, (new_width, new_height))
-                            else:
-                                images["ui"][ui_name] = None
                         else:
                             images["ui"][ui_name] = self.load_image(file_path)
 

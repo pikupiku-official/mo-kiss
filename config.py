@@ -72,7 +72,6 @@ def get_text_positions(screen):
     }
 
 # UI要素の設定
-TEXTBOX_SCALE = 25.7 / 30.2  # テキストボックスのスケール（3/4サイズ）
 TEXTBOX_MARGIN_BOTTOM = SCREEN_HEIGHT * 96 / 1080  # テキストボックスの下マージン
 TEXTBOX_OFFSET_RIGHT = 48  # テキストボックス内のテキスト右移動
 TEXTBOX_OFFSET_DOWN = 62  # テキストボックス内のテキスト下移動
@@ -121,7 +120,7 @@ def get_textbox_position(screen, text_box):
     text_box_height = text_box.get_height()
     
     x_pos = (SCREEN_WIDTH - text_box_width) // 2
-    y_pos = SCREEN_HEIGHT - text_box_height * TEXTBOX_SCALE - TEXTBOX_MARGIN_BOTTOM
+    y_pos = SCREEN_HEIGHT - text_box_height- TEXTBOX_MARGIN_BOTTOM
     
     return x_pos, y_pos
 
