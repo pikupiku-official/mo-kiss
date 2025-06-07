@@ -5,7 +5,7 @@ from PyQt5.QtCore import QSize
 
 def render_text_with_qfont(text, qfont, color):
     """PyQt5のQFontでテキストを描画し、PygameのSurfaceとして返す"""
-    metrics = pygame.font.FontMetrics(qfont)
+    metrics = QFontMetrics(qfont)  # PyQt5のQFontMetricsを使用
     width = metrics.horizontalAdvance(text)
     height = metrics.height()
     
@@ -47,8 +47,10 @@ class BacklogManager:
         self.backlog_border_color = (100, 100, 100)
         self.backlog_padding = 20
         self.backlog_item_spacing = 10
-        self.text_color = TEXT_COLOR
-        self.name_color = TEXT_COLOR
+        self.default_text_color = TEXT_COLOR
+        self.default_name_color = TEXT_COLOR
+        self.female_text_color = TEXT_COLOR_FEMALE
+        self.female_name_color = TEXT_COLOR_FEMALE
         
         self.name_font_metrics = QFontMetrics(self.fonts["name"])
         self.text_font_metrics = QFontMetrics(self.fonts["text"])
@@ -59,6 +61,14 @@ class BacklogManager:
         self.backlog_height = self.screen.get_height() - 100
         self.backlog_x = 50
         self.backlog_y = 50
+
+    def get_character_colors(self, char_name):
+        """キャラクター名に基づいて色を決定する"""
+        if char_name and char_name in CHARACTER_GENDERS:
+            gender = CHARACTER_GENDERS.get(char_name)
+            if gender == 'female':
+                return self.female_name_color, self.female_text_color
+        return self.default_name_color, self.default_text_color
 
     def add_to_backlog(self, text, char_name=None):
         """バックログにテキストを追加する"""
@@ -85,19 +95,21 @@ class BacklogManager:
         """バックログの表示・非表示を切り替え"""
         self.show_backlog = not self.show_backlog
         if self.show_backlog:
-            self.backlog_scroll = max(0, len(self.backlog) - self.get_visible_backlog_items())
-            self.backlog_scroll = int(self.backlog_scroll)
+            visible_items = self.get_visible_backlog_items()
+            self.backlog_scroll = max(0.0, float(len(self.backlog) - visible_items))
 
     def is_showing(self):
         """バックログが表示中かどうか"""
         return self.show_backlog
 
     def get_visible_backlog_items(self):
-        """一度に表示可能なバックログアイテムの数を計算"""
+        """一度に表示可能なバックログアイテムの数を計算（余裕を持った計算）"""
         available_height = self.backlog_height - (self.backlog_padding * 2)
+        # 1アイテムあたり平均3-4行程度を想定して余裕を持って計算
+        estimated_lines_per_item = 4
         average_item_height = (
-            self.name_font_metrics.height() + 
-            self.text_line_height + 
+            self.name_font_metrics.height() + 5 +  # キャラクター名 + 余白
+            self.text_line_height * estimated_lines_per_item + 
             self.backlog_item_spacing
         )
         
@@ -108,11 +120,15 @@ class BacklogManager:
         if not self.show_backlog:
             return
             
+        # 一行ずつスクロールするために小さい単位を使用
+        # 1つのアイテムが平均4行程度なので、0.15で約1行分のスクロール
+        scroll_step = 0.15
+        
         visible_items = self.get_visible_backlog_items()
         max_scroll = max(0, len(self.backlog) - visible_items)
         
-        self.backlog_scroll += direction
-        self.backlog_scroll = max(0, min(self.backlog_scroll, max_scroll))
+        self.backlog_scroll += direction * scroll_step
+        self.backlog_scroll = max(0.0, min(float(max_scroll), self.backlog_scroll))
 
     def handle_input(self, event):
         """バックログ関連の入力処理"""
@@ -132,6 +148,13 @@ class BacklogManager:
                 self.scroll_backlog(-1)
             elif event.button == 5:  # マウスホイール下
                 self.scroll_backlog(1)
+        
+        # マウスホイールの連続イベント対応
+        elif event.type == pygame.MOUSEWHEEL and self.show_backlog:
+            if event.y > 0:  # 上スクロール
+                self.scroll_backlog(-1)
+            elif event.y < 0:  # 下スクロール
+                self.scroll_backlog(1)
 
     def render_backlog(self):
         """バックログを描画"""
@@ -149,27 +172,44 @@ class BacklogManager:
         
         # バックログアイテムを描画
         start_y = self.backlog_y + self.backlog_padding
-        current_y = start_y
         
+        # 浮動小数点スクロールに対応した描画位置調整
         start_index = int(self.backlog_scroll)
+        scroll_fraction = self.backlog_scroll - start_index
+        
+        # 1アイテムの平均高さを計算
+        estimated_lines_per_item = 4
+        average_item_height = (
+            self.name_font_metrics.height() + 5 +
+            self.text_line_height * estimated_lines_per_item + 
+            self.backlog_item_spacing
+        )
+        
+        # スクロールの小数部分に応じて描画開始位置を上に移動
+        current_y = start_y - int(scroll_fraction * average_item_height)
 
-        # 描画領域の下端
-        bottom_boundary = self.backlog_y + self.backlog_height - self.backlog_padding
+        # 描画領域の上下境界（少し余裕を持たせる）
+        top_boundary = self.backlog_y + self.backlog_padding + 50  # ヘッダー分の余白
+        bottom_boundary = self.backlog_y + self.backlog_height - self.backlog_padding - 50  # フッター分の余白
         
         for i in range(start_index, len(self.backlog)):
             item = self.backlog[i]
             
-            # キャラクター名を一度だけ表示
+            # キャラクター名から色を決定
             character_name = item.get('char_name', None)
+            name_color, text_color = self.get_character_colors(character_name)
+            
+            # キャラクター名を一度だけ表示
             if character_name:
-                if current_y + self.name_font_metrics.height() > bottom_boundary:
+                if current_y > bottom_boundary:
                     break
-                # ヘルパー関数を使ってPyQt5フォントを描画
-                name_surface = render_text_with_qfont(character_name, self.fonts["name"], self.name_color)
-                self.screen.blit(name_surface, (self.backlog_x + self.backlog_padding, current_y))
+                if current_y + self.name_font_metrics.height() >= top_boundary:
+                    # ヘルパー関数を使ってPyQt5フォントを描画
+                    name_surface = render_text_with_qfont(character_name, self.fonts["name"], name_color)
+                    self.screen.blit(name_surface, (self.backlog_x + self.backlog_padding, current_y))
                 current_y += self.name_font_metrics.height() + 5
 
-            # テキストを句点（。）で分割して表示
+            # テキストを句点（。）で分割して表示（文字数による自動改行は行わない）
             text = item.get('text', '')
             if text:
                 # 句点で分割し、句点も含める
@@ -181,31 +221,28 @@ class BacklogManager:
                             full_sentence = sentence + '。'
                         else:  # 最後の要素の場合
                             full_sentence = sentence
-
-                        # 29字を超える場合は29字ごとに分割
-                        if len(full_sentence) > 29:
-                            for j in range(0, len(full_sentence), 29):
-                                lines.append(full_sentence[j:j+29])
-                        else:
-                            lines.append(full_sentence)
+                        if len(full_sentence) > 26:
+                            for j in range(0, len(full_sentence), 26):
+                                lines.append(full_sentence[j:j+26])
                 
                 for line in lines:
                     if line:
-                        if current_y + self.text_line_height > bottom_boundary:
+                        if current_y > bottom_boundary:
                             break
-                        # ヘルパー関数を使ってPyQt5フォントを描画
-                        text_surface = render_text_with_qfont(line, self.fonts["text"], self.text_color)
-                        self.screen.blit(text_surface, (self.backlog_x + self.backlog_padding, current_y))
+                        if current_y + self.text_line_height >= top_boundary:
+                            # ヘルパー関数を使ってPyQt5フォントを描画
+                            text_surface = render_text_with_qfont(line, self.fonts["text"], text_color)
+                            self.screen.blit(text_surface, (self.backlog_x + self.backlog_padding, current_y))
                         current_y += self.text_line_height
 
             # アイテム間の余白を追加
-            if current_y + self.backlog_item_spacing > bottom_boundary:
+            if current_y > bottom_boundary:
                 break
             
             current_y += self.backlog_item_spacing
             
             # 描画範囲を超えた場合は中断
-            if current_y > self.backlog_y + self.backlog_height - self.backlog_padding:
+            if current_y > bottom_boundary:
                 break
         
         # スクロールバーを描画
@@ -225,14 +262,16 @@ class BacklogManager:
         
         # スクロールハンドル
         total_items = len(self.backlog)
+        visible_items = self.get_visible_backlog_items()
 
-        if total_items > 1: # ゼロ除算を防ぐ
+        if total_items > visible_items: # スクロール可能な場合のみハンドルを表示
             handle_height = max(20, scrollbar_height // 4)
             
-            if total_items <= 1:
-                handle_position = 0
+            max_scroll = max(0.0, float(total_items - visible_items))
+            if max_scroll > 0:
+                handle_position = self.backlog_scroll / max_scroll
             else:
-                handle_position = self.backlog_scroll / (total_items - 1)
+                handle_position = 0.0
                 
             handle_y = scrollbar_y + int(handle_position * (scrollbar_height - handle_height))
             
