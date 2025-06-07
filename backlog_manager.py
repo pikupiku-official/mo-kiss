@@ -1,5 +1,35 @@
 import pygame
 from config import *
+from PyQt5.QtGui import QFont, QImage, QPainter, QColor, QFontMetrics
+from PyQt5.QtCore import QSize
+
+def render_text_with_qfont(text, qfont, color):
+    """PyQt5のQFontでテキストを描画し、PygameのSurfaceとして返す"""
+    metrics = pygame.font.FontMetrics(qfont)
+    width = metrics.horizontalAdvance(text)
+    height = metrics.height()
+    
+    if width == 0 or height == 0:
+        # 空のSurfaceを返す
+        return pygame.Surface((1, 1), pygame.SRCALPHA)
+
+    # QImageを作成 (ARGB32はアルファチャンネル付き32ビット)
+    qimage = QImage(QSize(width, height), QImage.Format_ARGB32)
+    qimage.fill(QColor(0, 0, 0, 0))  # 透明で塗りつぶし
+
+    # QPainterでテキストを描画
+    painter = QPainter(qimage)
+    painter.setFont(qfont)
+    painter.setPen(QColor(*color)) # Pygameの色(r,g,b)をQColorに設定
+    painter.drawText(0, metrics.ascent(), text)
+    painter.end()
+
+    # QImageのデータをPygameのSurfaceに変換
+    # tostring()は非推奨なのでbits()を使用
+    image_data = qimage.bits().asstring(qimage.sizeInBytes())
+    pygame_surface = pygame.image.fromstring(image_data, (width, height), 'RGBA')
+    
+    return pygame_surface
 
 class BacklogManager:
     def __init__(self, screen, fonts):
@@ -19,7 +49,10 @@ class BacklogManager:
         self.backlog_item_spacing = 10
         self.text_color = TEXT_COLOR
         self.name_color = TEXT_COLOR
-        self.text_line_height = self.fonts["text_pygame"].get_height()
+        
+        self.name_font_metrics = QFontMetrics(self.fonts["name"])
+        self.text_font_metrics = QFontMetrics(self.fonts["text"])
+        self.text_line_height = self.text_font_metrics.height()
         
         # バックログウィンドウのサイズと位置
         self.backlog_width = self.screen.get_width() - 100
@@ -63,7 +96,7 @@ class BacklogManager:
         """一度に表示可能なバックログアイテムの数を計算"""
         available_height = self.backlog_height - (self.backlog_padding * 2)
         average_item_height = (
-            self.fonts["name"].get_height() + 
+            self.name_font_metrics.height() + 
             self.text_line_height + 
             self.backlog_item_spacing
         )
@@ -129,11 +162,12 @@ class BacklogManager:
             # キャラクター名を一度だけ表示
             character_name = item.get('char_name', None)
             if character_name:
-                if current_y + self.fonts["name"].get_height() > bottom_boundary:
+                if current_y + self.name_font_metrics.height() > bottom_boundary:
                     break
-                name_surface = self.fonts["name"].render(character_name, True, self.name_color)
+                # ヘルパー関数を使ってPyQt5フォントを描画
+                name_surface = render_text_with_qfont(character_name, self.fonts["name"], self.name_color)
                 self.screen.blit(name_surface, (self.backlog_x + self.backlog_padding, current_y))
-                current_y += self.fonts["name"].get_height() + 5
+                current_y += self.name_font_metrics.height() + 5
 
             # テキストを句点（。）で分割して表示
             text = item.get('text', '')
@@ -159,7 +193,8 @@ class BacklogManager:
                     if line:
                         if current_y + self.text_line_height > bottom_boundary:
                             break
-                        text_surface = self.fonts["text"].render(line, True, self.text_color)
+                        # ヘルパー関数を使ってPyQt5フォントを描画
+                        text_surface = render_text_with_qfont(line, self.fonts["text"], self.text_color)
                         self.screen.blit(text_surface, (self.backlog_x + self.backlog_padding, current_y))
                         current_y += self.text_line_height
 
