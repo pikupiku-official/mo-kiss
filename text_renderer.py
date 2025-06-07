@@ -15,7 +15,7 @@ class TextRenderer:
 
         self.fonts = self._init_fonts()
         self.text_color = TEXT_COLOR
-        self.name_color = TEXT_COLOR
+        self.text_color_female = TEXT_COLOR_FEMALE
         self.text_bg_color = TEXT_BG_COLOR
         self.text_positions = get_text_positions(screen)
         self.text_start_x = self.text_positions["speech_1"][0]
@@ -285,9 +285,16 @@ class TextRenderer:
         if not lines_to_draw and display_text_segment:
             lines_to_draw = [display_text_segment]
 
+        # 話者名と本文に適用する色を決定
+        text_color_to_use = self.text_color
+        if self.current_character_name:
+            gender = CHARACTER_GENDERS.get(self.current_character_name)
+            if gender == 'female':
+                text_color_to_use = self.text_color_female
+
         if self.current_character_name and self.current_character_name.strip():
             try:
-                name_surface = self.pygame_fonts["name"].render(self.current_character_name, True, self.name_color)
+                name_surface = self.pygame_fonts["name"].render(self.current_character_name, True, text_color_to_use)
                 self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
             except Exception as e:
                 if self.debug:
@@ -297,7 +304,7 @@ class TextRenderer:
         for single_line in lines_to_draw:
             if single_line: # 空の行は描画しない (明示的に空行を描画したい場合はこの条件を外す)
                 try:
-                    text_surface = self.pygame_fonts["text"].render(single_line, True, self.text_color)
+                    text_surface = self.pygame_fonts["text"].render(single_line, True, text_color_to_use)
                     self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
@@ -314,10 +321,17 @@ class TextRenderer:
         
         # スクロールモードでは現在のスピーカーの名前を表示
         display_name = self.scroll_manager.current_speaker if self.scroll_manager.current_speaker else self.current_character_name
+
+        # 話者名と本文に適用する色を決定
+        color_to_use = self.text_color
+        if display_name:
+            gender = CHARACTER_GENDERS.get(display_name)
+            if gender == 'female':
+                color_to_use = self.text_color_female
         
         if display_name and display_name.strip():
             try:
-                name_surface = self.pygame_fonts["name"].render(display_name, True, self.name_color)
+                name_surface = self.pygame_fonts["name"].render(display_name, True, color_to_use)
                 self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
             except Exception as e:
                 if self.debug:
@@ -340,7 +354,7 @@ class TextRenderer:
             for single_line in lines_in_block_to_draw:
                 if single_line: # 空の行は描画しない
                     try:
-                        text_surface = self.pygame_fonts["text"].render(single_line, True, self.text_color)
+                        text_surface = self.pygame_fonts["text"].render(single_line, True, color_to_use)
                         self.screen.blit(text_surface, (self.text_start_x, y))
                     except Exception as e:
                         if self.debug:

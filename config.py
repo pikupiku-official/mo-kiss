@@ -54,6 +54,7 @@ DEBUG = True
 
 # テキスト表示設定（ウィンドウサイズに合わせて調整）
 TEXT_COLOR = (255, 255, 255)
+TEXT_COLOR_FEMALE = (255, 175, 227)
 TEXT_BG_COLOR = (0, 0, 0, 100)
 TEXT_START_X = SCREEN_WIDTH / 4.7
 TEXT_START_Y = SCREEN_HEIGHT * 705 / 1000
@@ -90,6 +91,21 @@ CHARACTER_IMAGE_MAP = {
     "桃子": "girl1",
     "サナコ": "girl2"
 }
+
+# キャラクターの性別データを読み込む
+CHARACTER_GENDERS = {}
+try:
+    # character_gender.jsonファイルを開き、内容を読み込む
+    with open('character_gender.json', 'r', encoding='utf-8') as f:
+        CHARACTER_GENDERS = json.load(f)
+    if DEBUG:
+        print(f"キャラクター性別データを読み込みました: {CHARACTER_GENDERS}")
+except FileNotFoundError:
+    if DEBUG:
+        print("警告: character_gender.json が見つかりません。")
+except json.JSONDecodeError:
+    if DEBUG:
+        print("警告: character_gender.json の解析に失敗しました。")
 
 # キャラクターごとのデフォルトの表情設定
 CHARACTER_DEFAULTS = {
