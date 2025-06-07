@@ -73,7 +73,6 @@ class ImageManager:
                                 original_width = original_image.get_width()
                                 original_height = original_image.get_height()
                                 
-                                # 新しい幅を画面幅の 275/302 に設定
                                 new_width = int(screen_width * 259 / 302)
                                 
                                 # アスペクト比を維持して高さを計算
@@ -81,6 +80,35 @@ class ImageManager:
                                 new_height = int(new_width * aspect_ratio)
                                 
                                 images["ui"][ui_name] = pygame.transform.scale(original_image, (new_width, new_height))
+
+                        elif ui_name == "auto":
+                            original_image2 = self.load_image(file_path)
+                            if original_image2:
+                                original_width2 = original_image2.get_width()
+                                original_height2 = original_image2.get_height()
+                                
+                                new_width2 = int(screen_width * 530 / 10000)  # 画面幅の2%に設定
+                                
+                                # アスペクト比を維持して高さを計算
+                                aspect_ratio2 = original_height2 / original_width2
+                                new_height2 = int(new_width2 * aspect_ratio2)
+                                
+                                images["ui"][ui_name] = pygame.transform.scale(original_image2, (new_width2, new_height2))
+
+                        elif ui_name == "skip":
+                            original_image3 = self.load_image(file_path)
+                            if original_image3:
+                                original_width3 = original_image3.get_width()
+                                original_height3 = original_image3.get_height()
+                                
+                                new_width3 = int(screen_width * 440 / 10000)  # 画面幅の2%に設定
+                                
+                                # アスペクト比を維持して高さを計算
+                                aspect_ratio3 = original_height3 / original_width3
+                                new_height3 = int(new_width3 * aspect_ratio3)
+                                
+                                images["ui"][ui_name] = pygame.transform.scale(original_image3, (new_width3, new_height3))
+
                         else:
                             images["ui"][ui_name] = self.load_image(file_path)
 

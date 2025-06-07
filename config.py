@@ -73,12 +73,10 @@ def get_text_positions(screen):
 
 # UI要素の設定
 TEXTBOX_MARGIN_BOTTOM = SCREEN_HEIGHT * 50 / 1080  # テキストボックスの下マージン
-TEXTBOX_OFFSET_RIGHT = 48  # テキストボックス内のテキスト右移動
-TEXTBOX_OFFSET_DOWN = 62  # テキストボックス内のテキスト下移動
 TEXT_LINE_SPACING = SCREEN_HEIGHT * 74 / 1000  # 2つのテキスト行の間隔
-AUTO_BUTTON_MARGIN_RIGHT = 120  # autoボタンの右マージン
-SKIP_BUTTON_MARGIN_RIGHT = 20  # skipボタンの右マージン
-BUTTON_MARGIN_TOP = 20  # ボタンの上マージン
+AUTO_BUTTON_MARGIN_RIGHT = SCREEN_WIDTH * 209 / 1000  # autoボタンの右マージン
+SKIP_BUTTON_MARGIN_RIGHT = SCREEN_WIDTH * 1345 / 10000  # skipボタンの右マージン
+BUTTON_MARGIN_TOP = SCREEN_HEIGHT * 647 / 1000  # ボタンの上マージン
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
