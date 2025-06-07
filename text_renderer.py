@@ -17,10 +17,12 @@ class TextRenderer:
         self.text_color = TEXT_COLOR
         self.name_color = TEXT_COLOR
         self.text_bg_color = TEXT_BG_COLOR
-        self.text_start_x = TEXT_START_X
-        self.text_start_y = TEXT_START_Y
-        self.name_start_x = NAME_START_X
-        self.name_start_y = NAME_START_Y
+        self.text_positions = get_text_positions(screen)
+        self.text_start_x = self.text_positions["speech_1"][0]
+        self.text_start_y = self.text_positions["speech_1"][1]
+        self.name_start_x = self.text_positions["name_1"][0]
+        self.name_start_y = self.text_positions["name_1"][1]
+        self.line_spacing = TEXT_LINE_SPACING
         self.text_line_height = self.fonts["text_pygame"].get_height()
         self.text_padding = TEXT_PADDING
 
@@ -50,8 +52,8 @@ class TextRenderer:
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
         try:
             # フォントサイズをスクリーンサイズに基づいて計算
-            name_font_size = int(SCREEN_HEIGHT * 0.075)
-            text_font_size = int(SCREEN_HEIGHT * 0.075)
+            name_font_size = int(SCREEN_HEIGHT * 44 / 1000)
+            text_font_size = int(SCREEN_HEIGHT * 44 / 1000)
             default_font_size = int(SCREEN_HEIGHT * 0.027)  # 画面高さの2.7%
             
             # フォントファイルのパスを設定
@@ -106,8 +108,8 @@ class TextRenderer:
             print(f"フォント初期化エラー: {e}")
             # エラーが発生した場合はフォールバック
             return self._get_fallback_fonts(
-                int(SCREEN_HEIGHT * 0.05),
-                int(SCREEN_HEIGHT * 0.04),
+                int(SCREEN_HEIGHT * 0.044),
+                int(SCREEN_HEIGHT * 0.044),
                 int(SCREEN_HEIGHT * 0.027)
             )
         

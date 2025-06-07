@@ -1,5 +1,6 @@
 import pygame
 import os
+from config import get_textbox_position, get_ui_button_positions
 
 class ImageManager:
     def __init__(self, debug=False):
@@ -65,7 +66,20 @@ class ImageManager:
                         images["brows"][file.split('.')[2]] = self.load_image(file_path, (70, 20))
                     elif "ui" in file:
                         ui_name = file.split('.')[1] if len(file.split('.')) >= 3 else file.split('.')[0]
-                        images["ui"][ui_name] = self.load_image(file_path)
+                        if ui_name == "text-box":
+                            # テキストボックスのみスケールを適用
+                            from config import TEXTBOX_SCALE
+                            original_image = self.load_image(file_path)
+                            if original_image:
+                                original_width = original_image.get_width()
+                                original_height = original_image.get_height()
+                                new_width = int(original_width * TEXTBOX_SCALE)
+                                new_height = int(original_height * TEXTBOX_SCALE)
+                                images["ui"][ui_name] = pygame.transform.scale(original_image, (new_width, new_height))
+                            else:
+                                images["ui"][ui_name] = None
+                        else:
+                            images["ui"][ui_name] = self.load_image(file_path)
 
         if self.debug:
             print("読み込んだ画像:")
@@ -80,28 +94,24 @@ class ImageManager:
             return
         
         ui_images = images["ui"]
-        screen_width = screen.get_width()
-        screen_height = screen.get_height()
         
         # テキストボックスを描画（画面下部）
         if "text-box" in ui_images and ui_images["text-box"]:
             text_box = ui_images["text-box"]
-            text_box_width = text_box.get_width()
-            text_box_height = text_box.get_height()
-            x_pos = (screen_width - text_box_width) // 2
-            y_pos = screen_height - text_box_height - screen_height * 2 / 45
+            x_pos, y_pos = get_textbox_position(screen, text_box)
             screen.blit(text_box, (x_pos, y_pos))
+
+        # ボタン類を描画
+        button_positions = get_ui_button_positions(screen)
         
         # autoボタンを描画（右上付近）
         if "auto" in ui_images and ui_images["auto"]:
             auto_btn = ui_images["auto"]
-            auto_x = screen_width - auto_btn.get_width() - 120
-            auto_y = 20
+            auto_x, auto_y = button_positions["auto"]
             screen.blit(auto_btn, (auto_x, auto_y))
         
         # skipボタンを描画（右上付近、autoの隣）
         if "skip" in ui_images and ui_images["skip"]:
             skip_btn = ui_images["skip"]
-            skip_x = screen_width - skip_btn.get_width() - 20
-            skip_y = 20
+            skip_x, skip_y = button_positions["skip"]
             screen.blit(skip_btn, (skip_x, skip_y))

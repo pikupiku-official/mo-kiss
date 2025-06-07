@@ -59,7 +59,27 @@ TEXT_START_X = SCREEN_WIDTH / 6
 TEXT_START_Y = SCREEN_HEIGHT * 11 / 15
 NAME_START_X = SCREEN_WIDTH / 20
 NAME_START_Y = TEXT_START_Y
-TEXT_PADDING = 10
+TEXT_PADDING = SCREEN_HEIGHT / 100
+
+# テキスト表示設定
+def get_text_positions(screen):
+    return {
+        "name_1": (NAME_START_X, NAME_START_Y),
+        "speech_1": (TEXT_START_X, TEXT_START_Y),
+        "name_2": (NAME_START_X, NAME_START_Y + TEXT_LINE_SPACING),
+        "speech_2": (TEXT_START_X, TEXT_START_Y + TEXT_LINE_SPACING),
+        "line_height": TEXT_LINE_SPACING
+    }
+
+# UI要素の設定
+TEXTBOX_SCALE = 25.7 / 30.2  # テキストボックスのスケール（3/4サイズ）
+TEXTBOX_MARGIN_BOTTOM = SCREEN_HEIGHT * 96 / 1080  # テキストボックスの下マージン
+TEXTBOX_OFFSET_RIGHT = 48  # テキストボックス内のテキスト右移動
+TEXTBOX_OFFSET_DOWN = 62  # テキストボックス内のテキスト下移動
+TEXT_LINE_SPACING = SCREEN_HEIGHT * 74 / 1000  # 2つのテキスト行の間隔
+AUTO_BUTTON_MARGIN_RIGHT = 120  # autoボタンの右マージン
+SKIP_BUTTON_MARGIN_RIGHT = 20  # skipボタンの右マージン
+BUTTON_MARGIN_TOP = 20  # ボタンの上マージン
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
@@ -94,6 +114,24 @@ DEFAULT_BACKGROUND = "school"
 # デフォルトのBGM設定
 DEFAULT_BGM_VOLUME = 0.1
 DEFAULT_BGM_LOOP = True
+
+def get_textbox_position(screen, text_box):
+    """テキストボックスの位置を計算する"""
+    text_box_width = text_box.get_width()
+    text_box_height = text_box.get_height()
+    
+    x_pos = (SCREEN_WIDTH - text_box_width) // 2
+    y_pos = SCREEN_HEIGHT - text_box_height * TEXTBOX_SCALE - TEXTBOX_MARGIN_BOTTOM
+    
+    return x_pos, y_pos
+
+def get_ui_button_positions(screen):
+    """UI要素のボタン位置を計算する"""
+    
+    return {
+        "auto": (SCREEN_WIDTH - AUTO_BUTTON_MARGIN_RIGHT, BUTTON_MARGIN_TOP),
+        "skip": (SCREEN_WIDTH - SKIP_BUTTON_MARGIN_RIGHT, BUTTON_MARGIN_TOP)
+    }
 
 # Pygameの初期化時にウィンドウ位置を設定する関数
 def set_window_position(x, y):
