@@ -172,13 +172,27 @@ class TextRenderer:
                 self.last_speaker == character_name):
                 if self.debug:
                     print(f"[SCROLL] 同一話者での通常→スクロール表示のため前テキスト保持: {character_name}")
-                self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=True)
+                # 修正前: self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=True)
+                # 修正後:
+                self.scroll_manager.start_scroll_mode(
+                    speaker=character_name, 
+                    background=background, 
+                    active_characters=active_characters, 
+                    initial_text=text
+                )
                 self._start_text_display()
                 self.last_speaker = character_name
                 return
             
             # 新しくスクロール開始（前のテキストはクリア）
-            self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+            # 修正前: self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+            # 修正後:
+            self.scroll_manager.start_scroll_mode(
+                speaker=character_name, 
+                background=background, 
+                active_characters=active_characters, 
+                initial_text=text
+            )
             self._start_text_display()
             self.last_speaker = character_name
             return
@@ -208,8 +222,14 @@ class TextRenderer:
                 if character_name:
                     if self.debug:
                         print(f"[SCROLL] 通常表示テキストを保持: {character_name}")
-                    # 新しいスクロールモードを開始して、このテキストを最初に追加
-                    self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+                    # 修正前: self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+                    # 修正後:
+                    self.scroll_manager.start_scroll_mode(
+                        speaker=character_name, 
+                        background=background, 
+                        active_characters=active_characters, 
+                        initial_text=text
+                    )
                     # ただし、スクロールモードは無効にして通常表示として扱う
                     self.scroll_manager.scroll_mode = False
                 
