@@ -39,8 +39,16 @@ class TextRenderer:
         self.char_delay = 110
         self.is_text_complete = False
 
+        # 新しい遅延設定を追加
+        self.punctuation_delay = 500  # 句読点「。」での追加遅延時間（ミリ秒）
+        self.paragraph_transition_delay = 1000  # スクロール終了後の段落切り替え遅延時間（ミリ秒）
+        self.punctuation_waiting = False  # 句読点遅延中フラグ
+        self.punctuation_wait_start = 0  # 句読点遅延開始時刻
+        self.paragraph_transition_waiting = False  # 段落切り替え遅延中フラグ
+        self.paragraph_transition_start = 0  # 段落切り替え遅延開始時刻
+        self.scroll_just_ended = False  # スクロールが直前に終了したかのフラグ
+
         self.auto_mode = False
-        self.auto_delay = 1500
         self.text_complete_time = 0
         self.is_ready_for_next = False
         self.auto_ready_logged = False
@@ -142,6 +150,15 @@ class TextRenderer:
         self.is_ready_for_next = False
         self.text_complete_time = 0
         self.auto_ready_logged = False
+        # 新しい遅延状態もリセット
+        self.paragraph_transition_waiting = False
+        self.paragraph_transition_start = 0
+
+    def set_scroll_ended_flag(self):
+        """スクロール終了フラグを設定"""
+        self.scroll_just_ended = True
+        if self.debug:
+            print("[DELAY] スクロール終了フラグを設定")
 
     def set_dialogue(self, text, character_name=None, should_scroll=False, background=None, active_characters=None):
         if self.debug:
@@ -159,7 +176,7 @@ class TextRenderer:
         if should_scroll and character_name:
             # 既にスクロールモード中で同じ話者の場合は継続
             if self.scroll_manager.is_scroll_mode() and self.scroll_manager.current_speaker == character_name:
-                if self.scroll_manager.continue_scroll(character_name, text):
+                if self.scroll_manager.continue_scroll(character_name, background, active_characters, text):
                     self._start_text_display()
                     return
             
@@ -168,19 +185,20 @@ class TextRenderer:
                 if self.debug:
                     print(f"[SCROLL] 話者変更によりスクロールリセット: {self.scroll_manager.current_speaker} -> {character_name}")
                 self.scroll_manager.end_scroll_mode()
+                self.set_scroll_ended_flag()  # スクロール終了フラグを設定
             
             # スクロールモードでない場合で、前回の話者と同じ場合は前のテキストを保持
             if (not self.scroll_manager.is_scroll_mode() and 
                 self.last_speaker == character_name):
                 if self.debug:
                     print(f"[SCROLL] 同一話者での通常→スクロール表示のため前テキスト保持: {character_name}")
-                self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=True)
+                self.scroll_manager.start_scroll_mode(character_name, background, active_characters, text)
                 self._start_text_display()
                 self.last_speaker = character_name
                 return
             
             # 新しくスクロール開始（前のテキストはクリア）
-            self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+            self.scroll_manager.start_scroll_mode(character_name, background, active_characters, text)
             self._start_text_display()
             self.last_speaker = character_name
             return
@@ -205,13 +223,14 @@ class TextRenderer:
                     if self.debug:
                         print(f"[DEBUG] 話者変更または通常表示によりスクロールモード終了")
                     self.scroll_manager.end_scroll_mode()
+                    self.set_scroll_ended_flag()  # スクロール終了フラグを設定
                 
                 # 通常表示として処理し、前回テキストを保持（ScrollManagerに追加）
                 if character_name:
                     if self.debug:
                         print(f"[SCROLL] 通常表示テキストを保持: {character_name}")
                     # 新しいスクロールモードを開始して、このテキストを最初に追加
-                    self.scroll_manager.start_scroll_mode(character_name, text, keep_previous=False)
+                    self.scroll_manager.start_scroll_mode(character_name, background, active_characters, text)
                     # ただし、スクロールモードは無効にして通常表示として扱う
                     self.scroll_manager.scroll_mode = False
                 
@@ -226,6 +245,8 @@ class TextRenderer:
         self.displayed_chars = 0
         self.last_char_time = pygame.time.get_ticks()
         self.is_text_complete = False
+        self.punctuation_waiting = False
+        self.punctuation_wait_start = 0
         self.reset_auto_timer()
 
     def update(self):
@@ -233,14 +254,42 @@ class TextRenderer:
             return 
         current_time = pygame.time.get_ticks()
 
+        # 段落切り替え遅延中の処理
+        if self.paragraph_transition_waiting:
+            if current_time - self.paragraph_transition_start >= self.paragraph_transition_delay:
+                self.paragraph_transition_waiting = False
+                self.is_ready_for_next = True
+                if self.debug:
+                    print("[DELAY] 段落切り替え遅延完了、次の段落へ進行可能")
+            return
+
+        # 句読点遅延中の処理
+        if self.punctuation_waiting:
+            if current_time - self.punctuation_wait_start >= self.punctuation_delay:
+                self.punctuation_waiting = False
+                self.last_char_time = current_time
+                if self.debug:
+                    print("[DELAY] 句読点遅延完了、テキスト表示再開")
+            return
+
         if not self.is_text_complete:
             char_delay_to_use = self.char_delay
             
-            current_time = pygame.time.get_ticks()
             if current_time - self.last_char_time >= char_delay_to_use:
                 if self.displayed_chars < len(self.current_text):
+                    # 次に表示する文字をチェック
+                    next_char = self.current_text[self.displayed_chars]
                     self.displayed_chars += 1
-                    self.last_char_time = current_time
+                    
+                    # 句読点「。」の場合は追加の遅延を適用
+                    if next_char == '。':
+                        self.punctuation_waiting = True
+                        self.punctuation_wait_start = current_time
+                        if self.debug:
+                            print("[DELAY] 句読点「。」を検出、追加遅延開始")
+                        return  # 句読点遅延開始時は処理を中断
+                    else:
+                        self.last_char_time = current_time
                 else:
                     self.is_text_complete = True
                     self.text_complete_time = current_time
@@ -249,19 +298,29 @@ class TextRenderer:
                         self.backlog_manager.add_to_backlog(self.current_text, char_name)
 
         elif self.auto_mode and self.is_text_complete and not self.is_ready_for_next:
-            auto_delay = self.auto_delay
+            # スクロール終了直後で段落切り替え遅延が必要な場合
+            if self.scroll_just_ended and not self.paragraph_transition_waiting:
+                self.paragraph_transition_waiting = True
+                self.paragraph_transition_start = current_time
+                self.scroll_just_ended = False  # フラグをリセット
+                if self.debug:
+                    print(f"[DELAY] スクロール終了後の段落切り替え遅延開始 ({self.paragraph_transition_delay}ms)")
+                return
             
-            if current_time - self.text_complete_time >= auto_delay:
-                self.is_ready_for_next = True
-                if self.debug and not self.auto_ready_logged:
-                    print("自動進行準備完了")
-                    self.auto_ready_logged = True
+            # 通常の自動進行（即座に進行可能に設定）
+            self.is_ready_for_next = True
+            if self.debug and not self.auto_ready_logged:
+                print("自動進行準備完了")
+                self.auto_ready_logged = True
 
     def skip_text(self):
         if self.current_text:
             self.displayed_chars = len(self.current_text)
             self.is_text_complete = True
             self.text_complete_time = pygame.time.get_ticks()
+            # 遅延状態をリセット
+            self.punctuation_waiting = False
+            self.paragraph_transition_waiting = False
             if self.backlog_manager:
                 char_name = self.current_character_name if self.current_character_name else None
                 self.backlog_manager.add_to_backlog(self.current_text, char_name)
@@ -371,10 +430,13 @@ class TextRenderer:
     def set_char_delay(self, delay_ms):
         self.char_delay = delay_ms
 
-    def set_auto_delay(self, delay_ms):
-        self.auto_delay = delay_ms
-        if self.debug:
-            print(f"自動進行遅延を {delay_ms}ms に設定しました")
+    def set_punctuation_delay(self, delay_ms):
+        """句読点での遅延時間を設定"""
+        self.punctuation_delay = delay_ms
+
+    def set_paragraph_transition_delay(self, delay_ms):
+        """段落切り替え遅延時間を設定"""
+        self.paragraph_transition_delay = delay_ms
 
     def force_add_to_backlog(self):
         if self.current_text and self.backlog_manager:
@@ -387,9 +449,13 @@ class TextRenderer:
     def on_background_change(self):
         if self.debug:
             print(f"[DEBUG] 背景変更によるスクロール完全停止")
+        if self.scroll_manager.is_scroll_mode():
+            self.set_scroll_ended_flag()
         self.scroll_manager.end_scroll_mode()
     
     def on_scene_change(self):
         if self.debug:
             print(f"[DEBUG] シーン変更によるスクロール状態リセット")
+        if self.scroll_manager.is_scroll_mode():
+            self.set_scroll_ended_flag()
         self.scroll_manager.reset_state()

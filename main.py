@@ -62,7 +62,7 @@ def update_game_state(game_state):
         update_character_animations(game_state)
         
         # BGMの更新（controller.pyのupdate_game関数を呼び出し）
-        from controller import update_game
+        from controller2 import update_game
         update_game(game_state)
         
     except Exception as e:

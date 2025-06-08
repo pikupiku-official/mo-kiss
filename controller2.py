@@ -11,6 +11,17 @@ def is_point_in_rect(point, rect_pos, rect_size):
     return (rect_x <= x <= rect_x + rect_width and 
             rect_y <= y <= rect_y + rect_height)
 
+def setup_text_renderer_settings(game_state):
+    """TextRendererの新しい遅延設定を初期化"""
+    text_renderer = game_state.get('text_renderer')
+    if text_renderer:
+        # ScrollManagerとTextRendererの相互参照を設定
+        text_renderer.scroll_manager.set_text_renderer(text_renderer)
+        
+        # デフォルトの遅延設定（必要に応じて調整）
+        text_renderer.set_punctuation_delay(500)  # 句読点での遅延: 500ms
+        text_renderer.set_paragraph_transition_delay(1000)  # 段落切り替え遅延: 1000ms
+
 def handle_mouse_click(game_state, mouse_pos, screen):
     """マウスクリックの処理"""
     # バックログが開いている時は無効化
@@ -135,6 +146,11 @@ def advance_to_next_dialogue(game_state):
 
 def update_game(game_state):
     """ゲーム状態の更新"""
+    # TextRendererの初期設定が完了していない場合は実行
+    if not hasattr(game_state, 'text_renderer_initialized') or not game_state['text_renderer_initialized']:
+        setup_text_renderer_settings(game_state)
+        game_state['text_renderer_initialized'] = True
+    
     # テキスト表示の更新
     game_state['text_renderer'].update()
 
@@ -168,3 +184,28 @@ def update_game(game_state):
                 success = game_state['bgm_manager'].play_bgm(bgm_name, bgm_volume)
                 if success and not bgm_loop:
                     game_state['bgm_manager'].stop_bgm()  # ループしない場合は停止
+
+# 新しい遅延設定用のヘルパー関数
+def configure_text_delays(game_state, punctuation_delay=None, paragraph_transition_delay=None):
+    """テキスト表示の遅延設定を変更する"""
+    text_renderer = game_state.get('text_renderer')
+    if not text_renderer:
+        return
+    
+    if punctuation_delay is not None:
+        text_renderer.set_punctuation_delay(punctuation_delay)
+    
+    if paragraph_transition_delay is not None:
+        text_renderer.set_paragraph_transition_delay(paragraph_transition_delay)
+
+def get_current_text_delays(game_state):
+    """現在の遅延設定を取得する"""
+    text_renderer = game_state.get('text_renderer')
+    if not text_renderer:
+        return None
+    
+    return {
+        'char_delay': text_renderer.char_delay,
+        'punctuation_delay': text_renderer.punctuation_delay,
+        'paragraph_transition_delay': text_renderer.paragraph_transition_delay
+    }

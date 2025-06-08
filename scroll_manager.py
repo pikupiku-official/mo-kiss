@@ -10,6 +10,11 @@ class ScrollManager:
         self.current_speaker = None  # 現在の話者
         self.last_background = None  # 最後の背景
         self.verbose_debug = False  # 詳細デバッグフラグ
+        self.text_renderer = None  # TextRendererへの参照（終了通知用）
+        
+    def set_text_renderer(self, text_renderer):
+        """TextRendererの参照を設定（スクロール終了通知用）"""
+        self.text_renderer = text_renderer
         
     def should_start_scroll(self, speaker, background, active_characters):
         """スクロールを開始すべきかどうかを判定（簡素化版）"""
@@ -128,6 +133,11 @@ class ScrollManager:
         """スクロールモードを終了"""
         if self.debug:
             print(f"[DEBUG] スクロールモード終了")
+        
+        # スクロール終了をTextRendererに通知
+        if self.scroll_mode and self.text_renderer:
+            self.text_renderer.set_scroll_ended_flag()
+        
         self.scroll_mode = False
         self.scroll_lines = []
         # 状態はリセットしない（次回の判定で使用するため）
@@ -144,6 +154,11 @@ class ScrollManager:
         """状態を完全にリセット（新しいシーンなどで使用）"""
         if self.debug:
             print(f"[DEBUG] ScrollManager状態リセット")
+        
+        # スクロール終了をTextRendererに通知
+        if self.scroll_mode and self.text_renderer:
+            self.text_renderer.set_scroll_ended_flag()
+        
         self.scroll_mode = False
         self.scroll_lines = []
         self.current_speaker = None
@@ -159,6 +174,11 @@ class ScrollManager:
         """スクロール強制終了と状態リセット（完全リセット時）"""
         if self.debug:
             print(f"[DEBUG] スクロール強制終了と状態リセット")
+        
+        # スクロール終了をTextRendererに通知
+        if self.scroll_mode and self.text_renderer:
+            self.text_renderer.set_scroll_ended_flag()
+        
         self.scroll_mode = False
         self.scroll_lines = []
         self.current_speaker = None
