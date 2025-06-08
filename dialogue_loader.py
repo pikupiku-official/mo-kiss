@@ -37,10 +37,21 @@ class DialogueLoader:
                 return self.get_default_dialogue()
         
     def get_default_dialogue(self):
-        """デフォルトの対話データを返す"""
+        """デフォルトの対話データを辞書形式で返す"""
         return [
-            [DEFAULT_BACKGROUND, "girl1", "", "", "", "デフォルトのテキストです。", 
-             self.bgm_manager.DEFAULT_BGM, DEFAULT_BGM_VOLUME, DEFAULT_BGM_LOOP, "", False]
+            {
+                'type': 'dialogue',
+                'text': 'デフォルトのテキストです。',
+                'character': 'girl1',
+                'eye': 'eye1',
+                'mouth': 'mouth1',
+                'brow': 'brow1',
+                'background': DEFAULT_BACKGROUND,
+                'bgm': self.bgm_manager.DEFAULT_BGM,
+                'bgm_volume': DEFAULT_BGM_VOLUME,
+                'bgm_loop': DEFAULT_BGM_LOOP,
+                'scroll_continue': False
+            }
         ]
         
     def _parse_ks_content(self, content):    
@@ -363,59 +374,7 @@ class DialogueLoader:
                 print("警告: 対話データが見つかりませんでした。")
             return self.get_default_dialogue()
 
-        # 既存の対話データを従来形式に変換して返す
-        formatted_data = []
-        for item in dialogue_data:
-            if item['type'] == 'dialogue':
-                # 従来形式に変換: [背景, キャラクター, 目, 口, 眉, テキスト, BGM, 音量, ループ, 表示名, スクロール継続]
-                formatted_data.append([
-                    item['background'],
-                    item['character'], 
-                    item['eye'],
-                    item['mouth'],
-                    item['brow'],
-                    item['text'],
-                    item['bgm'],
-                    item['bgm_volume'],
-                    item['bgm_loop'],
-                    item['character'],  # 表示名
-                    item['scroll_continue']  # スクロール継続フラグ
-                ])
-            elif item['type'] == 'bg_show':
-                formatted_data.append([
-                    item['storage'], "", "", "", "", 
-                    f"_BG_SHOW_{item['storage']}_{item['x']}_{item['y']}_{item['zoom']}", 
-                    "", 0.5, True, "", False
-                ])
-            elif item['type'] == 'bg_move':
-                formatted_data.append([
-                    "", "", "", "", "", 
-                    f"_BG_MOVE_{item['left']}_{item['top']}_{item['time']}_{item['zoom']}", 
-                    "", 0.5, True, "", False
-                ])
-            elif item['type'] == 'character':
-                formatted_data.append([
-                    "", item['name'], item['eye'], item['mouth'], item['brow'],
-                    f"_CHARA_NEW_{item['name']}_{item['show_x']}_{item['show_y']}",
-                    "", 0.5, True, "", False
-                ])
-            elif item['type'] == 'move':
-                formatted_data.append([
-                    "", item['character'], "", "", "",
-                    f"_MOVE_{item['left']}_{item['top']}_{item['time']}_{item['zoom']}",
-                    "", 0.5, True, "", False
-                ])
-            elif item['type'] == 'hide':
-                formatted_data.append([
-                    "", "", "", "", "",
-                    f"_CHARA_HIDE_{item['character']}",
-                    "", 0.5, True, "", False
-                ])
-
         if self.debug:
-            print(f"変換後の対話データ数: {len(formatted_data)}")
-            # 最初の数個のデータを出力してデバッグ
-            for i, item in enumerate(formatted_data[:5]):
-                print(f"データ {i}: {item}")
+            print(f"解析完了: {len(dialogue_data)} 個の辞書エントリーを返します")
 
-        return formatted_data
+        return dialogue_data

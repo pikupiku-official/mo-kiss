@@ -93,13 +93,6 @@ def handle_events(game_state, screen):
                         
             elif event.key == pygame.K_RETURN and game_state['show_text']:
                 handle_enter_key(game_state)
-                
-            elif event.key == pygame.K_b:
-                # バックログの開閉（既にhandle_inputで処理されているが、ログ出力のため、要らない）
-                if game_state['backlog_manager'].is_showing():
-                    print("バックログを開きました（↑↓でスクロール、ESC/Bで閉じる）")
-                else:
-                    print("バックログを閉じました")
     
     return True
 
