@@ -163,13 +163,14 @@ class TextRenderer:
             print("[DELAY] スクロール終了フラグを設定")
 
     def set_dialogue(self, text, character_name=None, should_scroll=False, background=None, active_characters=None):
-        # スクロール停止コマンドの処理
+        # スクロール停止コマンドの処理（唯一のスクロール停止方法）
         if text and text.startswith('_SCROLL_STOP'):
             if self.debug:
                 print(f"[SCROLL] scroll-stopコマンドを実行")
             self.scroll_manager.process_scroll_stop_command()
             # previous_textをクリアしてスクロール履歴をリセット
-            self.previous_text = None
+            if hasattr(self, 'previous_text'):
+                self.previous_text = None
             if self.debug:
                 print(f"[SCROLL] previous_textをクリア")
             return
@@ -189,19 +190,10 @@ class TextRenderer:
         if not hasattr(self, 'previous_text'):
             self.previous_text = None
         
-        # 同一話者による自動スクロール継続判定
-        if (character_name and 
-            hasattr(self, 'last_speaker') and 
-            self.last_speaker == character_name and 
-            self.last_speaker is not None):
-            should_scroll = True
-            if self.debug:
-                print(f"[SCROLL] 同一話者判定によりスクロール強制継続: {character_name}")
-        
-        # スクロールモード中の場合、話者に関係なく継続
+        # スクロールモード中の場合、話者に関係なく常に継続
         if self.scroll_manager.is_scroll_mode():
             if self.debug:
-                print(f"[SCROLL] スクロールモード中のため継続: {character_name}")
+                print(f"[SCROLL] スクロールモード中 - 無条件で継続: {character_name}")
             
             # 話者が変わった場合は現在の話者を更新
             if self.scroll_manager.get_current_speaker() != character_name:
@@ -221,10 +213,12 @@ class TextRenderer:
         
         # スクロール表示の処理（新規開始）
         if should_scroll and character_name:
+            if self.debug:
+                print(f"[SCROLL] 新規スクロール開始: {character_name}")
+            
             # 前のテキストがある場合は、それも含めてスクロール開始
-            if (self.previous_text and 
-                self.last_speaker == character_name and 
-                self.last_speaker is not None):
+            if (hasattr(self, 'previous_text') and self.previous_text and 
+                hasattr(self, 'last_speaker') and self.last_speaker == character_name):
                 if self.debug:
                     print(f"[SCROLL] 前のテキストを含めてスクロール開始: {character_name}")
                 # 前のテキストでスクロール開始
@@ -244,6 +238,8 @@ class TextRenderer:
             return
         
         # 通常表示
+        if self.debug:
+            print(f"[TEXT] 通常表示: {character_name}")
         self.displayed_chars = 0
         self.last_char_time = pygame.time.get_ticks()
         self.is_text_complete = False
@@ -455,9 +451,13 @@ class TextRenderer:
             self.backlog_manager.add_to_backlog(self.current_text, char_name)
     
     def reset_scroll_state(self):
-        self.scroll_manager.reset_state()
+        """スクロール状態リセット機能を無効化"""
+        if self.debug:
+            print("[SCROLL] スクロール状態リセットは無効化されています")
+        pass
     
     def on_scene_change(self):
+        """シーン変更時のスクロール状態リセットを無効化"""
         if self.debug:
-            print(f"[DEBUG] シーン変更によるスクロール状態リセット")
-        #self.scroll_manager.reset_state()
+            print(f"[SCROLL] シーン変更時のスクロール状態リセットは無効化されています")
+        pass

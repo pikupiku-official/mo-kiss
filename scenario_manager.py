@@ -64,7 +64,7 @@ def _handle_scroll_stop(game_state):
     return advance_dialogue(game_state)
 
 def _handle_character_show(game_state, dialogue_text, current_dialogue):
-    """キャラクター登場コマンドを処理"""
+    """キャラクター登場コマンドを処理（スクロール状態に影響しない）"""
     parts = dialogue_text.split('_')
     if DEBUG:
         print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
@@ -105,11 +105,11 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             if DEBUG:
                 print(f"キャラクター '{char_name}' が登場しました (x={show_x}, y={show_y}) -> ({pos_x}, {pos_y})")
         
-    # キャラクター登場コマンドの場合は次の対話に進む
+    # キャラクター登場コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
 
 def _handle_character_hide(game_state, dialogue_text):
-    """キャラクター退場コマンドを処理"""
+    """キャラクター退場コマンドを処理（スクロール状態に影響しない）"""
     parts = dialogue_text.split('_')
     if DEBUG:
         print(f"退場コマンド解析: dialogue_text='{dialogue_text}'")
@@ -123,11 +123,11 @@ def _handle_character_hide(game_state, dialogue_text):
         if DEBUG:
             print(f"エラー: 退場コマンドの形式が不正です: '{dialogue_text}'")
         
-    # キャラクター退場コマンドの場合は次の対話に進む
+    # キャラクター退場コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
 
 def _handle_character_move(game_state, dialogue_text, current_dialogue):
-    """キャラクター移動コマンドを処理"""
+    """キャラクター移動コマンドを処理（スクロール状態に影響しない）"""
     parts = dialogue_text.split('_')
     if len(parts) >= 5:  # _MOVE_left_top_duration_zoom
         char_name = current_dialogue[1]
@@ -139,11 +139,11 @@ def _handle_character_move(game_state, dialogue_text, current_dialogue):
         if DEBUG:
             print(f"移動コマンド実行: {char_name} -> ({left}, {top}, {zoom})")
     
-    # 移動コマンドの場合は次の対話に進む
+    # 移動コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
 
 def _handle_background_show(game_state, dialogue_text):
-    """背景表示コマンドを処理"""
+    """背景表示コマンドを処理（スクロール状態に影響しない）"""
     parts = dialogue_text.split('_')
     if DEBUG:
         print(f"背景表示コマンド解析: dialogue_text='{dialogue_text}'")
@@ -165,11 +165,11 @@ def _handle_background_show(game_state, dialogue_text):
         if DEBUG:
             print(f"背景 '{bg_name}' を表示しました (x={bg_x}, y={bg_y}, zoom={bg_zoom})")
         
-    # 背景表示コマンドの場合は次の対話に進む
+    # 背景表示コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
 
 def _handle_background_move(game_state, dialogue_text):
-    """背景移動コマンドを処理"""
+    """背景移動コマンドを処理（スクロール状態に影響しない）"""
     parts = dialogue_text.split('_')
     if DEBUG:
         print(f"背景移動コマンド解析: dialogue_text='{dialogue_text}'")
@@ -184,7 +184,7 @@ def _handle_background_move(game_state, dialogue_text):
         if DEBUG:
             print(f"背景移動コマンド実行: 相対移動({bg_left}, {bg_top}), zoom={bg_move_zoom}, 時間={bg_duration}ms")
     
-    # 背景移動コマンドの場合は次の対話に進む
+    # 背景移動コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
 
 def _handle_dialogue_text(game_state, current_dialogue):
@@ -231,13 +231,15 @@ def _handle_dialogue_text(game_state, current_dialogue):
     return True
 
 def reset_dialogue_state(game_state):
-    """対話状態をリセット（新しいシーンやセクション開始時）"""
+    """対話状態をリセット（スクロール状態は維持）"""
     if DEBUG:
-        print("対話状態リセット実行")
-    #game_state['text_renderer'].scroll_manager.reset_state()
+        print("対話状態リセット実行（スクロール状態は維持）")
+    # スクロール状態に影響しないようにコメントアウト
+    # game_state['text_renderer'].scroll_manager.reset_state()
 
 def force_end_scroll_mode(game_state):
-    """スクロールモードを強制終了"""
+    """スクロールモードを強制終了（機能無効化）"""
     if DEBUG:
-        print("スクロールモード強制終了")
-    #game_state['text_renderer'].scroll_manager.force_end_scroll_mode()
+        print("スクロールモード強制終了は無効化されています")
+    # 強制終了機能を無効化
+    # game_state['text_renderer'].scroll_manager.force_end_scroll_mode()

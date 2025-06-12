@@ -49,14 +49,16 @@ class ScrollManager:
             print(f"[SCROLL] 現在のブロック数: {len(self.scroll_lines)}/{self.max_lines}")
     
     def should_continue_scroll(self, speaker):
-        """スクロール継続可能かを判定"""
+        """スクロール継続可能かを判定 - scroll-stopコマンド以外では常に継続"""
         if not self.scroll_mode:
             return False
             
+        # 話者が変わってもスクロールを継続
         if speaker != self.current_speaker:
             if self.debug:
-                print(f"[SCROLL] 話者変更により継続不可: {self.current_speaker} -> {speaker}")
-            return False
+                print(f"[SCROLL] 話者変更だがスクロール継続: {self.current_speaker} -> {speaker}")
+            # 現在の話者を新しい話者に更新
+            self.current_speaker = speaker
             
         return True
     
@@ -70,11 +72,10 @@ class ScrollManager:
         else:
             if self.debug:
                 print(f"[SCROLL] 継続失敗、スクロール終了")
-            self.end_scroll_mode()
             return False
     
     def process_scroll_stop_command(self):
-        """scroll-stopコマンドによるスクロール終了"""
+        """scroll-stopコマンドによるスクロール終了（唯一のスクロール停止方法）"""
         if self.debug:
             print(f"[SCROLL] scroll-stopコマンドによりスクロール終了")
         
@@ -87,29 +88,22 @@ class ScrollManager:
         self.current_speaker = None
     
     def end_scroll_mode(self):
-        """スクロールモードを終了"""
+        """スクロールモードを終了 - scroll-stopコマンド以外では呼び出されない"""
         if self.debug:
-            print(f"[SCROLL] スクロールモード終了")
+            print(f"[SCROLL] スクロールモード終了（内部呼び出し）")
         
-        # スクロール終了をTextRendererに通知
-        if self.scroll_mode and self.text_renderer:
-            self.text_renderer.set_scroll_ended_flag()
-        
-        self.scroll_mode = False
-        self.scroll_lines = []
-        # current_speakerはリセットしない（次回の判定で使用するため）
+        # scroll-stopコマンド以外では自動的にスクロールを終了しない
+        # この関数は process_scroll_stop_command からのみ呼び出されるべき
+        pass
     
     def force_end_scroll_mode(self):
-        """強制的にスクロールモードを終了（背景変更時など）"""
+        """強制的にスクロールモードを終了 - 使用しない"""
         if self.debug:
-            print(f"[SCROLL] 強制スクロール終了")
+            print(f"[SCROLL] 強制スクロール終了は無効化されています")
         
-        """if self.scroll_mode and self.text_renderer:
-            self.text_renderer.set_scroll_ended_flag()
-        
-        self.scroll_mode = False
-        self.scroll_lines = []
-        self.current_speaker = None  # 強制終了時は話者もリセット"""
+        # 強制終了機能を無効化
+        # scroll-stopコマンド以外でスクロールを停止しない
+        pass
     
     def is_scroll_mode(self):
         """スクロールモードかどうかを返す"""
@@ -124,13 +118,10 @@ class ScrollManager:
         return self.current_speaker
     
     def reset_state(self):
-        """状態を完全にリセット"""
+        """状態を完全にリセット - 使用しない"""
         if self.debug:
-            print(f"[SCROLL] 状態完全リセット")
+            print(f"[SCROLL] 状態リセットは無効化されています")
         
-        """if self.scroll_mode and self.text_renderer:
-            self.text_renderer.set_scroll_ended_flag()
-        
-        self.scroll_mode = False
-        self.scroll_lines = []
-        self.current_speaker = None"""
+        # 状態リセット機能を無効化
+        # scroll-stopコマンド以外でスクロールを停止しない
+        pass
