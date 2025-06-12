@@ -312,6 +312,9 @@ class DialogueLoader:
                         # [en]タグを除去してからセリフを抽出（消去予定）
                         clean_line = re.sub(r'\[en\]', '', line)
                         dialogue_matches = re.findall(r'「([^」]+)」', clean_line)
+
+                        # [scroll-stop]タグがあるかチェック
+                        has_scroll_stop = '[scroll-stop]' in line
                         
                         for dialogue_text in dialogue_matches:
                             dialogue_text = dialogue_text.strip()
@@ -320,7 +323,7 @@ class DialogueLoader:
 
                                 # スクロール継続フラグを追加 - 背景変更後は必ずFalse
                                 scroll_continue = False
-                                if dialogue_data:
+                                if dialogue_data and not has_scroll_stop:
                                     # 後ろから順に検索して、最後の対話を見つける
                                     for i in range(len(dialogue_data) - 1, -1, -1):
                                         item = dialogue_data[i]
@@ -329,17 +332,13 @@ class DialogueLoader:
                                             if item.get('character') == dialogue_speaker:
                                                 scroll_continue = True
                                             break
-                                        # 背景変更コマンドがあったら必ず中断
-                                        elif item.get('type') in ['bg_show', 'bg_move']:
+                                        # scroll-stopコマンドがあったら中断
+                                        elif item.get('type') == 'scroll_stop':
                                             scroll_continue = False
                                             break
-                                        # キャラクター登場は無視して継続検索
-                                        elif item.get('type') in ['character', 'bgm']:
+                                        # その他のコマンドは無視して継続検索
+                                        elif item.get('type') in ['character', 'bgm', 'move', 'hide', 'bg_show', 'bg_move']:
                                             continue
-                                        # 移動・退場コマンドがあったら中断
-                                        elif item.get('type') in ['move', 'hide']:
-                                            break
-                                        # その他のコマンドも中断
                                         else:
                                             break
 
@@ -360,10 +359,26 @@ class DialogueLoader:
                                     'bgm_loop': current_bgm_loop,
                                     'scroll_continue': scroll_continue
                                 })
+
+                                # [scroll-stop]タグがある場合はスクロール停止コマンドを追加
+                                if has_scroll_stop:
+                                    if self.debug:
+                                        print(f"スクロール停止コマンド追加")
+                                    dialogue_data.append({
+                                        'type': 'scroll_stop'
+                                    })
                     
                     except Exception as e:
                         if self.debug:
                             print(f"セリフ解析エラー（行 {line_num}）: {e} - {line}")
+
+                # [scroll-stop]タグを独立して検出
+                elif "[scroll-stop]" in line:
+                    if self.debug:
+                        print(f"独立したスクロール停止コマンド")
+                    dialogue_data.append({
+                        'type': 'scroll_stop'
+                    })
 
             except Exception as e:
                     if self.debug:

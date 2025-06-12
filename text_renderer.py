@@ -55,6 +55,8 @@ class TextRenderer:
         
         self.backlog_manager = None
         self.scroll_manager = ScrollManager(debug)
+        # ScrollManagerにTextRendererの参照を設定
+        self.scroll_manager.set_text_renderer(self)
 
     def _init_fonts(self):
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
@@ -161,6 +163,13 @@ class TextRenderer:
             print("[DELAY] スクロール終了フラグを設定")
 
     def set_dialogue(self, text, character_name=None, should_scroll=False, background=None, active_characters=None):
+        # スクロール停止コマンドの処理
+        if text and text.startswith('_SCROLL_STOP'):
+            if self.debug:
+                print(f"[SCROLL] scroll-stopコマンドを実行")
+            self.scroll_manager.process_scroll_stop_command()
+            return
+        
         if self.debug:
             scroll_status = "スクロール" if should_scroll else "通常"
             print(f"[TEXT] {scroll_status}表示: {character_name} - '{text[:30] if text else ''}...'")
@@ -168,86 +177,75 @@ class TextRenderer:
         self.current_text = str(text) if text is not None else ""
         self.current_character_name = str(character_name) if character_name is not None else ""
         
-        # 現在の話者を記録（前回の話者との比較用）
+        # 現在の話者を記録
         if not hasattr(self, 'last_speaker'):
             self.last_speaker = None
+        
+        # 同一話者による自動スクロール継続判定
+        if (character_name and 
+            hasattr(self, 'last_speaker') and 
+            self.last_speaker == character_name and 
+            self.last_speaker is not None):
+            should_scroll = True
+            if self.debug:
+                print(f"[SCROLL] 同一話者判定によりスクロール強制継続: {character_name}")
         
         # スクロール表示の処理
         if should_scroll and character_name:
             # 既にスクロールモード中で同じ話者の場合は継続
-            if self.scroll_manager.is_scroll_mode() and self.scroll_manager.current_speaker == character_name:
-                if self.scroll_manager.continue_scroll(character_name, background, active_characters, text):
-                    self._start_text_display()
+            if (self.scroll_manager.is_scroll_mode() and 
+                self.scroll_manager.get_current_speaker() == character_name):
+                if self.scroll_manager.continue_scroll(character_name, text):
+                    self.displayed_chars = 0
+                    self.last_char_time = pygame.time.get_ticks()
+                    self.is_text_complete = False
+                    self.reset_auto_timer()
+                    self.last_speaker = character_name
                     return
             
-            # 話者が変わった場合は、スクロールを完全にリセットして新規開始
-            if self.scroll_manager.is_scroll_mode() and self.scroll_manager.current_speaker != character_name:
+            # 話者が変わった場合はスクロール終了
+            if (self.scroll_manager.is_scroll_mode() and 
+                self.scroll_manager.get_current_speaker() != character_name):
                 if self.debug:
-                    print(f"[SCROLL] 話者変更によりスクロールリセット: {self.scroll_manager.current_speaker} -> {character_name}")
+                    print(f"[SCROLL] 話者変更によりスクロール終了: {self.scroll_manager.get_current_speaker()} -> {character_name}")
                 self.scroll_manager.end_scroll_mode()
-                self.set_scroll_ended_flag()  # スクロール終了フラグを設定
             
-            # スクロールモードでない場合で、前回の話者と同じ場合は前のテキストを保持
-            if (not self.scroll_manager.is_scroll_mode() and 
-                self.last_speaker == character_name):
-                if self.debug:
-                    print(f"[SCROLL] 同一話者での通常→スクロール表示のため前テキスト保持: {character_name}")
-                self.scroll_manager.start_scroll_mode(character_name, background, active_characters, text)
-                self._start_text_display()
-                self.last_speaker = character_name
-                return
-            
-            # 新しくスクロール開始（前のテキストはクリア）
-            self.scroll_manager.start_scroll_mode(character_name, background, active_characters, text)
-            self._start_text_display()
+            # 新しくスクロール開始
+            self.scroll_manager.start_scroll_mode(character_name, text)
+            self.displayed_chars = 0
+            self.last_char_time = pygame.time.get_ticks()
+            self.is_text_complete = False
+            self.reset_auto_timer()
             self.last_speaker = character_name
             return
         
         # 通常表示の処理
-        if not should_scroll:
-            # 通常表示の場合で、スクロールモード中かつ同一話者の場合のみ継続
-            if (self.scroll_manager.is_scroll_mode() and 
-                character_name and 
-                self.scroll_manager.current_speaker == character_name):
-                # 同一話者での通常表示をスクロールに追加
-                if self.debug:
-                    print(f"[SCROLL] 同一話者の通常表示をスクロールに追加: {character_name}")
-                self.scroll_manager.add_text_to_scroll(text)
-                self.scroll_manager.current_speaker = character_name
-                self._start_text_display()
-                self.last_speaker = character_name
-                return
-            else:
-                # 話者が変わった場合や、スクロールモードでない場合は通常表示
-                if self.scroll_manager.is_scroll_mode():
-                    if self.debug:
-                        print(f"[DEBUG] 話者変更または通常表示によりスクロールモード終了")
-                    self.scroll_manager.end_scroll_mode()
-                    self.set_scroll_ended_flag()  # スクロール終了フラグを設定
-                
-                # 通常表示として処理し、前回テキストを保持（ScrollManagerに追加）
-                if character_name:
-                    if self.debug:
-                        print(f"[SCROLL] 通常表示テキストを保持: {character_name}")
-                    # 新しいスクロールモードを開始して、このテキストを最初に追加
-                    self.scroll_manager.start_scroll_mode(character_name, background, active_characters, text)
-                    # ただし、スクロールモードは無効にして通常表示として扱う
-                    self.scroll_manager.scroll_mode = False
-                
-                self._start_text_display()
-                self.last_speaker = character_name
-                return
+        # 同一話者でスクロールモード中なら強制的にスクロール継続
+        if (character_name and 
+            self.scroll_manager.is_scroll_mode() and 
+            self.scroll_manager.get_current_speaker() == character_name):
+            if self.debug:
+                print(f"[SCROLL] 同一話者の通常表示をスクロールに追加: {character_name}")
+            self.scroll_manager.add_text_to_scroll(text)
+            self.displayed_chars = 0
+            self.last_char_time = pygame.time.get_ticks()
+            self.is_text_complete = False
+            self.reset_auto_timer()
+            self.last_speaker = character_name
+            return
         
-        self._start_text_display()
-        self.last_speaker = character_name
-
-    def _start_text_display(self):
+        # 話者が変わった場合はスクロール終了
+        if self.scroll_manager.is_scroll_mode():
+            if self.debug:
+                print(f"[SCROLL] 話者変更または通常表示によりスクロール終了")
+            self.scroll_manager.end_scroll_mode()
+        
+        # 通常表示
         self.displayed_chars = 0
         self.last_char_time = pygame.time.get_ticks()
         self.is_text_complete = False
-        self.punctuation_waiting = False
-        self.punctuation_wait_start = 0
         self.reset_auto_timer()
+        self.last_speaker = character_name
 
     def update(self):
         if not self.current_text:
@@ -403,8 +401,17 @@ class TextRenderer:
             is_latest_block = (block_index == len(scroll_text_blocks) - 1)
             if is_latest_block and not self.is_text_complete:
                 # 最新のブロックで文字送り中の場合、表示する部分までを切り出す
-                # self.current_text は scroll_text_blocks の最後の要素と同じはず
-                text_to_render_for_block = self.current_text[:self.displayed_chars]
+                # 最新ブロックの最後の部分（改行で分割した最後の部分）のみに適用
+                block_lines = text_block_content.splitlines()
+                if block_lines:
+                    # 最後の行が現在表示中のテキストと一致するかチェック
+                    last_line = block_lines[-1]
+                    if self.current_text in last_line or last_line in self.current_text:
+                        # 最後の行を現在の表示状況に合わせて切り取り
+                        displayed_portion = self.current_text[:self.displayed_chars]
+                        # 全ての行を保持し、最後の行のみを置き換え
+                        updated_lines = block_lines[:-1] + [displayed_portion]
+                        text_to_render_for_block = '\n'.join(updated_lines)
 
             lines_in_block_to_draw = text_to_render_for_block.splitlines()
             if not lines_in_block_to_draw and text_to_render_for_block:
@@ -446,16 +453,7 @@ class TextRenderer:
     def reset_scroll_state(self):
         self.scroll_manager.reset_state()
     
-    def on_background_change(self):
-        if self.debug:
-            print(f"[DEBUG] 背景変更によるスクロール完全停止")
-        if self.scroll_manager.is_scroll_mode():
-            self.set_scroll_ended_flag()
-        self.scroll_manager.end_scroll_mode()
-    
     def on_scene_change(self):
         if self.debug:
             print(f"[DEBUG] シーン変更によるスクロール状態リセット")
-        if self.scroll_manager.is_scroll_mode():
-            self.set_scroll_ended_flag()
         self.scroll_manager.reset_state()

@@ -25,6 +25,10 @@ def advance_dialogue(game_state):
     if DEBUG:
         print(f"処理中のテキスト: '{dialogue_text[:50]}...'")
 
+    # スクロール停止コマンドかどうかチェック
+    if dialogue_text and dialogue_text.startswith("_SCROLL_STOP"):
+        return _handle_scroll_stop(game_state)
+
     # キャラクター登場コマンドかどうかチェック
     if dialogue_text and dialogue_text.startswith("_CHARA_NEW_"):
         return _handle_character_show(game_state, dialogue_text, current_dialogue)
@@ -48,6 +52,16 @@ def advance_dialogue(game_state):
     else:
         # 通常の対話テキスト
         return _handle_dialogue_text(game_state, current_dialogue)
+    
+def _handle_scroll_stop(game_state):
+    """スクロール停止コマンドを処理"""
+    if DEBUG:
+        print("スクロール停止コマンド実行")
+    
+    game_state['text_renderer'].scroll_manager.process_scroll_stop_command()
+    
+    # スクロール停止コマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
 
 def _handle_character_show(game_state, dialogue_text, current_dialogue):
     """キャラクター登場コマンドを処理"""
@@ -130,11 +144,6 @@ def _handle_character_move(game_state, dialogue_text, current_dialogue):
 
 def _handle_background_show(game_state, dialogue_text):
     """背景表示コマンドを処理"""
-    # 背景変更前にスクロール状態をリセット
-    if DEBUG:
-        print("背景表示コマンドによるスクロール完全停止")
-    game_state['text_renderer'].on_background_change()
-    
     parts = dialogue_text.split('_')
     if DEBUG:
         print(f"背景表示コマンド解析: dialogue_text='{dialogue_text}'")
@@ -161,11 +170,6 @@ def _handle_background_show(game_state, dialogue_text):
 
 def _handle_background_move(game_state, dialogue_text):
     """背景移動コマンドを処理"""
-    # 背景移動前にスクロール状態をリセット
-    if DEBUG:
-        print("背景移動コマンドによるスクロール完全停止")
-    game_state['text_renderer'].on_background_change()
-    
     parts = dialogue_text.split('_')
     if DEBUG:
         print(f"背景移動コマンド解析: dialogue_text='{dialogue_text}'")
@@ -230,10 +234,10 @@ def reset_dialogue_state(game_state):
     """対話状態をリセット（新しいシーンやセクション開始時）"""
     if DEBUG:
         print("対話状態リセット実行")
-    game_state['text_renderer'].on_scene_change()
+    game_state['text_renderer'].scroll_manager.reset_state()
 
 def force_end_scroll_mode(game_state):
     """スクロールモードを強制終了"""
     if DEBUG:
         print("スクロールモード強制終了")
-    game_state['text_renderer'].scroll_manager.force_end_scroll_and_reset()
+    game_state['text_renderer'].scroll_manager.force_end_scroll_mode()
