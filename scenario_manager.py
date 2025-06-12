@@ -234,10 +234,10 @@ def reset_dialogue_state(game_state):
     """対話状態をリセット（新しいシーンやセクション開始時）"""
     if DEBUG:
         print("対話状態リセット実行")
-    game_state['text_renderer'].scroll_manager.reset_state()
+    #game_state['text_renderer'].scroll_manager.reset_state()
 
 def force_end_scroll_mode(game_state):
     """スクロールモードを強制終了"""
     if DEBUG:
         print("スクロールモード強制終了")
-    game_state['text_renderer'].scroll_manager.force_end_scroll_mode()
+    #game_state['text_renderer'].scroll_manager.force_end_scroll_mode()

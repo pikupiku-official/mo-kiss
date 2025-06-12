@@ -105,6 +105,16 @@ def normalize_dialogue_data(raw_data):
             ])
             if DEBUG:
                 print(f"退場コマンド追加: {entry['character']}")
+
+        elif entry_type == 'scroll_stop':
+            # スクロール停止コマンドを正規化形式で追加
+            scroll_stop_command = "_SCROLL_STOP"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow,
+                scroll_stop_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
+            if DEBUG:
+                print(f"スクロール停止コマンド追加: {scroll_stop_command}")
     
     print(f"data_normalizer.py: 正規化後のデータ数: {len(normalized_data)}")
     

@@ -81,7 +81,10 @@ class ScrollManager:
         if self.scroll_mode and self.text_renderer:
             self.text_renderer.set_scroll_ended_flag()
         
-        self.end_scroll_mode()
+        self.scroll_mode = False
+        self.scroll_lines = []
+        # current_speakerもリセットして完全に初期化
+        self.current_speaker = None
     
     def end_scroll_mode(self):
         """スクロールモードを終了"""
@@ -101,12 +104,12 @@ class ScrollManager:
         if self.debug:
             print(f"[SCROLL] 強制スクロール終了")
         
-        if self.scroll_mode and self.text_renderer:
+        """if self.scroll_mode and self.text_renderer:
             self.text_renderer.set_scroll_ended_flag()
         
         self.scroll_mode = False
         self.scroll_lines = []
-        self.current_speaker = None  # 強制終了時は話者もリセット
+        self.current_speaker = None  # 強制終了時は話者もリセット"""
     
     def is_scroll_mode(self):
         """スクロールモードかどうかを返す"""
@@ -125,9 +128,9 @@ class ScrollManager:
         if self.debug:
             print(f"[SCROLL] 状態完全リセット")
         
-        if self.scroll_mode and self.text_renderer:
+        """if self.scroll_mode and self.text_renderer:
             self.text_renderer.set_scroll_ended_flag()
         
         self.scroll_mode = False
         self.scroll_lines = []
-        self.current_speaker = None
+        self.current_speaker = None"""
