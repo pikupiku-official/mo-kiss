@@ -9,6 +9,38 @@ class DialogueLoader:
         self.bgm_manager = BGMManager(debug)
         # キャラクター名と画像ファイル名の対応付け
         self.character_image_map = CHARACTER_IMAGE_MAP
+        # 26文字改行設定
+        self.max_chars_per_line = 26
+
+    def _wrap_text_and_count_lines(self, text):
+        """テキストを26文字で自動改行し、行数を返す"""
+        if not text:
+            return 0
+        
+        # 既存の改行コードで分割
+        paragraphs = text.split('\n')
+        total_lines = 0
+        
+        for paragraph in paragraphs:
+            if not paragraph:
+                # 空行の場合は1行として計算
+                total_lines += 1
+                continue
+            
+            # 26文字ごとに分割して行数を計算
+            current_pos = 0
+            while current_pos < len(paragraph):
+                line_end = current_pos + self.max_chars_per_line
+                if line_end >= len(paragraph):
+                    # 最後の行
+                    total_lines += 1
+                    break
+                else:
+                    # 26文字で一行分
+                    total_lines += 1
+                    current_pos = line_end
+        
+        return total_lines
 
     def load_dialogue_from_ks(self, filename):
         try:
@@ -50,7 +82,8 @@ class DialogueLoader:
                 'bgm': self.bgm_manager.DEFAULT_BGM,
                 'bgm_volume': DEFAULT_BGM_VOLUME,
                 'bgm_loop': DEFAULT_BGM_LOOP,
-                'scroll_continue': False
+                'scroll_continue': False,
+                'line_count': 1
             }
         ]
         
@@ -184,7 +217,7 @@ class DialogueLoader:
                             # 属性が指定されていない場合はデフォルト値を使用
                             current_eye = eye_type.group(1) if eye_type else "eye1"
                             current_mouth = mouth_type.group(1) if mouth_type else "mouth1"
-                            current_brow = brow_type.group(1) if brow_type else "brow1"
+                            current_brow = brow_type.group(1) if brow_type else ""
 
                             # x, y を数値として処理
                             try:
@@ -321,7 +354,10 @@ class DialogueLoader:
                             if dialogue_text:
                                 dialogue_speaker = current_speaker if current_speaker else current_char
 
-                                # スクロール継続フラグを追加 - 背景変更後は必ずFalse
+                                # テキストの行数を計算（26文字改行考慮）
+                                line_count = self._wrap_text_and_count_lines(dialogue_text)
+
+                                # スクロール継続フラグを判定 - 背景変更後は必ずFalse
                                 scroll_continue = False
                                 if dialogue_data and not has_scroll_stop:
                                     # 後ろから順に検索して、最後の対話を見つける
@@ -343,7 +379,7 @@ class DialogueLoader:
                                             break
 
                                 if self.debug:
-                                    print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}, スクロール継続: {scroll_continue}")
+                                    print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}, 行数: {line_count}, スクロール継続: {scroll_continue}")
                                 
                                 # 対話データを追加
                                 dialogue_data.append({
@@ -357,7 +393,8 @@ class DialogueLoader:
                                     'bgm': current_bgm,
                                     'bgm_volume': current_bgm_volume,
                                     'bgm_loop': current_bgm_loop,
-                                    'scroll_continue': scroll_continue
+                                    'scroll_continue': scroll_continue,
+                                    'line_count': line_count
                                 })
 
                                 # [scroll-stop]タグがある場合はスクロール停止コマンドを追加
@@ -393,3 +430,9 @@ class DialogueLoader:
             print(f"解析完了: {len(dialogue_data)} 個の辞書エントリーを返します")
 
         return dialogue_data
+
+    def set_max_chars_per_line(self, max_chars):
+        """1行あたりの最大文字数を設定"""
+        self.max_chars_per_line = max_chars
+        if self.debug:
+            print(f"dialogue_loader: 1行あたりの最大文字数を{max_chars}文字に設定")

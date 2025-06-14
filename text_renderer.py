@@ -26,6 +26,11 @@ class TextRenderer:
         self.text_line_height = self.fonts["text_pygame"].get_height()
         self.text_padding = TEXT_PADDING
 
+        # 26文字での自動改行を設定
+        self.max_chars_per_line = 26
+        # 最大表示行数
+        self.max_display_lines = 3
+
         self.pygame_fonts = {
             "text": self.fonts["text_pygame"],
             "name": self.fonts["name_pygame"]
@@ -57,6 +62,55 @@ class TextRenderer:
         self.scroll_manager = ScrollManager(debug)
         # ScrollManagerにTextRendererの参照を設定
         self.scroll_manager.set_text_renderer(self)
+
+    def _wrap_text(self, text):
+        """テキストを26文字で自動改行する"""
+        if not text:
+            return []
+        
+        # 既存の改行コードで分割
+        paragraphs = text.split('\n')
+        wrapped_lines = []
+        
+        for paragraph in paragraphs:
+            if not paragraph:
+                # 空行の場合はそのまま追加
+                wrapped_lines.append('')
+                continue
+            
+            # 26文字ごとに分割
+            current_pos = 0
+            while current_pos < len(paragraph):
+                line_end = current_pos + self.max_chars_per_line
+                if line_end >= len(paragraph):
+                    # 最後の行
+                    wrapped_lines.append(paragraph[current_pos:])
+                    break
+                else:
+                    # 26文字で切り取り
+                    wrapped_lines.append(paragraph[current_pos:line_end])
+                    current_pos = line_end
+        
+        return wrapped_lines
+
+    def _get_display_lines_with_scroll(self, display_text_segment):
+        """表示用のテキストを26文字改行して、3行スクロール効果を適用"""
+        wrapped_lines = self._wrap_text(display_text_segment)
+        
+        # 3行以下の場合はそのまま返す
+        if len(wrapped_lines) <= self.max_display_lines:
+            return wrapped_lines
+        
+        # 3行を超える場合は最新の3行のみを返す（スクロール効果）
+        display_lines = wrapped_lines[-self.max_display_lines:]
+        
+        if self.debug:
+            total_lines = len(wrapped_lines)
+            shown_start = total_lines - self.max_display_lines + 1
+            shown_end = total_lines
+            print(f"[3LINE_SCROLL] {total_lines}行中 {shown_start}-{shown_end}行目を表示: {[line[:20]+'...' if len(line) > 20 else line for line in display_lines]}")
+        
+        return display_lines
 
     def _init_fonts(self):
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
@@ -327,7 +381,7 @@ class TextRenderer:
         return not self.is_text_complete and bool(self.current_text)
 
     def render_paragraph(self):
-        """現在の会話データを描画する（改行コード'\n'をサポート）"""
+        """現在の会話データを描画する（26文字自動改行 + 3行スクロール）"""
         if not self.current_text:
             return 0
         
@@ -336,11 +390,8 @@ class TextRenderer:
         
         display_text_segment = self.current_text[:self.displayed_chars]
         
-        # テキストを改行コードで分割
-        lines_to_draw = display_text_segment.splitlines()
-        # もし display_text_segment が空でなく、splitlines() が空リストを返す場合（例: "text" のみで改行なし）
-        if not lines_to_draw and display_text_segment:
-            lines_to_draw = [display_text_segment]
+        # テキストを26文字で自動改行し、3行スクロールを適用
+        lines_to_draw = self._get_display_lines_with_scroll(display_text_segment)
 
         # 話者名と本文に適用する色を決定
         text_color_to_use = self.text_color
@@ -359,18 +410,18 @@ class TextRenderer:
 
         y = self.text_start_y
         for single_line in lines_to_draw:
-            if single_line: # 空の行は描画しない (明示的に空行を描画したい場合はこの条件を外す)
+            if single_line: # 空の行は描画しない
                 try:
                     text_surface = self.pygame_fonts["text"].render(single_line, True, text_color_to_use)
                     self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
                         print(f"テキスト描画エラー: {e}, テキスト: '{single_line}'")
-            y += self.text_line_height # 各行の後に高さを加算 (空行でも高さを消費させる)
+            y += self.text_line_height # 各行の後に高さを加算
         return y
 
     def render_scroll_text(self):
-        """スクロールテキストを描画する（改行コード'\n'をサポート）"""
+        """スクロールテキストを描画する（26文字自動改行対応）"""
         scroll_text_blocks = self.scroll_manager.get_scroll_lines()
         
         if not scroll_text_blocks:
@@ -401,21 +452,13 @@ class TextRenderer:
             is_latest_block = (block_index == len(scroll_text_blocks) - 1)
             if is_latest_block and not self.is_text_complete:
                 # 最新のブロックで文字送り中の場合、表示する部分までを切り出す
-                # 最新ブロックの最後の部分（改行で分割した最後の部分）のみに適用
-                block_lines = text_block_content.splitlines()
-                if block_lines:
-                    # 最後の行が現在表示中のテキストと一致するかチェック
-                    last_line = block_lines[-1]
-                    if self.current_text in last_line or last_line in self.current_text:
-                        # 最後の行を現在の表示状況に合わせて切り取り
-                        displayed_portion = self.current_text[:self.displayed_chars]
-                        # 全ての行を保持し、最後の行のみを置き換え
-                        updated_lines = block_lines[:-1] + [displayed_portion]
-                        text_to_render_for_block = '\n'.join(updated_lines)
+                if self.current_text in text_block_content or text_block_content in self.current_text:
+                    # 現在の表示状況に合わせて切り取り
+                    displayed_portion = self.current_text[:self.displayed_chars]
+                    text_to_render_for_block = displayed_portion
 
-            lines_in_block_to_draw = text_to_render_for_block.splitlines()
-            if not lines_in_block_to_draw and text_to_render_for_block:
-                 lines_in_block_to_draw = [text_to_render_for_block]
+            # テキストを26文字で自動改行
+            lines_in_block_to_draw = self._wrap_text(text_to_render_for_block)
 
             for single_line in lines_in_block_to_draw:
                 if single_line: # 空の行は描画しない
@@ -461,3 +504,15 @@ class TextRenderer:
         if self.debug:
             print(f"[SCROLL] シーン変更時のスクロール状態リセットは無効化されています")
         pass
+
+    def set_max_chars_per_line(self, max_chars):
+        """1行あたりの最大文字数を設定"""
+        self.max_chars_per_line = max_chars
+        if self.debug:
+            print(f"1行あたりの最大文字数を{max_chars}文字に設定")
+    
+    def set_max_display_lines(self, max_lines):
+        """最大表示行数を設定"""
+        self.max_display_lines = max_lines
+        if self.debug:
+            print(f"最大表示行数を{max_lines}行に設定")

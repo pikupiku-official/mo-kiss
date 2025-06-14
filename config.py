@@ -81,9 +81,9 @@ BUTTON_MARGIN_TOP = SCREEN_HEIGHT * 647 / 1000  # ボタンの上マージン
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
-    "eye": (0.49, 0.24),
-    "mouth": (0.49, 0.31),
-    "brow": (0.49, 0.18)  # 眉毛の位置を追加
+    "eye": (0.5, 0.5),
+    "mouth": (0.5, 0.5),
+    "brow": (0.5, 0.5)  # 眉毛の位置を追加
 }
 
 # キャラクター設定
@@ -112,12 +112,12 @@ CHARACTER_DEFAULTS = {
     "桃子": {
         "eye": "eye1",
         "mouth": "mouth1",
-        "brow": "brow1"  # 眉毛のデフォルト設定を追加
+        "brow": ""
     },
     "サナコ": {
         "eye": "eye1",
         "mouth": "mouth1",
-        "brow": "brow1"  # サナコのデフォルト設定も追加
+        "brow": ""
     }
 }
 

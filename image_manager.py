@@ -59,11 +59,11 @@ class ImageManager:
                     elif "char" in file:
                         images["characters"][file.split('.')[2]] = self.load_image(file_path)
                     elif "eye" in file:
-                        images["eyes"][file.split('.')[2]] = self.load_image(file_path, (70, 20))
+                        images["eyes"][file.split('.')[2]] = self.load_image(file_path)
                     elif "mouth" in file:
-                        images["mouths"][file.split('.')[2]] = self.load_image(file_path, (30, 30))
+                        images["mouths"][file.split('.')[2]] = self.load_image(file_path)
                     elif "brow" in file:
-                        images["brows"][file.split('.')[2]] = self.load_image(file_path, (70, 20))
+                        images["brows"][file.split('.')[2]] = self.load_image(file_path)
                     elif "ui" in file:
                         ui_name = file.split('.')[1] if len(file.split('.')) >= 3 else file.split('.')[0]
                         if ui_name == "text-box":
