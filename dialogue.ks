@@ -40,7 +40,7 @@
 	「別の場面に移動しました。」
 	[scroll-stop]
 
-[chara_show name="サナコ"　eye="eye1" mouth="mouth1" x="0.2" y="0.2"]
+[chara_show name="サナコ"　eye="eye2" mouth="mouth2" x="0.2" y="0.2"]
 
 	//桃子//
 	「わかる人にしかわからない、快速みたいな言葉もあって、」
