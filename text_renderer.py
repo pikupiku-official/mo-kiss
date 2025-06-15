@@ -104,12 +104,6 @@ class TextRenderer:
         # 3行を超える場合は最新の3行のみを返す（スクロール効果）
         display_lines = wrapped_lines[-self.max_display_lines:]
         
-        if self.debug:
-            total_lines = len(wrapped_lines)
-            shown_start = total_lines - self.max_display_lines + 1
-            shown_end = total_lines
-            print(f"[3LINE_SCROLL] {total_lines}行中 {shown_start}-{shown_end}行目を表示: {[line[:20]+'...' if len(line) > 20 else line for line in display_lines]}")
-        
         return display_lines
 
     def _init_fonts(self):

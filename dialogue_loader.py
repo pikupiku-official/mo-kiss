@@ -11,6 +11,9 @@ class DialogueLoader:
         self.character_image_map = CHARACTER_IMAGE_MAP
         # 26文字改行設定
         self.max_chars_per_line = 26
+        
+        # 3行制限テスト用：スクロール継続を無効化
+        self.disable_scroll_continue = True  # テスト用フラグ
 
     def _wrap_text_and_count_lines(self, text):
         """テキストを26文字で自動改行し、行数を返す"""
@@ -357,29 +360,31 @@ class DialogueLoader:
                                 # テキストの行数を計算（26文字改行考慮）
                                 line_count = self._wrap_text_and_count_lines(dialogue_text)
 
-                                # スクロール継続フラグを判定 - 背景変更後は必ずFalse
+                                # 3行制限テスト用：スクロール継続を無効化
                                 scroll_continue = False
-                                if dialogue_data and not has_scroll_stop:
-                                    # 後ろから順に検索して、最後の対話を見つける
-                                    for i in range(len(dialogue_data) - 1, -1, -1):
-                                        item = dialogue_data[i]
-                                        if item.get('type') == 'dialogue':
-                                            # 最後の対話が同じ話者なら継続
-                                            if item.get('character') == dialogue_speaker:
-                                                scroll_continue = True
-                                            break
-                                        # scroll-stopコマンドがあったら中断
-                                        elif item.get('type') == 'scroll_stop':
-                                            scroll_continue = False
-                                            break
-                                        # その他のコマンドは無視して継続検索
-                                        elif item.get('type') in ['character', 'bgm', 'move', 'hide', 'bg_show', 'bg_move']:
-                                            continue
-                                        else:
-                                            break
+                                if not self.disable_scroll_continue:
+                                    # 元のスクロール継続判定ロジック
+                                    if dialogue_data and not has_scroll_stop:
+                                        # 後ろから順に検索して、最後の対話を見つける
+                                        for i in range(len(dialogue_data) - 1, -1, -1):
+                                            item = dialogue_data[i]
+                                            if item.get('type') == 'dialogue':
+                                                # 最後の対話が同じ話者なら継続
+                                                if item.get('character') == dialogue_speaker:
+                                                    scroll_continue = True
+                                                break
+                                            # scroll-stopコマンドがあったら中断
+                                            elif item.get('type') == 'scroll_stop':
+                                                scroll_continue = False
+                                                break
+                                            # その他のコマンドは無視して継続検索
+                                            elif item.get('type') in ['character', 'bgm', 'move', 'hide', 'bg_show', 'bg_move']:
+                                                continue
+                                            else:
+                                                break
 
                                 if self.debug:
-                                    print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}, 行数: {line_count}, スクロール継続: {scroll_continue}")
+                                    print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}, 行数: {line_count}, スクロール継続: {scroll_continue} (無効化: {self.disable_scroll_continue})")
                                 
                                 # 対話データを追加
                                 dialogue_data.append({
@@ -436,3 +441,9 @@ class DialogueLoader:
         self.max_chars_per_line = max_chars
         if self.debug:
             print(f"dialogue_loader: 1行あたりの最大文字数を{max_chars}文字に設定")
+    
+    def enable_scroll_continue(self, enable=True):
+        """スクロール継続機能の有効/無効を切り替え"""
+        self.disable_scroll_continue = not enable
+        if self.debug:
+            print(f"スクロール継続機能: {'有効' if enable else '無効'}")
