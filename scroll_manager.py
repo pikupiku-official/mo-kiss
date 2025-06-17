@@ -49,14 +49,14 @@ class ScrollManager:
             print(f"[SCROLL] 現在のブロック数: {len(self.scroll_lines)}/{self.max_lines}")
     
     def should_continue_scroll(self, speaker):
-        """スクロール継続可能かを判定 - scroll-stopコマンド以外では常に継続"""
+        """スクロール継続可能かを判定 - [scroll-stop]まで継続"""
         if not self.scroll_mode:
             return False
             
-        # 話者が変わってもスクロールを継続
+        # 話者が変わってもスクロールを継続（[scroll-stop]まで）
         if speaker != self.current_speaker:
             if self.debug:
-                print(f"[SCROLL] 話者変更だがスクロール継続: {self.current_speaker} -> {speaker}")
+                print(f"[SCROLL] 話者変更でもスクロール継続: {self.current_speaker} -> {speaker}")
             # 現在の話者を新しい話者に更新
             self.current_speaker = speaker
             
@@ -75,16 +75,16 @@ class ScrollManager:
             return False
     
     def process_scroll_stop_command(self):
-        """scroll-stopコマンドによるスクロール終了（唯一のスクロール停止方法）"""
+        """scroll-stopコマンドによるスクロール終了 - 次のテキストから新しい表示を開始"""
         if self.debug:
-            print(f"[SCROLL] scroll-stopコマンドによりスクロール終了")
+            print(f"[SCROLL] scroll-stopコマンドによりスクロール終了、次のテキストから新規表示開始")
         
         if self.scroll_mode and self.text_renderer:
             self.text_renderer.set_scroll_ended_flag()
         
+        # スクロール状態をリセットして次のテキストから新しく開始できるようにする
         self.scroll_mode = False
         self.scroll_lines = []
-        # current_speakerもリセットして完全に初期化
         self.current_speaker = None
     
     def end_scroll_mode(self):

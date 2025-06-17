@@ -12,8 +12,8 @@ class DialogueLoader:
         # 26文字改行設定
         self.max_chars_per_line = 26
         
-        # 3行制限テスト用：スクロール継続を無効化
-        self.disable_scroll_continue = True  # テスト用フラグ
+        # スクロール機能を全テキストに適用
+        self.disable_scroll_continue = False  # スクロール機能を有効化
 
     def _wrap_text_and_count_lines(self, text):
         """テキストを26文字で自動改行し、行数を返す"""
@@ -360,22 +360,20 @@ class DialogueLoader:
                                 # テキストの行数を計算（26文字改行考慮）
                                 line_count = self._wrap_text_and_count_lines(dialogue_text)
 
-                                # 3行制限テスト用：スクロール継続を無効化
+                                # スクロール継続判定ロジック - [scroll-stop]まで継続（全テキストでスクロール表示）
                                 scroll_continue = False
-                                if not self.disable_scroll_continue:
-                                    # 元のスクロール継続判定ロジック
-                                    if dialogue_data and not has_scroll_stop:
-                                        # 後ろから順に検索して、最後の対話を見つける
+                                if not self.disable_scroll_continue and not has_scroll_stop:
+                                    if dialogue_data:
+                                        # 後ろから順に検索して、最後のscroll-stopまたは対話を見つける
                                         for i in range(len(dialogue_data) - 1, -1, -1):
                                             item = dialogue_data[i]
-                                            if item.get('type') == 'dialogue':
-                                                # 最後の対話が同じ話者なら継続
-                                                if item.get('character') == dialogue_speaker:
-                                                    scroll_continue = True
-                                                break
-                                            # scroll-stopコマンドがあったら中断
-                                            elif item.get('type') == 'scroll_stop':
+                                            if item.get('type') == 'scroll_stop':
+                                                # 最後にscroll-stopがあったら新しいスクロールを開始しない
                                                 scroll_continue = False
+                                                break
+                                            elif item.get('type') == 'dialogue':
+                                                # 最後にscroll-stopがなければスクロールを継続
+                                                scroll_continue = True
                                                 break
                                             # その他のコマンドは無視して継続検索
                                             elif item.get('type') in ['character', 'bgm', 'move', 'hide', 'bg_show', 'bg_move']:

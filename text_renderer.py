@@ -384,8 +384,19 @@ class TextRenderer:
         
         display_text_segment = self.current_text[:self.displayed_chars]
         
-        # テキストを26文字で自動改行し、3行スクロールを適用
-        lines_to_draw = self._get_display_lines_with_scroll(display_text_segment)
+        # テキストを26文字で自動改行
+        all_lines = self._wrap_text(display_text_segment)
+        
+        # 3行スクロール効果を適用：表示中の文字数に基づいて動的にスクロール
+        lines_to_draw = []
+        if len(all_lines) <= self.max_display_lines:
+            # 3行以下の場合はそのまま表示
+            lines_to_draw = all_lines
+        else:
+            # 3行を超える場合：文字送り進行に応じて最新3行を表示（スクロール効果）
+            lines_to_draw = all_lines[-self.max_display_lines:]
+            if self.debug and len(all_lines) > self.max_display_lines:
+                print(f"[SCROLL] 単一テキストの3行スクロール適用: {len(all_lines)}行 -> 最新{self.max_display_lines}行表示")
 
         # 話者名と本文に適用する色を決定
         text_color_to_use = self.text_color
@@ -415,7 +426,7 @@ class TextRenderer:
         return y
 
     def render_scroll_text(self):
-        """スクロールテキストを描画する（26文字自動改行対応）"""
+        """スクロールテキストを描画する（26文字自動改行対応 + 最大3行表示）"""
         scroll_text_blocks = self.scroll_manager.get_scroll_lines()
         
         if not scroll_text_blocks:
@@ -439,7 +450,8 @@ class TextRenderer:
                 if self.debug:
                     print(f"スクロールキャラクター名描画エラー: {e}, 名前: '{display_name}'")
         
-        y = self.text_start_y
+        # 全ブロックを結合してから3行スクロール処理
+        all_lines = []
         for block_index, text_block_content in enumerate(scroll_text_blocks):
             text_to_render_for_block = text_block_content
             
@@ -452,17 +464,29 @@ class TextRenderer:
                     text_to_render_for_block = displayed_portion
 
             # テキストを26文字で自動改行
-            lines_in_block_to_draw = self._wrap_text(text_to_render_for_block)
-
-            for single_line in lines_in_block_to_draw:
-                if single_line: # 空の行は描画しない
-                    try:
-                        text_surface = self.pygame_fonts["text"].render(single_line, True, color_to_use)
-                        self.screen.blit(text_surface, (self.text_start_x, y))
-                    except Exception as e:
-                        if self.debug:
-                            print(f"スクロールテキスト描画エラー: {e}, テキスト: '{single_line}'")
-                y += self.text_line_height # 各行の後に高さを加算
+            lines_in_block = self._wrap_text(text_to_render_for_block)
+            all_lines.extend(lines_in_block)
+        
+        # 最大3行表示でスクロール効果を適用
+        lines_to_draw = []
+        if len(all_lines) <= self.max_display_lines:
+            lines_to_draw = all_lines
+        else:
+            # 3行を超える場合は最新3行のみ表示
+            lines_to_draw = all_lines[-self.max_display_lines:]
+            if self.debug:
+                print(f"[SCROLL] スクロール表示: {len(all_lines)}行 -> 最新{self.max_display_lines}行表示")
+        
+        y = self.text_start_y
+        for single_line in lines_to_draw:
+            if single_line: # 空の行は描画しない
+                try:
+                    text_surface = self.pygame_fonts["text"].render(single_line, True, color_to_use)
+                    self.screen.blit(text_surface, (self.text_start_x, y))
+                except Exception as e:
+                    if self.debug:
+                        print(f"スクロールテキスト描画エラー: {e}, テキスト: '{single_line}'")
+            y += self.text_line_height # 各行の後に高さを加算
         
         return y
 
