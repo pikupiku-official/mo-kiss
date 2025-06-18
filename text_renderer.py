@@ -169,10 +169,15 @@ class TextRenderer:
         except Exception as e:
             print(f"フォント初期化エラー: {e}")
             # エラーが発生した場合はフォールバック
+            # エラー時のフォールバック（仮想解像度基準）
+            from config import SCALE
+            virtual_fallback_font_size = 47  # 1080 * 0.044 = 47.52 → 47px
+            virtual_default_font_size = 29   # 1080 * 0.027 = 29.16 → 29px
+            
             return self._get_fallback_fonts(
-                int(SCREEN_HEIGHT * 0.044),
-                int(SCREEN_HEIGHT * 0.044),
-                int(SCREEN_HEIGHT * 0.027)
+                int(virtual_fallback_font_size * SCALE),
+                int(virtual_fallback_font_size * SCALE), 
+                int(virtual_default_font_size * SCALE)
             )
         
     def _get_fallback_fonts(self, name_size, text_size, default_size):
@@ -352,9 +357,9 @@ class TextRenderer:
         if not self.is_text_complete:
             char_delay_to_use = self.char_delay
             
-            # skipモードの場合は表示速度を20倍にする（char_delayを1/6にする）
+            # skipモードの場合は表示速度を40倍にする（char_delayを1/6にする）
             if self.skip_mode:
-                char_delay_to_use = self.char_delay // 20
+                char_delay_to_use = self.char_delay // 40
                 if char_delay_to_use < 1:  # 最小値は1ms
                     char_delay_to_use = 1
             

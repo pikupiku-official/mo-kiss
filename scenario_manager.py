@@ -90,8 +90,14 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             char_height = char_img.get_height()
 
             # 0.0-1.0の値をピクセル座標に変換
-            pos_x = int(SCREEN_WIDTH * show_x - char_width // 2)
-            pos_y = int(SCREEN_HEIGHT * show_y - char_height // 2)
+            # 仮想解像度基準で位置を計算してスケーリング
+            from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos
+            
+            virtual_pos_x = int(VIRTUAL_WIDTH * show_x - char_width // 2)
+            virtual_pos_y = int(VIRTUAL_HEIGHT * show_y - char_height // 2)
+            
+            # スケーリングした実際の位置を計算
+            pos_x, pos_y = scale_pos(virtual_pos_x, virtual_pos_y)
             
             game_state['character_pos'][char_name] = [pos_x, pos_y]
 

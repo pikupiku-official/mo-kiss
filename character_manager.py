@@ -21,12 +21,18 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
     target_x_val = float(target_x)
     target_y_val = float(target_y)
 
-    # X方向の移動：プラス=右方向、マイナス=左方向
-    offset_x = target_x_val * SCREEN_WIDTH
+    # 仮想解像度基準で位置を計算してスケーリング
+    from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos
+    
+    # X方向とY方向の移動を仮想解像度基準で計算
+    virtual_offset_x = target_x_val * VIRTUAL_WIDTH
+    virtual_offset_y = target_y_val * VIRTUAL_HEIGHT
+    
+    # スケーリングした実際の位置を計算
+    offset_x, offset_y = scale_pos(virtual_offset_x, virtual_offset_y)
+    
+    # 最終的な目標位置を計算
     final_target_x = current_x + int(offset_x)
-
-    # Y方向の移動：プラス=下方向、マイナス=上方向
-    offset_y = target_y_val * SCREEN_HEIGHT
     final_target_y = current_y + int(offset_y)
     
     # アニメーション情報を設定

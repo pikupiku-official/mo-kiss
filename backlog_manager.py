@@ -36,6 +36,11 @@ class BacklogManager:
         self.fonts = fonts
         self.debug = debug
         
+        # 仮想解像度基準のピクセル値設定（1920x1080基準）
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+        
+        # レイアウト設定を先に計算する必要があるため、後でフォントサイズを計算する
+        
         # バックログデータ
         self.entries = []  # [{"speaker": "話者名", "text": "テキスト"}]
         self.is_showing = False
@@ -49,22 +54,57 @@ class BacklogManager:
         self.female_text_color = TEXT_COLOR_FEMALE
         self.female_name_color = TEXT_COLOR_FEMALE
         
-        # レイアウト設定
-        self.margin = 50
-        self.width = screen.get_width() - self.margin * 2
-        self.height = screen.get_height() - self.margin * 2
-        self.x = self.margin
-        self.y = self.margin
+        # レイアウト設定（仮想解像度1920x1080基準のピクセル値）
+        # 仮想座標でのレイアウト計算
+        virtual_margin = 50  # 1920 * 0.026 = 50px
+        virtual_width = VIRTUAL_WIDTH - virtual_margin * 2
+        virtual_height = VIRTUAL_HEIGHT - virtual_margin * 2
         
-        self.speaker_width = 200  # 話者名の幅
-        self.text_width = self.width - self.speaker_width - 60  # テキスト幅
-        self.padding = 20
-        self.item_spacing = 15
+        virtual_speaker_width = 200  # 1920 * 0.104 = 200px
+        virtual_text_width = virtual_width - virtual_speaker_width - 60  # 1920 * 0.031 = 60pxの余白
+        virtual_padding = 19  # 1920 * 0.01 = 19px
+        virtual_item_spacing = 15  # 1920 * 0.008 = 15px
         
-        # フォント設定（text_rendererと同じ）
-        self.name_font_metrics = QFontMetrics(self.fonts["name"])
-        self.text_font_metrics = QFontMetrics(self.fonts["text"])
+        # 実際の画面座標にスケーリング
+        self.margin = scale_size(virtual_margin, 0)[0]
+        self.width, self.height = scale_size(virtual_width, virtual_height)
+        self.x, self.y = scale_pos(virtual_margin, virtual_margin)
+        
+        self.speaker_width = scale_size(virtual_speaker_width, 0)[0]
+        self.text_width = scale_size(virtual_text_width, 0)[0]
+        self.padding = scale_size(virtual_padding, 0)[0]
+        self.item_spacing = scale_size(virtual_item_spacing, 0)[0]
+        
+        # フォント設定（バックログ用に新しいフォントオブジェクトを作成）
+        from PyQt5.QtGui import QFont, QFontMetrics
+        from config import SCALE
+        
+        # 元のフォントファミリー名を取得
+        name_font_family = self.fonts["name"].family()
+        text_font_family = self.fonts["text"].family()
+        name_font_weight = self.fonts["name"].weight()
+        text_font_weight = self.fonts["text"].weight()
+        
+        # ディスプレイサイズが小さい時により小さなフォントサイズになるよう逆スケーリング
+        base_font_size = 50  # 基準フォントサイズ
+        # SCALEの逆数を使用してディスプレイが小さいほど文字サイズを小さくする
+        self.text_font_size = max(12, min(72, int(base_font_size * SCALE)))  # 最小12px, 最大72px
+        self.name_font_size = self.text_font_size  # 名前も同じサイズ
+        
+        # バックログ用のフォントを作成（元のfontsは変更しない）
+        self.backlog_name_font = QFont(name_font_family, self.name_font_size)
+        self.backlog_name_font.setWeight(name_font_weight)
+        self.backlog_text_font = QFont(text_font_family, self.text_font_size)  
+        self.backlog_text_font.setWeight(text_font_weight)
+        
+        self.name_font_metrics = QFontMetrics(self.backlog_name_font)
+        self.text_font_metrics = QFontMetrics(self.backlog_text_font)
         self.text_line_height = self.text_font_metrics.height()
+        
+        if self.debug:
+            print(f"[BACKLOG] 基準フォントサイズ: {base_font_size}px")
+            print(f"[BACKLOG] 実際のフォントサイズ: {self.text_font_size}px (SCALE: {SCALE:.3f})")
+            print(f"[BACKLOG] 行の高さ: {self.text_line_height}px")
         
     def get_character_colors(self, char_name):
         """キャラクター名に基づいて色を決定する（text_rendererと同じ）"""
@@ -236,7 +276,7 @@ class BacklogManager:
         end_line = min(start_line + max_lines, len(all_lines))
         
         # 描画開始位置
-        current_y = self.y + self.padding
+        current_y = self.y + self.padding + 10
         
         for i in range(start_line, end_line):
             if i >= len(all_lines):
@@ -253,17 +293,17 @@ class BacklogManager:
             # 話者名を描画（最初の行のみ）
             if speaker and speaker.strip():
                 try:
-                    name_surface = render_text_with_qfont(speaker, self.fonts["name"], name_color)
+                    name_surface = render_text_with_qfont(speaker, self.backlog_name_font, name_color)
                     self.screen.blit(name_surface, (self.x + self.padding, current_y))
                 except Exception as e:
                     if self.debug:
                         print(f"話者名描画エラー: {e}, 名前: '{speaker}'")
             
             # テキストを描画（話者名と同じ高さ）
-            text_x = self.x + self.padding + self.speaker_width
+            text_x = self.x + self.padding + self.speaker_width + 60
             if text_line.strip():
                 try:
-                    text_surface = render_text_with_qfont(text_line, self.fonts["text"], text_color)
+                    text_surface = render_text_with_qfont(text_line, self.backlog_text_font, text_color)
                     self.screen.blit(text_surface, (text_x, current_y))
                 except Exception as e:
                     if self.debug:

@@ -30,16 +30,19 @@ DISPLAY_WIDTH = root.winfo_screenwidth()
 DISPLAY_HEIGHT = root.winfo_screenheight()
 root.destroy()  # 役目を終えたらtkinterウィンドウを閉じる
 
-# ウィンドウサイズを16:9のアスペクト比に調整
-# ディスプレイの横幅または高さに合わせて、小さい方を基準にする
-if DISPLAY_WIDTH / DISPLAY_HEIGHT > 16 / 9:  # ディスプレイが16:9より横長の場合
-    # 高さを基準にする
-    WINDOW_HEIGHT = int(DISPLAY_HEIGHT * 0.8)  # 画面高さの80%
-    WINDOW_WIDTH = int(WINDOW_HEIGHT * 16 / 9)  # 16:9のアスペクト比で幅を計算
-else:  # ディスプレイが16:9より縦長の場合
-    # 幅を基準にする
-    WINDOW_WIDTH = int(DISPLAY_WIDTH * 0.8)  # 画面幅の80%
-    WINDOW_HEIGHT = int(WINDOW_WIDTH * 9 / 16)  # 16:9のアスペクト比で高さを計算
+# 仮想画面の基準解像度（全ての座標・サイズ計算の基準）
+VIRTUAL_WIDTH = 1920
+VIRTUAL_HEIGHT = 1080
+
+# 実際のウィンドウサイズを16:9のアスペクト比に調整
+# 必ずディスプレイの横幅を基準に80%のウィンドウを表示
+WINDOW_WIDTH = int(DISPLAY_WIDTH * 0.8)  # 画面幅の80%
+WINDOW_HEIGHT = int(WINDOW_WIDTH * 9 / 16)  # 16:9のアスペクト比で高さを計算
+
+# スケーリング係数を計算
+SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
+SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
+SCALE = max(SCALE_X, SCALE_Y)  # アスペクト比を維持するため小さい方を使用
 
 # 中央の位置を計算
 X_POS = (DISPLAY_WIDTH - WINDOW_WIDTH) // 2
@@ -52,32 +55,39 @@ SCREEN_HEIGHT = WINDOW_HEIGHT
 # デバッグモード
 DEBUG = True
 
-# テキスト表示設定（ウィンドウサイズに合わせて調整）
+# テキスト表示設定（仮想解像度1920x1080基準のピクセル値）
 TEXT_COLOR = (255, 255, 255)
 TEXT_COLOR_FEMALE = (255, 175, 227)
 TEXT_BG_COLOR = (0, 0, 0, 100)
-TEXT_START_X = SCREEN_WIDTH / 4.7
-TEXT_START_Y = SCREEN_HEIGHT * 705 / 1000
-NAME_START_X = SCREEN_WIDTH / 9
+TEXT_START_X = 400
+TEXT_START_Y = 765
+NAME_START_X = 220
 NAME_START_Y = TEXT_START_Y
-TEXT_PADDING = SCREEN_HEIGHT / 100
+TEXT_PADDING = 11
 
-# テキスト表示設定
+# テキスト表示設定（仮想座標をスケーリング）
 def get_text_positions(screen):
+    # 仮想座標を実際の画面座標にスケーリング
+    name_1_pos = scale_pos(NAME_START_X, NAME_START_Y)
+    speech_1_pos = scale_pos(TEXT_START_X, TEXT_START_Y)
+    name_2_pos = scale_pos(NAME_START_X, NAME_START_Y + TEXT_LINE_SPACING)
+    speech_2_pos = scale_pos(TEXT_START_X, TEXT_START_Y + TEXT_LINE_SPACING)
+    line_height = int(TEXT_LINE_SPACING * SCALE)
+    
     return {
-        "name_1": (NAME_START_X, NAME_START_Y),
-        "speech_1": (TEXT_START_X, TEXT_START_Y),
-        "name_2": (NAME_START_X, NAME_START_Y + TEXT_LINE_SPACING),
-        "speech_2": (TEXT_START_X, TEXT_START_Y + TEXT_LINE_SPACING),
-        "line_height": TEXT_LINE_SPACING
+        "name_1": name_1_pos,
+        "speech_1": speech_1_pos,
+        "name_2": name_2_pos,
+        "speech_2": speech_2_pos,
+        "line_height": line_height
     }
 
-# UI要素の設定
-TEXTBOX_MARGIN_BOTTOM = SCREEN_HEIGHT * 50 / 1080  # テキストボックスの下マージン
-TEXT_LINE_SPACING = SCREEN_HEIGHT * 74 / 1000  # 2つのテキスト行の間隔
-AUTO_BUTTON_MARGIN_RIGHT = SCREEN_WIDTH * 209 / 1000  # autoボタンの右マージン
-SKIP_BUTTON_MARGIN_RIGHT = SCREEN_WIDTH * 1345 / 10000  # skipボタンの右マージン
-BUTTON_MARGIN_TOP = SCREEN_HEIGHT * 647 / 1000  # ボタンの上マージン
+# UI要素の設定（仮想解像度1920x1080基準のピクセル値）
+TEXTBOX_MARGIN_BOTTOM = 50   # テキストボックスの下マージン
+TEXT_LINE_SPACING = 80       # 2つのテキスト行の間隔（1080 * 74 / 1000 = 79.92 → 80px）
+AUTO_BUTTON_MARGIN_RIGHT = 401  # autoボタンの右マージン（1920 * 209 / 1000 = 401px）
+SKIP_BUTTON_MARGIN_RIGHT = 258  # skipボタンの右マージン（1920 * 1345 / 10000 = 258px）
+BUTTON_MARGIN_TOP = 704      # ボタンの上マージン（1080 * 647 / 1000 = 699px）
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
@@ -128,22 +138,30 @@ DEFAULT_BACKGROUND = "school"
 DEFAULT_BGM_VOLUME = 0.1
 DEFAULT_BGM_LOOP = True
 
+def scale_pos(x, y):
+    """仮想座標を実際の画面座標にスケーリング"""
+    return int(x * SCALE), int(y * SCALE)
+
+def scale_size(width, height):
+    """仮想サイズを実際の画面サイズにスケーリング"""
+    return int(width * SCALE), int(height * SCALE)
+
 def get_textbox_position(screen, text_box):
-    """テキストボックスの位置を計算する"""
-    text_box_width = text_box.get_width()
-    text_box_height = text_box.get_height()
+    """テキストボックスの位置を計算する（仮想座標で計算してスケーリング）"""
+    # テキストボックスのサイズは既にスケーリング済みなのでそのまま使用
+    virtual_x = (VIRTUAL_WIDTH - 1632) // 2  # 仮想解像度でのテキストボックス幅
+    virtual_y = VIRTUAL_HEIGHT - 352 - TEXTBOX_MARGIN_BOTTOM  # 仮想解像度でのテキストボックス高さ
     
-    x_pos = (SCREEN_WIDTH - text_box_width) // 2
-    y_pos = SCREEN_HEIGHT - text_box_height- TEXTBOX_MARGIN_BOTTOM
-    
-    return x_pos, y_pos
+    return scale_pos(virtual_x, virtual_y)
 
 def get_ui_button_positions(screen):
-    """UI要素のボタン位置を計算する"""
+    """UI要素のボタン位置を計算する（仮想座標で計算してスケーリング）"""
+    auto_pos = scale_pos(VIRTUAL_WIDTH - AUTO_BUTTON_MARGIN_RIGHT, BUTTON_MARGIN_TOP)
+    skip_pos = scale_pos(VIRTUAL_WIDTH - SKIP_BUTTON_MARGIN_RIGHT, BUTTON_MARGIN_TOP)
     
     return {
-        "auto": (SCREEN_WIDTH - AUTO_BUTTON_MARGIN_RIGHT, BUTTON_MARGIN_TOP),
-        "skip": (SCREEN_WIDTH - SKIP_BUTTON_MARGIN_RIGHT, BUTTON_MARGIN_TOP)
+        "auto": auto_pos,
+        "skip": skip_pos
     }
 
 # Pygameの初期化時にウィンドウ位置を設定する関数
@@ -163,7 +181,9 @@ def init_game():
     # ウィンドウサイズを設定
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     
+    print(f"Virtual resolution: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
     print(f"Window size: {SCREEN_WIDTH}x{SCREEN_HEIGHT} (16:9 ratio)")
+    print(f"Scale factor: {SCALE:.3f}")
     print(f"Window position: {X_POS}, {Y_POS}")
     
     return screen

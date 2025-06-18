@@ -16,12 +16,22 @@ def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom):
     # ズーム倍率に応じて移動可能範囲を調整
     if bg_zoom >= 1.0:
         # 拡大時：ズーム倍率に応じて移動可能範囲を制限
-        max_offset_x = SCREEN_WIDTH * (bg_zoom - 1.0) / 2
-        max_offset_y = SCREEN_HEIGHT * (bg_zoom - 1.0) / 2
+        # 仮想解像度基準でオフセットを計算してスケーリング
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos
+        
+        virtual_max_offset_x = VIRTUAL_WIDTH * (bg_zoom - 1.0) / 2
+        virtual_max_offset_y = VIRTUAL_HEIGHT * (bg_zoom - 1.0) / 2
+        
+        # スケーリングした実際のオフセットを計算
+        max_offset_x, max_offset_y = scale_pos(virtual_max_offset_x, virtual_max_offset_y)
     else:
         # 縮小時：画面中央に余白ができるが、少しの位置調整は可能
-        max_offset_x = SCREEN_WIDTH * (1.0 - bg_zoom) / 4  # 縮小時は移動範囲を制限
-        max_offset_y = SCREEN_HEIGHT * (1.0 - bg_zoom) / 4
+        # 仮想解像度基準でオフセットを計算してスケーリング（縮小時）
+        virtual_max_offset_x = VIRTUAL_WIDTH * (1.0 - bg_zoom) / 4  # 縮小時は移動範囲を制限
+        virtual_max_offset_y = VIRTUAL_HEIGHT * (1.0 - bg_zoom) / 4
+        
+        # スケーリングした実際のオフセットを計算
+        max_offset_x, max_offset_y = scale_pos(virtual_max_offset_x, virtual_max_offset_y)
 
     offset_x = (bg_x - 0.5) * max_offset_x * 2
     offset_y = (bg_y - 0.5) * max_offset_y * 2
@@ -49,12 +59,22 @@ def move_background(game_state, target_x, target_y, duration=600, zoom=1.0):
     # 目標位置を計算
     if zoom >= 1.0:
         # 拡大時の移動範囲
-        max_move_x = SCREEN_WIDTH * (zoom - 1.0) / 2
-        max_move_y = SCREEN_HEIGHT * (zoom - 1.0) / 2
+        # 仮想解像度基準で移動範囲を計算してスケーリング（拡大時）
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos
+        
+        virtual_max_move_x = VIRTUAL_WIDTH * (zoom - 1.0) / 2
+        virtual_max_move_y = VIRTUAL_HEIGHT * (zoom - 1.0) / 2
+        
+        # スケーリングした実際の移動範囲を計算
+        max_move_x, max_move_y = scale_pos(virtual_max_move_x, virtual_max_move_y)
     else:
         # 縮小時の移動範囲（制限的）
-        max_move_x = SCREEN_WIDTH * (1.0 - zoom) / 4
-        max_move_y = SCREEN_HEIGHT * (1.0 - zoom) / 4
+        # 仮想解像度基準で移動範囲を計算してスケーリング（縮小時）
+        virtual_max_move_x = VIRTUAL_WIDTH * (1.0 - zoom) / 4
+        virtual_max_move_y = VIRTUAL_HEIGHT * (1.0 - zoom) / 4
+        
+        # スケーリングした実際の移動範囲を計算
+        max_move_x, max_move_y = scale_pos(virtual_max_move_x, virtual_max_move_y)
     
     offset_x = target_x * max_move_x * 2
     offset_y = target_y * max_move_y * 2
@@ -145,12 +165,22 @@ def draw_background(game_state):
         # ズームを適用してサイズを計算
         if zoom >= 1.0:
             # 拡大時：画面サイズ以上になるように
-            new_width = int(SCREEN_WIDTH * zoom)
-            new_height = int(SCREEN_HEIGHT * zoom)
+            # 仮想解像度基準でサイズを計算してスケーリング
+            from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_size
+            
+            virtual_new_width = int(VIRTUAL_WIDTH * zoom)
+            virtual_new_height = int(VIRTUAL_HEIGHT * zoom)
+            
+            # スケーリングした実際のサイズを計算
+            new_width, new_height = scale_size(virtual_new_width, virtual_new_height)
         else:
             # 縮小時：画面サイズより小さくなる（余白が生まれる）
-            new_width = int(SCREEN_WIDTH * zoom)
-            new_height = int(SCREEN_HEIGHT * zoom)
+            # 仮想解像度基準でサイズを計算してスケーリング（縮小時）
+            virtual_new_width = int(VIRTUAL_WIDTH * zoom)
+            virtual_new_height = int(VIRTUAL_HEIGHT * zoom)
+            
+            # スケーリングした実際のサイズを計算
+            new_width, new_height = scale_size(virtual_new_width, virtual_new_height)
         
         # 背景画像をスケール
         if new_width != SCREEN_WIDTH or new_height != SCREEN_HEIGHT:
@@ -160,8 +190,14 @@ def draw_background(game_state):
         
         # 描画位置を計算
         # 背景の中心が画面の中心に来るように、オフセットを適用
-        center_x = SCREEN_WIDTH // 2
-        center_y = SCREEN_HEIGHT // 2
+        # 仮想解像度基準で中央位置を計算してスケーリング
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos
+        
+        virtual_center_x = VIRTUAL_WIDTH // 2
+        virtual_center_y = VIRTUAL_HEIGHT // 2
+        
+        # スケーリングした実際の中央位置を計算
+        center_x, center_y = scale_pos(virtual_center_x, virtual_center_y)
         
         pos_x = int(center_x - new_width // 2 + bg_state['pos'][0])
         pos_y = int(center_y - new_height // 2 + bg_state['pos'][1])
