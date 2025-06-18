@@ -5,7 +5,7 @@ from PyQt5.QtCore import QSize
 
 def render_text_with_qfont(text, qfont, color):
     """PyQt5のQFontでテキストを描画し、PygameのSurfaceとして返す"""
-    metrics = QFontMetrics(qfont)  # PyQt5のQFontMetricsを使用
+    metrics = QFontMetrics(qfont)
     width = metrics.horizontalAdvance(text)
     height = metrics.height()
     
@@ -20,265 +20,254 @@ def render_text_with_qfont(text, qfont, color):
     # QPainterでテキストを描画
     painter = QPainter(qimage)
     painter.setFont(qfont)
-    painter.setPen(QColor(*color)) # Pygameの色(r,g,b)をQColorに設定
+    painter.setPen(QColor(*color))  # Pygameの色(r,g,b)をQColorに設定
     painter.drawText(0, metrics.ascent(), text)
     painter.end()
 
     # QImageのデータをPygameのSurfaceに変換
-    # tostring()は非推奨なのでbits()を使用
     image_data = qimage.bits().asstring(qimage.sizeInBytes())
     pygame_surface = pygame.image.fromstring(image_data, (width, height), 'RGBA')
     
     return pygame_surface
 
 class BacklogManager:
-    def __init__(self, screen, fonts):
+    def __init__(self, screen, fonts, debug=False):
         self.screen = screen
         self.fonts = fonts
+        self.debug = debug
         
-        # バックログ機能
-        self.backlog = [] # 過去の会話データを保存するリスト
-        self.show_backlog = False # バックログ表示モード
-        self.backlog_scroll = 0 # バックログのスクロール位置
-        self.backlog_max_items = 100 # 最大保存メッセージ数
-
-        # バックログウィンドウの設定
-        self.backlog_bg_color = (0, 0, 0, 180)
-        self.backlog_border_color = (100, 100, 100)
-        self.backlog_padding = 20
-        self.backlog_item_spacing = 10
+        # バックログデータ
+        self.entries = []  # [{"speaker": "話者名", "text": "テキスト"}]
+        self.is_showing = False
+        self.scroll_position = 0
+        
+        # 表示設定（text_rendererと同じ）
+        self.bg_color = (0, 0, 0, 180)
+        self.border_color = (100, 100, 100)
         self.default_text_color = TEXT_COLOR
         self.default_name_color = TEXT_COLOR
         self.female_text_color = TEXT_COLOR_FEMALE
         self.female_name_color = TEXT_COLOR_FEMALE
         
+        # レイアウト設定
+        self.margin = 50
+        self.width = screen.get_width() - self.margin * 2
+        self.height = screen.get_height() - self.margin * 2
+        self.x = self.margin
+        self.y = self.margin
+        
+        self.speaker_width = 200  # 話者名の幅
+        self.text_width = self.width - self.speaker_width - 60  # テキスト幅
+        self.padding = 20
+        self.item_spacing = 15
+        
+        # フォント設定（text_rendererと同じ）
         self.name_font_metrics = QFontMetrics(self.fonts["name"])
         self.text_font_metrics = QFontMetrics(self.fonts["text"])
         self.text_line_height = self.text_font_metrics.height()
         
-        # バックログウィンドウのサイズと位置
-        self.backlog_width = self.screen.get_width() - 100
-        self.backlog_height = self.screen.get_height() - 100
-        self.backlog_x = 50
-        self.backlog_y = 50
-
     def get_character_colors(self, char_name):
-        """キャラクター名に基づいて色を決定する"""
+        """キャラクター名に基づいて色を決定する（text_rendererと同じ）"""
         if char_name and char_name in CHARACTER_GENDERS:
             gender = CHARACTER_GENDERS.get(char_name)
             if gender == 'female':
                 return self.female_name_color, self.female_text_color
         return self.default_name_color, self.default_text_color
-
-    def add_to_backlog(self, text, char_name=None):
-        """バックログにテキストを追加する"""
-        if not text:
+        
+    def add_entry(self, speaker, text):
+        """バックログにエントリを追加"""
+        if not text or text.strip() == "":
             return
             
-        # 同じキャラクターの連続したセリフは統合する
-        if (self.backlog and 
-            self.backlog[-1].get('char_name') == char_name and char_name is not None):
-            # 前のエントリにテキストを追加
-            self.backlog[-1]['text'] += text
-        else:
-            # 新しいエントリを作成
-            self.backlog.append({
-                'text': text,
-                'char_name': char_name
-            })
-
-        # 最大保存数を超えた場合、古いメッセージを削除
-        if len(self.backlog) > self.backlog_max_items:
-            self.backlog.pop(0)
-
-    def toggle_backlog(self):
-        """バックログの表示・非表示を切り替え"""
-        self.show_backlog = not self.show_backlog
-        if self.show_backlog:
-            visible_items = self.get_visible_backlog_items()
-            self.backlog_scroll = max(0.0, float(len(self.backlog) - visible_items))
-
-    def is_showing(self):
-        """バックログが表示中かどうか"""
-        return self.show_backlog
-
-    def get_visible_backlog_items(self):
-        """一度に表示可能なバックログアイテムの数を計算（余裕を持った計算）"""
-        available_height = self.backlog_height - (self.backlog_padding * 2)
-        # 1アイテムあたり平均3-4行程度を想定して余裕を持って計算
-        estimated_lines_per_item = 4
-        average_item_height = (
-            self.name_font_metrics.height() + 5 +  # キャラクター名 + 余白
-            self.text_line_height * estimated_lines_per_item + 
-            self.backlog_item_spacing
-        )
+        # 重複チェック（最後のエントリと同じ場合はスキップ）
+        if (self.entries and 
+            self.entries[-1]["speaker"] == speaker and 
+            self.entries[-1]["text"] == text):
+            return
+            
+        self.entries.append({
+            "speaker": speaker or "名無し",
+            "text": text
+        })
         
-        return max(1, int((available_height / average_item_height)))
+        if self.debug:
+            print(f"[BACKLOG] エントリ追加: {speaker} - {text[:30]}... (全{len(self.entries)}エントリ)")
     
-    def scroll_backlog(self, direction):
-        """バックログをスクロール (direction: 1=下, -1=上)"""
-        if not self.show_backlog:
-            return
-            
-        # 一行ずつスクロールするために小さい単位を使用
-        # 1つのアイテムが平均4行程度なので、0.15で約1行分のスクロール
-        scroll_step = 0.15
+    def _wrap_text(self, text, max_chars=22):
+        """テキストを22文字で改行し、句点でも改行"""
+        if not text:
+            return []
         
-        visible_items = self.get_visible_backlog_items()
-        max_scroll = max(0, len(self.backlog) - visible_items)
+        lines = []
+        current_pos = 0
         
-        self.backlog_scroll += direction * scroll_step
-        self.backlog_scroll = max(0.0, min(float(max_scroll), self.backlog_scroll))
-
-    def handle_input(self, event):
-        """バックログ関連の入力処理"""
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_b:  # Bキーでバックログ切り替え
-                self.toggle_backlog()
-            elif self.show_backlog:
-                if event.key == pygame.K_UP:
-                    self.scroll_backlog(-1)
-                elif event.key == pygame.K_DOWN:
-                    self.scroll_backlog(1)
-                elif event.key == pygame.K_ESCAPE:
-                    self.show_backlog = False
-        
-        elif event.type == pygame.MOUSEBUTTONDOWN and self.show_backlog:
-            if event.button == 4:  # マウスホイール上
-                self.scroll_backlog(-1)
-            elif event.button == 5:  # マウスホイール下
-                self.scroll_backlog(1)
-        
-        # マウスホイールの連続イベント対応
-        elif event.type == pygame.MOUSEWHEEL and self.show_backlog:
-            if event.y > 0:  # 上スクロール
-                self.scroll_backlog(-1)
-            elif event.y < 0:  # 下スクロール
-                self.scroll_backlog(1)
-
-    def render_backlog(self):
-        """バックログを描画"""
-        if not self.show_backlog:
-            return
-            
-        # 半透明の背景
-        backlog_surface = pygame.Surface((self.backlog_width, self.backlog_height), pygame.SRCALPHA)
-        backlog_surface.fill(self.backlog_bg_color)
-        self.screen.blit(backlog_surface, (self.backlog_x, self.backlog_y))
-        
-        # 枠線
-        pygame.draw.rect(self.screen, self.backlog_border_color, 
-                        (self.backlog_x, self.backlog_y, self.backlog_width, self.backlog_height), 2)
-        
-        # バックログアイテムを描画
-        start_y = self.backlog_y + self.backlog_padding
-        
-        # 浮動小数点スクロールに対応した描画位置調整
-        start_index = int(self.backlog_scroll)
-        scroll_fraction = self.backlog_scroll - start_index
-        
-        # 1アイテムの平均高さを計算
-        estimated_lines_per_item = 4
-        average_item_height = (
-            self.name_font_metrics.height() + 5 +
-            self.text_line_height * estimated_lines_per_item + 
-            self.backlog_item_spacing
-        )
-        
-        # スクロールの小数部分に応じて描画開始位置を上に移動
-        current_y = start_y - int(scroll_fraction * average_item_height)
-
-        # 描画領域の上下境界（少し余裕を持たせる）
-        top_boundary = self.backlog_y + self.backlog_padding + 50  # ヘッダー分の余白
-        bottom_boundary = self.backlog_y + self.backlog_height - self.backlog_padding - 50  # フッター分の余白
-        
-        for i in range(start_index, len(self.backlog)):
-            item = self.backlog[i]
-            
-            # キャラクター名から色を決定
-            character_name = item.get('char_name', None)
-            name_color, text_color = self.get_character_colors(character_name)
-            
-            # キャラクター名を一度だけ表示
-            if character_name:
-                if current_y > bottom_boundary:
-                    break
-                if current_y + self.name_font_metrics.height() >= top_boundary:
-                    # ヘルパー関数を使ってPyQt5フォントを描画
-                    name_surface = render_text_with_qfont(character_name, self.fonts["name"], name_color)
-                    self.screen.blit(name_surface, (self.backlog_x + self.backlog_padding, current_y))
-                current_y += self.name_font_metrics.height() + 5
-
-            # テキストを句点（。）で分割して表示（文字数による自動改行は行わない）
-            text = item.get('text', '')
-            if text:
-                # 句点で分割し、句点も含める
-                lines = []
-                sentences = text.split('。')
-                for k, sentence in enumerate(sentences):
-                    if sentence.strip():  # 空でない文の場合
-                        if k < len(sentences) - 1:  # 最後の要素でない場合は句点を追加
-                            full_sentence = sentence + '。'
-                        else:  # 最後の要素の場合
-                            full_sentence = sentence
-                        if len(full_sentence) > 26:
-                            for j in range(0, len(full_sentence), 26):
-                                lines.append(full_sentence[j:j+26])
-                
-                for line in lines:
-                    if line:
-                        if current_y > bottom_boundary:
-                            break
-                        if current_y + self.text_line_height >= top_boundary:
-                            # ヘルパー関数を使ってPyQt5フォントを描画
-                            text_surface = render_text_with_qfont(line, self.fonts["text"], text_color)
-                            self.screen.blit(text_surface, (self.backlog_x + self.backlog_padding, current_y))
-                        current_y += self.text_line_height
-
-            # アイテム間の余白を追加
-            if current_y > bottom_boundary:
+        while current_pos < len(text):
+            # 句点で改行をチェック
+            end_pos = current_pos + max_chars
+            if end_pos >= len(text):
+                # 残りのテキストが短い場合はそのまま追加
+                lines.append(text[current_pos:])
                 break
             
-            current_y += self.backlog_item_spacing
+            # 現在の範囲で句点があるかチェック
+            segment = text[current_pos:end_pos]
+            period_pos = segment.find('。')
             
-            # 描画範囲を超えた場合は中断
-            if current_y > bottom_boundary:
-                break
-        
-        # スクロールバーを描画
-        if len(self.backlog) > 1:
-            self.render_scrollbar()
-
-    def render_scrollbar(self):
-        """スクロールバーを描画"""
-        scrollbar_width = 10
-        scrollbar_x = self.backlog_x + self.backlog_width - scrollbar_width - 5
-        scrollbar_y = self.backlog_y + 50  # ヘッダー分の余白
-        scrollbar_height = self.backlog_height - 100
-        
-        # スクロールバー背景
-        pygame.draw.rect(self.screen, (50, 50, 50), 
-                        (scrollbar_x, scrollbar_y, scrollbar_width, scrollbar_height))
-        
-        # スクロールハンドル
-        total_items = len(self.backlog)
-        visible_items = self.get_visible_backlog_items()
-
-        if total_items > visible_items: # スクロール可能な場合のみハンドルを表示
-            handle_height = max(20, scrollbar_height // 4)
-            
-            max_scroll = max(0.0, float(total_items - visible_items))
-            if max_scroll > 0:
-                handle_position = self.backlog_scroll / max_scroll
+            if period_pos != -1:
+                # 句点が見つかった場合、句点の後で改行
+                actual_end = current_pos + period_pos + 1
+                lines.append(text[current_pos:actual_end])
+                current_pos = actual_end
             else:
-                handle_position = 0.0
+                # 句点がない場合は22文字で改行
+                lines.append(text[current_pos:end_pos])
+                current_pos = end_pos
                 
-            handle_y = scrollbar_y + int(handle_position * (scrollbar_height - handle_height))
-            
-            pygame.draw.rect(self.screen, (150, 150, 150), 
-                            (scrollbar_x, handle_y, scrollbar_width, handle_height))
+        return lines
+    
+    def toggle_backlog(self):
+        """バックログの表示/非表示を切り替え"""
+        self.is_showing = not self.is_showing
+        if self.is_showing:
+            # バックログを開いた時は最下部（最新テキスト）を表示
+            total_lines = self._count_total_lines()
+            max_lines = self._get_visible_lines()
+            if total_lines > max_lines:
+                self.scroll_position = total_lines - max_lines
+            else:
+                self.scroll_position = 0
+            if self.debug:
+                print(f"[BACKLOG] バックログ表示開始 (全{len(self.entries)}エントリ, スクロール位置: {self.scroll_position})")
+    
+    def is_showing_backlog(self):
+        """バックログが表示中かどうか"""
+        return self.is_showing
+    
+    def scroll_up(self):
+        """上にスクロール（行単位）"""
+        if self.scroll_position > 0:
+            self.scroll_position -= 1
+    
+    def scroll_down(self):
+        """下にスクロール（行単位）"""
+        total_lines = self._count_total_lines()
+        max_lines = self._get_visible_lines()
+        max_scroll = max(0, total_lines - max_lines)
+        if self.scroll_position < max_scroll:
+            self.scroll_position += 1
+    
+    def _count_total_lines(self):
+        """全エントリの総行数を計算"""
+        total_lines = 0
+        for entry in self.entries:
+            text_lines = self._wrap_text(entry["text"], 22)
+            total_lines += len(text_lines)
+        return total_lines
+    
+    def _get_visible_lines(self):
+        """表示可能な最大行数（9行固定）"""
+        return 9
+    
+    def handle_input(self, event):
+        """入力処理"""
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_b:
+                self.toggle_backlog()
+            elif self.is_showing:
+                if event.key == pygame.K_UP:
+                    self.scroll_up()
+                elif event.key == pygame.K_DOWN:
+                    self.scroll_down()
+                elif event.key == pygame.K_ESCAPE:
+                    self.is_showing = False
+        
+        elif event.type == pygame.MOUSEBUTTONDOWN and self.is_showing:
+            if event.button == 4:  # マウスホイール上
+                self.scroll_up()
+            elif event.button == 5:  # マウスホイール下
+                self.scroll_down()
+        
+        elif event.type == pygame.MOUSEWHEEL and self.is_showing:
+            if event.y > 0:  # 上スクロール
+                self.scroll_up()
+            elif event.y < 0:  # 下スクロール
+                self.scroll_down()
     
     def render(self):
-        """バックログの描画メソッド"""
-        if self.show_backlog:
-            self.render_backlog()
+        """バックログを描画"""
+        if not self.is_showing:
+            return
+        
+        # 背景
+        bg_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        bg_surface.fill(self.bg_color)
+        self.screen.blit(bg_surface, (self.x, self.y))
+        
+        # 枠線
+        pygame.draw.rect(self.screen, self.border_color, 
+                        (self.x, self.y, self.width, self.height), 2)
+        
+        # 全ての行を作成（話者名とテキスト行を統合）
+        all_lines = []
+        previous_speaker = None
+        
+        for entry in self.entries:
+            speaker = entry["speaker"]
+            text = entry["text"]
+            text_lines = self._wrap_text(text, 22)
+            
+            # 話者が変更された場合のみ話者名を表示
+            show_speaker = (speaker != previous_speaker)
+            
+            # 各エントリの行情報を作成
+            for i, line in enumerate(text_lines):
+                all_lines.append({
+                    "type": "text",
+                    "speaker": speaker if (i == 0 and show_speaker) else "",  # 話者変更時の最初の行のみ話者名
+                    "text": line,
+                    "entry": entry
+                })
+            
+            previous_speaker = speaker
+        
+        # スクロール位置に基づいて表示する行を決定（最大9行）
+        max_lines = self._get_visible_lines()
+        start_line = self.scroll_position
+        end_line = min(start_line + max_lines, len(all_lines))
+        
+        # 描画開始位置
+        current_y = self.y + self.padding
+        
+        for i in range(start_line, end_line):
+            if i >= len(all_lines):
+                break
+                
+            line_info = all_lines[i]
+            speaker = line_info["speaker"]
+            text_line = line_info["text"]
+            entry = line_info["entry"]
+            
+            # キャラクター名から色を決定
+            name_color, text_color = self.get_character_colors(entry["speaker"])
+            
+            # 話者名を描画（最初の行のみ）
+            if speaker and speaker.strip():
+                try:
+                    name_surface = render_text_with_qfont(speaker, self.fonts["name"], name_color)
+                    self.screen.blit(name_surface, (self.x + self.padding, current_y))
+                except Exception as e:
+                    if self.debug:
+                        print(f"話者名描画エラー: {e}, 名前: '{speaker}'")
+            
+            # テキストを描画（話者名と同じ高さ）
+            text_x = self.x + self.padding + self.speaker_width
+            if text_line.strip():
+                try:
+                    text_surface = render_text_with_qfont(text_line, self.fonts["text"], text_color)
+                    self.screen.blit(text_surface, (text_x, current_y))
+                except Exception as e:
+                    if self.debug:
+                        print(f"テキスト描画エラー: {e}, テキスト: '{text_line}'")
+            
+            current_y += self.text_line_height
+        
