@@ -29,21 +29,108 @@ class EventBase:
         self.running = False
         
     def load_fonts(self):
-        """フォントを読み込み"""
-        try:
-            font_path = os.path.join("fonts", "MPLUSRounded1c-Regular.ttf")
-            self.fonts = {
-                'large': pygame.font.Font(font_path, 28),
-                'medium': pygame.font.Font(font_path, 20),
-                'small': pygame.font.Font(font_path, 16)
-            }
-        except:
-            # フォント読み込み失敗時はデフォルトフォントを使用
-            self.fonts = {
-                'large': pygame.font.Font(None, 28),
-                'medium': pygame.font.Font(None, 20),
-                'small': pygame.font.Font(None, 16)
-            }
+        """フォントを読み込み（クロスプラットフォーム対応）"""
+        import platform
+        
+        # プロジェクトフォントの正しいパス
+        project_font_path = os.path.join("fonts", "MPLUSRounded1c-Regular.ttf")
+        
+        # プラットフォーム別システムフォントパス
+        system_font_paths = []
+        system_name = platform.system()
+        
+        if system_name == "Darwin":  # macOS
+            system_font_paths = [
+                "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+                "/Library/Fonts/ヒラギノ角ゴ ProN W3.otf",
+                "/System/Library/Fonts/Arial Unicode MS.ttf"
+            ]
+        elif system_name == "Windows":  # Windows
+            system_font_paths = [
+                "C:/Windows/Fonts/msgothic.ttc",  # MS ゴシック
+                "C:/Windows/Fonts/meiryo.ttc",    # メイリオ
+                "C:/Windows/Fonts/arial.ttf"      # Arial
+            ]
+        else:  # Linux
+            system_font_paths = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+            ]
+        
+        # 試行するフォントパスリスト
+        font_paths = [project_font_path] + system_font_paths
+        
+        font_loaded = False
+        
+        for path in font_paths:
+            try:
+                if os.path.exists(path):
+                    self.fonts = {
+                        'large': pygame.font.Font(path, 28),
+                        'medium': pygame.font.Font(path, 20),
+                        'small': pygame.font.Font(path, 16)
+                    }
+                    font_loaded = True
+                    print(f"EventBase フォント読み込み成功: {path}")
+                    break
+            except Exception as e:
+                print(f"EventBase フォント読み込み失敗: {path} - {e}")
+                continue
+        
+        if not font_loaded:
+            # システムフォントから日本語対応フォントを探す
+            japanese_fonts = []
+            if system_name == "Darwin":  # macOS
+                japanese_fonts = [
+                    'hiraginosans',         # ヒラギノサンス（内部名）
+                    'hiraginokakugothicpro', # ヒラギノ角ゴ Pro
+                    'arialunicodems',       # Arial Unicode MS
+                    'applesdgothicneo',     # Apple SD ゴシック Neo
+                    'geneva'                # Geneva
+                ]
+            elif system_name == "Windows":  # Windows
+                japanese_fonts = [
+                    'msgothic',     # MS Gothic
+                    'meiryo',       # Meiryo  
+                    'yugothic',     # Yu Gothic
+                    'msmincho',     # MS Mincho
+                    'arial'         # Arial
+                ]
+            else:  # Linux
+                japanese_fonts = [
+                    'dejavu sans',
+                    'liberation sans', 
+                    'noto sans cjk jp',
+                    'arial'
+                ]
+            
+            # 日本語対応システムフォントを試行
+            for font_name in japanese_fonts:
+                try:
+                    test_font = pygame.font.SysFont(font_name, 16)
+                    # 日本語文字のテスト描画
+                    test_surface = test_font.render('あ', True, (0, 0, 0))
+                    if test_surface.get_width() > 5:  # 最小サイズチェック
+                        self.fonts = {
+                            'large': pygame.font.SysFont(font_name, 28, bold=True),
+                            'medium': pygame.font.SysFont(font_name, 20),
+                            'small': pygame.font.SysFont(font_name, 16)
+                        }
+                        font_loaded = True
+                        print(f"EventBase システムフォント使用: {font_name}")
+                        break
+                except Exception as e:
+                    print(f"EventBase フォント試行失敗: {font_name} - {e}")
+                    continue
+            
+            # 最終的なフォールバック
+            if not font_loaded:
+                self.fonts = {
+                    'large': pygame.font.Font(None, 28),
+                    'medium': pygame.font.Font(None, 20),
+                    'small': pygame.font.Font(None, 16)
+                }
+                print("⚠️ EventBase デフォルトフォント使用（日本語表示に問題がある可能性があります）")
     
     def run_event(self, event_id, event_title, heroine_name):
         """イベントを実行（サブクラスでオーバーライド）"""

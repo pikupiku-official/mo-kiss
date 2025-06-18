@@ -128,6 +128,9 @@ class AdvancedKimikissMap:
         self.clock = pygame.time.Clock()
         self.running = True
         
+        # デバッグモード検出
+        self.debug_mode = self.is_debug_mode()
+        
         # フォント設定
         self.init_fonts()
         
@@ -151,19 +154,49 @@ class AdvancedKimikissMap:
         self.init_characters()
         self.load_events()  # イベントCSV読み込み
         
-        # 実行済みイベント記録の管理
-        self.completed_events_file = os.path.join(os.path.dirname(__file__), "completed_events.csv")
+        # 実行済みイベント記録の管理 - /mo-kiss/events ディレクトリに配置
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # UI/map -> UI -> mo-kiss
+        self.completed_events_file = os.path.join(project_root, "events", "completed_events.csv")
+        
+        # 実行時に常にCSVを初期化
+        self.init_completed_events_csv()
+        
         self.completed_events = self.load_completed_events()
         
         self.init_maps()
         self.update_events()
         
     def init_fonts(self):
-        """フォント初期化"""
-        font_paths = [
-            "../../fonts/MPLUSRounded1c-Regular.ttf",
-            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
-        ]
+        """フォント初期化（クロスプラットフォーム対応）"""
+        import platform
+        
+        # 相対パスでのフォントファイル
+        project_font_path = "../../fonts/MPLUSRounded1c-Regular.ttf"
+        
+        # プラットフォーム別システムフォントパス
+        system_font_paths = []
+        system_name = platform.system()
+        
+        if system_name == "Darwin":  # macOS
+            system_font_paths = [
+                "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+                "/Library/Fonts/ヒラギノ角ゴ ProN W3.otf",
+                "/System/Library/Fonts/Arial Unicode MS.ttf"
+            ]
+        elif system_name == "Windows":  # Windows
+            system_font_paths = [
+                "C:/Windows/Fonts/msgothic.ttc",  # MS ゴシック
+                "C:/Windows/Fonts/meiryo.ttc",    # メイリオ
+                "C:/Windows/Fonts/arial.ttf"      # Arial
+            ]
+        else:  # Linux
+            system_font_paths = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+            ]
+        
+        # 試行するフォントパスリスト
+        font_paths = [project_font_path] + system_font_paths
         
         self.fonts = {}
         font_loaded = False
@@ -178,14 +211,118 @@ class AdvancedKimikissMap:
                     font_loaded = True
                     print(f"フォント読み込み成功: {path}")
                     break
-            except:
+            except Exception as e:
+                print(f"フォント読み込み失敗: {path} - {e}")
                 continue
         
         if not font_loaded:
-            self.fonts['title'] = pygame.font.SysFont('Arial', 32, bold=True)
-            self.fonts['large'] = pygame.font.SysFont('Arial', 24, bold=True)
-            self.fonts['medium'] = pygame.font.SysFont('Arial', 20)
-            self.fonts['small'] = pygame.font.SysFont('Arial', 16)
+            # システムフォントから日本語対応フォントを探す
+            japanese_fonts = []
+            if system_name == "Darwin":  # macOS
+                japanese_fonts = [
+                    'hiraginosans',         # ヒラギノサンス（内部名）
+                    'hiraginokakugothicpro', # ヒラギノ角ゴ Pro
+                    'arialunicodems',       # Arial Unicode MS
+                    'applesdgothicneo',     # Apple SD ゴシック Neo
+                    'geneva'                # Geneva
+                ]
+            elif system_name == "Windows":  # Windows
+                japanese_fonts = [
+                    'msgothic',     # MS Gothic
+                    'meiryo',       # Meiryo  
+                    'yugothic',     # Yu Gothic
+                    'msmincho',     # MS Mincho
+                    'arial'         # Arial
+                ]
+            else:  # Linux
+                japanese_fonts = [
+                    'dejavu sans',
+                    'liberation sans', 
+                    'noto sans cjk jp',
+                    'arial'
+                ]
+            
+            # 日本語対応システムフォントを試行
+            for font_name in japanese_fonts:
+                try:
+                    test_font = pygame.font.SysFont(font_name, 16)
+                    # 日本語文字のテスト描画
+                    test_surface = test_font.render('あ', True, (0, 0, 0))
+                    if test_surface.get_width() > 5:  # 最小サイズチェック
+                        self.fonts['title'] = pygame.font.SysFont(font_name, 32, bold=True)
+                        self.fonts['large'] = pygame.font.SysFont(font_name, 24, bold=True)
+                        self.fonts['medium'] = pygame.font.SysFont(font_name, 20)
+                        self.fonts['small'] = pygame.font.SysFont(font_name, 16)
+                        font_loaded = True
+                        print(f"システムフォント使用: {font_name}")
+                        break
+                except Exception as e:
+                    print(f"フォント試行失敗: {font_name} - {e}")
+                    continue
+            
+            # 最終的なフォールバック - 利用可能なフォントから日本語対応を探す
+            if not font_loaded:
+                print("⚠️ 利用可能なフォントから日本語対応フォントを検索中...")
+                available_fonts = pygame.font.get_fonts()
+                
+                # 日本語系キーワードでフィルタリング
+                japanese_keywords = ['hiragino', 'gothic', 'meiryo', 'yu', 'noto', 'sans', 'mincho']
+                candidate_fonts = []
+                
+                for font in available_fonts:
+                    if any(keyword in font.lower() for keyword in japanese_keywords):
+                        candidate_fonts.append(font)
+                
+                # 候補フォントをテスト
+                for font in candidate_fonts[:10]:  # 最初の10個をテスト
+                    try:
+                        test_font = pygame.font.SysFont(font, 16)
+                        test_surface = test_font.render('テスト', True, (0, 0, 0))
+                        if test_surface.get_width() > 10:
+                            self.fonts['title'] = pygame.font.SysFont(font, 32, bold=True)
+                            self.fonts['large'] = pygame.font.SysFont(font, 24, bold=True)
+                            self.fonts['medium'] = pygame.font.SysFont(font, 20)
+                            self.fonts['small'] = pygame.font.SysFont(font, 16)
+                            font_loaded = True
+                            print(f"✅ 動的検索で発見: {font}")
+                            break
+                    except:
+                        continue
+                
+                # 最終的なデフォルトフォント
+                if not font_loaded:
+                    self.fonts['title'] = pygame.font.Font(None, 32)
+                    self.fonts['large'] = pygame.font.Font(None, 24)
+                    self.fonts['medium'] = pygame.font.Font(None, 20)
+                    self.fonts['small'] = pygame.font.Font(None, 16)
+                    print("⚠️ デフォルトフォント使用（日本語表示に問題がある可能性があります）")
+    
+    def is_debug_mode(self) -> bool:
+        """デバッグモードかどうかを判定"""
+        # 環境変数でデバッグモードを制御
+        if os.environ.get('DEBUG', '').lower() in ('true', '1', 'yes'):
+            return True
+        
+        # コマンドライン引数でデバッグモードを制御
+        if '--debug' in sys.argv or '-d' in sys.argv:
+            return True
+        
+        # PyCharm等のIDEから実行されている場合
+        if 'PYCHARM_HOSTED' in os.environ:
+            return True
+            
+        return False
+    
+    def init_completed_events_csv(self):
+        """completed_events.csvを初期化"""
+        print("🔄 completed_events.csvを初期化しています...")
+        try:
+            with open(self.completed_events_file, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['イベントID', '実行日時', 'ヒロイン名', '場所', 'イベントタイトル', '実行回数'])
+            print("✅ completed_events.csv初期化完了")
+        except Exception as e:
+            print(f"❌ completed_events.csv初期化エラー: {e}")
     
     def get_map_type(self) -> MapType:
         """現在の曜日からマップタイプを判定"""
@@ -362,9 +499,10 @@ class AdvancedKimikissMap:
         """イベントCSVファイルを読み込み"""
         self.events = []
         try:
-            # 現在のファイルと同じディレクトリのevents.csvを確実に読み込み
+            # /mo-kiss/events ディレクトリのevents.csvを読み込み
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            csv_path = os.path.join(current_dir, 'events.csv')
+            project_root = os.path.dirname(os.path.dirname(current_dir))  # UI/map -> UI -> mo-kiss
+            csv_path = os.path.join(project_root, 'events', 'events.csv')
             print(f"CSVファイルパス: {csv_path}")
             
             with open(csv_path, 'r', encoding='utf-8') as file:
