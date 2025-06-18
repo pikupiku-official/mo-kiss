@@ -25,7 +25,7 @@ def setup_text_renderer_settings(game_state):
 def handle_mouse_click(game_state, mouse_pos, screen):
     """マウスクリックの処理"""
     # バックログが開いている時は無効化
-    if game_state['backlog_manager'].is_showing():
+    if game_state['backlog_manager'].is_showing_backlog():
         return
     
     # テキストが非表示の時は無効化
@@ -55,10 +55,12 @@ def handle_mouse_click(game_state, mouse_pos, screen):
         skip_size = (skip_btn.get_width(), skip_btn.get_height())
         
         if is_point_in_rect(mouse_pos, skip_pos, skip_size):
-            if game_state['text_renderer'].is_displaying():
-                game_state['text_renderer'].skip_text()
-                print("テキスト表示をスキップしました")
+            skip_mode = game_state['text_renderer'].toggle_skip_mode()
+            print(f"スキップモード: {'ON' if skip_mode else 'OFF'}")
             return
+    
+    # UI以外の場所をクリックした場合、Enterキーと同じ処理を実行
+    handle_enter_key(game_state)
 
 def handle_events(game_state, screen):
     """イベント処理を行う"""
@@ -78,7 +80,7 @@ def handle_events(game_state, screen):
         elif event.type == pygame.KEYDOWN:
             # ESCキーの処理：バックログが開いている場合は閉じるだけ
             if event.key == pygame.K_ESCAPE:
-                if game_state['backlog_manager'].is_showing():
+                if game_state['backlog_manager'].is_showing_backlog():
                     game_state['backlog_manager'].toggle_backlog()
                     print("バックログを閉じました")
                 else:
@@ -86,21 +88,20 @@ def handle_events(game_state, screen):
                     
             elif event.key == pygame.K_t:
                 # バックログが開いている時は無効化
-                if not game_state['backlog_manager'].is_showing():
+                if not game_state['backlog_manager'].is_showing_backlog():
                     game_state['show_text'] = not game_state['show_text']
                     print(f"テキストを{'表示' if game_state['show_text'] else '非表示に'}しました")
 
             elif event.key == pygame.K_a:
-                if not game_state['backlog_manager'].is_showing():
+                if not game_state['backlog_manager'].is_showing_backlog():
                     auto_mode = game_state['text_renderer'].toggle_auto_mode()
                     print(f"自動モード: {'ON' if auto_mode else 'OFF'}")
                     
             elif event.key == pygame.K_SPACE and game_state['show_text']:
                 # バックログが開いている時は無効化
-                if not game_state['backlog_manager'].is_showing():
-                    if game_state['text_renderer'].is_displaying():
-                        game_state['text_renderer'].skip_text()
-                        print("テキスト表示をスキップしました")
+                if not game_state['backlog_manager'].is_showing_backlog():
+                    skip_mode = game_state['text_renderer'].toggle_skip_mode()
+                    print(f"スキップモード: {'ON' if skip_mode else 'OFF'}")
                         
             elif event.key == pygame.K_RETURN and game_state['show_text']:
                 handle_enter_key(game_state)
@@ -110,7 +111,7 @@ def handle_events(game_state, screen):
 def handle_enter_key(game_state):
     """Enterキーが押されたときの処理"""
     # バックログが開いている時は無効化
-    if game_state['backlog_manager'].is_showing():
+    if game_state['backlog_manager'].is_showing_backlog():
         return
         
     text_renderer = game_state['text_renderer']
@@ -155,7 +156,7 @@ def update_game(game_state):
     game_state['text_renderer'].update()
 
     # 自動進行の処理
-    if (game_state['text_renderer'].is_ready_for_auto_advance() and not game_state['backlog_manager'].is_showing()):
+    if (game_state['text_renderer'].is_ready_for_auto_advance() and not game_state['backlog_manager'].is_showing_backlog()):
         # 自動的に次の対話に進む
         success = advance_to_next_dialogue(game_state)
         # 自動進行タイマーをリセット

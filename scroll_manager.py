@@ -9,6 +9,7 @@ class ScrollManager:
         self.scroll_mode = False
         self.scroll_lines = []  # スクロール表示用のテキストブロック
         self.max_lines = 3  # 最大表示ブロック数
+        self.all_scroll_text = []  # バックログ用：削除されたブロックも含むすべてのテキスト
         
         # 話者管理
         self.current_speaker = None
@@ -28,6 +29,7 @@ class ScrollManager:
         self.scroll_mode = True
         self.current_speaker = speaker
         self.scroll_lines = [text]  # 最初のテキストで初期化
+        self.all_scroll_text = [text]  # バックログ用にも記録
         
     def add_text_to_scroll(self, text):
         """テキストをスクロール表示に追加"""
@@ -38,15 +40,17 @@ class ScrollManager:
             print(f"[SCROLL] テキストブロック追加: '{text[:30]}...'")
         
         self.scroll_lines.append(text)
+        self.all_scroll_text.append(text)  # バックログ用にも記録
         
-        # 最大ブロック数を超えた場合は古いブロックを削除
+        # 最大ブロック数を超えた場合は古いブロックを削除（表示用のみ、all_scroll_textは保持）
         while len(self.scroll_lines) > self.max_lines:
             removed_line = self.scroll_lines.pop(0)
             if self.debug:
-                print(f"[SCROLL] 古いブロック削除: '{removed_line[:30]}...'")
+                print(f"[SCROLL] 古いブロック削除（表示用のみ）: '{removed_line[:30]}...'")
         
         if self.debug:
             print(f"[SCROLL] 現在のブロック数: {len(self.scroll_lines)}/{self.max_lines}")
+            print(f"[SCROLL] バックログ用テキスト数: {len(self.all_scroll_text)}")
     
     def should_continue_scroll(self, speaker):
         """スクロール継続可能かを判定 - [scroll-stop]まで継続"""
@@ -79,12 +83,23 @@ class ScrollManager:
         if self.debug:
             print(f"[SCROLL] scroll-stopコマンドによりスクロール終了、次のテキストから新規表示開始")
         
+        # スクロール中のすべてのテキスト（削除されたものも含む）をバックログに追加
+        if self.scroll_mode and self.text_renderer and self.text_renderer.backlog_manager:
+            combined_text = "".join(self.all_scroll_text)
+            if combined_text and self.current_speaker:
+                self.text_renderer.backlog_manager.add_entry(self.current_speaker, combined_text)
+                # スクロール終了時にフラグを設定
+                self.text_renderer.backlog_added_for_current = True
+                if self.debug:
+                    print(f"[BACKLOG] スクロール終了時にすべてのテキストをバックログに追加: {self.current_speaker} - {combined_text[:50]}... (全{len(self.all_scroll_text)}ブロック)")
+        
         if self.scroll_mode and self.text_renderer:
             self.text_renderer.set_scroll_ended_flag()
         
         # スクロール状態をリセットして次のテキストから新しく開始できるようにする
         self.scroll_mode = False
         self.scroll_lines = []
+        self.all_scroll_text = []  # バックログ用リストもリセット
         self.current_speaker = None
     
     def end_scroll_mode(self):

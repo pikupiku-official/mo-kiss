@@ -30,7 +30,7 @@ def initialize_game():
         "text": text_renderer.fonts["text"],      # PyQt5フォント
         "name": text_renderer.fonts["name"]       # PyQt5フォント
     }
-    backlog_manager = BacklogManager(screen, text_renderer.fonts)
+    backlog_manager = BacklogManager(screen, text_renderer.fonts, DEBUG)
     
     # TextRendererにBacklogManagerを設定
     text_renderer.set_backlog_manager(backlog_manager)
@@ -151,6 +151,12 @@ def initialize_first_scene(game_state):
         game_state['current_paragraph'] = -1  # advance_dialogueで0になる
         from scenario_manager import advance_dialogue
         advance_dialogue(game_state)
+        
+        # 最初のテキストのバックログ追加フラグをリセット（重複を避けるため、自動追加に任せる）
+        if game_state['text_renderer'].current_text:
+            game_state['text_renderer'].backlog_added_for_current = False
+            if DEBUG:
+                print(f"[BACKLOG] 最初のテキストのバックログ追加フラグをリセット")
 
 def _initialize_bgm(game_state):
     """BGMの初期化を行う（内部関数）"""

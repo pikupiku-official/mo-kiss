@@ -54,6 +54,7 @@ class TextRenderer:
         self.scroll_just_ended = False  # スクロールが直前に終了したかのフラグ
 
         self.auto_mode = False
+        self.skip_mode = False
         self.text_complete_time = 0
         self.is_ready_for_next = False
         self.auto_ready_logged = False
@@ -62,6 +63,9 @@ class TextRenderer:
         self.scroll_manager = ScrollManager(debug)
         # ScrollManagerにTextRendererの参照を設定
         self.scroll_manager.set_text_renderer(self)
+        
+        # バックログ追加フラグの初期化
+        self.backlog_added_for_current = True
 
     def _wrap_text(self, text):
         """テキストを26文字で自動改行する"""
@@ -186,15 +190,25 @@ class TextRenderer:
 
     def toggle_auto_mode(self):
         self.auto_mode = not self.auto_mode
+        if self.auto_mode:
+            self.skip_mode = False  # autoモードONの時はskipモードOFF
         if self.debug:
             print(f"自動モード: {'ON' if self.auto_mode else 'OFF'}")
         return self.auto_mode
+    
+    def toggle_skip_mode(self):
+        self.skip_mode = not self.skip_mode
+        if self.skip_mode:
+            self.auto_mode = False  # skipモードONの時はautoモードOFF
+        if self.debug:
+            print(f"スキップモード: {'ON' if self.skip_mode else 'OFF'}")
+        return self.skip_mode
     
     def is_auto_mode(self):
         return self.auto_mode
     
     def is_ready_for_auto_advance(self):
-        return self.auto_mode and self.is_ready_for_next
+        return (self.auto_mode or self.skip_mode) and self.is_ready_for_next
     
     def reset_auto_timer(self):
         self.is_ready_for_next = False
@@ -230,6 +244,9 @@ class TextRenderer:
         self.current_text = str(text) if text is not None else ""
         self.current_character_name = str(character_name) if character_name is not None else ""
         
+        # 新しいテキストが設定されたのでバックログ追加フラグをリセット
+        self.backlog_added_for_current = False
+        
         # 現在の話者を記録
         if not hasattr(self, 'last_speaker'):
             self.last_speaker = None
@@ -257,6 +274,8 @@ class TextRenderer:
             self.reset_auto_timer()
             self.last_speaker = character_name
             self.previous_text = text
+            # スクロールモード中はバックログ追加しないため、フラグは True に設定
+            self.backlog_added_for_current = True
             return
         
         # スクロール表示の処理（新規開始）
@@ -269,6 +288,15 @@ class TextRenderer:
                 hasattr(self, 'last_speaker') and self.last_speaker == character_name):
                 if self.debug:
                     print(f"[SCROLL] 前のテキストを含めてスクロール開始: {character_name}")
+                
+                # 重複防止：前のテキストが既にバックログに単独で存在する場合は削除
+                if (self.backlog_manager and self.backlog_manager.entries and 
+                    self.backlog_manager.entries[-1]["speaker"] == character_name and
+                    self.backlog_manager.entries[-1]["text"] == self.previous_text):
+                    removed_entry = self.backlog_manager.entries.pop()
+                    if self.debug:
+                        print(f"[BACKLOG] スクロール開始時に重複エントリを削除: {removed_entry['speaker']} - {removed_entry['text'][:30]}...")
+                
                 # 前のテキストでスクロール開始
                 self.scroll_manager.start_scroll_mode(character_name, self.previous_text)
                 # 現在のテキストを追加
@@ -283,6 +311,8 @@ class TextRenderer:
             self.reset_auto_timer()
             self.last_speaker = character_name
             self.previous_text = text
+            # スクロールモード開始時はバックログ追加しないため、フラグは True に設定
+            self.backlog_added_for_current = True
             return
         
         # 通常表示
@@ -294,6 +324,7 @@ class TextRenderer:
         self.reset_auto_timer()
         self.last_speaker = character_name
         self.previous_text = text
+        # 通常表示ではskip_text()でバックログ追加するため、フラグは False のまま
 
     def update(self):
         if not self.current_text:
@@ -321,14 +352,20 @@ class TextRenderer:
         if not self.is_text_complete:
             char_delay_to_use = self.char_delay
             
+            # skipモードの場合は表示速度を20倍にする（char_delayを1/6にする）
+            if self.skip_mode:
+                char_delay_to_use = self.char_delay // 20
+                if char_delay_to_use < 1:  # 最小値は1ms
+                    char_delay_to_use = 1
+            
             if current_time - self.last_char_time >= char_delay_to_use:
                 if self.displayed_chars < len(self.current_text):
                     # 次に表示する文字をチェック
                     next_char = self.current_text[self.displayed_chars]
                     self.displayed_chars += 1
                     
-                    # 句読点「。」の場合は追加の遅延を適用
-                    if next_char == '。':
+                    # 句読点「。」の場合は追加の遅延を適用（skipモード時は遅延なし）
+                    if next_char == '。' and not self.skip_mode:
                         self.punctuation_waiting = True
                         self.punctuation_wait_start = current_time
                         if self.debug:
@@ -339,19 +376,25 @@ class TextRenderer:
                 else:
                     self.is_text_complete = True
                     self.text_complete_time = current_time
-                    if self.backlog_manager and self.current_text:
-                        char_name = self.current_character_name if self.current_character_name else None
-                        self.backlog_manager.add_to_backlog(self.current_text, char_name)
+                    
+                    # バックログへの追加処理は skip_text() でのみ実行するよう変更（重複防止）
+                    # update()での自動追加は無効化
 
-        elif self.auto_mode and self.is_text_complete and not self.is_ready_for_next:
-            # スクロール終了直後で段落切り替え遅延が必要な場合
-            if self.scroll_just_ended and not self.paragraph_transition_waiting:
+        elif (self.auto_mode or self.skip_mode) and self.is_text_complete and not self.is_ready_for_next:
+            # スクロール終了直後で段落切り替え遅延が必要な場合（skipモード時は遅延なし）
+            if self.scroll_just_ended and not self.paragraph_transition_waiting and not self.skip_mode:
                 self.paragraph_transition_waiting = True
                 self.paragraph_transition_start = current_time
                 self.scroll_just_ended = False  # フラグをリセット
                 if self.debug:
                     print(f"[DELAY] スクロール終了後の段落切り替え遅延開始 ({self.paragraph_transition_delay}ms)")
                 return
+            
+            # skipモード時は即座に進行、scrollが終了した場合もskipモードなら即座に進行
+            if self.skip_mode and self.scroll_just_ended:
+                self.scroll_just_ended = False  # フラグをリセット
+                if self.debug:
+                    print("[DELAY] skipモードのため段落切り替え遅延をスキップ")
             
             # 通常の自動進行（即座に進行可能に設定）
             self.is_ready_for_next = True
@@ -367,9 +410,16 @@ class TextRenderer:
             # 遅延状態をリセット
             self.punctuation_waiting = False
             self.paragraph_transition_waiting = False
-            if self.backlog_manager:
+            
+            # バックログへの追加処理（重複チェック強化、スクロール中は追加しない）
+            if (self.backlog_manager and not getattr(self, 'backlog_added_for_current', False) and
+                not self.scroll_manager.is_scroll_mode()):
+                # 通常モードの場合のみ（スクロール中は scroll_manager が終了時に処理）
                 char_name = self.current_character_name if self.current_character_name else None
-                self.backlog_manager.add_to_backlog(self.current_text, char_name)
+                self.backlog_manager.add_entry(char_name, self.current_text)
+                self.backlog_added_for_current = True  # バックログに追加済みフラグを設定
+                if self.debug:
+                    print(f"[BACKLOG] スキップ時にテキストをバックログに追加: {char_name} - {self.current_text[:30]}...")
 
     def is_displaying(self):
         return not self.is_text_complete and bool(self.current_text)
@@ -474,8 +524,6 @@ class TextRenderer:
         else:
             # 3行を超える場合は最新3行のみ表示
             lines_to_draw = all_lines[-self.max_display_lines:]
-            if self.debug:
-                print(f"[SCROLL] スクロール表示: {len(all_lines)}行 -> 最新{self.max_display_lines}行表示")
         
         y = self.text_start_y
         for single_line in lines_to_draw:
@@ -491,7 +539,7 @@ class TextRenderer:
         return y
 
     def render(self):
-        if self.backlog_manager and self.backlog_manager.is_showing():
+        if self.backlog_manager and self.backlog_manager.is_showing_backlog():
             return
         self.render_paragraph()
     
