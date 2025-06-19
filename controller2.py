@@ -1,6 +1,6 @@
 import pygame
 from model import advance_dialogue
-from config import get_ui_button_positions
+from config import get_ui_button_positions, DEBUG
 
 def is_point_in_rect(point, rect_pos, rect_size):
     """点が矩形の範囲内にあるかどうかを判定する"""
@@ -37,6 +37,13 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     if choice_renderer.is_choice_showing():
         selected_choice = choice_renderer.handle_mouse_click(mouse_pos)
         if selected_choice >= 0:
+            # 選択された選択肢をバックログに追加
+            selected_text = choice_renderer.get_last_selected_text()
+            if selected_text and game_state['backlog_manager']:
+                game_state['backlog_manager'].add_entry("橘純一", f"〇{selected_text}")
+                if DEBUG:
+                    print(f"[BACKLOG] 選択肢をバックログに追加: {selected_text}")
+            
             # 選択肢を非表示にして次に進む
             choice_renderer.hide_choices()
             advance_to_next_dialogue(game_state)

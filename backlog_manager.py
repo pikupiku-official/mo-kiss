@@ -53,18 +53,19 @@ class BacklogManager:
         self.default_name_color = TEXT_COLOR
         self.female_text_color = TEXT_COLOR_FEMALE
         self.female_name_color = TEXT_COLOR_FEMALE
+        self.choice_color = TEXT_COLOR
         
         # レイアウト設定（仮想解像度1920x1080基準のピクセル値）
         # 仮想座標でのレイアウト計算
         virtual_margin = 50  # 1920 * 0.026 = 50px
         virtual_width = VIRTUAL_WIDTH - virtual_margin * 2
-        virtual_height = VIRTUAL_HEIGHT - virtual_margin * 2
+        virtual_height = VIRTUAL_HEIGHT - virtual_margin * 2 - 50
         
         virtual_speaker_width = 200  # 1920 * 0.104 = 200px
         virtual_text_width = virtual_width - virtual_speaker_width - 60  # 1920 * 0.031 = 60pxの余白
         virtual_padding = 19  # 1920 * 0.01 = 19px
         virtual_item_spacing = 15  # 1920 * 0.008 = 15px
-        
+
         # 実際の画面座標にスケーリング
         self.margin = scale_size(virtual_margin, 0)[0]
         self.width, self.height = scale_size(virtual_width, virtual_height)
@@ -74,7 +75,15 @@ class BacklogManager:
         self.text_width = scale_size(virtual_text_width, 0)[0]
         self.padding = scale_size(virtual_padding, 0)[0]
         self.item_spacing = scale_size(virtual_item_spacing, 0)[0]
-        
+
+        # フォントサイズはtext_rendererと同じ方法で計算（実際の画面高さに基づく）
+        # 画面サイズによる差を大きくし、全体的にサイズアップ
+        base_size = int(SCREEN_HEIGHT * 57 / 1000)  # ベースサイズを30から45に増加
+        scale_factor = SCREEN_HEIGHT / 1080.0  # 1080pを基準とした倍率
+        size_multiplier = 0.1 + (scale_factor * 0.9)  # 0.8〜1.2の範囲で変動
+        self.text_font_size = int(base_size * size_multiplier)
+        self.name_font_size = self.text_font_size
+
         # フォント設定（バックログ用に新しいフォントオブジェクトを作成）
         from PyQt5.QtGui import QFont, QFontMetrics
         from config import SCALE
@@ -84,12 +93,6 @@ class BacklogManager:
         text_font_family = self.fonts["text"].family()
         name_font_weight = self.fonts["name"].weight()
         text_font_weight = self.fonts["text"].weight()
-        
-        # ディスプレイサイズが小さい時により小さなフォントサイズになるよう逆スケーリング
-        base_font_size = 50  # 基準フォントサイズ
-        # SCALEの逆数を使用してディスプレイが小さいほど文字サイズを小さくする
-        self.text_font_size = max(12, min(72, int(base_font_size * SCALE)))  # 最小12px, 最大72px
-        self.name_font_size = self.text_font_size  # 名前も同じサイズ
         
         # バックログ用のフォントを作成（元のfontsは変更しない）
         self.backlog_name_font = QFont(name_font_family, self.name_font_size)
@@ -102,12 +105,16 @@ class BacklogManager:
         self.text_line_height = self.text_font_metrics.height()
         
         if self.debug:
-            print(f"[BACKLOG] 基準フォントサイズ: {base_font_size}px")
-            print(f"[BACKLOG] 実際のフォントサイズ: {self.text_font_size}px (SCALE: {SCALE:.3f})")
+            print(f"[BACKLOG] バックログ背景高さ: {self.height}px")
+            print(f"[BACKLOG] フォントサイズ: {self.text_font_size}px (背景高さの1/30)")
             print(f"[BACKLOG] 行の高さ: {self.text_line_height}px")
         
     def get_character_colors(self, char_name):
         """キャラクター名に基づいて色を決定する（text_rendererと同じ）"""
+        # 選択肢の場合は専用色を使用
+        if char_name == "選択":
+            return self.choice_color, self.choice_color
+        
         if char_name and char_name in CHARACTER_GENDERS:
             gender = CHARACTER_GENDERS.get(char_name)
             if gender == 'female':
@@ -310,4 +317,3 @@ class BacklogManager:
                         print(f"テキスト描画エラー: {e}, テキスト: '{text_line}'")
             
             current_y += self.text_line_height
-        

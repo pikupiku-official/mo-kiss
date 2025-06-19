@@ -24,6 +24,7 @@ class ChoiceRenderer:
         self.hovered_choice = -1
         self.is_showing_choices = False
         self.selected_choice = -1
+        self.last_selected_text = None  # 最後に選択されたテキスト
         
         # 色設定
         self.normal_color = TEXT_COLOR
@@ -115,6 +116,7 @@ class ChoiceRenderer:
         for i, rect in enumerate(self.choice_rects):
             if rect.collidepoint(mouse_pos):
                 self.selected_choice = i
+                self.last_selected_text = self.choices[i]  # 選択されたテキストを保存
                 if self.debug:
                     print(f"選択肢 {i + 1} が選択されました: {self.choices[i]}")
                 return i
@@ -142,3 +144,11 @@ class ChoiceRenderer:
     def get_selected_choice(self):
         """選択された選択肢番号を返す"""
         return self.selected_choice
+    
+    def get_last_selected_text(self):
+        """最後に選択された選択肢のテキストを返す"""
+        return self.last_selected_text
+    
+    def clear_last_selected(self):
+        """最後に選択された選択肢をクリア"""
+        self.last_selected_text = None

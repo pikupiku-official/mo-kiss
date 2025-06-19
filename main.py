@@ -86,8 +86,10 @@ def render_game(game_state):
         # UI要素（テキストボックス、ボタン類）を描画
         draw_ui_elements(game_state)
         
-        # テキストを描画（選択肢表示中は非表示）
-        if game_state['show_text'] and not game_state['choice_renderer'].is_choice_showing():
+        # テキストを描画（選択肢表示中またはバックログ表示中は非表示）
+        if (game_state['show_text'] and 
+            not game_state['choice_renderer'].is_choice_showing() and
+            not game_state['backlog_manager'].is_showing_backlog()):
             game_state['text_renderer'].render()
         
         # 選択肢を描画
@@ -109,6 +111,10 @@ def render_game(game_state):
 def draw_ui_elements(game_state):
     """UI要素を描画する"""
     try:
+        # バックログが表示中の場合はUI要素を描画しない
+        if game_state['backlog_manager'].is_showing_backlog():
+            return
+            
         if 'image_manager' in game_state and 'images' in game_state:
             image_manager = game_state['image_manager']
             images = game_state['images']
