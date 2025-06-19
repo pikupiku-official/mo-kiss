@@ -78,7 +78,7 @@ class BacklogManager:
 
         # フォントサイズはtext_rendererと同じ方法で計算（実際の画面高さに基づく）
         # 画面サイズによる差を大きくし、全体的にサイズアップ
-        base_size = int(SCREEN_HEIGHT * 57 / 1000)  # ベースサイズを30から45に増加
+        base_size = int(SCREEN_HEIGHT * 49 / 1000)  # ベースサイズを30から45に増加
         scale_factor = SCREEN_HEIGHT / 1080.0  # 1080pを基準とした倍率
         size_multiplier = 0.1 + (scale_factor * 0.9)  # 0.8〜1.2の範囲で変動
         self.text_font_size = int(base_size * size_multiplier)
@@ -140,8 +140,8 @@ class BacklogManager:
         if self.debug:
             print(f"[BACKLOG] エントリ追加: {speaker} - {text[:30]}... (全{len(self.entries)}エントリ)")
     
-    def _wrap_text(self, text, max_chars=22):
-        """テキストを22文字で改行し、句点でも改行"""
+    def _wrap_text(self, text, max_chars=26):
+        """テキストを26文字で改行し、句点でも改行"""
         if not text:
             return []
         
@@ -166,7 +166,7 @@ class BacklogManager:
                 lines.append(text[current_pos:actual_end])
                 current_pos = actual_end
             else:
-                # 句点がない場合は22文字で改行
+                # 句点がない場合は26文字で改行
                 lines.append(text[current_pos:end_pos])
                 current_pos = end_pos
                 
@@ -207,13 +207,13 @@ class BacklogManager:
         """全エントリの総行数を計算"""
         total_lines = 0
         for entry in self.entries:
-            text_lines = self._wrap_text(entry["text"], 22)
+            text_lines = self._wrap_text(entry["text"], 26)
             total_lines += len(text_lines)
         return total_lines
     
     def _get_visible_lines(self):
-        """表示可能な最大行数（9行固定）"""
-        return 9
+        """表示可能な最大行数（11行固定）"""
+        return 11
     
     def handle_input(self, event):
         """入力処理"""
@@ -261,7 +261,7 @@ class BacklogManager:
         for entry in self.entries:
             speaker = entry["speaker"]
             text = entry["text"]
-            text_lines = self._wrap_text(text, 22)
+            text_lines = self._wrap_text(text, 26)
             
             # 話者が変更された場合のみ話者名を表示
             show_speaker = (speaker != previous_speaker)
@@ -277,7 +277,7 @@ class BacklogManager:
             
             previous_speaker = speaker
         
-        # スクロール位置に基づいて表示する行を決定（最大9行）
+        # スクロール位置に基づいて表示する行を決定（最大11行）
         max_lines = self._get_visible_lines()
         start_line = self.scroll_position
         end_line = min(start_line + max_lines, len(all_lines))
