@@ -115,6 +115,16 @@ def normalize_dialogue_data(raw_data):
             ])
             if DEBUG:
                 print(f"スクロール停止コマンド追加: {scroll_stop_command}")
+
+        elif entry_type == 'choice':
+            # 選択肢コマンドを正規化形式で追加
+            options = entry.get('options', [])
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow,
+                "_CHOICE_", current_bgm, current_bgm_volume, current_bgm_loop, current_char, False, options
+            ])
+            if DEBUG:
+                print(f"選択肢コマンド追加: {options}")
     
     print(f"data_normalizer.py: 正規化後のデータ数: {len(normalized_data)}")
     

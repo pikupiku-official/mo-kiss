@@ -11,16 +11,21 @@
 [BGM bgm="school" volume="0" loop="true"]
 
 [chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
+	
+[choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
 
 	//桃子//
 	「こんにちは。」
 	「これは最初のテキストです。」
+	[scroll-stop]
+
+
+[choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
 
 [chara_move subm="桃子" time="400" left="0.1" top="0.02" zoom="3"]
 
 	//桃子//
 	「会話の2番目の部分です。」
-
 	[scroll-stop]
 
 

@@ -412,6 +412,38 @@ class DialogueLoader:
                         if self.debug:
                             print(f"セリフ解析エラー（行 {line_num}）: {e} - {line}")
 
+                # [choice]タグを検出
+                elif "[choice" in line:
+                    try:
+                        # option1, option2, option3を抽出
+                        option1_match = re.search(r'option1="([^"]+)"', line)
+                        option2_match = re.search(r'option2="([^"]+)"', line)
+                        option3_match = re.search(r'option3="([^"]+)"', line)
+                        
+                        options = []
+                        if option1_match:
+                            options.append(option1_match.group(1))
+                        if option2_match:
+                            options.append(option2_match.group(1))
+                        if option3_match:
+                            options.append(option3_match.group(1))
+                        
+                        if len(options) >= 2:  # 最低2つの選択肢が必要
+                            if self.debug:
+                                print(f"選択肢検出: {options}")
+                            
+                            dialogue_data.append({
+                                'type': 'choice',
+                                'options': options
+                            })
+                        else:
+                            if self.debug:
+                                print(f"選択肢の形式が正しくありません（最低2つの選択肢が必要）: {line}")
+                    
+                    except Exception as e:
+                        if self.debug:
+                            print(f"選択肢解析エラー（行 {line_num}）: {e} - {line}")
+
                 # [scroll-stop]タグを独立して検出
                 elif "[scroll-stop]" in line:
                     if self.debug:

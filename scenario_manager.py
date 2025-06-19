@@ -49,6 +49,10 @@ def advance_dialogue(game_state):
     elif dialogue_text and dialogue_text.startswith("_BG_MOVE_"):
         return _handle_background_move(game_state, dialogue_text)
 
+    # 選択肢コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_CHOICE_"):
+        return _handle_choice(game_state, dialogue_text, current_dialogue)
+    
     else:
         # 通常の対話テキスト
         return _handle_dialogue_text(game_state, current_dialogue)
@@ -192,6 +196,62 @@ def _handle_background_move(game_state, dialogue_text):
     
     # 背景移動コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
+
+def _handle_choice(game_state, dialogue_text, current_dialogue):
+    """選択肢を処理"""
+    try:
+        options = []
+        
+        # 正規化された形式の場合（リスト形式）
+        if isinstance(current_dialogue, list) and len(current_dialogue) > 11:
+            if current_dialogue[5] == "_CHOICE_":
+                options = current_dialogue[11]  # 12番目の要素が選択肢リスト
+                if DEBUG:
+                    print(f"正規化された選択肢データを取得: {options}")
+        
+        # 辞書形式の場合（dialogue_loaderからの直接データ）
+        elif isinstance(current_dialogue, dict) and current_dialogue.get('type') == 'choice':
+            options = current_dialogue.get('options', [])
+            if DEBUG:
+                print(f"辞書形式の選択肢データを取得: {options}")
+        
+        # その他の形式から解析
+        else:
+            options = _parse_choice_from_text(dialogue_text)
+            if DEBUG:
+                print(f"テキストから選択肢を解析: {options}")
+        
+        if options and len(options) >= 2:
+            # 選択肢を表示
+            game_state['choice_renderer'].show_choices(options)
+            if DEBUG:
+                print(f"選択肢を表示しました: {options}")
+            return True
+        else:
+            if DEBUG:
+                print(f"選択肢の形式が正しくありません: {options}")
+            return advance_dialogue(game_state)
+    
+    except Exception as e:
+        if DEBUG:
+            print(f"選択肢処理エラー: {e}")
+            import traceback
+            traceback.print_exc()
+        return advance_dialogue(game_state)
+
+def _parse_choice_from_text(dialogue_text):
+    """テキストから選択肢を解析"""
+    import re
+    options = []
+    
+    # _CHOICE_option1_option2_option3形式を解析
+    parts = dialogue_text.split('_')
+    for i, part in enumerate(parts):
+        if i >= 2:  # _CHOICE_の後の部分
+            if part.strip():
+                options.append(part.strip())
+    
+    return options
 
 def _handle_dialogue_text(game_state, current_dialogue):
     """通常の対話テキストを処理"""

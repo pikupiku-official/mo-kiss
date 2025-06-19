@@ -4,6 +4,7 @@ from dialogue_loader import DialogueLoader
 from image_manager import ImageManager
 from text_renderer import TextRenderer
 from backlog_manager import BacklogManager
+from choice_renderer import ChoiceRenderer
 from config import *
 from data_normalizer import normalize_dialogue_data
 
@@ -23,6 +24,7 @@ def initialize_game():
     dialogue_loader = DialogueLoader(DEBUG)
     image_manager = ImageManager(DEBUG)
     text_renderer = TextRenderer(screen, DEBUG)
+    choice_renderer = ChoiceRenderer(screen, DEBUG)
     
     # バックログマネージャーの初期化
     backlog_fonts = {
@@ -107,6 +109,7 @@ def initialize_game():
         'dialogue_loader': dialogue_loader,
         'image_manager': image_manager,
         'text_renderer': text_renderer,
+        'choice_renderer': choice_renderer,
         'backlog_manager': backlog_manager,
         'images': images,
         'dialogue_data': dialogue_data,

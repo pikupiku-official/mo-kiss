@@ -86,9 +86,12 @@ def render_game(game_state):
         # UI要素（テキストボックス、ボタン類）を描画
         draw_ui_elements(game_state)
         
-        # テキストを描画
-        if game_state['show_text']:
+        # テキストを描画（選択肢表示中は非表示）
+        if game_state['show_text'] and not game_state['choice_renderer'].is_choice_showing():
             game_state['text_renderer'].render()
+        
+        # 選択肢を描画
+        game_state['choice_renderer'].render()
         
         # バックログを描画
         game_state['backlog_manager'].render()

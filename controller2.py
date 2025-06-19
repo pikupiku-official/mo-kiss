@@ -32,6 +32,16 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     if not game_state['show_text']:
         return
     
+    # 選択肢が表示中の場合、選択肢をクリック処理
+    choice_renderer = game_state['choice_renderer']
+    if choice_renderer.is_choice_showing():
+        selected_choice = choice_renderer.handle_mouse_click(mouse_pos)
+        if selected_choice >= 0:
+            # 選択肢を非表示にして次に進む
+            choice_renderer.hide_choices()
+            advance_to_next_dialogue(game_state)
+            return
+    
     # UI画像とボタン位置を取得
     images = game_state.get('images', {})
     ui_images = images.get('ui', {})
@@ -70,6 +80,11 @@ def handle_events(game_state, screen):
         
         if event.type == pygame.QUIT:
             return False
+            
+        elif event.type == pygame.MOUSEMOTION:
+            # マウス移動の処理（選択肢のハイライト）
+            mouse_pos = pygame.mouse.get_pos()
+            game_state['choice_renderer'].handle_mouse_motion(mouse_pos)
             
         elif event.type == pygame.MOUSEBUTTONDOWN:
             # マウスクリックの処理
@@ -113,6 +128,10 @@ def handle_enter_key(game_state):
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
         return
+    
+    # 選択肢が表示中の時は無効化
+    if game_state['choice_renderer'].is_choice_showing():
+        return
         
     text_renderer = game_state['text_renderer']
     
@@ -152,11 +171,14 @@ def update_game(game_state):
         setup_text_renderer_settings(game_state)
         game_state['text_renderer_initialized'] = True
     
-    # テキスト表示の更新
-    game_state['text_renderer'].update()
+    # テキスト表示の更新（選択肢表示中は停止）
+    if not game_state['choice_renderer'].is_choice_showing():
+        game_state['text_renderer'].update()
 
-    # 自動進行の処理
-    if (game_state['text_renderer'].is_ready_for_auto_advance() and not game_state['backlog_manager'].is_showing_backlog()):
+    # 自動進行の処理（選択肢表示中は無効化）
+    if (game_state['text_renderer'].is_ready_for_auto_advance() and 
+        not game_state['backlog_manager'].is_showing_backlog() and
+        not game_state['choice_renderer'].is_choice_showing()):
         # 自動的に次の対話に進む
         success = advance_to_next_dialogue(game_state)
         # 自動進行タイマーをリセット
