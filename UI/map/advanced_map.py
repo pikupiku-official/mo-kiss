@@ -608,6 +608,12 @@ class AdvancedKimikissMap:
         """イベントが実行済みかチェック"""
         return event_id in self.completed_events
     
+    def refresh_events(self):
+        """イベントリストを再読み込み（外部から呼び出し用）"""
+        self.load_events()
+        self.update_events()
+        print("🔄 イベントリスト再読み込み完了")
+    
     def init_maps(self):
         """マップ初期化"""
         # 平日マップ（学校のみ）- 建物描画に合わせて位置調整

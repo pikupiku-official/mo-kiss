@@ -14,6 +14,10 @@ class DialogueLoader:
         
         # スクロール機能を全テキストに適用
         self.disable_scroll_continue = False  # スクロール機能を有効化
+        
+        # ストーリーフラグ管理システム
+        self.story_flags = {}
+        self.load_story_flags()
 
     def _wrap_text_and_count_lines(self, text):
         """テキストを26文字で自動改行し、行数を返す"""
@@ -452,6 +456,93 @@ class DialogueLoader:
                         'type': 'scroll_stop'
                     })
 
+                # [event_unlock]タグを検出 - イベント有効化/無効化
+                elif "[event_unlock" in line:
+                    try:
+                        target_events = re.search(r'target="([^"]+)"', line)
+                        lock_events = re.search(r'lock="([^"]+)"', line)
+                        
+                        unlock_list = target_events.group(1).split(',') if target_events else []
+                        lock_list = lock_events.group(1).split(',') if lock_events else []
+                        
+                        # 空白文字を除去
+                        unlock_list = [event.strip() for event in unlock_list if event.strip()]
+                        lock_list = [event.strip() for event in lock_list if event.strip()]
+                        
+                        if self.debug:
+                            print(f"イベント制御: 解放={unlock_list}, ロック={lock_list}")
+                        
+                        dialogue_data.append({
+                            'type': 'event_control',
+                            'unlock': unlock_list,
+                            'lock': lock_list
+                        })
+                        
+                    except Exception as e:
+                        if self.debug:
+                            print(f"イベント制御解析エラー（行 {line_num}）: {e} - {line}")
+
+                # [flag_set]タグを検出 - ストーリーフラグ設定
+                elif "[flag_set" in line:
+                    try:
+                        flag_name = re.search(r'name="([^"]+)"', line)
+                        flag_value = re.search(r'value="([^"]+)"', line)
+                        
+                        if flag_name and flag_value:
+                            flag_name_str = flag_name.group(1)
+                            flag_value_str = flag_value.group(1)
+                            
+                            # 値の型変換
+                            if flag_value_str.lower() == 'true':
+                                flag_value_converted = True
+                            elif flag_value_str.lower() == 'false':
+                                flag_value_converted = False
+                            elif flag_value_str.isdigit():
+                                flag_value_converted = int(flag_value_str)
+                            else:
+                                flag_value_converted = flag_value_str
+                            
+                            if self.debug:
+                                print(f"フラグ設定: {flag_name_str} = {flag_value_converted}")
+                            
+                            dialogue_data.append({
+                                'type': 'flag_set',
+                                'name': flag_name_str,
+                                'value': flag_value_converted
+                            })
+                        
+                    except Exception as e:
+                        if self.debug:
+                            print(f"フラグ設定解析エラー（行 {line_num}）: {e} - {line}")
+
+                # [if]タグを検出 - 条件分岐開始
+                elif "[if" in line:
+                    try:
+                        condition = re.search(r'condition="([^"]+)"', line)
+                        
+                        if condition:
+                            condition_str = condition.group(1)
+                            
+                            if self.debug:
+                                print(f"条件分岐開始: {condition_str}")
+                            
+                            dialogue_data.append({
+                                'type': 'if_start',
+                                'condition': condition_str
+                            })
+                        
+                    except Exception as e:
+                        if self.debug:
+                            print(f"条件分岐解析エラー（行 {line_num}）: {e} - {line}")
+
+                # [endif]タグを検出 - 条件分岐終了
+                elif "[endif]" in line:
+                    if self.debug:
+                        print(f"条件分岐終了")
+                    dialogue_data.append({
+                        'type': 'if_end'
+                    })
+
             except Exception as e:
                     if self.debug:
                         print(f"ダイアログ読み取りエラー")
@@ -477,3 +568,152 @@ class DialogueLoader:
         self.disable_scroll_continue = not enable
         if self.debug:
             print(f"スクロール継続機能: {'有効' if enable else '無効'}")
+    
+    def load_story_flags(self):
+        """ストーリーフラグを読み込み"""
+        import json
+        flags_file = os.path.join("events", "story_flags.json")
+        
+        try:
+            if os.path.exists(flags_file):
+                with open(flags_file, 'r', encoding='utf-8') as f:
+                    self.story_flags = json.load(f)
+                if self.debug:
+                    print(f"✅ ストーリーフラグ読み込み完了: {len(self.story_flags)}個")
+            else:
+                self.story_flags = {}
+                if self.debug:
+                    print("📝 新しいストーリーフラグファイルを作成します")
+        except Exception as e:
+            if self.debug:
+                print(f"❌ ストーリーフラグ読み込みエラー: {e}")
+            self.story_flags = {}
+    
+    def save_story_flags(self):
+        """ストーリーフラグを保存"""
+        import json
+        flags_file = os.path.join("events", "story_flags.json")
+        
+        try:
+            # eventsディレクトリが存在しない場合は作成
+            os.makedirs("events", exist_ok=True)
+            
+            with open(flags_file, 'w', encoding='utf-8') as f:
+                json.dump(self.story_flags, f, ensure_ascii=False, indent=2)
+            if self.debug:
+                print(f"✅ ストーリーフラグ保存完了: {len(self.story_flags)}個")
+        except Exception as e:
+            if self.debug:
+                print(f"❌ ストーリーフラグ保存エラー: {e}")
+    
+    def set_story_flag(self, flag_name, value):
+        """ストーリーフラグを設定"""
+        self.story_flags[flag_name] = value
+        self.save_story_flags()
+        if self.debug:
+            print(f"🚩 フラグ設定: {flag_name} = {value}")
+    
+    def get_story_flag(self, flag_name, default=False):
+        """ストーリーフラグを取得"""
+        return self.story_flags.get(flag_name, default)
+    
+    def check_condition(self, condition_str):
+        """条件文字列を評価"""
+        try:
+            # シンプルな条件評価（例: "aggressive_approach==true"）
+            if "==" in condition_str:
+                flag_name, expected_value = condition_str.split("==")
+                flag_name = flag_name.strip()
+                expected_value = expected_value.strip()
+                
+                # 値の型変換
+                if expected_value.lower() == 'true':
+                    expected_value = True
+                elif expected_value.lower() == 'false':
+                    expected_value = False
+                elif expected_value.isdigit():
+                    expected_value = int(expected_value)
+                else:
+                    expected_value = expected_value.strip('"\'')  # クォートを除去
+                
+                current_value = self.get_story_flag(flag_name)
+                result = current_value == expected_value
+                if self.debug:
+                    print(f"🔍 条件評価: {flag_name}({current_value}) == {expected_value} → {result}")
+                return result
+            
+            # AND/OR条件（基本的な実装）
+            elif " AND " in condition_str:
+                conditions = condition_str.split(" AND ")
+                return all(self.check_condition(cond.strip()) for cond in conditions)
+            elif " OR " in condition_str:
+                conditions = condition_str.split(" OR ")
+                return any(self.check_condition(cond.strip()) for cond in conditions)
+            
+            return False
+            
+        except Exception as e:
+            if self.debug:
+                print(f"❌ 条件評価エラー: {e} - {condition_str}")
+            return False
+    
+    def update_event_flags(self, unlock_events=[], lock_events=[]):
+        """events.csvの有効フラグを動的に更新"""
+        import csv
+        csv_path = os.path.join("events", "events.csv")
+        
+        try:
+            # CSVを読み込み
+            rows = []
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # 解放対象のイベント
+                    if row['イベントID'] in unlock_events:
+                        row['有効フラグ'] = 'TRUE'
+                        if self.debug:
+                            print(f"✅ イベント解放: {row['イベントID']} - {row['イベントのタイトル']}")
+                    
+                    # ロック対象のイベント  
+                    if row['イベントID'] in lock_events:
+                        row['有効フラグ'] = 'FALSE'
+                        if self.debug:
+                            print(f"🔒 イベントロック: {row['イベントID']} - {row['イベントのタイトル']}")
+                    
+                    rows.append(row)
+            
+            # CSVを書き込み
+            with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+                fieldnames = ['イベントID', 'イベント開始日時', 'イベント終了日時', 
+                             'イベントを選べる時間帯', '対象のヒロイン', '場所', 
+                             'イベントのタイトル', '有効フラグ']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            
+            if self.debug:
+                print(f"📝 events.csv更新完了: 解放{len(unlock_events)}個, ロック{len(lock_events)}個")
+            
+        except Exception as e:
+            if self.debug:
+                print(f"❌ イベントフラグ更新エラー: {e}")
+    
+    def execute_story_command(self, command_data):
+        """ストーリーコマンドを実行"""
+        command_type = command_data.get('type')
+        
+        if command_type == 'event_control':
+            unlock_events = command_data.get('unlock', [])
+            lock_events = command_data.get('lock', [])
+            self.update_event_flags(unlock_events, lock_events)
+            
+        elif command_type == 'flag_set':
+            flag_name = command_data.get('name')
+            flag_value = command_data.get('value')
+            self.set_story_flag(flag_name, flag_value)
+            
+        elif command_type == 'check_condition':
+            condition = command_data.get('condition', '')
+            return self.check_condition(condition)
+            
+        return None
