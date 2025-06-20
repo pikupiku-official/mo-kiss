@@ -46,7 +46,7 @@ def initialize_game():
 
     # 会話データの読み込みと正規化
     try:
-        raw_dialogue_data = dialogue_loader.load_dialogue_from_ks("dialogue.ks")
+        raw_dialogue_data = dialogue_loader.load_dialogue_from_ks("events/E001_test.ks")
         print(f"game_manager.py: ロードされた生データ数: {len(raw_dialogue_data) if raw_dialogue_data else 0}")
         
         if raw_dialogue_data and len(raw_dialogue_data) > 0:
@@ -70,8 +70,16 @@ def initialize_game():
         dialogue_data = get_default_normalized_dialogue()
 
     # キャラクター画像のサイズを取得
-    char_width = images["characters"]["girl1"].get_width()
-    char_height = images["characters"]["girl1"].get_height()
+    # 利用可能な最初のキャラクター画像を使用
+    char_width = 100
+    char_height = 100
+    if images["characters"]:
+        first_char_key = list(images["characters"].keys())[0]
+        char_width = images["characters"][first_char_key].get_width()
+        char_height = images["characters"][first_char_key].get_height()
+        print(f"キャラクター画像サイズ取得: {first_char_key} ({char_width}x{char_height})")
+    else:
+        print("警告: キャラクター画像が見つかりません。デフォルトサイズを使用します。")
 
     # キャラクター関連の初期化
     character_pos = {}

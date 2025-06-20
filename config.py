@@ -1,5 +1,4 @@
 import pygame
-import tkinter as tk  # 画面サイズを取得するために一時的に使用
 import sys
 import os
 import json
@@ -24,11 +23,12 @@ def init_qt_application():
             print("Using existing PyQt5 QApplication")
     return _qt_app
 
-# tkinterを使用して画面サイズを取得
-root = tk.Tk()
-DISPLAY_WIDTH = root.winfo_screenwidth()
-DISPLAY_HEIGHT = root.winfo_screenheight()
-root.destroy()  # 役目を終えたらtkinterウィンドウを閉じる
+# PyQtを使用して画面サイズを取得
+qt_app = init_qt_application()
+screen = qt_app.primaryScreen()
+screen_geometry = screen.geometry()
+DISPLAY_WIDTH = screen_geometry.width()
+DISPLAY_HEIGHT = screen_geometry.height()
 
 # 仮想画面の基準解像度（全ての座標・サイズ計算の基準）
 VIRTUAL_WIDTH = 1920
@@ -99,7 +99,11 @@ FACE_POS = {
 # キャラクター設定
 CHARACTER_IMAGE_MAP = {
     "桃子": "girl1",
-    "サナコ": "girl2"
+    "サナコ": "girl2",
+    "烏丸神無": "girl1",
+    "桔梗美鈴": "girl2", 
+    "宮月深依里": "girl1",
+    "伊織紅": "girl2"
 }
 
 # キャラクターの性別データを読み込む
@@ -125,6 +129,26 @@ CHARACTER_DEFAULTS = {
         "brow": ""
     },
     "サナコ": {
+        "eye": "eye1", 
+        "mouth": "mouth1",
+        "brow": ""
+    },
+    "烏丸神無": {
+        "eye": "eye1",
+        "mouth": "mouth1", 
+        "brow": ""
+    },
+    "桔梗美鈴": {
+        "eye": "eye1",
+        "mouth": "mouth1",
+        "brow": ""
+    },
+    "宮月深依里": {
+        "eye": "eye1",
+        "mouth": "mouth1",
+        "brow": ""
+    },
+    "伊織紅": {
         "eye": "eye1",
         "mouth": "mouth1",
         "brow": ""
@@ -187,3 +211,31 @@ def init_game():
     print(f"Window position: {X_POS}, {Y_POS}")
     
     return screen
+
+def update_screen_config(new_width, new_height):
+    """画面サイズ設定を動的に更新する（イベント表示用）"""
+    global SCREEN_WIDTH, SCREEN_HEIGHT, SCALE_X, SCALE_Y, SCALE
+    
+    # 新しい画面サイズを設定
+    SCREEN_WIDTH = new_width
+    SCREEN_HEIGHT = new_height
+    
+    # スケーリング係数を再計算
+    SCALE_X = SCREEN_WIDTH / VIRTUAL_WIDTH
+    SCALE_Y = SCREEN_HEIGHT / VIRTUAL_HEIGHT
+    SCALE = min(SCALE_X, SCALE_Y)  # アスペクト比を維持
+    
+    print(f"画面設定を更新: {SCREEN_WIDTH}x{SCREEN_HEIGHT}, Scale: {SCALE:.3f}")
+
+def restore_original_screen_config():
+    """元の画面サイズ設定に戻す"""
+    global SCREEN_WIDTH, SCREEN_HEIGHT, SCALE_X, SCALE_Y, SCALE
+    
+    # 元の設定に戻す
+    SCREEN_WIDTH = WINDOW_WIDTH
+    SCREEN_HEIGHT = WINDOW_HEIGHT
+    SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
+    SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
+    SCALE = min(SCALE_X, SCALE_Y)
+    
+    print(f"画面設定を元に戻しました: {SCREEN_WIDTH}x{SCREEN_HEIGHT}, Scale: {SCALE:.3f}")
