@@ -35,18 +35,18 @@ VIRTUAL_WIDTH = 1920
 VIRTUAL_HEIGHT = 1080
 
 # 実際のウィンドウサイズを16:9のアスペクト比に調整
-# 必ずディスプレイの横幅を基準に80%のウィンドウを表示
-WINDOW_WIDTH = int(DISPLAY_WIDTH * 0.8)  # 画面幅の80%
-WINDOW_HEIGHT = int(WINDOW_WIDTH * 9 / 16)  # 16:9のアスペクト比で高さを計算
+# フルサイズ（ディスプレイの100%）でウィンドウを表示
+WINDOW_WIDTH = DISPLAY_WIDTH  # 画面幅の100%（フルサイズ）
+WINDOW_HEIGHT = DISPLAY_HEIGHT  # 画面高さの100%（フルサイズ）
 
 # スケーリング係数を計算
 SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
 SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
 SCALE = max(SCALE_X, SCALE_Y)  # アスペクト比を維持するため小さい方を使用
 
-# 中央の位置を計算
-X_POS = (DISPLAY_WIDTH - WINDOW_WIDTH) // 2
-Y_POS = (DISPLAY_HEIGHT - WINDOW_HEIGHT) // 2
+# フルサイズの場合、ウィンドウ位置は左上角（0, 0）
+X_POS = 0
+Y_POS = 0
 
 # 定数として設定（元のコードとの互換性のため）
 SCREEN_WIDTH = WINDOW_WIDTH
