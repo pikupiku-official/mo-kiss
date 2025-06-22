@@ -78,7 +78,7 @@ class BacklogManager:
 
         # フォントサイズはtext_rendererと同じ方法で計算（実際の画面高さに基づく）
         # 画面サイズによる差を大きくし、全体的にサイズアップ
-        base_size = int(SCREEN_HEIGHT * 49 / 1000)  # ベースサイズを30から45に増加
+        base_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
         scale_factor = SCREEN_HEIGHT / 1080.0  # 1080pを基準とした倍率
         size_multiplier = 0.1 + (scale_factor * 0.9)  # 0.8〜1.2の範囲で変動
         self.text_font_size = int(base_size * size_multiplier)
