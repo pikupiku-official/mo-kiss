@@ -202,8 +202,8 @@ def init_game():
     # ウィンドウのタイトルを設定
     pygame.display.set_caption("ビジュアルノベル")
     
-    # ウィンドウサイズを設定
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    # 全画面表示でウィンドウサイズを設定
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
     
     print(f"Virtual resolution: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
     print(f"Window size: {SCREEN_WIDTH}x{SCREEN_HEIGHT} (16:9 ratio)")
