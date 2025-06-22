@@ -1,5 +1,4 @@
 import pygame
-import tkinter as tk  # 画面サイズを取得するために一時的に使用
 import sys
 import os
 import json
@@ -24,29 +23,30 @@ def init_qt_application():
             print("Using existing PyQt5 QApplication")
     return _qt_app
 
-# tkinterを使用して画面サイズを取得
-root = tk.Tk()
-DISPLAY_WIDTH = root.winfo_screenwidth()
-DISPLAY_HEIGHT = root.winfo_screenheight()
-root.destroy()  # 役目を終えたらtkinterウィンドウを閉じる
+# PyQtを使用して画面サイズを取得
+qt_app = init_qt_application()
+screen = qt_app.primaryScreen()
+screen_geometry = screen.geometry()
+DISPLAY_WIDTH = screen_geometry.width()
+DISPLAY_HEIGHT = screen_geometry.height()
 
 # 仮想画面の基準解像度（全ての座標・サイズ計算の基準）
 VIRTUAL_WIDTH = 1920
 VIRTUAL_HEIGHT = 1080
 
 # 実際のウィンドウサイズを16:9のアスペクト比に調整
-# 必ずディスプレイの横幅を基準に80%のウィンドウを表示
-WINDOW_WIDTH = int(DISPLAY_WIDTH * 0.8)  # 画面幅の80%
-WINDOW_HEIGHT = int(WINDOW_WIDTH * 9 / 16)  # 16:9のアスペクト比で高さを計算
+# フルサイズ（ディスプレイの100%）でウィンドウを表示
+WINDOW_WIDTH = DISPLAY_WIDTH  # 画面幅の100%（フルサイズ）
+WINDOW_HEIGHT = DISPLAY_HEIGHT  # 画面高さの100%（フルサイズ）
 
 # スケーリング係数を計算
 SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
 SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
 SCALE = max(SCALE_X, SCALE_Y)  # アスペクト比を維持するため小さい方を使用
 
-# 中央の位置を計算
-X_POS = (DISPLAY_WIDTH - WINDOW_WIDTH) // 2
-Y_POS = (DISPLAY_HEIGHT - WINDOW_HEIGHT) // 2
+# フルサイズの場合、ウィンドウ位置は左上角（0, 0）
+X_POS = 0
+Y_POS = 0
 
 # 定数として設定（元のコードとの互換性のため）
 SCREEN_WIDTH = WINDOW_WIDTH
@@ -59,9 +59,9 @@ DEBUG = True
 TEXT_COLOR = (255, 255, 255)
 TEXT_COLOR_FEMALE = (255, 175, 227)
 TEXT_BG_COLOR = (0, 0, 0, 100)
-TEXT_START_X = 400
+TEXT_START_X = 375  # 1文字分（約25px）左に移動
 TEXT_START_Y = 765
-NAME_START_X = 220
+NAME_START_X = 195  # 1文字分（約25px）右に移動
 NAME_START_Y = TEXT_START_Y
 TEXT_PADDING = 11
 
@@ -99,7 +99,11 @@ FACE_POS = {
 # キャラクター設定
 CHARACTER_IMAGE_MAP = {
     "桃子": "girl1",
-    "サナコ": "girl2"
+    "サナコ": "girl2",
+    "烏丸神無": "girl1",
+    "桔梗美鈴": "girl2", 
+    "宮月深依里": "girl1",
+    "伊織紅": "girl2"
 }
 
 # キャラクターの性別データを読み込む
@@ -125,6 +129,26 @@ CHARACTER_DEFAULTS = {
         "brow": ""
     },
     "サナコ": {
+        "eye": "eye1", 
+        "mouth": "mouth1",
+        "brow": ""
+    },
+    "烏丸神無": {
+        "eye": "eye1",
+        "mouth": "mouth1", 
+        "brow": ""
+    },
+    "桔梗美鈴": {
+        "eye": "eye1",
+        "mouth": "mouth1",
+        "brow": ""
+    },
+    "宮月深依里": {
+        "eye": "eye1",
+        "mouth": "mouth1",
+        "brow": ""
+    },
+    "伊織紅": {
         "eye": "eye1",
         "mouth": "mouth1",
         "brow": ""
@@ -178,8 +202,8 @@ def init_game():
     # ウィンドウのタイトルを設定
     pygame.display.set_caption("ビジュアルノベル")
     
-    # ウィンドウサイズを設定
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    # 全画面表示でウィンドウサイズを設定
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
     
     print(f"Virtual resolution: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
     print(f"Window size: {SCREEN_WIDTH}x{SCREEN_HEIGHT} (16:9 ratio)")
@@ -187,3 +211,31 @@ def init_game():
     print(f"Window position: {X_POS}, {Y_POS}")
     
     return screen
+
+def update_screen_config(new_width, new_height):
+    """画面サイズ設定を動的に更新する（イベント表示用）"""
+    global SCREEN_WIDTH, SCREEN_HEIGHT, SCALE_X, SCALE_Y, SCALE
+    
+    # 新しい画面サイズを設定
+    SCREEN_WIDTH = new_width
+    SCREEN_HEIGHT = new_height
+    
+    # スケーリング係数を再計算
+    SCALE_X = SCREEN_WIDTH / VIRTUAL_WIDTH
+    SCALE_Y = SCREEN_HEIGHT / VIRTUAL_HEIGHT
+    SCALE = min(SCALE_X, SCALE_Y)  # アスペクト比を維持
+    
+    print(f"画面設定を更新: {SCREEN_WIDTH}x{SCREEN_HEIGHT}, Scale: {SCALE:.3f}")
+
+def restore_original_screen_config():
+    """元の画面サイズ設定に戻す"""
+    global SCREEN_WIDTH, SCREEN_HEIGHT, SCALE_X, SCALE_Y, SCALE
+    
+    # 元の設定に戻す
+    SCREEN_WIDTH = WINDOW_WIDTH
+    SCREEN_HEIGHT = WINDOW_HEIGHT
+    SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
+    SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
+    SCALE = min(SCALE_X, SCALE_Y)
+    
+    print(f"画面設定を元に戻しました: {SCREEN_WIDTH}x{SCREEN_HEIGHT}, Scale: {SCALE:.3f}")

@@ -167,9 +167,8 @@ def draw_characters(game_state):
         if char_name in game_state['character_pos']:
             # キャラクター画像の取得
             char_img_name = CHARACTER_IMAGE_MAP.get(char_name, "girl1")
+            
             if char_img_name not in game_state['images']["characters"]:
-                if DEBUG:
-                    print(f"警告: キャラクター画像 '{char_img_name}' が見つかりません")
                 continue
             char_img = game_state['images']["characters"][char_img_name]
 

@@ -77,6 +77,9 @@ def render_game(game_state):
         # 画面をクリア（黒で塗りつぶし）
         screen.fill((0, 0, 0))
         
+        if DEBUG:
+            print(f"描画中 - 背景: {game_state.get('background_state', {}).get('current_bg', 'None')}")
+        
         # 背景を描画
         draw_background(game_state)
         

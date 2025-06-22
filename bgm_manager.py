@@ -38,8 +38,6 @@ class BGMManager:
             
             # ファイルの存在チェック
             if not os.path.exists(bgm_path):
-                if self.debug:
-                    print(f"BGMファイルが見つかりません: {bgm_path}")
                 return False
             
             pygame.mixer.music.load(bgm_path)

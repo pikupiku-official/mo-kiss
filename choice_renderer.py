@@ -35,7 +35,7 @@ class ChoiceRenderer:
         try:
             font_dir = os.path.join(os.path.dirname(__file__), "fonts")
             medium_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
-            text_font_size = int(SCREEN_HEIGHT * 47 / 1000)
+            text_font_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
             
             fonts = {}
             
@@ -53,7 +53,7 @@ class ChoiceRenderer:
         except Exception as e:
             if self.debug:
                 print(f"ChoiceRenderer フォント初期化エラー: {e}")
-            text_font_size = int(SCREEN_HEIGHT * 47 / 1000)
+            text_font_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
             return {
                 "text_pygame": pygame.font.SysFont("msgothic", text_font_size)
             }

@@ -24,8 +24,11 @@ class ImageManager:
         
         except pygame.error as e:
             if self.debug:
-                print(f"画像の読み込みに失敗しました: {e}")
-                print(f"ファイルパス: {filepath}")
+                pass
+            return None
+        except Exception as e:
+            if self.debug:
+                pass
             return None
 
     def center_part(self, part, position):
@@ -55,7 +58,8 @@ class ImageManager:
                     # ファイル名に基づいて分類
                     if "bg" in file:
                         # 背景画像は画面サイズに合わせてリサイズ
-                        images["backgrounds"][file.split('.')[2]] = self.load_image(file_path, (screen_width, screen_height))
+                        bg_key = file.split('.')[2]
+                        images["backgrounds"][bg_key] = self.load_image(file_path, (screen_width, screen_height))
                     elif "char" in file:
                         images["characters"][file.split('.')[2]] = self.load_image(file_path)
                     elif "eye" in file:

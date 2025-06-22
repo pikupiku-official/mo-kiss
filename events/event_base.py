@@ -25,6 +25,14 @@ class EventBase:
             'button_hover': (100, 149, 237)
         }
         
+        # デバッグ用初期描画
+        if hasattr(self, 'screen'):
+            self.screen.fill(self.colors['background'])
+            if hasattr(self, 'fonts'):
+                test_text = self.fonts.get('medium', pygame.font.Font(None, 20)).render("EventBase初期化完了", True, self.colors['text_color'])
+                self.screen.blit(test_text, (50, 50))
+            pygame.display.flip()
+        
         self.clock = pygame.time.Clock()
         self.running = False
         
