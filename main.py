@@ -1,3 +1,7 @@
+import warnings
+# 基本的な警告抑制のみ
+warnings.filterwarnings("ignore")
+
 import pygame
 import sys
 from model import *

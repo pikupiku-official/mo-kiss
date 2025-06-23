@@ -81,25 +81,19 @@ def initialize_game():
     else:
         print("警告: キャラクター画像が見つかりません。デフォルトサイズを使用します。")
 
-    # キャラクター関連の初期化
+    # キャラクター関連の初期化（デフォルトシステム不要）
     character_pos = {}
     character_anim = {}
     character_zoom = {}
     character_expressions = {}
-    
-    for char_name in CHARACTER_IMAGE_MAP.keys():
-        character_zoom[char_name] = 1.0  # デフォルトは等倍
-        character_expressions[char_name] = {
-            'eye': CHARACTER_DEFAULTS[char_name]['eye'],
-            'mouth': CHARACTER_DEFAULTS[char_name]['mouth'],
-            'brow': CHARACTER_DEFAULTS[char_name]['brow']
-        }
+    # CHARACTER_IMAGE_MAPとCHARACTER_DEFAULTSは削除済み
 
     # 顔のパーツの相対位置を設定
     face_pos = {
         "eye": (char_width * FACE_POS["eye"][0], char_height * FACE_POS["eye"][1]),
         "mouth": (char_width * FACE_POS["mouth"][0], char_height * FACE_POS["mouth"][1]),
-        "brow": (char_width * FACE_POS["brow"][0], char_height * FACE_POS["brow"][1])
+        "brow": (char_width * FACE_POS["brow"][0], char_height * FACE_POS["brow"][1]),
+        "cheek": (char_width * FACE_POS["cheek"][0], char_height * FACE_POS["cheek"][1])
     }
 
     # 背景の位置とズーム管理を追加

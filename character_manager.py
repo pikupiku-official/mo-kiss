@@ -6,8 +6,15 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
     if character_name not in game_state['character_pos']:
         print(f"警告: キャラクター '{character_name}' は登録されていません")
         # キャラクターがまだ登録されていない場合は、デフォルト位置で登録
-        char_width = game_state['images']["characters"]["girl1"].get_width()
-        char_height = game_state['images']["characters"]["girl1"].get_height()
+        if character_name in game_state['images']["characters"]:
+            char_img = game_state['images']["characters"][character_name]
+            char_width = char_img.get_width()
+            char_height = char_img.get_height()
+        else:
+            # キャラクター画像がない場合はデフォルトサイズを使用
+            char_width = 100
+            char_height = 100
+        
         game_state['character_pos'][character_name] = [
             (SCREEN_WIDTH - char_width) // 2,
             (SCREEN_HEIGHT - char_height) // 2
@@ -102,16 +109,25 @@ def update_character_animations(game_state):
             game_state['character_pos'][char_name] = [int(current_x), int(current_y)]
             game_state['character_zoom'][char_name] = current_zoom
 
-def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zoom_scale):
+def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale):
     """顔パーツの描画"""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
+        if DEBUG:
+            print(f"[FACE] キャラクター '{char_name}' の位置情報がありません")
         return
     
     character_pos = game_state['character_pos'][char_name]
     face_pos = game_state['face_pos']
     image_manager = game_state['image_manager']
     images = game_state['images']
+    
+    # キャラクター画像のサイズと中央座標を一度だけ計算
+    char_img = images["characters"][char_name]
+    actual_char_width = char_img.get_width() * zoom_scale
+    actual_char_height = char_img.get_height() * zoom_scale
+    char_center_x = character_pos[0] + actual_char_width // 2
+    char_center_y = character_pos[1] + actual_char_height // 2
     
     # 眉毛を描画
     if brow_type and brow_type in images["brows"]:
@@ -122,11 +138,10 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zo
             brow_img = pygame.transform.scale(brow_img, (new_width, new_height))
         
         brow_pos = (
-            character_pos[0] + face_pos["brow"][0] * zoom_scale,
-            character_pos[1] + face_pos["brow"][1] * zoom_scale
+            char_center_x - brow_img.get_width() // 2,
+            char_center_y - brow_img.get_height() // 2
         )
-        screen.blit(brow_img, 
-                  image_manager.center_part(brow_img, brow_pos))
+        screen.blit(brow_img, brow_pos)
 
     # 目を描画
     if eye_type and eye_type in images["eyes"]:
@@ -137,11 +152,10 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zo
             eye_img = pygame.transform.scale(eye_img, (new_width, new_height))
         
         eye_pos = (
-            character_pos[0] + face_pos["eye"][0] * zoom_scale,
-            character_pos[1] + face_pos["eye"][1] * zoom_scale
+            char_center_x - eye_img.get_width() // 2,
+            char_center_y - eye_img.get_height() // 2
         )
-        screen.blit(eye_img, 
-                  image_manager.center_part(eye_img, eye_pos))
+        screen.blit(eye_img, eye_pos)
     
     # 口を描画
     if mouth_type and mouth_type in images["mouths"]:
@@ -152,11 +166,24 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zo
             mouth_img = pygame.transform.scale(mouth_img, (new_width, new_height))
         
         mouth_pos = (
-            character_pos[0] + face_pos["mouth"][0] * zoom_scale,
-            character_pos[1] + face_pos["mouth"][1] * zoom_scale
+            char_center_x - mouth_img.get_width() // 2,
+            char_center_y - mouth_img.get_height() // 2
         )
-        screen.blit(mouth_img, 
-                  image_manager.center_part(mouth_img, mouth_pos))
+        screen.blit(mouth_img, mouth_pos)
+    
+    # 頬を描画
+    if cheek_type and cheek_type in images["cheeks"]:
+        cheek_img = images["cheeks"][cheek_type]
+        if zoom_scale != 1.0:
+            new_width = int(cheek_img.get_width() * zoom_scale)
+            new_height = int(cheek_img.get_height() * zoom_scale)
+            cheek_img = pygame.transform.scale(cheek_img, (new_width, new_height))
+        
+        cheek_pos = (
+            char_center_x - cheek_img.get_width() // 2,
+            char_center_y - cheek_img.get_height() // 2
+        )
+        screen.blit(cheek_img, cheek_pos)
 
 def draw_characters(game_state):
     """画面上にキャラクターを描画する"""
@@ -165,16 +192,20 @@ def draw_characters(game_state):
 
     for char_name in game_state['active_characters']:
         if char_name in game_state['character_pos']:
-            # キャラクター画像の取得
-            char_img_name = CHARACTER_IMAGE_MAP.get(char_name, "girl1")
+            # キャラクター画像の取得（ファイル名直接使用）
+            # char_nameをそのままファイル名として使用
             
-            if char_img_name not in game_state['images']["characters"]:
+            if char_name not in game_state['images']["characters"]:
+                if DEBUG:
+                    print(f"警告: キャラクター画像 '{char_name}' が見つかりません")
                 continue
-            char_img = game_state['images']["characters"][char_img_name]
+            char_img = game_state['images']["characters"][char_name]
 
             # キャラクターの位置とズーム倍率を取得
             x, y = game_state['character_pos'][char_name]
             zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
+            # 基本サイズを2/3に縮小
+            zoom_scale = zoom_scale * (1.0 / 5.0)
 
             # ズーム倍率を適用してキャラクター画像をスケール
             if zoom_scale != 1.0:
@@ -189,17 +220,30 @@ def draw_characters(game_state):
 
             # 表情パーツを表示
             if game_state['show_face_parts']:
-                # 現在の話し手の場合は対話データから表情を取得
-                if char_name == current_speaker and current_dialogue and len(current_dialogue) >= 5:
-                    eye_type = current_dialogue[2] if current_dialogue[2] else CHARACTER_DEFAULTS[char_name]["eye"]
-                    mouth_type = current_dialogue[3] if current_dialogue[3] else CHARACTER_DEFAULTS[char_name]["mouth"]
-                    brow_type = current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]["brow"]
-                else:
-                    # 話し手でない場合は記録された表情を使用
-                    expressions = game_state['character_expressions'].get(char_name, CHARACTER_DEFAULTS[char_name])
-                    eye_type = expressions['eye']
-                    mouth_type = expressions['mouth']
-                    brow_type = expressions['brow']
                 
-                # 顔パーツを描画
-                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, zoom_scale)
+                # 強制的に顔パーツを表示するため、複数のソースから表情データを取得
+                eye_type = ""
+                mouth_type = ""
+                brow_type = ""
+                cheek_type = ""
+                
+                # 1. 現在の話し手の場合は対話データから表情を取得
+                if char_name == current_speaker and current_dialogue and len(current_dialogue) >= 6:
+                    eye_type = current_dialogue[2] if current_dialogue[2] else ""
+                    mouth_type = current_dialogue[3] if current_dialogue[3] else ""
+                    brow_type = current_dialogue[4] if current_dialogue[4] else ""
+                    cheek_type = current_dialogue[5] if current_dialogue[5] else ""
+                
+                # 2. 記録された表情を使用
+                expressions = game_state['character_expressions'].get(char_name, {})
+                if not eye_type and expressions.get('eye'):
+                    eye_type = expressions.get('eye', '')
+                if not mouth_type and expressions.get('mouth'):
+                    mouth_type = expressions.get('mouth', '')
+                if not brow_type and expressions.get('brow'):
+                    brow_type = expressions.get('brow', '')
+                if not cheek_type and expressions.get('cheek'):
+                    cheek_type = expressions.get('cheek', '')
+                
+                # 顔パーツを描画（必ず呼び出し）
+                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale)

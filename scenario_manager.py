@@ -21,7 +21,7 @@ def advance_dialogue(game_state):
             print("対話データの形式が不正です")
         return False
     
-    dialogue_text = current_dialogue[5]
+    dialogue_text = current_dialogue[6]
     if DEBUG:
         print(f"処理中のテキスト: '{dialogue_text[:50]}...'")
 
@@ -74,46 +74,68 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"分割結果: {parts}")
 
-    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y
-        char_name = parts[3]
+    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size
+        # T04_00_00のようなアンダースコア含みファイル名に対応
+        if len(parts) >= 9:  # _CHARA_NEW_T04_00_00_x_y_size の場合
+            char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
+            x_index = 6
+            y_index = 7
+            size_index = 8
+        else:  # 通常のキャラクター名の場合
+            char_name = parts[3]
+            x_index = 4
+            y_index = 5
+            size_index = 6
         
         try:
-            show_x = float(parts[4])
-            show_y = float(parts[5])
+            show_x = float(parts[x_index])
+            show_y = float(parts[y_index])
+            size = float(parts[size_index]) if len(parts) > size_index else 1.0
         except (ValueError, IndexError):
             show_x = 0.5
             show_y = 0.5
+            size = 1.0
 
         if char_name not in game_state['active_characters']:
             game_state['active_characters'].append(char_name)
 
             # x,yパラメーターを使って位置を設定
-            char_img_name = CHARACTER_IMAGE_MAP[char_name]
-            char_img = game_state['images']["characters"][char_img_name]
+            char_img = game_state['images']["characters"][char_name]
             char_width = char_img.get_width()
             char_height = char_img.get_height()
+
+            # 実際の描画サイズを計算（1/5に縮小される + sizeによる倍率）
+            actual_width = char_width * (1.0 / 5.0) * size
+            actual_height = char_height * (1.0 / 5.0) * size
 
             # 0.0-1.0の値をピクセル座標に変換
             # 仮想解像度基準で位置を計算してスケーリング
             from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos
             
-            virtual_pos_x = int(VIRTUAL_WIDTH * show_x - char_width // 2)
-            virtual_pos_y = int(VIRTUAL_HEIGHT * show_y - char_height // 2)
+            # 指定位置に画像の中央が来るように座標を計算
+            virtual_center_x = VIRTUAL_WIDTH * show_x
+            virtual_center_y = VIRTUAL_HEIGHT * show_y
+            virtual_pos_x = int(virtual_center_x - actual_width // 2)
+            virtual_pos_y = int(virtual_center_y - actual_height // 2)
             
             # スケーリングした実際の位置を計算
             pos_x, pos_y = scale_pos(virtual_pos_x, virtual_pos_y)
             
             game_state['character_pos'][char_name] = [pos_x, pos_y]
+            
+            # sizeパラメータをcharacter_zoomに設定
+            game_state['character_zoom'][char_name] = size
 
-            # キャラクターの表情を更新
-            if len(current_dialogue) >= 5:
+            # キャラクターの表情を更新（デフォルトシステム不要）
+            if len(current_dialogue) >= 6:
                 game_state['character_expressions'][char_name] = {
-                    'eye': current_dialogue[2] if current_dialogue[2] else CHARACTER_DEFAULTS[char_name]['eye'],
-                    'mouth': current_dialogue[3] if current_dialogue[3] else CHARACTER_DEFAULTS[char_name]['mouth'],
-                    'brow': current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]['brow']
+                    'eye': current_dialogue[2] if current_dialogue[2] else '',
+                    'mouth': current_dialogue[3] if current_dialogue[3] else '',
+                    'brow': current_dialogue[4] if current_dialogue[4] else '',
+                    'cheek': current_dialogue[5] if current_dialogue[5] else ''
                 }
             if DEBUG:
-                print(f"キャラクター '{char_name}' が登場しました (x={show_x}, y={show_y}) -> ({pos_x}, {pos_y})")
+                print(f"キャラクター '{char_name}' が登場しました (x={show_x}, y={show_y}, size={size}) -> ({pos_x}, {pos_y})")
         
     # キャラクター登場コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
@@ -125,7 +147,11 @@ def _handle_character_hide(game_state, dialogue_text):
         print(f"退場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"退場コマンド解析: parts={parts}")
     if len(parts) >= 4:  # _CHARA_HIDE_キャラクター名
-        char_name = parts[3]
+        # T04_00_00のようなアンダースコア含みファイル名に対応
+        if len(parts) >= 6:  # _CHARA_HIDE_T04_00_00 の場合
+            char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
+        else:  # 通常のキャラクター名の場合
+            char_name = parts[3]
         if DEBUG:
             print(f"退場対象キャラクター名: '{char_name}'")
         hide_character(game_state, char_name)
@@ -203,9 +229,9 @@ def _handle_choice(game_state, dialogue_text, current_dialogue):
         options = []
         
         # 正規化された形式の場合（リスト形式）
-        if isinstance(current_dialogue, list) and len(current_dialogue) > 11:
-            if current_dialogue[5] == "_CHOICE_":
-                options = current_dialogue[11]  # 12番目の要素が選択肢リスト
+        if isinstance(current_dialogue, list) and len(current_dialogue) > 12:
+            if dialogue_text == "_CHOICE_":
+                options = current_dialogue[12]  # 13番目の要素が選択肢リスト
                 if DEBUG:
                     print(f"正規化された選択肢データを取得: {options}")
         
@@ -255,17 +281,19 @@ def _parse_choice_from_text(dialogue_text):
 
 def _handle_dialogue_text(game_state, current_dialogue):
     """通常の対話テキストを処理"""
-    dialogue_text = current_dialogue[5]
-    display_name = current_dialogue[9] if len(current_dialogue) > 9 and current_dialogue[9] else current_dialogue[1]
+    # cheek追加でインデックスがシフト: [bg, char, eye, mouth, brow, cheek, text, bgm, volume, loop, speaker, scroll]
+    dialogue_text = current_dialogue[6]  # textは6番目
+    display_name = current_dialogue[10] if len(current_dialogue) > 10 and current_dialogue[10] else current_dialogue[1]  # speakerは10番目
     
-    # 表示名の有効性をチェック
-    if display_name and display_name not in CHARACTER_IMAGE_MAP:
-        display_name = None
+    # 表示名の有効性をチェック（CHARACTER_IMAGE_MAPは削除済み）
+    # ファイル名直接使用するためチェック不要
+    # if display_name and display_name not in CHARACTER_IMAGE_MAP:
+    #     display_name = None
     
-    # スクロール継続フラグをチェック（リストの11番目の要素）
+    # スクロール継続フラグをチェック（リストの12番目の要素）
     should_scroll = False
-    if len(current_dialogue) > 10:
-        should_scroll = current_dialogue[10]
+    if len(current_dialogue) > 11:
+        should_scroll = current_dialogue[11]
     
     # アクティブキャラクターリストを適切な形式で取得
     active_characters = game_state.get('active_characters', [])
@@ -286,9 +314,10 @@ def _handle_dialogue_text(game_state, current_dialogue):
         char_name = current_dialogue[1]
         if len(current_dialogue) >= 5:
             game_state['character_expressions'][char_name] = {
-                'eye': current_dialogue[2] if current_dialogue[2] else CHARACTER_DEFAULTS[char_name]['eye'],
-                'mouth': current_dialogue[3] if current_dialogue[3] else CHARACTER_DEFAULTS[char_name]['mouth'],
-                'brow': current_dialogue[4] if current_dialogue[4] else CHARACTER_DEFAULTS[char_name]['brow']
+                'eye': current_dialogue[2] if current_dialogue[2] else '',
+                'mouth': current_dialogue[3] if current_dialogue[3] else '',
+                'brow': current_dialogue[4] if current_dialogue[4] else '',
+                'cheek': current_dialogue[5] if current_dialogue[5] else ''
             }
     
     if DEBUG:

@@ -6,12 +6,22 @@ class ImageManager:
     def __init__(self, debug=False):
         self.debug = debug
         self.images = {}
+        self.image_cache = {}  # パフォーマンス改善のためのキャッシュ
 
     def load_image(self, filepath, size=None):
+        # キャッシュキーを生成
+        cache_key = f"{filepath}_{size if size else 'original'}"
+        
+        # キャッシュから返す
+        if cache_key in self.image_cache:
+            return self.image_cache[cache_key]
+        
         try:
-            if self.debug:
-                print(f"画像ファイルを読み込み中: {filepath}")
-            
+            if not os.path.exists(filepath):
+                if self.debug:
+                    print(f"警告: 画像ファイルが見つかりません: {filepath}")
+                return None
+                
             # 画像を読み込む
             image = pygame.image.load(filepath)
             image = image.convert_alpha()
@@ -19,16 +29,19 @@ class ImageManager:
             # 画面サイズに合わせて画像をリサイズ（必要に応じて）
             if size and isinstance(size, tuple) and len(size) == 2:
                 image = pygame.transform.scale(image, size)
+                
+            # キャッシュに保存
+            self.image_cache[cache_key] = image
 
             return image
         
         except pygame.error as e:
             if self.debug:
-                pass
+                print(f"エラー: pygameエラー - {filepath}: {e}")
             return None
         except Exception as e:
             if self.debug:
-                pass
+                print(f"エラー: 一般エラー - {filepath}: {e}")
             return None
 
     def center_part(self, part, position):
@@ -46,6 +59,7 @@ class ImageManager:
             "eyes": {},
             "mouths": {},
             "brows": {},
+            "cheeks": {},
             "ui": {}
         }
 
@@ -55,19 +69,24 @@ class ImageManager:
                 if file.endswith(('.png', '.jpg', '.jpeg')):
                     file_path = os.path.join(root, file)
                     
-                    # ファイル名に基づいて分類
+                    # ファイル名に基づいて分類（ファイル名をキーとして使用）
+                    file_name_without_ext = os.path.splitext(file)[0]  # 拡張子を除いたファイル名
+                    
                     if "bg" in file:
                         # 背景画像は画面サイズに合わせてリサイズ
-                        bg_key = file.split('.')[2]
+                        bg_key = file.split('.')[2] if '.' in file and len(file.split('.')) > 2 else file_name_without_ext
                         images["backgrounds"][bg_key] = self.load_image(file_path, (screen_width, screen_height))
-                    elif "char" in file:
-                        images["characters"][file.split('.')[2]] = self.load_image(file_path)
-                    elif "eye" in file:
-                        images["eyes"][file.split('.')[2]] = self.load_image(file_path)
-                    elif "mouth" in file:
-                        images["mouths"][file.split('.')[2]] = self.load_image(file_path)
-                    elif "brow" in file:
-                        images["brows"][file.split('.')[2]] = self.load_image(file_path)
+                    elif "char" in file or root.endswith("characters") or root.endswith("桃子"):
+                        # 桃子フォルダからも読み込み
+                        images["characters"][file_name_without_ext] = self.load_image(file_path)
+                    elif "eye" in file or root.endswith("eyes"):
+                        images["eyes"][file_name_without_ext] = self.load_image(file_path)
+                    elif "mouth" in file or root.endswith("mouths"):
+                        images["mouths"][file_name_without_ext] = self.load_image(file_path)
+                    elif "brow" in file or root.endswith("brows"):
+                        images["brows"][file_name_without_ext] = self.load_image(file_path)
+                    elif "cheek" in file or root.endswith("cheeks"):
+                        images["cheeks"][file_name_without_ext] = self.load_image(file_path)
                     elif "ui" in file:
                         ui_name = file.split('.')[1] if len(file.split('.')) >= 3 else file.split('.')[0]
                         if ui_name == "text-box":
@@ -129,9 +148,8 @@ class ImageManager:
                             images["ui"][ui_name] = self.load_image(file_path)
 
         if self.debug:
-            print("読み込んだ画像:")
-            for category, image_dict in images.items():
-                print(f"{category}: {list(image_dict.keys())}")
+            total_images = sum(len(v) for v in images.values())
+            print(f"画像読み込み完了: {total_images}件")
 
         return images 
     

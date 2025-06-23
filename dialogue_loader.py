@@ -7,8 +7,8 @@ class DialogueLoader:
     def __init__(self, debug=False):
         self.debug = debug
         self.bgm_manager = BGMManager(debug)
-        # キャラクター名と画像ファイル名の対応付け
-        self.character_image_map = CHARACTER_IMAGE_MAP
+        # CHARACTER_IMAGE_MAPを削除（ファイル名直接使用）
+        # self.character_image_map = CHARACTER_IMAGE_MAP
         # 26文字改行設定
         self.max_chars_per_line = 26
         
@@ -81,10 +81,11 @@ class DialogueLoader:
             {
                 'type': 'dialogue',
                 'text': 'デフォルトのテキストです。',
-                'character': 'girl1',
-                'eye': 'eye1',
-                'mouth': 'mouth1',
-                'brow': 'brow1',
+                'character': 'T00_00_00',
+                'eye': '',
+                'mouth': '',
+                'brow': '',
+                'cheek': '',
                 'background': DEFAULT_BACKGROUND,
                 'bgm': self.bgm_manager.DEFAULT_BGM,
                 'bgm_volume': DEFAULT_BGM_VOLUME,
@@ -99,9 +100,10 @@ class DialogueLoader:
         current_bg = DEFAULT_BACKGROUND
         current_char = None
         current_speaker = None
-        current_eye = "eye1"
-        current_mouth = "mouth1"
-        current_brow = "brow1"
+        current_eye = ""
+        current_mouth = ""
+        current_brow = ""
+        current_cheek = ""
         current_bgm = self.bgm_manager.DEFAULT_BGM
         current_bgm_volume = DEFAULT_BGM_VOLUME
         current_bgm_loop = DEFAULT_BGM_LOOP
@@ -216,15 +218,18 @@ class DialogueLoader:
                         eye_type = re.search(r'eye="([^"]+)"', line)
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
+                        cheek_type = re.search(r'cheek="([^"]+)"', line)
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
+                        size = re.search(r'size="([^"]+)"', line)
                         
                         if char_name:
                             current_char = char_name.group(1)
-                            # 属性が指定されていない場合はデフォルト値を使用
-                            current_eye = eye_type.group(1) if eye_type else "eye1"
-                            current_mouth = mouth_type.group(1) if mouth_type else "mouth1"
+                            # 属性が指定されていない場合は空文字を使用
+                            current_eye = eye_type.group(1) if eye_type else ""
+                            current_mouth = mouth_type.group(1) if mouth_type else ""
                             current_brow = brow_type.group(1) if brow_type else ""
+                            current_cheek = cheek_type.group(1) if cheek_type else ""
 
                             # x, y を数値として処理
                             try:
@@ -237,8 +242,14 @@ class DialogueLoader:
                             except (ValueError, AttributeError):
                                 current_show_y = 0.5
                             
+                            # size パラメータを処理
+                            try:
+                                current_size = float(size.group(1)) if size else 1.0
+                            except (ValueError, AttributeError):
+                                current_size = 1.0
+                            
                             if self.debug:
-                                print(f"キャラクター登場: {current_char}, 目: {current_eye}, 口: {current_mouth}, 眉: {current_brow}, x={current_show_x}, y={current_show_y}") 
+                                print(f"キャラクター登場: {current_char}, 目: {current_eye}, 口: {current_mouth}, 眉: {current_brow}, 頬: {current_cheek}, x={current_show_x}, y={current_show_y}, size={current_size}") 
 
                             dialogue_data.append({
                                 'type': 'character',
@@ -246,8 +257,10 @@ class DialogueLoader:
                                 'eye': current_eye,
                                 'mouth': current_mouth,
                                 'brow': current_brow,
+                                'cheek': current_cheek,
                                 'show_x': current_show_x,
-                                'show_y': current_show_y
+                                'show_y': current_show_y,
+                                'size': current_size
                             })
                         else:
                             if self.debug:
@@ -385,9 +398,6 @@ class DialogueLoader:
                                             else:
                                                 break
 
-                                if self.debug:
-                                    print(f"セリフ: {dialogue_text}, 話者: {dialogue_speaker}, 行数: {line_count}, スクロール継続: {scroll_continue} (無効化: {self.disable_scroll_continue})")
-                                
                                 # 対話データを追加
                                 dialogue_data.append({
                                     'type': 'dialogue',
@@ -396,6 +406,7 @@ class DialogueLoader:
                                     'eye': current_eye,
                                     'mouth': current_mouth,
                                     'brow': current_brow,
+                                    'cheek': current_cheek,
                                     'background': current_bg,
                                     'bgm': current_bgm,
                                     'bgm_volume': current_bgm_volume,

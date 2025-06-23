@@ -93,67 +93,31 @@ BUTTON_MARGIN_TOP = 704      # ボタンの上マージン（1080 * 647 / 1000 =
 FACE_POS = {
     "eye": (0.5, 0.5),
     "mouth": (0.5, 0.5),
-    "brow": (0.5, 0.5)  # 眉毛の位置を追加
+    "brow": (0.5, 0.5),  # 眉毛の位置を追加
+    "cheek": (0.5, 0.5)  # 頬の位置を追加
 }
 
-# キャラクター設定
-CHARACTER_IMAGE_MAP = {
-    "桃子": "girl1",
-    "サナコ": "girl2",
-    "烏丸神無": "girl1",
-    "桔梗美鈴": "girl2", 
-    "宮月深依里": "girl1",
-    "伊織紅": "girl2"
-}
+# CHARACTER_IMAGE_MAPを削除（ファイル名直接使用）
+# デフォルト用のマッピングは不要
 
 # キャラクターの性別データを読み込む
 CHARACTER_GENDERS = {}
 try:
-    # character_gender.jsonファイルを開き、内容を読み込む
-    with open('character_gender.json', 'r', encoding='utf-8') as f:
+    # character_gender.jsonファイルを開き、内容を読み込む（絶対パス使用）
+    gender_file_path = os.path.join(os.path.dirname(__file__), 'character_gender.json')
+    with open(gender_file_path, 'r', encoding='utf-8') as f:
         CHARACTER_GENDERS = json.load(f)
     if DEBUG:
         print(f"キャラクター性別データを読み込みました: {CHARACTER_GENDERS}")
 except FileNotFoundError:
     if DEBUG:
-        print("警告: character_gender.json が見つかりません。")
+        print(f"警告: character_gender.json が見つかりません。パス: {gender_file_path}")
 except json.JSONDecodeError:
     if DEBUG:
         print("警告: character_gender.json の解析に失敗しました。")
 
-# キャラクターごとのデフォルトの表情設定
-CHARACTER_DEFAULTS = {
-    "桃子": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "サナコ": {
-        "eye": "eye1", 
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "烏丸神無": {
-        "eye": "eye1",
-        "mouth": "mouth1", 
-        "brow": ""
-    },
-    "桔梗美鈴": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "宮月深依里": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "伊織紅": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    }
-}
+# CHARACTER_DEFAULTSも削除（デフォルトシステム不要）
+# 全てファイル名直接指定で使用
 
 # デフォルトの背景
 DEFAULT_BACKGROUND = "school"
