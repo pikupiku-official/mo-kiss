@@ -67,7 +67,7 @@ class GameApplication:
             self.main_menu = MainMenu(self.screen)
 
     def switch_to_map(self):
-        """マップモードに切り替え"""
+        """マップモードに切り替える"""
         print("🗺️ マップモードに切り替え")
         self.current_mode = "map"
         if not self.map_system:
