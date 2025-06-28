@@ -7,10 +7,10 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
-[bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[BGM bgm="school" volume="0" loop="true"]
+[bg_show storage="test.bg.school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[BGM bgm="maou_bgm_8bit29" volume="0.5" loop="true"]
 
-[chara_show name="T04_00_00"　eye="test.eye.eye1" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.6"]
+[chara_show name="T04_00_00"　eye="test.eye.eye1" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.4"]
 	
 [choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
 
@@ -22,15 +22,15 @@
 
 [choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
 
-[chara_move subm="T04_00_00" time="400" left="0.1" top="0.02" zoom="3"]
+[chara_move subm="T04_00_00" time="400" left="0.1" top="0.02" zoom="1.0"]
 
 	//桃子//
 	「会話の2番目の部分です。」
 	[scroll-stop]
 
 
-[bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move subm="T04_00_00" time="1000" left="-0.2" top="0" zoom="0.3"]
+[bg_move storage="test.bg.school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
+[chara_move subm="T04_00_00" time="1000" left="-0.2" top="0" zoom="0.6"]
 
 	//桃子//
 	「言葉は想像力を運ぶ電車です。」
@@ -41,8 +41,8 @@
 *scene2|&f.title+"教室のシーン"
 [resetlaypos]
 
-[bg_show storage="classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
-[BGM bgm="classroom" volume="0" loop="true"]
+[bg_show storage="test.bg.classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
+[BGM bgm="maou_bgm_piano41" volume="0.5" loop="true"]
 
 	//桃子//
 	「別の場面に移動しました。」
@@ -62,7 +62,7 @@
 
 [chara_hide subh="桃子"]
 
-[bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
+[bg_move storage="test.bg.classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
 [chara_move subm="T08_00_00" time="600" left="0.1" top="0.1" zoom="1.7"]
 
 	//サナコ//
