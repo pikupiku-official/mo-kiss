@@ -2346,15 +2346,15 @@ class AdvancedKimikissMap:
                 game_state['text_renderer'].update()
             
             # 背景アニメーションの更新
-            from model import update_background_animation
+            from dialogue.model import update_background_animation
             update_background_animation(game_state)
             
             # キャラクターアニメーションの更新
-            from character_manager import update_character_animations
+            from dialogue.character_manager import update_character_animations
             update_character_animations(game_state)
             
             # controller2のupdate_game関数を使用（auto/skip機能に必要）
-            from controller2 import update_game
+            from dialogue.controller2 import update_game
             update_game(game_state)
         except Exception as e:
             print(f"ゲーム状態更新エラー: {e}")
@@ -2368,12 +2368,12 @@ class AdvancedKimikissMap:
             screen.fill((0, 0, 0))
             
             # 背景を描画
-            from model import draw_background
+            from dialogue.model import draw_background
             draw_background(game_state)
             
             # キャラクターを描画
             if 'active_characters' in game_state and game_state['active_characters']:
-                from character_manager import draw_characters
+                from dialogue.character_manager import draw_characters
                 draw_characters(game_state)
             
             # UI画像を描画 (auto, skip, text-box) - バックログ表示中は描画しない
@@ -2413,9 +2413,9 @@ class AdvancedKimikissMap:
     def reinitialize_ui_elements(self, game_state, screen, screen_size):
         """画面サイズ変更後にUI要素を再初期化"""
         try:
-            from text_renderer import TextRenderer
-            from choice_renderer import ChoiceRenderer
-            from backlog_manager import BacklogManager
+            from dialogue.text_renderer import TextRenderer
+            from dialogue.choice_renderer import ChoiceRenderer
+            from dialogue.backlog_manager import BacklogManager
             from image_manager import ImageManager
             
             # 新しい画面サイズでUI要素を再作成
