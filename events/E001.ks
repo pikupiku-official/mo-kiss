@@ -10,7 +10,7 @@
 [bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="school" volume="0" loop="true"]
 
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
+[chara_show name="T04_00_00"　eye="test.eye.eye1" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.6"]
 	
 [choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
 
@@ -22,7 +22,7 @@
 
 [choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
 
-[chara_move subm="桃子" time="400" left="0.1" top="0.02" zoom="3"]
+[chara_move subm="T04_00_00" time="400" left="0.1" top="0.02" zoom="3"]
 
 	//桃子//
 	「会話の2番目の部分です。」
@@ -30,7 +30,7 @@
 
 
 [bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move subm="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
+[chara_move subm="T04_00_00" time="1000" left="-0.2" top="0" zoom="0.3"]
 
 	//桃子//
 	「言葉は想像力を運ぶ電車です。」
@@ -48,7 +48,7 @@
 	「別の場面に移動しました。」
 	[scroll-stop]
 
-[chara_show name="サナコ"　eye="eye2" mouth="mouth2" x="0.2" y="0.2"]
+[chara_show name="T08_00_00"　eye="F08_En00_02" mouth="F08_Ma00_00" brow="F08_Bn00_00" cheek="F08_Ce00_00" x="0.2" y="0.2" size="0.3"]
 
 	//桃子//
 	「わかる人にしかわからない、快速みたいな言葉もあって、一番言葉の集まる駅にしか止まらない、新幹線みたいな言葉もあります。」
@@ -63,7 +63,7 @@
 [chara_hide subh="桃子"]
 
 [bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
-[chara_move subm="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
+[chara_move subm="T08_00_00" time="600" left="0.1" top="0.1" zoom="1.7"]
 
 	//サナコ//
 	「ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。」
