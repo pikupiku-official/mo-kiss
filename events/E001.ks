@@ -63,7 +63,7 @@
 
 
 
-[BGM bgm="maou_bgm_8bit29" volume="0.5" loop="true"]
+[BGM bgm="05 Mabayui Hibi.mp3" volume="0.5" loop="true"]
 
 [chara_show name="T04_00_00"　eye="test.eye.eye1" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.4"]
 	
