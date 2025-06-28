@@ -7,7 +7,7 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
-[bg_show storage="test.bg.school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="test.bg.southexit"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="maou_bgm_8bit29" volume="0.5" loop="true"]
 
 [chara_show name="T04_00_00"　eye="test.eye.eye1" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.4"]
