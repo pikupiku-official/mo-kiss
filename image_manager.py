@@ -155,7 +155,7 @@ class ImageManager:
             
         for root, dirs, files in os.walk(images_dir):
             for file in files:
-                if file.endswith(('.png', '.jpg', '.jpeg')):
+                if file.endswith(('.png', '.jpg', '.jpeg', '.webp')):
                     file_path = os.path.join(root, file)
                     file_name_without_ext = os.path.splitext(file)[0]
                     
@@ -217,7 +217,7 @@ class ImageManager:
                         
                 elif ui_name == "auto":
                     from config import scale_size
-                    virtual_width2 = 102
+                    virtual_width2 = 110
                     temp_image2 = self._load_image_immediately(file_path, None, f"temp_{ui_name}")
                     if temp_image2:
                         original_width2 = temp_image2.get_width()
@@ -228,7 +228,7 @@ class ImageManager:
                         
                 elif ui_name == "skip":
                     from config import scale_size
-                    virtual_width3 = 84
+                    virtual_width3 = 91
                     temp_image3 = self._load_image_immediately(file_path, None, f"temp_{ui_name}")
                     if temp_image3:
                         original_width3 = temp_image3.get_width()
@@ -267,7 +267,12 @@ class ImageManager:
                     button_positions = get_ui_button_positions(screen)
                     if ui_name in button_positions:
                         btn_x, btn_y = button_positions[ui_name]
-                        screen.blit(ui_image, (btn_x, btn_y))
+                        # auto/skipボタンを0.9倍に縮小
+                        import pygame
+                        original_size = ui_image.get_size()
+                        new_size = (int(original_size[0] * 0.9), int(original_size[1] * 0.9))
+                        scaled_ui_image = pygame.transform.scale(ui_image, new_size)
+                        screen.blit(scaled_ui_image, (btn_x, btn_y))
     
     def preload_character_set(self, character_name, face_parts=None):
         """キャラクターと関連顔パーツを事前ロード"""

@@ -67,7 +67,7 @@ class GameApplication:
             self.main_menu = MainMenu(self.screen)
 
     def switch_to_map(self):
-        """マップモードに切り替える"""
+        """マップモードに切り替え"""
         print("🗺️ マップモードに切り替え")
         self.current_mode = "map"
         if not self.map_system:
@@ -204,15 +204,15 @@ class GameApplication:
                 # 背景描画
                 draw_background(self.dialogue_game_state)
                 
+                # キャラクター描画
+                draw_characters(self.dialogue_game_state)
+                
                 # UIエレメント描画（テキストボックス等）
                 if ('image_manager' in self.dialogue_game_state and 'images' in self.dialogue_game_state):
                     image_manager = self.dialogue_game_state['image_manager']
                     images = self.dialogue_game_state['images']
                     show_text = self.dialogue_game_state.get('show_text', True)
                     image_manager.draw_ui_elements(self.screen, images, show_text)
-                
-                # キャラクター描画
-                draw_characters(self.dialogue_game_state)
                 
                 # 選択肢が表示中かどうかを確認
                 choice_showing = False

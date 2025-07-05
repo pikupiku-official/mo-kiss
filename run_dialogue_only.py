@@ -130,15 +130,15 @@ class DialogueOnlyRunner:
             # 背景描画
             draw_background(self.dialogue_game_state)
             
+            # キャラクター描画
+            draw_characters(self.dialogue_game_state)
+            
             # UIエレメント描画（テキストボックス等）
             if ('image_manager' in self.dialogue_game_state and 'images' in self.dialogue_game_state):
                 image_manager = self.dialogue_game_state['image_manager']
                 images = self.dialogue_game_state['images']
                 show_text = self.dialogue_game_state.get('show_text', True)
                 image_manager.draw_ui_elements(self.screen, images, show_text)
-            
-            # キャラクター描画
-            draw_characters(self.dialogue_game_state)
             
             # 選択肢が表示中かどうかを確認
             choice_showing = False
@@ -204,8 +204,25 @@ def main():
     # コマンドライン引数でイベントファイルを指定可能
     event_file = None
     if len(sys.argv) > 1:
-        event_file = sys.argv[1]
+        arg = sys.argv[1]
+        
+        # 拡張子がない場合は.ksを追加
+        if not arg.endswith('.ks'):
+            arg += '.ks'
+        
+        # eventsディレクトリのパスがない場合は追加
+        if not arg.startswith('events/'):
+            event_file = f"events/{arg}"
+        else:
+            event_file = arg
+            
         print(f"📁 指定されたイベントファイル: {event_file}")
+    else:
+        print("📁 使用法:")
+        print("  python run_dialogue_only.py E001")
+        print("  python run_dialogue_only.py E002.ks")
+        print("  python run_dialogue_only.py events/E003.ks")
+        print("  デフォルト: events/E001.ks")
     
     runner = DialogueOnlyRunner(event_file)
     success = runner.run()

@@ -24,7 +24,7 @@ class BGMManager:
         
         return True
 
-    def play_bgm(self, filename, volume=0.5):
+    def play_bgm(self, filename, volume=0.5, loop=True):
         try:
             # ファイル名の有効性をチェック
             if not self.is_valid_bgm_filename(filename):
@@ -40,10 +40,14 @@ class BGMManager:
             
             pygame.mixer.music.load(bgm_path)
             pygame.mixer.music.set_volume(volume)
-            pygame.mixer.music.play(-1)  # ループ再生
+            # ループ設定に応じて再生
+            if loop:
+                pygame.mixer.music.play(-1)  # ループ再生
+            else:
+                pygame.mixer.music.play(0)   # 一回のみ再生
             self.current_bgm = filename
             if self.debug:
-                print(f"BGMを再生開始: {filename}")
+                print(f"BGMを再生開始: {filename} (loop={loop})")
             return True
             
         except Exception as e:

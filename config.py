@@ -83,11 +83,11 @@ def get_text_positions(screen):
     }
 
 # UI要素の設定（仮想解像度1920x1080基準のピクセル値）
-TEXTBOX_MARGIN_BOTTOM = 50   # テキストボックスの下マージン
-TEXT_LINE_SPACING = 80       # 2つのテキスト行の間隔（1080 * 74 / 1000 = 79.92 → 80px）
-AUTO_BUTTON_MARGIN_RIGHT = 401  # autoボタンの右マージン（1920 * 209 / 1000 = 401px）
-SKIP_BUTTON_MARGIN_RIGHT = 258  # skipボタンの右マージン（1920 * 1345 / 10000 = 258px）
-BUTTON_MARGIN_TOP = 704      # ボタンの上マージン（1080 * 647 / 1000 = 699px）
+TEXTBOX_MARGIN_BOTTOM = 50
+TEXT_LINE_SPACING = 80
+AUTO_BUTTON_MARGIN_RIGHT = 394
+SKIP_BUTTON_MARGIN_RIGHT = 249
+BUTTON_MARGIN_TOP = 703
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
