@@ -100,25 +100,22 @@ class BacklogManager:
         self.padding = scale_size(virtual_padding, 0)[0]
         self.item_spacing = scale_size(virtual_item_spacing, 0)[0]
 
-        # フォントサイズはtext_rendererと同じ方法で計算（実際の画面高さに基づく）
-        # 画面サイズによる差を大きくし、全体的にサイズアップ
-        base_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
-        scale_factor = SCREEN_HEIGHT / 1080.0  # 1080pを基準とした倍率
-        size_multiplier = 0.1 + (scale_factor * 0.9)  # 0.8〜1.2の範囲で変動
-        self.text_font_size = int(base_size * size_multiplier)
-        self.name_font_size = self.text_font_size
-
-        # フォント設定（バックログ用に新しいフォントオブジェクトを作成）
+        # フォントはtext_rendererよりも小さくする（バックログ用に調整）
         from PyQt5.QtGui import QFont, QFontMetrics
-        from config import SCALE
         
-        # 元のフォントファミリー名を取得
+        # text_rendererから元のフォントサイズを取得し、0.7倍に縮小
+        original_text_size = self.fonts["text"].pointSize()
+        original_name_size = self.fonts["name"].pointSize()
+        self.text_font_size = int(original_text_size * 0.7)
+        self.name_font_size = int(original_name_size * 0.7)
+        
+        # 元のフォントファミリー名と設定を取得
         name_font_family = self.fonts["name"].family()
         text_font_family = self.fonts["text"].family()
         name_font_weight = self.fonts["name"].weight()
         text_font_weight = self.fonts["text"].weight()
         
-        # バックログ用のフォントを作成（元のfontsは変更しない）
+        # バックログ用のフォントを作成（text_rendererと同じサイズ）
         self.backlog_name_font = QFont(name_font_family, self.name_font_size)
         self.backlog_name_font.setWeight(name_font_weight)
         self.backlog_text_font = QFont(text_font_family, self.text_font_size)  
@@ -130,7 +127,7 @@ class BacklogManager:
         
         if self.debug:
             print(f"[BACKLOG] バックログ背景高さ: {self.height}px")
-            print(f"[BACKLOG] フォントサイズ: {self.text_font_size}px (背景高さの1/30)")
+            print(f"[BACKLOG] フォントサイズ: {self.text_font_size}px")
             print(f"[BACKLOG] 行の高さ: {self.text_line_height}px")
         
     def get_character_colors(self, char_name):

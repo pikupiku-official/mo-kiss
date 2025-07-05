@@ -36,7 +36,7 @@ class ChoiceRenderer:
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             font_dir = os.path.join(project_root, "mo-kiss", "fonts")
             medium_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
-            text_font_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
+            text_font_size = int(SCREEN_HEIGHT * 48 / 1000)
             
             fonts = {}
             

@@ -278,36 +278,36 @@ def draw_characters(game_state):
             # 表情パーツを表示
             if game_state['show_face_parts']:
                 
-                # 強制的に顔パーツを表示するため、複数のソースから表情データを取得
-                eye_type = ""
-                mouth_type = ""
-                brow_type = ""
-                cheek_type = ""
-                
-                # 1. 現在の話し手の場合は対話データから表情を取得
-                if char_name == current_speaker and current_dialogue and len(current_dialogue) >= 6:
-                    eye_type = current_dialogue[2] if current_dialogue[2] else ""
-                    mouth_type = current_dialogue[3] if current_dialogue[3] else ""
-                    brow_type = current_dialogue[4] if current_dialogue[4] else ""
-                    cheek_type = current_dialogue[5] if len(current_dialogue) > 5 and current_dialogue[5] else ""
-                
-                # 2. 記録された表情を使用
+                # 保存された表情を優先して使用し、表情の継続表示を確保
                 expressions = game_state['character_expressions'].get(char_name, {})
-                if not eye_type and expressions.get('eye'):
-                    eye_type = expressions.get('eye', '')
-                if not mouth_type and expressions.get('mouth'):
-                    mouth_type = expressions.get('mouth', '')
-                if not brow_type and expressions.get('brow'):
-                    brow_type = expressions.get('brow', '')
-                if not cheek_type and expressions.get('cheek'):
-                    cheek_type = expressions.get('cheek', '')
+                eye_type = expressions.get('eye', '')
+                mouth_type = expressions.get('mouth', '')
+                brow_type = expressions.get('brow', '')
+                cheek_type = expressions.get('cheek', '')
+                
+                # 現在の話し手の場合は対話データから新しい表情を取得（上書き）
+                if char_name == current_speaker and current_dialogue and len(current_dialogue) >= 6:
+                    if current_dialogue[2]:  # 新しい目の表情データがある場合のみ更新
+                        eye_type = current_dialogue[2]
+                    if current_dialogue[3]:  # 新しい口の表情データがある場合のみ更新
+                        mouth_type = current_dialogue[3]
+                    if current_dialogue[4]:  # 新しい眉の表情データがある場合のみ更新
+                        brow_type = current_dialogue[4]
+                    if len(current_dialogue) > 5 and current_dialogue[5]:  # 新しい頬の表情データがある場合のみ更新
+                        cheek_type = current_dialogue[5]
                 
                 # デバッグ出力
                 if DEBUG:
-                    print(f"[FACE] {char_name}の表情データ: eye={eye_type}, mouth={mouth_type}, brow={brow_type}, cheek={cheek_type}")
-                    print(f"[FACE] 現在の話し手: {current_speaker}, アクティブキャラクター: {game_state['active_characters']}")
+                    print(f"[FACE] === {char_name}の表情デバッグ ===")
+                    print(f"[FACE] 現在の話し手: {current_speaker}")
+                    print(f"[FACE] アクティブキャラクター: {game_state['active_characters']}")
                     expressions = game_state['character_expressions'].get(char_name, {})
                     print(f"[FACE] 保存された表情: {expressions}")
+                    print(f"[FACE] 決定された表情: eye={eye_type}, mouth={mouth_type}, brow={brow_type}, cheek={cheek_type}")
+                    if current_dialogue and len(current_dialogue) >= 6:
+                        print(f"[FACE] 現在の対話データ: eye={current_dialogue[2]}, mouth={current_dialogue[3]}, brow={current_dialogue[4]}, cheek={current_dialogue[5] if len(current_dialogue) > 5 else 'None'}")
+                    print(f"[FACE] show_face_parts: {game_state['show_face_parts']}")
+                    print(f"[FACE] === デバッグ終了 ===")
                 
                 # 顔パーツを描画（必ず呼び出し）
                 # 顔パーツも同じスケールを適用

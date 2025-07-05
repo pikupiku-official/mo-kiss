@@ -114,9 +114,9 @@ class TextRenderer:
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
         try:
             # フォントサイズをスクリーンサイズに基づいて計算
-            name_font_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
-            text_font_size = int(SCREEN_HEIGHT * 43 / 1000)  # 16:9画面で46px
-            default_font_size = int(SCREEN_HEIGHT * 0.027)  # 画面高さの2.7%
+            name_font_size = int(SCREEN_HEIGHT * 48 / 1000)
+            text_font_size = int(SCREEN_HEIGHT * 48 / 1000)
+            default_font_size = int(SCREEN_HEIGHT * 0.024)  # 画面高さの2.7%
             
             # フォントファイルのパスを設定（プロジェクトルートから）
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

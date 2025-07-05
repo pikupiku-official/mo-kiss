@@ -242,9 +242,7 @@ def update_game(game_state):
                 
                 if (actual_bgm_filename and 
                     actual_bgm_filename != bgm_manager.current_bgm):
-                    success = bgm_manager.play_bgm(actual_bgm_filename, bgm_volume)
-                    if success and not bgm_loop:
-                        bgm_manager.stop_bgm()  # ループしない場合は停止
+                    success = bgm_manager.play_bgm(actual_bgm_filename, bgm_volume, bgm_loop)
 
 # 新しい遅延設定用のヘルパー関数
 def configure_text_delays(game_state, punctuation_delay=None, paragraph_transition_delay=None):

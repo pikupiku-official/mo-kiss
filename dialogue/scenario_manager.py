@@ -348,20 +348,35 @@ def _handle_dialogue_text(game_state, current_dialogue):
         active_characters=active_characters
     )
 
-    # 話し手の表情を更新
+    # 話し手の表情を更新（空でない場合のみ）
     if current_dialogue[1] and current_dialogue[1] in game_state['active_characters']:
         char_name = current_dialogue[1]
         if len(current_dialogue) >= 5:
-            expressions = {
-                'eye': current_dialogue[2] if current_dialogue[2] else '',
-                'mouth': current_dialogue[3] if current_dialogue[3] else '',
-                'brow': current_dialogue[4] if current_dialogue[4] else '',
-                'cheek': current_dialogue[5] if len(current_dialogue) > 5 and current_dialogue[5] else ''
-            }
+            # 既存の表情を取得
+            existing_expressions = game_state['character_expressions'].get(char_name, {
+                'eye': '', 'mouth': '', 'brow': '', 'cheek': ''
+            })
+            
+            # 新しい表情データがある場合のみ更新
+            expressions = existing_expressions.copy()
+            if current_dialogue[2]:  # 新しい目のデータがある場合
+                expressions['eye'] = current_dialogue[2]
+            if current_dialogue[3]:  # 新しい口のデータがある場合
+                expressions['mouth'] = current_dialogue[3]
+            if current_dialogue[4]:  # 新しい眉のデータがある場合
+                expressions['brow'] = current_dialogue[4]
+            if len(current_dialogue) > 5 and current_dialogue[5]:  # 新しい頬のデータがある場合
+                expressions['cheek'] = current_dialogue[5]
+            
             game_state['character_expressions'][char_name] = expressions
             
             if DEBUG:
-                print(f"話し手 '{char_name}' の表情更新: {expressions}")
+                print(f"[EXPR] === 表情保存デバッグ ===")
+                print(f"[EXPR] 話し手: {char_name}")
+                print(f"[EXPR] 保存する表情: {expressions}")
+                print(f"[EXPR] アクティブキャラクター: {game_state['active_characters']}")
+                print(f"[EXPR] 全表情データ: {game_state['character_expressions']}")
+                print(f"[EXPR] === 表情保存デバッグ終了 ===")
     
     if DEBUG:
         print(f"対話設定完了: text='{dialogue_text[:30]}...', speaker={display_name}, scroll={should_scroll}")

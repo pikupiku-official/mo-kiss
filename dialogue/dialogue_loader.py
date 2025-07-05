@@ -100,10 +100,8 @@ class DialogueLoader:
         current_bg = None  # 初期背景はなし
         current_char = None
         current_speaker = None
-        current_eye = ""
-        current_mouth = ""
-        current_brow = ""
-        current_cheek = ""
+        # キャラクターごとの顔パーツを保存する辞書
+        character_face_parts = {}
         current_bgm = None  # 初期BGMはなし
         current_bgm_volume = DEFAULT_BGM_VOLUME
         current_bgm_loop = DEFAULT_BGM_LOOP
@@ -222,11 +220,27 @@ class DialogueLoader:
                         
                         if char_name:
                             current_char = char_name.group(1)
-                            # 属性が指定されていない場合は空文字を使用
-                            current_eye = eye_type.group(1) if eye_type else ""
-                            current_mouth = mouth_type.group(1) if mouth_type else ""
-                            current_brow = brow_type.group(1) if brow_type else ""
-                            current_cheek = cheek_type.group(1) if cheek_type else ""
+                            
+                            # キャラクターごとの顔パーツを取得（初回の場合は初期化）
+                            if current_char not in character_face_parts:
+                                character_face_parts[current_char] = {
+                                    'eye': "",
+                                    'mouth': "",
+                                    'brow': "",
+                                    'cheek': ""
+                                }
+                            
+                            # 属性が指定されていない場合や空文字の場合は既存の値を保持
+                            current_eye = eye_type.group(1) if eye_type and eye_type.group(1) else character_face_parts[current_char]['eye']
+                            current_mouth = mouth_type.group(1) if mouth_type and mouth_type.group(1) else character_face_parts[current_char]['mouth']
+                            current_brow = brow_type.group(1) if brow_type and brow_type.group(1) else character_face_parts[current_char]['brow']
+                            current_cheek = cheek_type.group(1) if cheek_type and cheek_type.group(1) else character_face_parts[current_char]['cheek']
+                            
+                            # 更新された顔パーツをキャラクター別に保存
+                            character_face_parts[current_char]['eye'] = current_eye
+                            character_face_parts[current_char]['mouth'] = current_mouth
+                            character_face_parts[current_char]['brow'] = current_brow
+                            character_face_parts[current_char]['cheek'] = current_cheek
 
                             # x, y を数値として処理
                             try:
@@ -398,14 +412,23 @@ class DialogueLoader:
                                 # 対話データを追加
                                 if self.debug:
                                     print(f"対話データを追加: speaker={dialogue_speaker}, text='{dialogue_text}'")
+                                
+                                # 話者の顔パーツを取得
+                                speaker_face_parts = character_face_parts.get(dialogue_speaker, {
+                                    'eye': "",
+                                    'mouth': "",
+                                    'brow': "",
+                                    'cheek': ""
+                                })
+                                
                                 dialogue_data.append({
                                     'type': 'dialogue',
                                     'text': dialogue_text,
                                     'character': dialogue_speaker,
-                                    'eye': current_eye,
-                                    'mouth': current_mouth,
-                                    'brow': current_brow,
-                                    'cheek': current_cheek,
+                                    'eye': speaker_face_parts['eye'],
+                                    'mouth': speaker_face_parts['mouth'],
+                                    'brow': speaker_face_parts['brow'],
+                                    'cheek': speaker_face_parts['cheek'],
                                     'background': current_bg,
                                     'bgm': current_bgm,
                                     'bgm_volume': current_bgm_volume,
