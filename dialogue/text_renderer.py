@@ -269,14 +269,8 @@ class TextRenderer:
             if self.debug:
                 print(f"[SCROLL] スクロールモード中 - 無条件で継続: {character_name}")
             
-            # 話者が変わった場合は現在の話者を更新
-            if self.scroll_manager.get_current_speaker() != character_name:
-                if self.debug:
-                    print(f"[SCROLL] 話者変更だがスクロール継続: {self.scroll_manager.get_current_speaker()} -> {character_name}")
-                self.scroll_manager.current_speaker = character_name
-            
-            # テキストをスクロールに追加
-            self.scroll_manager.add_text_to_scroll(text)
+            # テキストをスクロールに追加（修正点：話者情報も渡す）
+            self.scroll_manager.add_text_to_scroll(text, character_name)
             self.displayed_chars = 0
             self.last_char_time = pygame.time.get_ticks()
             self.is_text_complete = False
@@ -308,8 +302,8 @@ class TextRenderer:
                 
                 # 前のテキストでスクロール開始
                 self.scroll_manager.start_scroll_mode(character_name, self.previous_text)
-                # 現在のテキストを追加
-                self.scroll_manager.add_text_to_scroll(text)
+                # 現在のテキストを追加（修正点：話者情報も渡す）
+                self.scroll_manager.add_text_to_scroll(text, character_name)
             else:
                 # 新しくスクロール開始
                 self.scroll_manager.start_scroll_mode(character_name, text)
@@ -334,7 +328,7 @@ class TextRenderer:
         self.last_speaker = character_name
         self.previous_text = text
         # 通常表示ではskip_text()でバックログ追加するため、フラグは False のまま
-
+    
     def update(self):
         if not self.current_text:
             return 
@@ -494,32 +488,21 @@ class TextRenderer:
         return y
 
     def render_scroll_text(self):
-        """スクロールテキストを描画する（26文字自動改行対応 + 最大3行表示）"""
+        """スクロールテキストを描画する（各行に適切な話者名を表示）"""
         scroll_text_blocks = self.scroll_manager.get_scroll_lines()
         
         if not scroll_text_blocks:
             return self.text_start_y
         
-        # スクロールモードでは現在のスピーカーの名前を表示
-        display_name = self.scroll_manager.current_speaker if self.scroll_manager.current_speaker else self.current_character_name
-
-        # 話者名と本文に適用する色を決定
-        color_to_use = self.text_color
-        if display_name:
-            gender = CHARACTER_GENDERS.get(display_name)
-            if gender == 'female':
-                color_to_use = self.text_color_female
-        
-        if display_name and display_name.strip():
-            try:
-                name_surface = self.pygame_fonts["name"].render(display_name, True, color_to_use)
-                self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
-            except Exception as e:
-                if self.debug:
-                    print(f"スクロールキャラクター名描画エラー: {e}, 名前: '{display_name}'")
+        # 各行の話者情報を取得（修正点）
+        speakers_info = self.scroll_manager.get_line_speakers_info()
+        line_speakers = speakers_info['speakers']
+        line_is_first = speakers_info['is_first']
         
         # 全ブロックを結合してから3行スクロール処理
         all_lines = []
+        line_speaker_mapping = []  # 各行がどの話者の何行目かを記録
+        
         for block_index, text_block_content in enumerate(scroll_text_blocks):
             text_to_render_for_block = text_block_content
             
@@ -533,25 +516,79 @@ class TextRenderer:
 
             # テキストを26文字で自動改行
             lines_in_block = self._wrap_text(text_to_render_for_block)
-            all_lines.extend(lines_in_block)
+            
+            # 各行に話者情報をマッピング
+            block_speaker = line_speakers[block_index] if block_index < len(line_speakers) else None
+            block_is_first = line_is_first[block_index] if block_index < len(line_is_first) else False
+            
+            for line_index, line in enumerate(lines_in_block):
+                all_lines.append(line)
+                # 最初の行のみ話者名を表示する
+                should_show_speaker = (block_is_first and line_index == 0)
+                line_speaker_mapping.append({
+                    'speaker': block_speaker,
+                    'show_speaker': should_show_speaker
+                })
         
         # 最大3行表示でスクロール効果を適用
-        lines_to_draw = []
         if len(all_lines) <= self.max_display_lines:
             lines_to_draw = all_lines
+            speaker_mapping_to_draw = line_speaker_mapping
         else:
             # 3行を超える場合は最新3行のみ表示
             lines_to_draw = all_lines[-self.max_display_lines:]
+            speaker_mapping_to_draw = line_speaker_mapping[-self.max_display_lines:]
         
+        # 表示エリア内での話者の初回出現を判定（修正点）
+        seen_speakers_in_display = set()
+        for mapping in speaker_mapping_to_draw:
+            speaker = mapping['speaker']
+            if speaker and speaker not in seen_speakers_in_display:
+                mapping['show_speaker'] = True  # 表示エリア内で初回出現
+                seen_speakers_in_display.add(speaker)
+            else:
+                mapping['show_speaker'] = False  # 既に出現済みまたは話者なし
+        
+        # 描画処理（修正：各行ごとに正しい話者の色を適用）
         y = self.text_start_y
-        for single_line in lines_to_draw:
-            if single_line: # 空の行は描画しない
+        for line_index, single_line in enumerate(lines_to_draw):
+            speaker_name_to_show = ""
+            # デフォルトの色を設定
+            speaker_text_color = self.text_color
+            
+            if line_index < len(speaker_mapping_to_draw):
+                mapping = speaker_mapping_to_draw[line_index]
+                
+                # 話者名を表示すべき行の場合、話者名を設定
+                if mapping['show_speaker'] and mapping['speaker']:
+                    speaker_name_to_show = mapping['speaker']
+                
+                # この行の話者に基づいて色を決定（重要な修正点）
+                if mapping['speaker']:
+                    gender = CHARACTER_GENDERS.get(mapping['speaker'])
+                    if gender == 'female':
+                        speaker_text_color = self.text_color_female
+                    else:
+                        speaker_text_color = self.text_color
+            
+            # 話者名を各行の左側に描画（表示すべき場合のみ）
+            if speaker_name_to_show:
                 try:
-                    text_surface = self.pygame_fonts["text"].render(single_line, True, color_to_use)
+                    name_surface = self.pygame_fonts["name"].render(speaker_name_to_show, True, speaker_text_color)
+                    self.screen.blit(name_surface, (self.name_start_x, y))
+                except Exception as e:
+                    if self.debug:
+                        print(f"スクロール話者名描画エラー: {e}, 名前: '{speaker_name_to_show}'")
+            
+            # テキストを描画（この行の話者の色を使用）
+            if single_line:  # 空の行は描画しない
+                try:
+                    text_surface = self.pygame_fonts["text"].render(single_line, True, speaker_text_color)
                     self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
                         print(f"スクロールテキスト描画エラー: {e}, テキスト: '{single_line}'")
+                        
             y += self.text_line_height # 各行の後に高さを加算
         
         return y

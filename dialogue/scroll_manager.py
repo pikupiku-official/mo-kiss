@@ -11,8 +11,13 @@ class ScrollManager:
         self.max_lines = 3  # 最大表示ブロック数
         self.all_scroll_text = []  # バックログ用：削除されたブロックも含むすべてのテキスト
         
+        # 各行の話者情報を管理（修正点）
+        self.line_speakers = []  # 各行の話者名
+        self.line_is_first = []  # 各行がその話者の最初の行かどうか
+        
         # 話者管理
         self.current_speaker = None
+        self.last_added_speaker = None  # 最後に追加された話者を記録
         
         # TextRendererへの参照（終了通知用）
         self.text_renderer = None
@@ -28,29 +33,50 @@ class ScrollManager:
         
         self.scroll_mode = True
         self.current_speaker = speaker
+        self.last_added_speaker = speaker
         self.scroll_lines = [text]  # 最初のテキストで初期化
         self.all_scroll_text = [text]  # バックログ用にも記録
         
-    def add_text_to_scroll(self, text):
+        # 話者情報を初期化（修正点）
+        self.line_speakers = [speaker]
+        self.line_is_first = [True]  # 最初の行なので True
+        
+    def add_text_to_scroll(self, text, speaker=None):
         """テキストをスクロール表示に追加"""
         if not text:
             return
             
+        # 話者が指定されていない場合は現在の話者を使用
+        if speaker is None:
+            speaker = self.current_speaker
+            
         if self.debug:
-            print(f"[SCROLL] テキストブロック追加: '{text[:30]}...'")
+            print(f"[SCROLL] テキストブロック追加: '{text[:30]}...' by {speaker}")
         
         self.scroll_lines.append(text)
         self.all_scroll_text.append(text)  # バックログ用にも記録
         
-        # 最大ブロック数を超えた場合は古いブロックを削除（表示用のみ、all_scroll_textは保持）
+        # 話者情報を追加（修正点）
+        is_speaker_first_line = (speaker != self.last_added_speaker)
+        self.line_speakers.append(speaker)
+        self.line_is_first.append(is_speaker_first_line)
+        self.last_added_speaker = speaker
+        
+        # 現在の話者を更新
+        self.current_speaker = speaker
+        
+        # 最大ブロック数を超えた場合は古いブロックを削除
         while len(self.scroll_lines) > self.max_lines:
             removed_line = self.scroll_lines.pop(0)
+            removed_speaker = self.line_speakers.pop(0)
+            removed_is_first = self.line_is_first.pop(0)
             if self.debug:
-                print(f"[SCROLL] 古いブロック削除（表示用のみ）: '{removed_line[:30]}...'")
+                print(f"[SCROLL] 古いブロック削除: '{removed_line[:30]}...' by {removed_speaker} (first: {removed_is_first})")
         
         if self.debug:
             print(f"[SCROLL] 現在のブロック数: {len(self.scroll_lines)}/{self.max_lines}")
             print(f"[SCROLL] バックログ用テキスト数: {len(self.all_scroll_text)}")
+            print(f"[SCROLL] 話者情報: {list(zip(self.line_speakers, self.line_is_first))}")
     
     def should_continue_scroll(self, speaker):
         """スクロール継続可能かを判定 - [scroll-stop]まで継続"""
@@ -61,15 +87,13 @@ class ScrollManager:
         if speaker != self.current_speaker:
             if self.debug:
                 print(f"[SCROLL] 話者変更でもスクロール継続: {self.current_speaker} -> {speaker}")
-            # 現在の話者を新しい話者に更新
-            self.current_speaker = speaker
             
         return True
     
     def continue_scroll(self, speaker, text):
         """スクロールを継続"""
         if self.should_continue_scroll(speaker):
-            self.add_text_to_scroll(text)
+            self.add_text_to_scroll(text, speaker)
             if self.debug:
                 print(f"[SCROLL] 継続成功: {speaker}")
             return True
@@ -100,7 +124,10 @@ class ScrollManager:
         self.scroll_mode = False
         self.scroll_lines = []
         self.all_scroll_text = []  # バックログ用リストもリセット
+        self.line_speakers = []  # 話者情報もリセット（修正点）
+        self.line_is_first = []  # 最初行情報もリセット（修正点）
         self.current_speaker = None
+        self.last_added_speaker = None
     
     def end_scroll_mode(self):
         """スクロールモードを終了 - scroll-stopコマンド以外では呼び出されない"""
@@ -127,6 +154,13 @@ class ScrollManager:
     def get_scroll_lines(self):
         """現在のスクロールテキストブロックを取得"""
         return self.scroll_lines.copy()
+    
+    def get_line_speakers_info(self):
+        """各行の話者情報を取得（修正点）"""
+        return {
+            'speakers': self.line_speakers.copy(),
+            'is_first': self.line_is_first.copy()
+        }
     
     def get_current_speaker(self):
         """現在の話者を取得"""
