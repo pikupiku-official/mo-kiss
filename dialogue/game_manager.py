@@ -119,6 +119,16 @@ def initialize_game():
     character_blink_state = {}    # キャラクターごとのまばたき状態
     character_blink_timers = {}   # キャラクターごとのまばたきタイマー
     
+    # フェード関連の初期化
+    fade_state = {
+        'type': None,      # 'fadeout' or 'fadein'
+        'start_time': 0,   # アニメーション開始時刻
+        'duration': 0,     # アニメーション時間（ms）
+        'color': (0, 0, 0), # フェード色
+        'alpha': 0,        # 現在のアルファ値
+        'active': False    # アクティブかどうか
+    }
+    
     # ゲーム状態の初期化
     game_state = {
         'screen': screen,
@@ -137,6 +147,7 @@ def initialize_game():
         'character_blink_enabled': character_blink_enabled,
         'character_blink_state': character_blink_state,
         'character_blink_timers': character_blink_timers,
+        'fade_state': fade_state,
         'background_state': background_state,
         'show_face_parts': True,
         'show_text': True,

@@ -7,8 +7,9 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
-
 [bg_show storage="test.bg.southexit"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+
+
 
 [chara_show name="T03_00_00"　eye="F03_En00_00" mouth="F03_Mn00_00" brow="F03_Bn00_00" cheek="" x="0.5" y="0.5" size="0.8" blink="true"]
 
@@ -20,9 +21,16 @@
 「少し汗ばんだ風を感じて」
 「いつもの通学路を歩けばふと」
 「朝にはふさわしくない声が聞こえた気がした」
+
+[fadeout color="black"]
+
 //増田//
 「...んご...だんご...だんご三兄弟~」
 「お!純一だっちゅーの!!」
+
+
+[fadein time="1.5"]
+
 //純一//
 「(なんで朝からこいつの顔なんて...)」
 「(ここは一旦...知らない顔をさせていただこう)」

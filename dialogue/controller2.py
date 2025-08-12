@@ -3,6 +3,7 @@ from .model import advance_dialogue
 from config import get_ui_button_positions, DEBUG
 from .character_manager import update_character_animations
 from .background_manager import update_background_animation
+from .fade_manager import update_fade_animation
 
 def is_point_in_rect(point, rect_pos, rect_size):
     """点が矩形の範囲内にあるかどうかを判定する"""
@@ -209,6 +210,9 @@ def update_game(game_state):
     
     # 背景アニメーションの更新
     update_background_animation(game_state)
+    
+    # フェードアニメーションの更新
+    update_fade_animation(game_state)
 
     # 自動進行の処理（選択肢表示中は無効化）
     if (game_state['text_renderer'].is_ready_for_auto_advance() and 

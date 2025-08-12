@@ -36,6 +36,16 @@ from .data_normalizer import (
     normalize_dialogue_data
 )
 
+# フェード管理関連
+from .fade_manager import (
+    start_fadeout,
+    start_fadein,
+    update_fade_animation,
+    draw_fade_overlay,
+    is_fade_active,
+    is_fadeout_complete
+)
+
 # 互換性のための再エクスポート
 __all__ = [
     # ゲーム管理
@@ -64,7 +74,15 @@ __all__ = [
     'advance_dialogue',
     
     # データ正規化
-    'normalize_dialogue_data'
+    'normalize_dialogue_data',
+    
+    # フェード管理
+    'start_fadeout',
+    'start_fadein',
+    'update_fade_animation',
+    'draw_fade_overlay',
+    'is_fade_active',
+    'is_fadeout_complete'
 ]
 
 # バージョン情報

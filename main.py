@@ -200,12 +200,16 @@ class GameApplication:
                 from dialogue.character_manager import draw_characters
                 from dialogue.background_manager import draw_background
                 from dialogue.choice_renderer import ChoiceRenderer
+                from dialogue.fade_manager import draw_fade_overlay
                 
                 # 背景描画
                 draw_background(self.dialogue_game_state)
                 
                 # キャラクター描画
                 draw_characters(self.dialogue_game_state)
+                
+                # フェードオーバーレイ描画（ゲームコンテンツの上、UIの下）
+                draw_fade_overlay(self.dialogue_game_state)
                 
                 # UIエレメント描画（テキストボックス等）
                 if ('image_manager' in self.dialogue_game_state and 'images' in self.dialogue_game_state):

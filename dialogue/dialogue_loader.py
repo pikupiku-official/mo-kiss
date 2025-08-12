@@ -576,6 +576,43 @@ class DialogueLoader:
                         if self.debug:
                             print(f"条件分岐解析エラー（行 {line_num}）: {e} - {line}")
 
+                # [fadeout]タグを検出 - フェードアウト
+                elif "[fadeout" in line:
+                    try:
+                        color_match = re.search(r'color="([^"]+)"', line)
+                        time_match = re.search(r'time="([^"]+)"', line)
+                        
+                        fade_color = color_match.group(1) if color_match else "black"
+                        fade_time = float(time_match.group(1)) if time_match else 1.0
+                        
+                        print(f"[FADE] フェードアウト解析: line='{line}', color={fade_color}, time={fade_time}")
+                        
+                        dialogue_data.append({
+                            'type': 'fadeout',
+                            'color': fade_color,
+                            'time': fade_time
+                        })
+                        
+                    except Exception as e:
+                        print(f"[FADE] フェードアウト解析エラー（行 {line_num}）: {e} - {line}")
+
+                # [fadein]タグを検出 - フェードイン
+                elif "[fadein" in line:
+                    try:
+                        time_match = re.search(r'time="([^"]+)"', line)
+                        
+                        fade_time = float(time_match.group(1)) if time_match else 1.0
+                        
+                        print(f"[FADE] フェードイン解析: line='{line}', time={fade_time}")
+                        
+                        dialogue_data.append({
+                            'type': 'fadein',
+                            'time': fade_time
+                        })
+                        
+                    except Exception as e:
+                        print(f"[FADE] フェードイン解析エラー（行 {line_num}）: {e} - {line}")
+
                 # [endif]タグを検出 - 条件分岐終了
                 elif "[endif]" in line:
                     if self.debug:

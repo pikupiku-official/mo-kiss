@@ -157,6 +157,26 @@ def normalize_dialogue_data(raw_data):
             ])
             if DEBUG:
                 print(f"選択肢コマンド追加: {options}")
+                
+        elif entry_type == 'fadeout':
+            # フェードアウトコマンドを追加
+            fadeout_command = f"_FADEOUT_{entry['color']}_{entry['time']}"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                fadeout_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
+            if DEBUG:
+                print(f"フェードアウト正規化: {fadeout_command}")
+                
+        elif entry_type == 'fadein':
+            # フェードインコマンドを追加
+            fadein_command = f"_FADEIN_{entry['time']}"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                fadein_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
+            if DEBUG:
+                print(f"フェードイン正規化: {fadein_command}")
     
     # 対話テキストエントリが含まれているかチェック
     dialogue_count = 0

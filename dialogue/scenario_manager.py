@@ -2,6 +2,7 @@ import pygame
 from config import *
 from .character_manager import move_character, hide_character, set_blink_enabled, init_blink_system
 from .background_manager import show_background, move_background
+from .fade_manager import start_fadeout, start_fadein
 
 def advance_dialogue(game_state):
     """次の対話に進む"""
@@ -54,6 +55,14 @@ def advance_dialogue(game_state):
     # 選択肢コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_CHOICE_"):
         return _handle_choice(game_state, dialogue_text, current_dialogue)
+    
+    # フェードアウトコマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_FADEOUT_"):
+        return _handle_fadeout(game_state, dialogue_text)
+    
+    # フェードインコマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_FADEIN_"):
+        return _handle_fadein(game_state, dialogue_text)
     
     else:
         # 通常の対話テキスト
@@ -410,3 +419,48 @@ def force_end_scroll_mode(game_state):
         print("スクロールモード強制終了は無効化されています")
     # 強制終了機能を無効化
     # game_state['text_renderer'].scroll_manager.force_end_scroll_mode()
+
+def _handle_fadeout(game_state, dialogue_text):
+    """フェードアウトコマンドを処理"""
+    parts = dialogue_text.split('_')
+    if DEBUG:
+        print(f"フェードアウトコマンド解析: dialogue_text='{dialogue_text}'")
+        print(f"分割結果: {parts}")
+
+    if len(parts) >= 4:  # _FADEOUT_color_time
+        fade_color = parts[2]
+        try:
+            fade_time = float(parts[3])
+        except (ValueError, IndexError):
+            fade_time = 1.0
+        
+        start_fadeout(game_state, fade_color, fade_time)
+        print(f"[FADE] フェードアウト実行: color={fade_color}, time={fade_time}s")
+    else:
+        if DEBUG:
+            print(f"エラー: フェードアウトコマンドの形式が不正です: '{dialogue_text}'")
+    
+    # フェードアウトコマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+def _handle_fadein(game_state, dialogue_text):
+    """フェードインコマンドを処理"""
+    parts = dialogue_text.split('_')
+    if DEBUG:
+        print(f"フェードインコマンド解析: dialogue_text='{dialogue_text}'")
+        print(f"分割結果: {parts}")
+
+    if len(parts) >= 3:  # _FADEIN_time
+        try:
+            fade_time = float(parts[2])
+        except (ValueError, IndexError):
+            fade_time = 1.0
+        
+        start_fadein(game_state, fade_time)
+        print(f"[FADE] フェードイン実行: time={fade_time}s")
+    else:
+        if DEBUG:
+            print(f"エラー: フェードインコマンドの形式が不正です: '{dialogue_text}'")
+    
+    # フェードインコマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
