@@ -14,6 +14,7 @@ def normalize_dialogue_data(raw_data):
     current_mouth = ""
     current_brow = ""
     current_cheek = ""
+    current_blink = True  # デフォルトでまばたき有効
     current_bgm = "maou_bgm_8bit29.mp3"
     current_bgm_volume = 0.1
     current_bgm_loop = True
@@ -61,12 +62,13 @@ def normalize_dialogue_data(raw_data):
             current_mouth = entry['mouth']
             current_brow = entry['brow']
             current_cheek = entry.get('cheek', '')
+            current_blink = entry.get('blink', True)  # まばたき設定を取得
             show_x = entry.get('show_x', 0.5)
             show_y = entry.get('show_y', 0.5)
             size = entry.get('size', 1.0)
             # デバッグ出力削除
             # キャラクター登場コマンドを追加
-            command_text = f"_CHARA_NEW_{current_char}_{show_x}_{show_y}_{size}"
+            command_text = f"_CHARA_NEW_{current_char}_{show_x}_{show_y}_{size}_{current_blink}"
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
                 command_text, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False

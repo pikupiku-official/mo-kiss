@@ -114,6 +114,11 @@ def initialize_game():
         'anim': None    # アニメーション情報
     }
 
+    # まばたき関連の初期化
+    character_blink_enabled = {}  # キャラクターごとのまばたき有効フラグ
+    character_blink_state = {}    # キャラクターごとのまばたき状態
+    character_blink_timers = {}   # キャラクターごとのまばたきタイマー
+    
     # ゲーム状態の初期化
     game_state = {
         'screen': screen,
@@ -129,6 +134,9 @@ def initialize_game():
         'character_anim': character_anim,
         'character_zoom': character_zoom,
         'character_expressions': character_expressions,
+        'character_blink_enabled': character_blink_enabled,
+        'character_blink_state': character_blink_state,
+        'character_blink_timers': character_blink_timers,
         'background_state': background_state,
         'show_face_parts': True,
         'show_text': True,

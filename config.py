@@ -2,6 +2,8 @@ import pygame
 import sys
 import os
 import json
+import random
+import time
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QFontDatabase
@@ -96,6 +98,15 @@ FACE_POS = {
     "brow": (0.5, 0.5),  # 眉毛の位置を追加
     "cheek": (0.5, 0.5)  # 頬の位置を追加
 }
+
+# 瞬き関連の設定
+BLINK_DURATION = 0.15  # 瞬きの継続時間（秒）
+BLINK_MIN_INTERVAL = 2.0  # 最小瞬き間隔（秒）
+BLINK_MAX_INTERVAL = 6.0  # 最大瞬き間隔（秒）
+
+def get_next_blink_interval():
+    """次の瞬きまでの間隔をランダムに決定"""
+    return random.uniform(BLINK_MIN_INTERVAL, BLINK_MAX_INTERVAL)
 
 # CHARACTER_IMAGE_MAPを削除（ファイル名直接使用）
 # デフォルト用のマッピングは不要

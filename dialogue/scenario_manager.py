@@ -1,6 +1,6 @@
 import pygame
 from config import *
-from .character_manager import move_character, hide_character
+from .character_manager import move_character, hide_character, set_blink_enabled, init_blink_system
 from .background_manager import show_background, move_background
 
 def advance_dialogue(game_state):
@@ -79,27 +79,31 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"分割結果: {parts}")
 
-    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size
+    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size,blink
         # T04_00_00のようなアンダースコア含みファイル名に対応
-        if len(parts) >= 9:  # _CHARA_NEW_T04_00_00_x_y_size の場合
+        if len(parts) >= 10:  # _CHARA_NEW_T04_00_00_x_y_size_blink の場合
             char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
             x_index = 6
             y_index = 7
             size_index = 8
+            blink_index = 9
         else:  # 通常のキャラクター名の場合
             char_name = parts[3]
             x_index = 4
             y_index = 5
             size_index = 6
+            blink_index = 7
         
         try:
             show_x = float(parts[x_index])
             show_y = float(parts[y_index])
             size = float(parts[size_index]) if len(parts) > size_index else 1.0
+            blink_enabled = parts[blink_index].lower() == 'true' if len(parts) > blink_index else True
         except (ValueError, IndexError):
             show_x = 0.5
             show_y = 0.5
             size = 1.0
+            blink_enabled = True
 
         # まず画像の存在を確認（遅延ロード対応）
         image_manager = game_state['image_manager']
@@ -142,6 +146,16 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             # sizeパラメータをcharacter_zoomに設定
             game_state['character_zoom'][char_name] = size
 
+            # まばたき機能を設定
+            set_blink_enabled(game_state, char_name, blink_enabled)
+            if blink_enabled:
+                init_blink_system(game_state, char_name)
+                if DEBUG:
+                    print(f"キャラクター '{char_name}' のまばたき機能を有効にしました")
+            else:
+                if DEBUG:
+                    print(f"キャラクター '{char_name}' のまばたき機能を無効にしました")
+
             # キャラクターの表情を更新
             if len(current_dialogue) >= 6:
                 expressions = {
@@ -152,8 +166,8 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
                 }
                 game_state['character_expressions'][char_name] = expressions
                 
-                if DEBUG:
-                    print(f"キャラクター '{char_name}' の表情設定: {expressions}")
+                print(f"[CHARACTER] '{char_name}' の表情設定: {expressions}")
+                print(f"[CHARACTER] まばたき有効: {blink_enabled}")
                     
                 # 表情パーツも事前ロード
                 try:
@@ -166,8 +180,8 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
                 except Exception as e:
                     if DEBUG:
                         print(f"表情パーツ事前ロードエラー（続行）: {char_name}: {e}")
-            if DEBUG:
-                print(f"キャラクター '{char_name}' が登場しました (x={show_x}, y={show_y}, size={size}) -> ({pos_x}, {pos_y})")
+            
+            print(f"[CHARACTER] '{char_name}' が登場しました (x={show_x}, y={show_y}, size={size}, blink={blink_enabled}) -> ({pos_x}, {pos_y})")
         
     # キャラクター登場コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)

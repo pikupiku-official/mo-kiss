@@ -214,6 +214,7 @@ class DialogueLoader:
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
                         cheek_type = re.search(r'cheek="([^"]+)"', line)
+                        blink = re.search(r'blink="([^"]+)"', line)
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
                         size = re.search(r'size="([^"]+)"', line)
@@ -259,6 +260,12 @@ class DialogueLoader:
                             except (ValueError, AttributeError):
                                 current_size = 1.0
                             
+                            # blink パラメータを処理（デフォルト: true）
+                            try:
+                                current_blink = blink.group(1).lower() != "false" if blink else True
+                            except (ValueError, AttributeError):
+                                current_blink = True
+                            
                             # デバッグ出力削除 
 
                             dialogue_data.append({
@@ -268,6 +275,7 @@ class DialogueLoader:
                                 'mouth': current_mouth,
                                 'brow': current_brow,
                                 'cheek': current_cheek,
+                                'blink': current_blink,
                                 'show_x': current_show_x,
                                 'show_y': current_show_y,
                                 'size': current_size

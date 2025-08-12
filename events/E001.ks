@@ -9,6 +9,9 @@
 
 
 [bg_show storage="test.bg.southexit"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+
+[chara_show name="T03_00_00"　eye="F03_En00_00" mouth="F03_Mn00_00" brow="F03_Bn00_00" cheek="" x="0.5" y="0.5" size="0.8" blink="true"]
+
 //ナレ//
 「見慣れた中央線の車窓から流れる風景イキスギ」
 「すっかり通いなれた国分寺駅も」
@@ -56,16 +59,20 @@
 「えっ!いっけない」
 //桃子//
 「それじゃ先行くね!ばいばーい!」
+//増田//
 「...結局、俺ら二人ってことだな!」
+//純一//
 「なんてこった...」
-「よし、そうと決まればLOVEマシーンでも歌ってくか?」
+//増田//
+「よし、そうと決まればLOVEマシーンでも歌ってくか？」
+//純一//
 「勘弁してくれよぉ...」
 
 
 
 [BGM bgm="05 Mabayui Hibi.mp3" volume="0.5" loop="true"]
 
-[chara_show name="T04_00_00"　eye="test.eye.eye1" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.4"]
+[chara_show name="T04_00_00"　eye="F04_Ea00_00" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.4"]
 	
 [choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
 

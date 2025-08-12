@@ -12,7 +12,10 @@ from .character_manager import (
     hide_character,
     update_character_animations,
     render_face_parts,
-    draw_characters
+    draw_characters,
+    set_blink_enabled,
+    init_blink_system,
+    update_blink_system
 )
 
 # 背景管理関連
@@ -47,6 +50,9 @@ __all__ = [
     'update_character_animations',
     'render_face_parts',
     'draw_characters',
+    'set_blink_enabled',
+    'init_blink_system',
+    'update_blink_system',
     
     # 背景管理
     'show_background',
