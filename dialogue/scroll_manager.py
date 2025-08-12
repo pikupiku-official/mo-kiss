@@ -1,5 +1,6 @@
 import pygame
 from config import *
+from .name_manager import get_name_manager
 
 class ScrollManager:
     def __init__(self, debug=False):
@@ -22,23 +23,30 @@ class ScrollManager:
         # TextRendererへの参照（終了通知用）
         self.text_renderer = None
         
+        # 名前管理システム
+        self.name_manager = get_name_manager()
+        
     def set_text_renderer(self, text_renderer):
         """TextRendererの参照を設定"""
         self.text_renderer = text_renderer
         
     def start_scroll_mode(self, speaker, text):
         """スクロールモードを開始"""
+        # 変数置換を適用
+        substituted_speaker = self.name_manager.substitute_variables(speaker) if speaker else speaker
+        substituted_text = self.name_manager.substitute_variables(text) if text else text
+        
         if self.debug:
-            print(f"[SCROLL] スクロール開始: {speaker} - '{text[:30] if text else ''}...'")
+            print(f"[SCROLL] スクロール開始: {substituted_speaker} - '{substituted_text[:30] if substituted_text else ''}...'")
         
         self.scroll_mode = True
-        self.current_speaker = speaker
-        self.last_added_speaker = speaker
-        self.scroll_lines = [text]  # 最初のテキストで初期化
-        self.all_scroll_text = [text]  # バックログ用にも記録
+        self.current_speaker = substituted_speaker
+        self.last_added_speaker = substituted_speaker
+        self.scroll_lines = [substituted_text]  # 最初のテキストで初期化
+        self.all_scroll_text = [substituted_text]  # バックログ用にも記録
         
         # 話者情報を初期化（修正点）
-        self.line_speakers = [speaker]
+        self.line_speakers = [substituted_speaker]
         self.line_is_first = [True]  # 最初の行なので True
         
     def add_text_to_scroll(self, text, speaker=None):
@@ -49,21 +57,25 @@ class ScrollManager:
         # 話者が指定されていない場合は現在の話者を使用
         if speaker is None:
             speaker = self.current_speaker
+        
+        # 変数置換を適用
+        substituted_speaker = self.name_manager.substitute_variables(speaker) if speaker else speaker
+        substituted_text = self.name_manager.substitute_variables(text) if text else text
             
         if self.debug:
-            print(f"[SCROLL] テキストブロック追加: '{text[:30]}...' by {speaker}")
+            print(f"[SCROLL] テキストブロック追加: '{substituted_text[:30]}...' by {substituted_speaker}")
         
-        self.scroll_lines.append(text)
-        self.all_scroll_text.append(text)  # バックログ用にも記録
+        self.scroll_lines.append(substituted_text)
+        self.all_scroll_text.append(substituted_text)  # バックログ用にも記録
         
         # 話者情報を追加（修正点）
-        is_speaker_first_line = (speaker != self.last_added_speaker)
-        self.line_speakers.append(speaker)
+        is_speaker_first_line = (substituted_speaker != self.last_added_speaker)
+        self.line_speakers.append(substituted_speaker)
         self.line_is_first.append(is_speaker_first_line)
-        self.last_added_speaker = speaker
+        self.last_added_speaker = substituted_speaker
         
         # 現在の話者を更新
-        self.current_speaker = speaker
+        self.current_speaker = substituted_speaker
         
         # 最大ブロック数を超えた場合は古いブロックを削除
         while len(self.scroll_lines) > self.max_lines:

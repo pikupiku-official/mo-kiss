@@ -154,12 +154,12 @@ def update_blink_system(game_state):
         game_state['last_blink_debug_time'] = 0
     
     if current_time - game_state['last_blink_debug_time'] > 10000:  # 10秒おき
-        print(f"[BLINK] システム動作中 - アクティブキャラクター: {game_state['active_characters']}")
+        # print(f"[BLINK] システム動作中 - アクティブキャラクター: {game_state['active_characters']}")
         for char_name in game_state['active_characters']:
             if char_name in game_state['character_blink_timers']:
                 remaining = (game_state['character_blink_timers'][char_name] - current_time) / 1000
                 state = game_state['character_blink_state'].get(char_name, {}).get('current_state', 'normal')
-                print(f"[BLINK] {char_name}: 状態={state}, 次回まで={remaining:.1f}秒")
+                # print(f"[BLINK] {char_name}: 状態={state}, 次回まで={remaining:.1f}秒")
         game_state['last_blink_debug_time'] = current_time
     
     for char_name in game_state['active_characters'].copy():

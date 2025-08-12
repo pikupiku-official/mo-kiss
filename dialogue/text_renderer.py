@@ -1,6 +1,7 @@
 import pygame
 from config import *
 from .scroll_manager import ScrollManager
+from .name_manager import get_name_manager
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
@@ -66,6 +67,9 @@ class TextRenderer:
         
         # バックログ追加フラグの初期化
         self.backlog_added_for_current = True
+        
+        # 名前管理システム
+        self.name_manager = get_name_manager()
 
     def _wrap_text(self, text):
         """テキストを26文字で自動改行する"""
@@ -250,8 +254,12 @@ class TextRenderer:
             scroll_status = "スクロール" if should_scroll else "通常"
             print(f"[TEXT] {scroll_status}表示: {character_name} - '{text[:30] if text else ''}...'")
         
-        self.current_text = str(text) if text is not None else ""
-        self.current_character_name = str(character_name) if character_name is not None else ""
+        # 変数置換を適用
+        substituted_text = self.name_manager.substitute_variables(text) if text is not None else ""
+        substituted_character_name = self.name_manager.substitute_variables(character_name) if character_name is not None else ""
+        
+        self.current_text = str(substituted_text)
+        self.current_character_name = str(substituted_character_name)
         
         # 新しいテキストが設定されたのでバックログ追加フラグをリセット
         self.backlog_added_for_current = False

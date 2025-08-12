@@ -189,3 +189,169 @@ class ToggleButton:
         text_surface = self.font.render(text, True, COLORS['text_white'])
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
+
+
+class TextInput:
+    """テキスト入力フィールド"""
+    def __init__(self, x, y, width, height, font, max_length=3, placeholder=""):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.font = font
+        self.max_length = max_length
+        self.placeholder = placeholder
+        self.text = ""
+        self.is_focused = False
+        self.cursor_visible = True
+        self.cursor_timer = 0
+        self.is_hovered = False
+        
+        # IME入力用
+        self.composition_text = ""  # IME変換中のテキスト
+        self.is_composing = False   # IME変換中かどうか
+        
+        # カーソル点滅用
+        self.cursor_blink_time = 500  # 500ms
+        self.last_blink = pygame.time.get_ticks()
+    
+    def handle_event(self, event):
+        """イベント処理（日本語IME対応改善版）"""
+        result = None
+        
+        if event.type == pygame.MOUSEMOTION:
+            self.is_hovered = self.rect.collidepoint(event.pos)
+        
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                if not self.is_focused:
+                    self.is_focused = True
+                    self.cursor_visible = True
+                    # テキスト入力を有効にする
+                    pygame.key.start_text_input()
+                    result = 'focus'
+            else:
+                if self.is_focused:
+                    self.is_focused = False
+                    self.composition_text = ""
+                    self.is_composing = False
+                    # テキスト入力を無効にする
+                    pygame.key.stop_text_input()
+                    result = 'blur'
+        
+        elif self.is_focused:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_BACKSPACE:
+                    if self.is_composing:
+                        # IME変換中の場合は変換をクリア
+                        self.composition_text = ""
+                        self.is_composing = False
+                    elif self.text:
+                        # 通常のバックスペース処理
+                        self.text = self.text[:-1]
+                        result = 'text_changed'
+                elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    self.is_focused = False
+                    self.composition_text = ""
+                    self.is_composing = False
+                    pygame.key.stop_text_input()
+                    result = 'enter'
+                elif event.key == pygame.K_ESCAPE:
+                    # ESCキーで変換をキャンセル
+                    if self.is_composing:
+                        self.composition_text = ""
+                        self.is_composing = False
+            
+            elif event.type == pygame.TEXTINPUT:
+                # テキスト入力イベント（IME確定後の文字）
+                if not self.is_composing and len(self.text) < self.max_length:
+                    input_text = event.text
+                    # 文字数制限を考慮して追加
+                    remaining_length = self.max_length - len(self.text)
+                    if len(input_text) <= remaining_length:
+                        self.text += input_text
+                        result = 'text_changed'
+            
+            elif event.type == pygame.TEXTEDITING:
+                # テキスト編集イベント（IME変換中）
+                self.composition_text = event.text
+                self.is_composing = len(event.text) > 0
+        
+        # カーソル点滅処理
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_blink > self.cursor_blink_time:
+            self.cursor_visible = not self.cursor_visible
+            self.last_blink = current_time
+        
+        return result
+    
+    def set_text(self, text):
+        """テキストを設定"""
+        self.text = text[:self.max_length] if text else ""
+    
+    def get_text(self):
+        """テキストを取得"""
+        return self.text
+    
+    def clear_focus(self):
+        """フォーカスをクリアしてIME入力を停止"""
+        if self.is_focused:
+            self.is_focused = False
+            self.composition_text = ""
+            self.is_composing = False
+            pygame.key.stop_text_input()
+    
+    def draw(self, screen):
+        """描画"""
+        # 背景色を決定
+        if self.is_focused:
+            bg_color = COLORS['btn_hover']
+            border_color = COLORS['slider_active']
+            border_width = 3
+        elif self.is_hovered:
+            bg_color = (240, 240, 240)
+            border_color = COLORS['border_dark']
+            border_width = 2
+        else:
+            bg_color = (255, 255, 255)
+            border_color = COLORS['border_dark']
+            border_width = 1
+        
+        # フィールドを描画
+        pygame.draw.rect(screen, bg_color, self.rect, border_radius=5)
+        pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=5)
+        
+        # テキストまたはプレースホルダーを描画
+        text_x = self.rect.x + 8
+        text_y = self.rect.y + (self.rect.height - self.font.get_height()) // 2
+        
+        if self.text or self.composition_text:
+            # 確定済みテキストを描画
+            if self.text:
+                text_surface = self.font.render(self.text, True, COLORS['text_dark'])
+                screen.blit(text_surface, (text_x, text_y))
+                text_width = text_surface.get_width()
+            else:
+                text_width = 0
+            
+            # IME変換中のテキストを描画（下線付き）
+            if self.is_composing and self.composition_text:
+                comp_surface = self.font.render(self.composition_text, True, (100, 100, 100))
+                comp_x = text_x + text_width
+                screen.blit(comp_surface, (comp_x, text_y))
+                # 変換中テキストに下線を描画
+                comp_width = comp_surface.get_width()
+                pygame.draw.line(screen, (100, 100, 100), 
+                               (comp_x, text_y + self.font.get_height() - 2), 
+                               (comp_x + comp_width, text_y + self.font.get_height() - 2), 1)
+            
+            # カーソルを描画（フォーカス中かつ表示状態の場合）
+            if self.is_focused and self.cursor_visible:
+                cursor_x = text_x + text_width
+                if self.is_composing and self.composition_text:
+                    cursor_x += self.font.size(self.composition_text)[0]
+                cursor_y1 = self.rect.y + 5
+                cursor_y2 = self.rect.y + self.rect.height - 5
+                pygame.draw.line(screen, COLORS['text_dark'], (cursor_x, cursor_y1), (cursor_x, cursor_y2), 2)
+        
+        elif self.placeholder:
+            # プレースホルダーを描画
+            placeholder_surface = self.font.render(self.placeholder, True, (150, 150, 150))
+            screen.blit(placeholder_surface, (text_x, text_y))

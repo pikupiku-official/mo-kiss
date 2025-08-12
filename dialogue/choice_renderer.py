@@ -1,5 +1,6 @@
 import pygame
 from config import *
+from .name_manager import get_name_manager
 
 class ChoiceRenderer:
     def __init__(self, screen, debug=False):
@@ -29,6 +30,9 @@ class ChoiceRenderer:
         # 色設定
         self.normal_color = TEXT_COLOR
         self.highlight_color = (255, 255, 0)  # 黄色でハイライト
+        
+        # 名前管理システム
+        self.name_manager = get_name_manager()
         
     def _init_fonts(self):
         """text_rendererと同じフォント設定を使用"""
@@ -61,7 +65,8 @@ class ChoiceRenderer:
     
     def show_choices(self, options):
         """選択肢を表示する"""
-        self.choices = options
+        # 変数置換を適用
+        self.choices = [self.name_manager.substitute_variables(option) if option else option for option in options]
         self.choice_rects = []
         self.is_showing_choices = True
         self.hovered_choice = -1

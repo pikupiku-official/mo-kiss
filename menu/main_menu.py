@@ -7,7 +7,9 @@ from config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos, scale_size
 from .main_menu_config import (
     COLORS, FONT_SIZES, LAYOUT, MenuState, DEFAULT_AUDIO_SETTINGS
 )
-from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton
+from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton, TextInput
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from dialogue.name_manager import get_name_manager
 
 class MainMenu:
     def __init__(self, screen=None):
@@ -28,6 +30,10 @@ class MainMenu:
         self.panels = {}
         self.volume_indicators = {}
         self.toggle_buttons = {}
+        self.text_inputs = {}
+        
+        # 名前管理
+        self.name_manager = get_name_manager()
         
         # screen が提供されている場合は即座に初期化
         if self.screen:
@@ -236,6 +242,27 @@ class MainMenu:
             reset_button_x, reset_button_y, 240, 60,
             "初期設定に戻す", self.fonts['small'], 'green'
         )
+        
+        # 名前入力欄（「はじめから」ボタンの右側）
+        name_input_x = button_x + 320  # 「はじめから」ボタンの右側
+        name_input_y = button_y
+        
+        self.text_inputs['surname'] = TextInput(
+            name_input_x, name_input_y, 120, 40,
+            self.fonts['small'], max_length=3, placeholder="苗字"
+        )
+        
+        self.text_inputs['name'] = TextInput(
+            name_input_x + 130, name_input_y, 120, 40,
+            self.fonts['small'], max_length=3, placeholder="名前"
+        )
+        
+        # 保存された名前を設定
+        self.text_inputs['surname'].set_text(self.name_manager.get_surname())
+        self.text_inputs['name'].set_text(self.name_manager.get_name())
+        
+        # SDL2テキスト入力の初期化（IME対応）
+        pygame.key.set_repeat()  # キーリピート設定をリセット
     
     def handle_events(self):
         for event in pygame.event.get():
@@ -247,6 +274,23 @@ class MainMenu:
                 result = button.handle_event(event)
                 if result == 'click':
                     self._handle_button_click(button_name)
+            
+            # テキスト入力イベント処理
+            for input_name, text_input in self.text_inputs.items():
+                result = text_input.handle_event(event)
+                if result == 'focus':
+                    # 新しいフィールドがフォーカスされた場合、他のフィールドのフォーカスを外す
+                    for other_name, other_input in self.text_inputs.items():
+                        if other_name != input_name and other_input.is_focused:
+                            other_input.is_focused = False
+                            other_input.composition_text = ""
+                            other_input.is_composing = False
+                            pygame.key.stop_text_input()
+                elif result == 'text_changed':
+                    # 名前が変更されたら即座に保存
+                    surname = self.text_inputs['surname'].get_text()
+                    name = self.text_inputs['name'].get_text()
+                    self.name_manager.set_names(surname, name)
             
             # スライダーイベント処理（設定画面でのみ）
             if self.state == MenuState.SETTINGS:
@@ -286,6 +330,23 @@ class MainMenu:
         """単一のイベントを処理して結果を返す（main.pyからの呼び出し用）"""
         if event.type == pygame.QUIT:
             return "quit"
+        
+        # テキスト入力イベント処理
+        for input_name, text_input in self.text_inputs.items():
+            result = text_input.handle_event(event)
+            if result == 'focus':
+                # 新しいフィールドがフォーカスされた場合、他のフィールドのフォーカスを外す
+                for other_name, other_input in self.text_inputs.items():
+                    if other_name != input_name and other_input.is_focused:
+                        other_input.is_focused = False
+                        other_input.composition_text = ""
+                        other_input.is_composing = False
+                        pygame.key.stop_text_input()
+            elif result == 'text_changed':
+                # 名前が変更されたら即座に保存
+                surname = self.text_inputs['surname'].get_text()
+                name = self.text_inputs['name'].get_text()
+                self.name_manager.set_names(surname, name)
         
         # ボタンイベント処理
         for button_name, button in self.buttons.items():
@@ -383,6 +444,16 @@ class MainMenu:
         self.buttons['start'].draw(self.screen)
         self.buttons['continue'].draw(self.screen)
         self.buttons['settings'].draw(self.screen)
+        
+        # 名前入力欄（「はじめから」ボタンの横に表示）
+        self.text_inputs['surname'].draw(self.screen)
+        self.text_inputs['name'].draw(self.screen)
+        
+        # ラベルを表示
+        surname_label = self.fonts['small'].render("苗字:", True, COLORS['text_main'])
+        name_label = self.fonts['small'].render("名前:", True, COLORS['text_main'])
+        self.screen.blit(surname_label, (self.text_inputs['surname'].rect.x, self.text_inputs['surname'].rect.y - 25))
+        self.screen.blit(name_label, (self.text_inputs['name'].rect.x, self.text_inputs['name'].rect.y - 25))
         
         # 右上ボタン
         self.buttons['test'].draw(self.screen)

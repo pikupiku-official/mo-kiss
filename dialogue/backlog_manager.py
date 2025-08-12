@@ -1,5 +1,6 @@
 import pygame
 from config import *
+from .name_manager import get_name_manager
 from PyQt5.QtGui import QFont, QImage, QPainter, QColor, QFontMetrics
 from PyQt5.QtCore import QSize
 
@@ -59,6 +60,9 @@ class BacklogManager:
         self.screen = screen
         self.fonts = fonts
         self.debug = debug
+        
+        # 名前管理システム
+        self.name_manager = get_name_manager()
         
         # 仮想解像度基準のピクセル値設定（1920x1080基準）
         from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
@@ -146,16 +150,20 @@ class BacklogManager:
         """バックログにエントリを追加"""
         if not text or text.strip() == "":
             return
+        
+        # 変数置換を適用
+        substituted_speaker = self.name_manager.substitute_variables(speaker) if speaker else speaker
+        substituted_text = self.name_manager.substitute_variables(text) if text else text
             
         # 重複チェック（最後のエントリと同じ場合はスキップ）
         if (self.entries and 
-            self.entries[-1]["speaker"] == speaker and 
-            self.entries[-1]["text"] == text):
+            self.entries[-1]["speaker"] == substituted_speaker and 
+            self.entries[-1]["text"] == substituted_text):
             return
             
         self.entries.append({
-            "speaker": speaker or "名無し",
-            "text": text
+            "speaker": substituted_speaker or "名無し",
+            "text": substituted_text
         })
         
         # デバッグ出力を削除（パフォーマンス向上）
