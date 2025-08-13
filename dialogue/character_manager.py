@@ -208,10 +208,10 @@ def start_blink_animation(game_state, character_name):
             # まばたきシーケンスを決定
             if eye_number == '00':
                 # 00 -> 01 -> 02 -> 01 -> 00
-                sequence = ['00', '01', '02', '01', '00']
+                sequence = ['00', '01', '02', '02', '02', '01', '00']
             elif eye_number == '01':
                 # 01 -> 02 -> 01
-                sequence = ['01', '02', '01']
+                sequence = ['01', '02', '02', '02', '01']
             else:
                 # その他の場合はまばたき無し
                 print(f"[BLINK] {character_name}: サポートされていない目の種類 '{eye_number}' - スキップ")
@@ -249,8 +249,8 @@ def update_blink_animation(game_state, character_name, current_time):
         return
     
     elapsed = current_time - blink_state['animation_start']
-    frame_duration = 50  # 各フレーム50ms
-    
+    frame_duration = 40  # 各フレーム40ms
+
     # シーケンスの現在のフレームを計算
     frame_index = elapsed // frame_duration
     
