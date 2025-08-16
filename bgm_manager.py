@@ -58,6 +58,18 @@ class BGMManager:
     def stop_bgm(self):
         pygame.mixer.music.stop()
         self.current_bgm = None
+    
+    def pause_bgm(self):
+        """BGMを一時停止"""
+        pygame.mixer.music.pause()
+        if self.debug:
+            print("BGMを一時停止しました")
+    
+    def unpause_bgm(self):
+        """BGMの再生を再開"""
+        pygame.mixer.music.unpause()
+        if self.debug:
+            print("BGMの再生を再開しました")
 
     def get_bgm_for_scene(self, scene_name):
         """シーン名からBGMファイル名を取得（直接ファイル名を返す）"""
