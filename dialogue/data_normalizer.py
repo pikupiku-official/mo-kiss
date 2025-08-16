@@ -80,6 +80,36 @@ def normalize_dialogue_data(raw_data):
             current_bgm_volume = entry['volume']
             current_bgm_loop = entry['loop']
             # デバッグ出力削除
+            
+        elif entry_type == 'bgm_pause':
+            # BGM一時停止コマンドを正規化形式で追加
+            bgm_pause_command = "_BGM_PAUSE"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                bgm_pause_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
+            if DEBUG:
+                print(f"BGM一時停止コマンド追加")
+                
+        elif entry_type == 'bgm_unpause':
+            # BGM再生開始コマンドを正規化形式で追加
+            bgm_unpause_command = "_BGM_UNPAUSE"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                bgm_unpause_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
+            if DEBUG:
+                print(f"BGM再生開始コマンド追加")
+                
+        elif entry_type == 'se':
+            # SE再生コマンドを正規化形式で追加
+            se_command = f"_SE_PLAY_{entry['file']}_{entry['volume']}_{entry['frequency']}"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                se_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
+            if DEBUG:
+                print(f"SE再生コマンド追加: {entry['file']} (volume={entry['volume']}, frequency={entry['frequency']})")
                 
         elif entry_type == 'dialogue':
             # セリフデータを正規化形式で追加（スクロール情報も含む）
