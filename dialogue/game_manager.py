@@ -9,8 +9,12 @@ from .choice_renderer import ChoiceRenderer
 from config import *
 from .data_normalizer import normalize_dialogue_data
 
-def initialize_game():
-    """ゲームの初期化を行う"""
+def initialize_game(dialogue_file="events/E001.ks"):
+    """ゲームの初期化を行う
+    
+    Args:
+        dialogue_file (str): 読み込む対話ファイルのパス
+    """
     # Pygameを初期化
     init_qt_application()
     pygame.init()
@@ -52,7 +56,7 @@ def initialize_game():
     # 会話データの読み込みと正規化（最適化）
     try:
         print("会話データ読み込み中...")
-        raw_dialogue_data = dialogue_loader.load_dialogue_from_ks("events/E001.ks")
+        raw_dialogue_data = dialogue_loader.load_dialogue_from_ks(dialogue_file)
         
         if DEBUG:
             print(f"game_manager.py: ロードされた生データ数: {len(raw_dialogue_data) if raw_dialogue_data else 0}")
