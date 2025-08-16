@@ -288,6 +288,22 @@ class DialogueLoader:
                         if self.debug:
                             print(f"キャラクター解析エラー（行 {line_num}）: {e} - {line}")
                     
+                # BGM一時停止を検出（[BGM より前にチェック）
+                elif "[BGMSTOP]" in line:
+                    if self.debug:
+                        print(f"BGM一時停止コマンド検出")
+                    dialogue_data.append({
+                        'type': 'bgm_pause'
+                    })
+                
+                # BGM再生開始を検出（[BGM より前にチェック）
+                elif "[BGMSTART]" in line:
+                    if self.debug:
+                        print(f"BGM再生開始コマンド検出")
+                    dialogue_data.append({
+                        'type': 'bgm_unpause'
+                    })
+                
                 # BGM設定を検出
                 elif "[BGM" in line:
                     try:
