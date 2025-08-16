@@ -320,6 +320,28 @@ class DialogueLoader:
                         if self.debug:
                             print(f"BGM解析エラー（行 {line_num}）: {e} - {line}")
                         
+                # SE設定を検出
+                elif "[SE" in line:
+                    try:
+                        se_parts = re.search(r'se="([^"]+)"', line)
+                        se_volume = re.search(r'volume="([^"]+)"', line)
+                        se_frequency = re.search(r'frequency="([^"]+)"', line)
+                        if se_parts:
+                            se_name = se_parts.group(1)
+                            se_vol = float(se_volume.group(1)) if se_volume else 0.5
+                            se_freq = int(se_frequency.group(1)) if se_frequency else 1
+                            
+                            dialogue_data.append({
+                                'type': 'se',
+                                'file': se_name,
+                                'volume': se_vol,
+                                'frequency': se_freq
+                            })
+                                
+                    except Exception as e:
+                        if self.debug:
+                            print(f"SE解析エラー（行 {line_num}）: {e} - {line}")
+                        
                 # キャラクター移動コマンドを検出
                 elif "[chara_move" in line:
                     try:
