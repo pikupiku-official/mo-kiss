@@ -105,7 +105,14 @@
 - `"school"`: 初期BGMなし
 - `"classroom"`: 第2BGMファイル
 
-### BGMの再生
+
+### BGMの一時停止と再生
+```
+[BGMSTOP]
+[BGMSTART]
+```
+
+### SEの再生
 ```
 [SE se="SEファイル名" volume="0.5" frequency="1"]
 ```
