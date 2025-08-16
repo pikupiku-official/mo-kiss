@@ -64,6 +64,18 @@ def advance_dialogue(game_state):
     elif dialogue_text and dialogue_text.startswith("_FADEIN_"):
         return _handle_fadein(game_state, dialogue_text)
     
+    # SE再生コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_SE_PLAY_"):
+        return _handle_se_play(game_state, dialogue_text)
+    
+    # BGM一時停止コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_BGM_PAUSE"):
+        return _handle_bgm_pause(game_state)
+    
+    # BGM再生開始コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_BGM_UNPAUSE"):
+        return _handle_bgm_unpause(game_state)
+    
     else:
         # 通常の対話テキスト
         if DEBUG:
@@ -463,4 +475,77 @@ def _handle_fadein(game_state, dialogue_text):
             print(f"エラー: フェードインコマンドの形式が不正です: '{dialogue_text}'")
     
     # フェードインコマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+def _handle_se_play(game_state, dialogue_text):
+    """SE再生コマンドを処理"""
+    parts = dialogue_text.split('_')
+    if DEBUG:
+        print(f"SE再生コマンド解析: dialogue_text='{dialogue_text}'")
+        print(f"分割結果: {parts}")
+
+    if len(parts) >= 5:  # _SE_PLAY_filename_volume_frequency
+        se_filename = parts[3]
+        try:
+            se_volume = float(parts[4])
+        except (ValueError, IndexError):
+            se_volume = 0.5
+        try:
+            se_frequency = int(parts[5])
+        except (ValueError, IndexError):
+            se_frequency = 1
+        
+        # SEManagerを使ってSEを再生
+        se_manager = game_state.get('se_manager')
+        if se_manager:
+            success = se_manager.play_se(se_filename, se_volume, se_frequency)
+            if DEBUG:
+                if success:
+                    print(f"SE再生成功: {se_filename} (volume={se_volume}, frequency={se_frequency})")
+                else:
+                    print(f"SE再生失敗: {se_filename}")
+        else:
+            if DEBUG:
+                print("エラー: SEManagerが見つかりません")
+    else:
+        if DEBUG:
+            print(f"エラー: SE再生コマンドの形式が不正です: '{dialogue_text}'")
+    
+    # SE再生コマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+def _handle_bgm_pause(game_state):
+    """BGM一時停止コマンドを処理"""
+    if DEBUG:
+        print("BGM一時停止コマンド実行")
+    
+    # BGMManagerを使ってBGMを一時停止
+    bgm_manager = game_state.get('bgm_manager')
+    if bgm_manager:
+        bgm_manager.pause_bgm()
+        if DEBUG:
+            print("BGMを一時停止しました")
+    else:
+        if DEBUG:
+            print("エラー: BGMManagerが見つかりません")
+    
+    # BGM一時停止コマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+def _handle_bgm_unpause(game_state):
+    """BGM再生開始コマンドを処理"""
+    if DEBUG:
+        print("BGM再生開始コマンド実行")
+    
+    # BGMManagerを使ってBGMの再生を再開
+    bgm_manager = game_state.get('bgm_manager')
+    if bgm_manager:
+        bgm_manager.unpause_bgm()
+        if DEBUG:
+            print("BGMの再生を再開しました")
+    else:
+        if DEBUG:
+            print("エラー: BGMManagerが見つかりません")
+    
+    # BGM再生開始コマンドの場合は次の対話に進む
     return advance_dialogue(game_state)
