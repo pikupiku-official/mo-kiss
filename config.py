@@ -2,6 +2,8 @@ import pygame
 import sys
 import os
 import json
+import random
+import time
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QFontDatabase
@@ -42,7 +44,7 @@ WINDOW_HEIGHT = DISPLAY_HEIGHT  # 画面高さの100%（フルサイズ）
 # スケーリング係数を計算
 SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
 SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
-SCALE = max(SCALE_X, SCALE_Y)  # アスペクト比を維持するため小さい方を使用
+SCALE = min(SCALE_X, SCALE_Y)  # アスペクト比を維持するため小さい方を使用
 
 # フルサイズの場合、ウィンドウ位置は左上角（0, 0）
 X_POS = 0
@@ -52,8 +54,8 @@ Y_POS = 0
 SCREEN_WIDTH = WINDOW_WIDTH
 SCREEN_HEIGHT = WINDOW_HEIGHT
 
-# デバッグモード
-DEBUG = True
+# デバッグモード（パフォーマンス向上のためFalseに）
+DEBUG = False
 
 # テキスト表示設定（仮想解像度1920x1080基準のピクセル値）
 TEXT_COLOR = (255, 255, 255)
@@ -83,80 +85,52 @@ def get_text_positions(screen):
     }
 
 # UI要素の設定（仮想解像度1920x1080基準のピクセル値）
-TEXTBOX_MARGIN_BOTTOM = 50   # テキストボックスの下マージン
-TEXT_LINE_SPACING = 80       # 2つのテキスト行の間隔（1080 * 74 / 1000 = 79.92 → 80px）
-AUTO_BUTTON_MARGIN_RIGHT = 401  # autoボタンの右マージン（1920 * 209 / 1000 = 401px）
-SKIP_BUTTON_MARGIN_RIGHT = 258  # skipボタンの右マージン（1920 * 1345 / 10000 = 258px）
-BUTTON_MARGIN_TOP = 704      # ボタンの上マージン（1080 * 647 / 1000 = 699px）
+TEXTBOX_MARGIN_BOTTOM = 50
+TEXT_LINE_SPACING = 80
+AUTO_BUTTON_MARGIN_RIGHT = 394
+SKIP_BUTTON_MARGIN_RIGHT = 249
+BUTTON_MARGIN_TOP = 703
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
     "eye": (0.5, 0.5),
     "mouth": (0.5, 0.5),
-    "brow": (0.5, 0.5)  # 眉毛の位置を追加
+    "brow": (0.5, 0.5),  # 眉毛の位置を追加
+    "cheek": (0.5, 0.5)  # 頬の位置を追加
 }
 
-# キャラクター設定
-CHARACTER_IMAGE_MAP = {
-    "桃子": "girl1",
-    "サナコ": "girl2",
-    "烏丸神無": "girl1",
-    "桔梗美鈴": "girl2", 
-    "宮月深依里": "girl1",
-    "伊織紅": "girl2"
-}
+# 瞬き関連の設定
+BLINK_DURATION = 0.15  # 瞬きの継続時間（秒）
+BLINK_MIN_INTERVAL = 2.0  # 最小瞬き間隔（秒）
+BLINK_MAX_INTERVAL = 6.0  # 最大瞬き間隔（秒）
+
+def get_next_blink_interval():
+    """次の瞬きまでの間隔をランダムに決定"""
+    return random.uniform(BLINK_MIN_INTERVAL, BLINK_MAX_INTERVAL)
+
+# CHARACTER_IMAGE_MAPを削除（ファイル名直接使用）
+# デフォルト用のマッピングは不要
 
 # キャラクターの性別データを読み込む
 CHARACTER_GENDERS = {}
 try:
-    # character_gender.jsonファイルを開き、内容を読み込む
-    with open('character_gender.json', 'r', encoding='utf-8') as f:
+    # character_gender.jsonファイルを開き、内容を読み込む（絶対パス使用）
+    gender_file_path = os.path.join(os.path.dirname(__file__), 'character_gender.json')
+    with open(gender_file_path, 'r', encoding='utf-8') as f:
         CHARACTER_GENDERS = json.load(f)
     if DEBUG:
         print(f"キャラクター性別データを読み込みました: {CHARACTER_GENDERS}")
 except FileNotFoundError:
     if DEBUG:
-        print("警告: character_gender.json が見つかりません。")
+        print(f"警告: character_gender.json が見つかりません。パス: {gender_file_path}")
 except json.JSONDecodeError:
     if DEBUG:
         print("警告: character_gender.json の解析に失敗しました。")
 
-# キャラクターごとのデフォルトの表情設定
-CHARACTER_DEFAULTS = {
-    "桃子": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "サナコ": {
-        "eye": "eye1", 
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "烏丸神無": {
-        "eye": "eye1",
-        "mouth": "mouth1", 
-        "brow": ""
-    },
-    "桔梗美鈴": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "宮月深依里": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    },
-    "伊織紅": {
-        "eye": "eye1",
-        "mouth": "mouth1",
-        "brow": ""
-    }
-}
+# CHARACTER_DEFAULTSも削除（デフォルトシステム不要）
+# 全てファイル名直接指定で使用
 
-# デフォルトの背景
-DEFAULT_BACKGROUND = "school"
+# DEFAULT_BACKGROUNDは削除（背景は明示的に指定された場合のみ表示）
 
 # デフォルトのBGM設定
 DEFAULT_BGM_VOLUME = 0.1
@@ -196,6 +170,8 @@ def set_window_position(x, y):
 # ゲーム初期化時に呼び出す
 def init_game():
     init_qt_application()
+    # Pygameの最適化設定
+    pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=1024)
     pygame.init()
     set_window_position(X_POS, Y_POS)
     
@@ -205,10 +181,7 @@ def init_game():
     # 全画面表示でウィンドウサイズを設定
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
     
-    print(f"Virtual resolution: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
-    print(f"Window size: {SCREEN_WIDTH}x{SCREEN_HEIGHT} (16:9 ratio)")
-    print(f"Scale factor: {SCALE:.3f}")
-    print(f"Window position: {X_POS}, {Y_POS}")
+    # デバッグ出力削除（パフォーマンス向上）
     
     return screen
 

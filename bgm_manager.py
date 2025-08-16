@@ -5,8 +5,6 @@ class BGMManager:
     def __init__(self, debug=False):
         self.debug = debug
         self.BGM_PATH = os.path.join("sounds", "bgms")
-        self.DEFAULT_BGM = "maou_bgm_8bit29.mp3"
-        self.SECOND_BGM = "maou_bgm_piano41.mp3"
         self.current_bgm = None
 
     def is_valid_bgm_filename(self, filename):
@@ -26,7 +24,7 @@ class BGMManager:
         
         return True
 
-    def play_bgm(self, filename, volume=0):
+    def play_bgm(self, filename, volume=0.5, loop=True):
         try:
             # ファイル名の有効性をチェック
             if not self.is_valid_bgm_filename(filename):
@@ -42,10 +40,14 @@ class BGMManager:
             
             pygame.mixer.music.load(bgm_path)
             pygame.mixer.music.set_volume(volume)
-            pygame.mixer.music.play(-1)  # ループ再生
+            # ループ設定に応じて再生
+            if loop:
+                pygame.mixer.music.play(-1)  # ループ再生
+            else:
+                pygame.mixer.music.play(0)   # 一回のみ再生
             self.current_bgm = filename
             if self.debug:
-                print(f"BGMを再生開始: {filename}")
+                print(f"BGMを再生開始: {filename} (loop={loop})")
             return True
             
         except Exception as e:
@@ -58,6 +60,23 @@ class BGMManager:
         self.current_bgm = None
 
     def get_bgm_for_scene(self, scene_name):
-        if scene_name == "classroom":
-            return self.SECOND_BGM
-        return self.DEFAULT_BGM
+        """シーン名からBGMファイル名を取得（直接ファイル名を返す）"""
+        if self.debug:
+            print(f"[BGM] BGM取得要求: {scene_name}")
+        
+        # 直接ファイル名が指定された場合はそのまま返す
+        if self.is_valid_bgm_filename(scene_name):
+            if self.debug:
+                print(f"[BGM] 直接ファイル名指定: {scene_name}")
+            return scene_name
+        
+        # 拡張子がない場合、.mp3を自動補完
+        if scene_name and not any(scene_name.lower().endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a']):
+            candidate = f"{scene_name}.mp3"
+            if self.debug:
+                print(f"[BGM] 拡張子自動補完: {scene_name} -> {candidate}")
+            return candidate
+        
+        if self.debug:
+            print(f"[BGM] 無効なBGM名: {scene_name}")
+        return None

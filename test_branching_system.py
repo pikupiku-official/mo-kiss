@@ -15,7 +15,7 @@ def test_branching_system():
     loader = DialogueLoader(debug=True)
     
     # E001_test.ksファイルを読み込み
-    ks_file_path = os.path.join("events", "E001_test.ks")
+    ks_file_path = os.path.join("events", "E001.ks")
     dialogue_data = loader.load_dialogue_from_ks(ks_file_path)
     
     print(f"\n📝 読み込み結果: {len(dialogue_data)}個のエントリー")

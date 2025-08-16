@@ -7,10 +7,80 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
-[bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[BGM bgm="school" volume="0" loop="true"]
+[bg_show storage="test.bg.southexit"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
+
+
+[chara_show name="T03_00_00"　eye="F03_En00_00" mouth="F03_Mn00_00" brow="F03_Bn00_00" cheek="" x="0.5" y="0.5" size="1.5" blink="true"]
+
+//ナレ//
+「見慣れた中央線の車窓から流れる風景イキスギ」
+「すっかり通いなれた国分寺駅も」
+「どこか気に入っているのかもしれない」
+[BGM bgm="電車のドアが開く1.mp3" volume="0.5" ]
+「少し汗ばんだ風を感じて」
+「いつもの通学路を歩けばふと」
+「朝にはふさわしくない声が聞こえた気がした」
+
+[fadeout color="black"]
+
+//{苗字}//
+「...んご...だんご...だんご三兄弟~」
+「お!純一だっちゅーの!!」
+
+
+[fadein time="1.5"]
+
+//純一//
+「(なんで朝からこいつの顔なんて...)」
+「(ここは一旦...知らない顔をさせていただこう)」
+//{苗字}//
+「おーい!無視すんなって!この{フルネーム}をサァ...」
+//純一//
+「朝っぱらから元気すぎるんだよ、お前は!」
+「(そう、こいつは{フルネーム}。彼は高校からの友人で...)」
+//増田//
+「まったく、つれない顔すんじゃないよもう」
+//純一//
+「そうはいっても、朝の通学路なんてだなぁ...」
+//桃子//
+「じゅんいちーー!」
+「おはよー!」
+[BGM bgm="03 Hizashi.mp3" volume="0.5" loop="true"]
+//純一//
+「桃子か、珍しくゆっくりだね」
+「(朝から元気いっぱいのこいつは幼馴染の愛沼桃子)」
+「(僕とは小学生以来の幼馴染で、増田と共に一緒のクラスだ)」
+//桃子//
+「家族で古畑任三郎観て夜更かししちゃったんだー、ふわぁ~」
+//増田//
+「え、でも古畑は火曜でしょ?」
+「まさか、わざわざ録画して見てるの?」
+//桃子//
+「うん!うちはみんな三谷幸喜大好きでね~」
+//増田//
+「愛沼のとこは家族みんな相変わらず仲良しだねぇ」
+「えへへ...」
+//純一//
+「やれやれ...」
+「...それよりテニス部は今日朝練ないのか?」
+「えっ!いっけない」
+//桃子//
+「それじゃ先行くね!ばいばーい!」
+//増田//
+「...結局、俺ら二人ってことだな!」
+//純一//
+「なんてこった...」
+//増田//
+「よし、そうと決まればLOVEマシーンでも歌ってくか？」
+//純一//
+「勘弁してくれよぉ...」
+
+
+
+[BGM bgm="05 Mabayui Hibi.mp3" volume="0.5" loop="true"]
+
+[chara_show name="T04_00_00"　eye="F04_Ea00_00" mouth="F04_Ma00_00" brow="F04_Ba00_00" cheek="" x="0.5" y="0.5" size="0.4"]
 	
 [choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
 
@@ -22,15 +92,15 @@
 
 [choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
 
-[chara_move subm="桃子" time="400" left="0.1" top="0.02" zoom="3"]
+[chara_move subm="T04_00_00" time="400" left="0.1" top="0.02" zoom="1.0"]
 
 	//桃子//
 	「会話の2番目の部分です。」
 	[scroll-stop]
 
 
-[bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move subm="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
+[bg_move storage="test.bg.school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
+[chara_move subm="T04_00_00" time="1000" left="-0.2" top="0" zoom="0.6"]
 
 	//桃子//
 	「言葉は想像力を運ぶ電車です。」
@@ -41,14 +111,14 @@
 *scene2|&f.title+"教室のシーン"
 [resetlaypos]
 
-[bg_show storage="classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
-[BGM bgm="classroom" volume="0" loop="true"]
+[bg_show storage="test.bg.classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
+[BGM bgm="maou_bgm_piano41" volume="0.5" loop="true"]
 
 	//桃子//
 	「別の場面に移動しました。」
 	[scroll-stop]
 
-[chara_show name="サナコ"　eye="eye2" mouth="mouth2" x="0.2" y="0.2"]
+[chara_show name="T08_00_00"　eye="F08_En00_02" mouth="F08_Ma00_00" brow="F08_Bn00_00" cheek="F08_Ce00_00" x="0.2" y="0.2" size="0.3"]
 
 	//桃子//
 	「わかる人にしかわからない、快速みたいな言葉もあって、一番言葉の集まる駅にしか止まらない、新幹線みたいな言葉もあります。」
@@ -62,8 +132,8 @@
 
 [chara_hide subh="桃子"]
 
-[bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
-[chara_move subm="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
+[bg_move storage="test.bg.classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
+[chara_move subm="T08_00_00" time="600" left="0.1" top="0.1" zoom="1.7"]
 
 	//サナコ//
 	「ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。」
