@@ -1,5 +1,6 @@
 import pygame
 from bgm_manager import BGMManager
+from se_manager import SEManager
 from .dialogue_loader import DialogueLoader
 from image_manager import ImageManager
 from .text_renderer import TextRenderer
@@ -21,6 +22,7 @@ def initialize_game():
 
     # 各マネージャーの初期化
     bgm_manager = BGMManager(DEBUG)
+    se_manager = SEManager(DEBUG)
     dialogue_loader = DialogueLoader(DEBUG)
     image_manager = ImageManager(DEBUG)
     text_renderer = TextRenderer(screen, DEBUG)
@@ -133,6 +135,7 @@ def initialize_game():
     game_state = {
         'screen': screen,
         'bgm_manager': bgm_manager,
+        'se_manager': se_manager,
         'dialogue_loader': dialogue_loader,
         'image_manager': image_manager,
         'text_renderer': text_renderer,
@@ -176,7 +179,12 @@ def initialize_first_scene(game_state):
     # 最初のBGMを再生
     bgm_success = _initialize_bgm(game_state)
     if DEBUG:
-        print(f"BGM初期化結果: {'成功' if bgm_success else '失敗'}") 
+        print(f"BGM初期化結果: {'成功' if bgm_success else '失敗'}")
+    
+    # 最初のSEを再生
+    se_success = _initialize_se(game_state)
+    if DEBUG:
+        print(f"SE初期化結果: {'成功' if se_success else '失敗'}") 
     
     # 最初のテキストを設定
     if game_state['dialogue_data']:
@@ -231,6 +239,44 @@ def _initialize_bgm(game_state):
     
     return False
 
+def _initialize_se(game_state):
+    """SEの初期化を行う（内部関数）"""
+    se_manager = game_state['se_manager']
+    dialogue_data = game_state['dialogue_data']
+    
+    # 会話データからSEを探す
+    se_from_dialogue = None
+    for entry in dialogue_data:
+        if len(entry) > 8 and entry[8]:  # SE情報がある場合（インデックス8）
+            se_from_dialogue = entry[8]
+            break
+    
+    # SEの再生を試行
+    if se_from_dialogue:
+        if DEBUG:
+            print(f"会話データからSEを発見: {se_from_dialogue}")
+        
+        # ファイル名を正規化（拡張子自動補完）
+        actual_se_filename = se_manager.get_se_for_scene(se_from_dialogue)
+        
+        if actual_se_filename:
+            try:
+                se_manager.play_se(actual_se_filename)
+                if DEBUG:
+                    print(f"SE再生成功: {actual_se_filename}")
+                return True
+            except Exception as e:
+                print(f"指定されたSEの再生に失敗: {actual_se_filename}, エラー: {e}")
+        else:
+            if DEBUG:
+                print(f"無効なSEファイル名: {se_from_dialogue}")
+    
+    # SEが指定されていない場合はサウンドなしで続行
+    if DEBUG:
+        print("SEが指定されていません。サウンドなしで続行します。")
+    
+    return False
+
 def change_bgm(game_state, bgm_filename, volume=0.1):
     """BGMを変更する"""
     if not bgm_filename:
@@ -262,6 +308,33 @@ def change_bgm(game_state, bgm_filename, volume=0.1):
         return True
     except Exception as e:
         print(f"BGMの変更に失敗しました: {actual_bgm_filename}, エラー: {e}")
+        return False
+
+def change_se(game_state, se_filename, volume=0.7):
+    """SEを再生する"""
+    if not se_filename:
+        if DEBUG:
+            print("SEファイル名が指定されていません")
+        return False
+    
+    se_manager = game_state['se_manager']
+    
+    # ファイル名を正規化（拡張子自動補完）
+    actual_se_filename = se_manager.get_se_for_scene(se_filename)
+    
+    if not actual_se_filename:
+        if DEBUG:
+            print(f"無効なSEファイル名: {se_filename}")
+        return False
+    
+    # SEを再生
+    try:
+        se_manager.play_se(actual_se_filename, volume)
+        if DEBUG:
+            print(f"SEを再生しました: {actual_se_filename}")
+        return True
+    except Exception as e:
+        print(f"SEの再生に失敗しました: {actual_se_filename}, エラー: {e}")
         return False
 
 def handle_background_command(game_state, dialogue_text):
@@ -296,6 +369,22 @@ def process_dialogue_entry(game_state, entry):
         return False
     
     dialogue_text = entry[5]  # テキスト部分
+    
+    # BGM処理（インデックス7）
+    if len(entry) > 7 and entry[7]:
+        bgm_filename = entry[7]
+        if bgm_filename != 'none' and bgm_filename.strip():
+            change_bgm(game_state, bgm_filename)
+            if DEBUG:
+                print(f"BGM変更: {bgm_filename}")
+    
+    # SE処理（インデックス8）
+    if len(entry) > 8 and entry[8]:
+        se_filename = entry[8]
+        if se_filename != 'none' and se_filename.strip():
+            change_se(game_state, se_filename)
+            if DEBUG:
+                print(f"SE再生: {se_filename}")
     
     # コマンド系の処理
     if dialogue_text and dialogue_text.startswith("_"):
