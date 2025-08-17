@@ -289,20 +289,48 @@ class DialogueLoader:
                             print(f"キャラクター解析エラー（行 {line_num}）: {e} - {line}")
                     
                 # BGM一時停止を検出（[BGM より前にチェック）
-                elif "[BGMSTOP]" in line:
-                    if self.debug:
-                        print(f"BGM一時停止コマンド検出")
-                    dialogue_data.append({
-                        'type': 'bgm_pause'
-                    })
+                elif "[BGMSTOP" in line:
+                    try:
+                        time_match = re.search(r'time="([^"]+)"', line)
+                        fade_time = float(time_match.group(1)) if time_match else 0.0
+                        
+                        if self.debug:
+                            print(f"BGM一時停止コマンド検出: fade_time={fade_time}")
+                        
+                        dialogue_data.append({
+                            'type': 'bgm_pause',
+                            'fade_time': fade_time
+                        })
+                    except Exception as e:
+                        if self.debug:
+                            print(f"BGMSTOP解析エラー（行 {line_num}）: {e} - {line}")
+                        # エラーの場合はフェードなしで追加
+                        dialogue_data.append({
+                            'type': 'bgm_pause',
+                            'fade_time': 0.0
+                        })
                 
                 # BGM再生開始を検出（[BGM より前にチェック）
-                elif "[BGMSTART]" in line:
-                    if self.debug:
-                        print(f"BGM再生開始コマンド検出")
-                    dialogue_data.append({
-                        'type': 'bgm_unpause'
-                    })
+                elif "[BGMSTART" in line:
+                    try:
+                        time_match = re.search(r'time="([^"]+)"', line)
+                        fade_time = float(time_match.group(1)) if time_match else 0.0
+                        
+                        if self.debug:
+                            print(f"BGM再生開始コマンド検出: fade_time={fade_time}")
+                        
+                        dialogue_data.append({
+                            'type': 'bgm_unpause',
+                            'fade_time': fade_time
+                        })
+                    except Exception as e:
+                        if self.debug:
+                            print(f"BGMSTART解析エラー（行 {line_num}）: {e} - {line}")
+                        # エラーの場合はフェードなしで追加
+                        dialogue_data.append({
+                            'type': 'bgm_unpause',
+                            'fade_time': 0.0
+                        })
                 
                 # BGM設定を検出
                 elif "[BGM" in line:
