@@ -108,9 +108,12 @@
 
 ### BGMの一時停止と再生
 ```
-[BGMSTOP]
-[BGMSTART]
+[BGMSTOP time="5"]
+[BGMSTART time="5"]
 ```
+
+**パラメータ:**
+- `time`: フェード時間
 
 ### SEの再生
 ```
