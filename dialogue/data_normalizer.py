@@ -82,24 +82,30 @@ def normalize_dialogue_data(raw_data):
             # デバッグ出力削除
             
         elif entry_type == 'bgm_pause':
-            # BGM一時停止コマンドを正規化形式で追加
-            bgm_pause_command = "_BGM_PAUSE"
+            # BGM一時停止コマンドを辞書形式で保持してフェードタイム情報を含める
+            bgm_pause_data = {
+                'type': 'bgm_pause',
+                'fade_time': entry.get('fade_time', 0.0)
+            }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
-                bgm_pause_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                "_BGM_PAUSE", current_bgm, current_bgm_volume, current_bgm_loop, current_char, False, bgm_pause_data
             ])
             if DEBUG:
-                print(f"BGM一時停止コマンド追加")
+                print(f"BGM一時停止コマンド追加: fade_time={entry.get('fade_time', 0.0)}")
                 
         elif entry_type == 'bgm_unpause':
-            # BGM再生開始コマンドを正規化形式で追加
-            bgm_unpause_command = "_BGM_UNPAUSE"
+            # BGM再生開始コマンドを辞書形式で保持してフェードタイム情報を含める
+            bgm_unpause_data = {
+                'type': 'bgm_unpause',
+                'fade_time': entry.get('fade_time', 0.0)
+            }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
-                bgm_unpause_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                "_BGM_UNPAUSE", current_bgm, current_bgm_volume, current_bgm_loop, current_char, False, bgm_unpause_data
             ])
             if DEBUG:
-                print(f"BGM再生開始コマンド追加")
+                print(f"BGM再生開始コマンド追加: fade_time={entry.get('fade_time', 0.0)}")
                 
         elif entry_type == 'se':
             # SE再生コマンドを正規化形式で追加
