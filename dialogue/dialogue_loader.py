@@ -1,7 +1,18 @@
 import re
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from bgm_manager import BGMManager
 from config import *
+
+# aiofilesの条件付きインポート
+try:
+    import aiofiles
+    AIOFILES_AVAILABLE = True
+except ImportError:
+    AIOFILES_AVAILABLE = False
+    if os.environ.get('DIALOGUE_DEBUG'):
+        print("aiofiles not available - using ThreadPoolExecutor fallback")
 
 class DialogueLoader:
     def __init__(self, debug=False):
@@ -18,6 +29,10 @@ class DialogueLoader:
         # ストーリーフラグ管理システム
         self.story_flags = {}
         self.load_story_flags()
+        
+        # 非同期処理用
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.loading_tasks = {}  # ファイル読み込み中のタスク管理
 
     def _wrap_text_and_count_lines(self, text):
         """テキストを26文字で自動改行し、行数を返す"""
@@ -74,6 +89,74 @@ class DialogueLoader:
             else:
                 print(f"{filename}の読み込みに失敗しました: {e}")
                 return self.get_default_dialogue()
+    
+    async def load_dialogue_from_ks_async(self, filename):
+        """非同期で.ksファイルから対話データを読み込む"""
+        try:
+            # 既に読み込み中かチェック
+            if filename in self.loading_tasks:
+                if self.debug:
+                    print(f"ファイル読み込み待機中: {filename}")
+                return await self.loading_tasks[filename]
+            
+            # 非同期読み込みタスクを作成
+            task = asyncio.create_task(self._load_dialogue_async_worker(filename))
+            self.loading_tasks[filename] = task
+            
+            try:
+                result = await task
+                return result
+            finally:
+                # タスク完了後はリストから削除
+                if filename in self.loading_tasks:
+                    del self.loading_tasks[filename]
+                    
+        except Exception as e:
+            if self.debug:
+                print(f"非同期ファイル読み込みエラー: '{filename}': {e}")
+            return self.get_default_dialogue()
+    
+    async def _load_dialogue_async_worker(self, filename):
+        """非同期ファイル読み込みワーカー"""
+        try:
+            # ファイルの存在確認
+            if not await asyncio.to_thread(os.path.exists, filename):
+                if self.debug:
+                    print(f"エラー: ファイル '{filename}' が見つかりません。カレントディレクトリ: {os.getcwd()}")
+                return self.get_default_dialogue()
+            
+            # aiofilesを使って非同期でファイル読み込み
+            if AIOFILES_AVAILABLE:
+                try:
+                    async with aiofiles.open(filename, 'r', encoding='utf-8') as f:
+                        content = await f.read()
+                except Exception as e:
+                    if self.debug:
+                        print(f"aiofilesでの読み込みに失敗。ThreadPoolExecutorにフォールバック: {e}")
+                    content = await asyncio.to_thread(self._read_file_sync, filename)
+            else:
+                # aiofilesが利用できない場合は、通常のファイル読み込みを別スレッドで実行
+                if self.debug:
+                    print("aiofilesが利用できません。ThreadPoolExecutorでファイル読み込み")
+                content = await asyncio.to_thread(self._read_file_sync, filename)
+            
+            # パース処理を別スレッドで実行（CPU集約的な処理のため）
+            dialogue_data = await asyncio.to_thread(self._parse_ks_content, content)
+            
+            if self.debug:
+                print(f"非同期読み込み完了: {len(dialogue_data)} 個の対話エントリーが解析されました")
+                
+            return dialogue_data
+            
+        except Exception as e:
+            if self.debug:
+                print(f"非同期ファイル読み込みワーカーエラー: '{filename}': {e}")
+            return self.get_default_dialogue()
+    
+    def _read_file_sync(self, filename):
+        """同期的なファイル読み込み（フォールバック用）"""
+        with open(filename, 'r', encoding='utf-8') as f:
+            return f.read()
         
     def get_default_dialogue(self):
         """デフォルトの対話データを辞書形式で返す"""
@@ -750,6 +833,47 @@ class DialogueLoader:
             if self.debug:
                 print(f"❌ ストーリーフラグ保存エラー: {e}")
     
+    async def save_story_flags_async(self):
+        """ストーリーフラグを非同期で保存"""
+        import json
+        flags_file = os.path.join("events", "story_flags.json")
+        
+        try:
+            # eventsディレクトリが存在しない場合は作成
+            await asyncio.to_thread(os.makedirs, "events", exist_ok=True)
+            
+            # JSON文字列作成を別スレッドで実行
+            json_content = await asyncio.to_thread(
+                json.dumps, 
+                self.story_flags, 
+                ensure_ascii=False, 
+                indent=2
+            )
+            
+            # ファイル書き込みを非同期で実行
+            if AIOFILES_AVAILABLE:
+                try:
+                    async with aiofiles.open(flags_file, 'w', encoding='utf-8') as f:
+                        await f.write(json_content)
+                except Exception as e:
+                    if self.debug:
+                        print(f"aiofilesでの書き込みに失敗。ThreadPoolExecutorにフォールバック: {e}")
+                    await asyncio.to_thread(self._write_file_sync, flags_file, json_content)
+            else:
+                # aiofilesが利用できない場合は別スレッドで実行
+                await asyncio.to_thread(self._write_file_sync, flags_file, json_content)
+            
+            if self.debug:
+                print(f"✅ ストーリーフラグ非同期保存完了: {len(self.story_flags)}個")
+        except Exception as e:
+            if self.debug:
+                print(f"❌ ストーリーフラグ非同期保存エラー: {e}")
+    
+    def _write_file_sync(self, filepath, content):
+        """同期的なファイル書き込み（フォールバック用）"""
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+    
     def set_story_flag(self, flag_name, value):
         """ストーリーフラグを設定"""
         self.story_flags[flag_name] = value
@@ -861,3 +985,17 @@ class DialogueLoader:
             return self.check_condition(condition)
             
         return None
+    
+    def cleanup(self):
+        """リソースのクリーンアップ"""
+        # 実行中のタスクをキャンセル
+        for task in self.loading_tasks.values():
+            if not task.done():
+                task.cancel()
+        self.loading_tasks.clear()
+        
+        # ExecutorPoolをシャットダウン
+        self.executor.shutdown(wait=False)
+        
+        if self.debug:
+            print("DialogueLoader: リソースクリーンアップ完了")
