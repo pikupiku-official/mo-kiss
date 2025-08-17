@@ -2,6 +2,8 @@ import pygame
 import os
 import threading
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 class BGMManager:
     def __init__(self, debug=False):
@@ -16,6 +18,10 @@ class BGMManager:
         self.paused_bgm = None  # 一時停止したBGMの情報を保持
         self.paused_volume = 0.5
         self.paused_loop = True
+        
+        # 非同期処理用
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.fade_event = threading.Event()  # フェード制御用
 
     def is_valid_bgm_filename(self, filename):
         """BGMファイル名の有効性をチェック"""
@@ -107,25 +113,35 @@ class BGMManager:
             self.fade_thread.join(timeout=1.0)
     
     def _fade_volume(self, target_volume, fade_time):
-        """音量をフェードするスレッド"""
+        """音量をフェードするスレッド（最適化版）"""
         self.is_fading = True
         start_volume = self.current_volume
-        steps = int(fade_time * 10)  # 0.1秒間隔で更新
-        volume_step = (target_volume - start_volume) / steps if steps > 0 else 0
+        
+        # より細かいステップでスムーズなフェード
+        fps = 30  # 30FPSでフェード更新
+        total_steps = max(int(fade_time * fps), 1)
+        step_duration = fade_time / total_steps
+        volume_step = (target_volume - start_volume) / total_steps
         
         try:
-            for i in range(steps):
+            for i in range(total_steps):
                 if not self.is_fading:
                     break
                 
-                self.current_volume = start_volume + (volume_step * (i + 1))
+                # より正確な音量計算
+                progress = (i + 1) / total_steps
+                # イージング関数を適用（より自然なフェード）
+                eased_progress = self._ease_in_out(progress)
+                self.current_volume = start_volume + (target_volume - start_volume) * eased_progress
                 self.current_volume = max(0.0, min(1.0, self.current_volume))
+                
                 pygame.mixer.music.set_volume(self.current_volume)
                 
-                if self.debug:
-                    print(f"フェード中: {self.current_volume:.2f}")
+                if self.debug and i % 10 == 0:  # デバッグ出力を減らす
+                    print(f"フェード中: {self.current_volume:.2f} ({progress:.1%})")
                 
-                time.sleep(0.1)
+                # より正確なタイミング
+                time.sleep(step_duration)
             
             # 最終音量に設定
             if self.is_fading:
@@ -142,6 +158,10 @@ class BGMManager:
                 print(f"フェードエラー: {e}")
         finally:
             self.is_fading = False
+    
+    def _ease_in_out(self, t):
+        """イージング関数（スムーズなフェード用）"""
+        return 3 * t * t - 2 * t * t * t
     
     def _fade_volume_for_pause(self, target_volume, fade_time):
         """一時停止用の音量フェード（BGMを停止せずに音量だけ下げる）"""
@@ -265,3 +285,75 @@ class BGMManager:
         if self.debug:
             print(f"[BGM] 無効なBGM名: {scene_name}")
         return None
+    
+    async def fade_out_async(self, fade_time=1.0):
+        """BGMを非同期でフェードアウト"""
+        self._stop_fade()
+        if self.debug:
+            print(f"BGM非同期フェードアウト開始: {fade_time}秒")
+        
+        await asyncio.to_thread(self._fade_volume, 0.0, fade_time)
+    
+    async def fade_in_async(self, target_volume=None, fade_time=1.0):
+        """BGMを非同期でフェードイン"""
+        if target_volume is None:
+            target_volume = self.target_volume
+        
+        self._stop_fade()
+        if self.debug:
+            print(f"BGM非同期フェードイン開始: {fade_time}秒, 目標音量: {target_volume}")
+        
+        # 現在の音量を0に設定してから開始
+        self.current_volume = 0.0
+        pygame.mixer.music.set_volume(0.0)
+        
+        await asyncio.to_thread(self._fade_volume, target_volume, fade_time)
+    
+    async def pause_bgm_with_fade_async(self, fade_time=1.0):
+        """BGMを非同期でフェードアウトして一時停止"""
+        if not self.current_bgm:
+            return
+            
+        # 一時停止情報を保存
+        self.paused_bgm = self.current_bgm
+        self.paused_volume = self.target_volume
+        self.paused_loop = True
+        self.is_paused = True
+        
+        if self.debug:
+            print(f"BGM非同期フェードアウト一時停止: {fade_time}秒")
+        
+        await asyncio.to_thread(self._fade_volume_for_pause, 0.0, fade_time)
+    
+    async def unpause_bgm_with_fade_async(self, fade_time=1.0):
+        """BGMを非同期でフェードインして再開"""
+        if not self.is_paused or not self.paused_bgm:
+            if self.debug:
+                print("再開するBGMがありません")
+            return
+        
+        # BGMが停止している場合は再度読み込んで再生
+        if not self.current_bgm:
+            if self.debug:
+                print(f"BGMを再読み込みして再生: {self.paused_bgm}")
+            self.play_bgm(self.paused_bgm, 0.0, self.paused_loop)
+        else:
+            pygame.mixer.music.unpause()
+        
+        # フェードイン
+        await asyncio.to_thread(self._fade_volume, self.paused_volume, fade_time)
+        self.is_paused = False
+        
+        if self.debug:
+            print(f"BGM非同期フェードイン再開: {fade_time}秒, 目標音量: {self.paused_volume}")
+    
+    def cleanup(self):
+        """リソースのクリーンアップ"""
+        # フェード処理を停止
+        self._stop_fade()
+        
+        # ExecutorPoolをシャットダウン
+        self.executor.shutdown(wait=False)
+        
+        if self.debug:
+            print("BGMManager: リソースクリーンアップ完了")

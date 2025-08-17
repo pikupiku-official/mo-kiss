@@ -1,7 +1,10 @@
 import pygame
 import os
 import warnings
+import asyncio
+import threading
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from config import get_textbox_position, get_ui_button_positions
 
 class ImageManager:
@@ -18,25 +21,39 @@ class ImageManager:
             'face_part': None  # 顔パーツは元サイズを維持
         }
         
+        # 非同期処理用
+        self.executor = ThreadPoolExecutor(max_workers=2)
+        self.loading_tasks = {}  # 読み込み中タスクの管理
+        self.lock = threading.Lock()  # キャッシュ操作の同期
+        
         # libpng警告を抑制
         warnings.filterwarnings("ignore", message=".*iCCP.*")
         warnings.filterwarnings("ignore", message=".*cHRM.*")
 
     def _manage_cache(self, cache_key, image):
-        """LRUキャッシュの管理"""
-        if cache_key in self.image_cache:
-            # 既存のキーを最新に移動
-            self.image_cache.move_to_end(cache_key)
-        else:
-            # 新しいアイテムを追加
-            self.image_cache[cache_key] = image
-            
-            # キャッシュサイズを超えた場合、最も古いアイテムを削除
-            if len(self.image_cache) > self.cache_size:
-                oldest_key = next(iter(self.image_cache))
-                del self.image_cache[oldest_key]
-                if self.debug:
-                    print(f"キャッシュから削除: {oldest_key}")
+        """LRUキャッシュの管理（スレッドセーフ）"""
+        with self.lock:
+            if cache_key in self.image_cache:
+                # 既存のキーを最新に移動
+                self.image_cache.move_to_end(cache_key)
+            else:
+                # 新しいアイテムを追加
+                self.image_cache[cache_key] = image
+                
+                # キャッシュサイズを超えた場合、最も古いアイテムを削除
+                if len(self.image_cache) > self.cache_size:
+                    oldest_key = next(iter(self.image_cache))
+                    del self.image_cache[oldest_key]
+                    if self.debug:
+                        print(f"キャッシュから削除: {oldest_key}")
+    
+    def _get_from_cache(self, cache_key):
+        """キャッシュから画像を取得（スレッドセーフ）"""
+        with self.lock:
+            if cache_key in self.image_cache:
+                self.image_cache.move_to_end(cache_key)  # LRU更新
+                return self.image_cache[cache_key]
+            return None
 
     def _get_optimal_size(self, filepath, requested_size=None):
         """画像の最適なサイズを決定"""
@@ -69,6 +86,94 @@ class ImageManager:
             return None
             
         return self._load_image_immediately(filepath, optimal_size, cache_key)
+    
+    async def load_image_async(self, filepath, size=None):
+        """画像を非同期で読み込む"""
+        optimal_size = self._get_optimal_size(filepath, size)
+        cache_key = f"{filepath}_{optimal_size if optimal_size else 'original'}"
+        
+        # キャッシュから確認
+        cached_image = self._get_from_cache(cache_key)
+        if cached_image:
+            return cached_image
+        
+        # 既に読み込み中かチェック
+        if cache_key in self.loading_tasks:
+            if self.debug:
+                print(f"画像読み込み待機中: {filepath}")
+            return await self.loading_tasks[cache_key]
+        
+        # 非同期で読み込み開始
+        if self.debug:
+            print(f"画像を非同期読み込み開始: {filepath}")
+        
+        task = asyncio.create_task(self._load_image_async_worker(filepath, optimal_size, cache_key))
+        self.loading_tasks[cache_key] = task
+        
+        try:
+            result = await task
+            return result
+        finally:
+            # タスク完了後はリストから削除
+            if cache_key in self.loading_tasks:
+                del self.loading_tasks[cache_key]
+    
+    async def _load_image_async_worker(self, filepath, size, cache_key):
+        """画像読み込みワーカー"""
+        loop = asyncio.get_event_loop()
+        
+        try:
+            # ファイル存在チェックを非同期で実行
+            exists = await loop.run_in_executor(self.executor, os.path.exists, filepath)
+            if not exists:
+                if self.debug:
+                    print(f"警告: 画像ファイルが見つかりません: {filepath}")
+                return None
+            
+            # 画像読み込みを別スレッドで実行
+            image = await loop.run_in_executor(
+                self.executor, 
+                self._load_image_sync, 
+                filepath, 
+                size
+            )
+            
+            if image:
+                # キャッシュに保存
+                self._manage_cache(cache_key, image)
+                if self.debug:
+                    print(f"画像読み込み完了: {filepath}")
+            
+            return image
+            
+        except Exception as e:
+            if self.debug:
+                print(f"非同期画像読み込みエラー: {filepath}: {e}")
+            return None
+    
+    def _load_image_sync(self, filepath, size):
+        """同期的な画像読み込み（スレッド内で実行）"""
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                image = pygame.image.load(filepath)
+                image = image.convert_alpha()
+            
+            if size and isinstance(size, tuple) and len(size) == 2:
+                original_size = image.get_size()
+                if original_size != size:
+                    image = pygame.transform.scale(image, size)
+            
+            return image
+            
+        except pygame.error as e:
+            if self.debug:
+                print(f"pygame読み込みエラー: {filepath}: {e}")
+            return None
+        except Exception as e:
+            if self.debug:
+                print(f"画像読み込みエラー: {filepath}: {e}")
+            return None
     
     def _load_image_immediately(self, filepath, size, cache_key):
         """画像を即座に読み込む"""
@@ -122,6 +227,13 @@ class ImageManager:
             # キャッシュにない場合、即座にロード
             return self._load_image_immediately(filepath, optimal_size, cache_key)
             
+        return None
+    
+    async def get_image_async(self, image_type, image_key, size=None):
+        """画像を非同期で取得"""
+        if image_type in self.image_paths and image_key in self.image_paths[image_type]:
+            filepath = self.image_paths[image_type][image_key]
+            return await self.load_image_async(filepath, size)
         return None
 
     def center_part(self, part, position):
@@ -292,6 +404,39 @@ class ImageManager:
                     if part_img and self.debug:
                         print(f"顔パーツロード完了: {part_type}/{part_name}")
     
+    async def preload_character_set_async(self, character_name, face_parts=None):
+        """キャラクターと関連顔パーツを非同期で事前ロード"""
+        if self.debug:
+            print(f"キャラクター非同期事前ロード開始: {character_name}")
+        
+        # 非同期タスクのリスト
+        tasks = []
+        
+        # キャラクターメイン画像をロード
+        if "characters" in self.image_paths and character_name in self.image_paths["characters"]:
+            tasks.append(self.get_image_async("characters", character_name))
+        
+        # 顔パーツをロード
+        if face_parts:
+            for part_type, part_names in face_parts.items():
+                if part_type in ["eyes", "mouths", "brows", "cheeks"]:
+                    if isinstance(part_names, list):
+                        for part_name in part_names:
+                            if part_name:
+                                tasks.append(self.get_image_async(part_type, part_name))
+                    elif part_names:
+                        tasks.append(self.get_image_async(part_type, part_names))
+        
+        # 全ての読み込みタスクを並行実行
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            if self.debug:
+                success_count = sum(1 for r in results if r is not None and not isinstance(r, Exception))
+                print(f"キャラクター非同期事前ロード完了: {character_name} ({success_count}/{len(tasks)} 成功)")
+        
+        return True
+    
     def preload_characters_from_dialogue(self, dialogue_data):
         """対話データからキャラクターを抽出して事前ロード"""
         if not dialogue_data:
@@ -357,5 +502,20 @@ class ImageManager:
         return {
             'cache_size': len(self.image_cache),
             'max_cache_size': self.cache_size,
-            'cache_hit_ratio': getattr(self, '_cache_hits', 0) / max(getattr(self, '_cache_requests', 1), 1)
+            'cache_hit_ratio': getattr(self, '_cache_hits', 0) / max(getattr(self, '_cache_requests', 1), 1),
+            'loading_tasks': len(self.loading_tasks)
         }
+    
+    def cleanup(self):
+        """リソースのクリーンアップ"""
+        # 実行中のタスクをキャンセル
+        for task in self.loading_tasks.values():
+            if not task.done():
+                task.cancel()
+        self.loading_tasks.clear()
+        
+        # ExecutorPoolをシャットダウン
+        self.executor.shutdown(wait=False)
+        
+        if self.debug:
+            print("ImageManager: リソースクリーンアップ完了")
