@@ -70,11 +70,11 @@ def advance_dialogue(game_state):
     
     # BGM一時停止コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BGM_PAUSE"):
-        return _handle_bgm_pause(game_state)
+        return _handle_bgm_pause(game_state, current_dialogue)
     
     # BGM再生開始コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BGM_UNPAUSE"):
-        return _handle_bgm_unpause(game_state)
+        return _handle_bgm_unpause(game_state, current_dialogue)
     
     else:
         # 通常の対話テキスト
@@ -514,17 +514,34 @@ def _handle_se_play(game_state, dialogue_text):
     # SE再生コマンドの場合は次の対話に進む
     return advance_dialogue(game_state)
 
-def _handle_bgm_pause(game_state):
+def _handle_bgm_pause(game_state, current_dialogue):
     """BGM一時停止コマンドを処理"""
+    # フェードタイム情報を取得
+    fade_time = 0.0
+    
+    # 正規化されたデータの場合（リスト形式）
+    if isinstance(current_dialogue, list) and len(current_dialogue) > 12:
+        bgm_data = current_dialogue[12]
+        if isinstance(bgm_data, dict):
+            fade_time = bgm_data.get('fade_time', 0.0)
+    # 辞書形式の場合
+    elif isinstance(current_dialogue, dict):
+        fade_time = current_dialogue.get('fade_time', 0.0)
+    
     if DEBUG:
-        print("BGM一時停止コマンド実行")
+        print(f"BGM一時停止コマンド実行: fade_time={fade_time}")
     
     # BGMManagerを使ってBGMを一時停止
     bgm_manager = game_state.get('bgm_manager')
     if bgm_manager:
-        bgm_manager.pause_bgm()
-        if DEBUG:
-            print("BGMを一時停止しました")
+        if fade_time > 0:
+            bgm_manager.pause_bgm_with_fade(fade_time)
+            if DEBUG:
+                print(f"BGMを{fade_time}秒でフェードアウト一時停止しました")
+        else:
+            bgm_manager.pause_bgm()
+            if DEBUG:
+                print("BGMを即座に一時停止しました")
     else:
         if DEBUG:
             print("エラー: BGMManagerが見つかりません")
@@ -532,17 +549,34 @@ def _handle_bgm_pause(game_state):
     # BGM一時停止コマンドの場合は次の対話に進む
     return advance_dialogue(game_state)
 
-def _handle_bgm_unpause(game_state):
+def _handle_bgm_unpause(game_state, current_dialogue):
     """BGM再生開始コマンドを処理"""
+    # フェードタイム情報を取得
+    fade_time = 0.0
+    
+    # 正規化されたデータの場合（リスト形式）
+    if isinstance(current_dialogue, list) and len(current_dialogue) > 12:
+        bgm_data = current_dialogue[12]
+        if isinstance(bgm_data, dict):
+            fade_time = bgm_data.get('fade_time', 0.0)
+    # 辞書形式の場合
+    elif isinstance(current_dialogue, dict):
+        fade_time = current_dialogue.get('fade_time', 0.0)
+    
     if DEBUG:
-        print("BGM再生開始コマンド実行")
+        print(f"BGM再生開始コマンド実行: fade_time={fade_time}")
     
     # BGMManagerを使ってBGMの再生を再開
     bgm_manager = game_state.get('bgm_manager')
     if bgm_manager:
-        bgm_manager.unpause_bgm()
-        if DEBUG:
-            print("BGMの再生を再開しました")
+        if fade_time > 0:
+            bgm_manager.unpause_bgm_with_fade(fade_time)
+            if DEBUG:
+                print(f"BGMを{fade_time}秒でフェードイン再開しました")
+        else:
+            bgm_manager.unpause_bgm()
+            if DEBUG:
+                print("BGMの再生を即座に再開しました")
     else:
         if DEBUG:
             print("エラー: BGMManagerが見つかりません")
