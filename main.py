@@ -131,7 +131,7 @@ class GameApplication:
             if result == "start_game":
                 self.switch_to_map()
             elif result == "dialogue_test":
-                self.switch_to_dialogue("events/E001.ks")
+                self.switch_to_dialogue("events/E004.ks")
             elif result == "quit":
                 self.running = False
 
