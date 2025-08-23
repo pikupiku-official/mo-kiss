@@ -1,6 +1,6 @@
 import pygame
 from .model import advance_dialogue
-from config import get_ui_button_positions, DEBUG
+from config import get_ui_button_positions, DEBUG, FONT_EFFECTS
 from .character_manager import update_character_animations
 from .background_manager import update_background_animation
 from .fade_manager import update_fade_animation
@@ -137,6 +137,46 @@ def handle_events(game_state, screen):
                 if not game_state['backlog_manager'].is_showing_backlog():
                     skip_mode = game_state['text_renderer'].toggle_skip_mode()
                     print(f"スキップモード: {'ON' if skip_mode else 'OFF'}")
+            
+            # フォント効果テスト用キーボードショートカット
+            elif event.key == pygame.K_F1:
+                # F1: 影効果のオン/オフ
+                FONT_EFFECTS["enable_shadow"] = not FONT_EFFECTS.get("enable_shadow", False)
+                shadow_alpha = FONT_EFFECTS.get('shadow_alpha', 128)
+                print(f"🎨 影効果: {'ON (透明度' + str(shadow_alpha) + ')' if FONT_EFFECTS['enable_shadow'] else 'OFF'}")
+                
+            elif event.key == pygame.K_F2:
+                # F2: ピクセル化効果のオン/オフ
+                FONT_EFFECTS["enable_pixelated"] = not FONT_EFFECTS.get("enable_pixelated", False)
+                print(f"🔲 90年代風ピクセル化効果: {'ON (アンチエイリアス無効)' if FONT_EFFECTS['enable_pixelated'] else 'OFF'}")
+                
+            elif event.key == pygame.K_F3:
+                # F3: 横引き延ばし効果のオン/オフ
+                FONT_EFFECTS["enable_stretched"] = not FONT_EFFECTS.get("enable_stretched", False)
+                stretch_factor = FONT_EFFECTS.get('stretch_factor', 1.25)
+                print(f"↔️ 横引き延ばし効果: {'ON (x' + str(stretch_factor) + ')' if FONT_EFFECTS['enable_stretched'] else 'OFF'}")
+                
+            elif event.key == pygame.K_F4:
+                # F4: 全フォント効果のオン/オフ
+                all_on = all([FONT_EFFECTS.get("enable_shadow", False), 
+                             FONT_EFFECTS.get("enable_pixelated", False), 
+                             FONT_EFFECTS.get("enable_stretched", False)])
+                new_state = not all_on
+                FONT_EFFECTS["enable_shadow"] = new_state
+                FONT_EFFECTS["enable_pixelated"] = new_state
+                FONT_EFFECTS["enable_stretched"] = new_state
+                print(f"✨ 全90年代風フォント効果: {'ON' if new_state else 'OFF'}")
+                
+            elif event.key == pygame.K_F5:
+                # F5: フォント効果の現在の状態を表示
+                print("=== 🕹️  90年代風フォント効果状態 ===")
+                print(f"🎨 影効果: {'ON' if FONT_EFFECTS.get('enable_shadow', False) else 'OFF'} (透明度: {FONT_EFFECTS.get('shadow_alpha', 128)})")
+                pixelate_factor = FONT_EFFECTS.get('pixelate_factor', 4)
+                print(f"🔲 ピクセル化: {'ON' if FONT_EFFECTS.get('enable_pixelated', False) else 'OFF'} (1/{pixelate_factor} → {pixelate_factor}倍拡大, アンチエイリアス無効)")
+                stretch_factor = FONT_EFFECTS.get('stretch_factor', 1.25)
+                print(f"↔️  横引き延ばし: {'ON' if FONT_EFFECTS.get('enable_stretched', False) else 'OFF'} (x{stretch_factor})")
+                print("=====================================")
+                print("🎮 操作方法: F1(影), F2(ピクセル化), F3(引き延ばし), F4(全効果), F5(状態表示)")
                         
             elif event.key == pygame.K_RETURN and game_state['show_text']:
                 handle_enter_key(game_state)

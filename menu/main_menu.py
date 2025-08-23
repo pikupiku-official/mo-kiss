@@ -59,7 +59,7 @@ class MainMenu:
             # 絶対パスでフォントを指定
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             font_dir = os.path.join(project_root, "mo-kiss", "fonts")
-            project_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
+            project_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
             project_font_path = os.path.abspath(project_font_path)
             print(f"フォントパスを試行中: {project_font_path}")
             print(f"フォントファイル存在確認: {os.path.exists(project_font_path)}")

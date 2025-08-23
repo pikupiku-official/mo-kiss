@@ -129,7 +129,7 @@ class GameApplication:
             result = self.main_menu.handle_event(event)
             
             if result == "start_game":
-                self.switch_to_map()
+                self.switch_to_dialogue("events/E001.ks")
             elif result == "dialogue_test":
                 self.switch_to_dialogue("events/E004.ks")
             elif result == "quit":

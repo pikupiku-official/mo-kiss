@@ -86,7 +86,7 @@ class TextRenderer:
                 wrapped_lines.append('')
                 continue
             
-            # 26文字ごとに分割
+            # 指定文字数ごとに分割
             current_pos = 0
             while current_pos < len(paragraph):
                 line_end = current_pos + self.max_chars_per_line
@@ -95,7 +95,7 @@ class TextRenderer:
                     wrapped_lines.append(paragraph[current_pos:])
                     break
                 else:
-                    # 26文字で切り取り
+                    # 指定文字数で切り取り
                     wrapped_lines.append(paragraph[current_pos:line_end])
                     current_pos = line_end
         
@@ -125,8 +125,8 @@ class TextRenderer:
             # フォントファイルのパスを設定（プロジェクトルートから）
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             font_dir = os.path.join(project_root, "mo-kiss", "fonts")
-            bold_font_path = os.path.join(font_dir, "MPLUSRounded1c-Bold.ttf")
-            medium_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
+            bold_font_path = os.path.join(font_dir, "MPLUS1p-Bold.ttf")
+            medium_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
 
             fonts = {}
             
@@ -194,6 +194,118 @@ class TextRenderer:
             "text_pygame": pygame.font.SysFont("msgothic", text_size),  # Pygame用
             "name_pygame": pygame.font.SysFont("msgothic", name_size)   # Pygame用
         }
+    
+    def _apply_font_effects(self, text_surface, is_shadow=False):
+        """フォント効果を適用する（影、ピクセル化、引き延ばし）"""
+        if not FONT_EFFECTS:
+            return text_surface
+        
+        processed_surface = text_surface.copy()
+        
+        # 1. ピクセル化効果（完全なドット絵風、影にも適用）
+        if FONT_EFFECTS.get("enable_pixelated", False):
+            original_size = processed_surface.get_size()
+            pixelate_factor = FONT_EFFECTS.get("pixelate_factor", 4)
+            
+            # 完全なドット絵風処理（完全アンチエイリアス無効）
+            small_size = (max(1, original_size[0] // pixelate_factor), 
+                         max(1, original_size[1] // pixelate_factor))
+            
+            # 完全最近傍サンプリング（一切の補間なし）
+            small_surface = pygame.Surface(small_size, pygame.SRCALPHA)
+            small_surface.fill((0, 0, 0, 0))  # 完全透明で初期化
+            
+            # 各ピクセルを直接サンプリング
+            for y in range(small_size[1]):
+                for x in range(small_size[0]):
+                    # 元画像の対応するピクセルを直接取得（補間なし）
+                    src_x = min(x * pixelate_factor, original_size[0] - 1)
+                    src_y = min(y * pixelate_factor, original_size[1] - 1)
+                    pixel_color = processed_surface.get_at((src_x, src_y))
+                    small_surface.set_at((x, y), pixel_color)
+            
+            # 元のサイズに拡大（完全ブロック単位でドット絵風）
+            processed_surface = pygame.Surface(original_size, pygame.SRCALPHA)
+            processed_surface.fill((0, 0, 0, 0))  # 完全透明で初期化
+            
+            # 各小ピクセルをブロック状に拡大
+            for y in range(original_size[1]):
+                for x in range(original_size[0]):
+                    small_x = min(x // pixelate_factor, small_size[0] - 1)
+                    small_y = min(y // pixelate_factor, small_size[1] - 1)
+                    pixel_color = small_surface.get_at((small_x, small_y))
+                    processed_surface.set_at((x, y), pixel_color)
+        
+        # 2. 横引き延ばし効果
+        if FONT_EFFECTS.get("enable_stretched", False):
+            original_size = processed_surface.get_size()
+            stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.25)
+            new_width = int(original_size[0] * stretch_factor)
+            # 完全最近傍補間での横引き延ばし（ドット絵感を維持）
+            stretched_surface = pygame.Surface((new_width, original_size[1]), pygame.SRCALPHA)
+            stretched_surface.fill((0, 0, 0, 0))
+            
+            for y in range(original_size[1]):
+                for x in range(new_width):
+                    src_x = min(int(x / stretch_factor), original_size[0] - 1)
+                    pixel_color = processed_surface.get_at((src_x, y))
+                    stretched_surface.set_at((x, y), pixel_color)
+            
+            processed_surface = stretched_surface
+        
+        return processed_surface
+    
+    def _render_text_with_effects(self, font, text, color, is_name=False):
+        """テキストをエフェクト付きで描画"""
+        # アンチエイリアス設定を決定
+        use_antialiasing = not FONT_EFFECTS.get("enable_pixelated", False)
+        
+        # 通常のテキストを描画（ピクセル化時はアンチエイリアス無効）
+        text_surface = font.render(text, use_antialiasing, color)
+        
+        # 影効果が有効な場合
+        if FONT_EFFECTS.get("enable_shadow", False):
+            shadow_offset = FONT_EFFECTS.get("shadow_offset", (2, 2))
+            shadow_alpha = FONT_EFFECTS.get("shadow_alpha", 128)
+            shadow_color = (255, 0, 0)  # デバッグ用の赤い影
+            
+            # 影を描画（同じアンチエイリアス設定で）
+            shadow_surface = font.render(text, use_antialiasing, shadow_color)
+            shadow_surface = self._apply_font_effects(shadow_surface, is_shadow=True)
+            
+            # テキストにエフェクトを適用
+            text_surface = self._apply_font_effects(text_surface, is_shadow=False)
+            
+            # 最終サーフェスのサイズを計算（エフェクト適用後のサイズで）
+            text_width, text_height = text_surface.get_size()
+            shadow_width, shadow_height = shadow_surface.get_size()
+            
+            # 影とテキストの両方が収まるサイズを計算
+            final_width = max(text_width, shadow_width) + abs(shadow_offset[0])
+            final_height = max(text_height, shadow_height) + abs(shadow_offset[1])
+            
+            # 最終サーフェスを作成
+            final_surface = pygame.Surface((final_width, final_height), pygame.SRCALPHA)
+            final_surface.fill((0, 0, 0, 0))  # 透明で初期化
+            
+            # 影を右下にオフセットして描画
+            shadow_pos = (abs(shadow_offset[0]), abs(shadow_offset[1]))
+            
+            # 影を先に描画（透明度適用）
+            if shadow_alpha > 0:  # 透明度が0より大きい場合のみ描画
+                # 影のサーフェスに透明度を適用
+                temp_shadow = shadow_surface.copy()
+                temp_shadow.set_alpha(shadow_alpha)
+                final_surface.blit(temp_shadow, shadow_pos)
+            
+            # テキストを左上（基準位置）に描画
+            text_pos = (0, 0)
+            final_surface.blit(text_surface, text_pos)
+            
+            return final_surface
+        else:
+            # 影なしの場合はエフェクトのみ適用
+            return self._apply_font_effects(text_surface, is_shadow=False)
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager
@@ -477,7 +589,7 @@ class TextRenderer:
 
         if self.current_character_name and self.current_character_name.strip():
             try:
-                name_surface = self.pygame_fonts["name"].render(self.current_character_name, True, text_color_to_use)
+                name_surface = self._render_text_with_effects(self.pygame_fonts["name"], self.current_character_name, text_color_to_use, is_name=True)
                 self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
             except Exception as e:
                 if self.debug:
@@ -487,7 +599,7 @@ class TextRenderer:
         for single_line in lines_to_draw:
             if single_line: # 空の行は描画しない
                 try:
-                    text_surface = self.pygame_fonts["text"].render(single_line, True, text_color_to_use)
+                    text_surface = self._render_text_with_effects(self.pygame_fonts["text"], single_line, text_color_to_use, is_name=False)
                     self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
@@ -582,7 +694,7 @@ class TextRenderer:
             # 話者名を各行の左側に描画（表示すべき場合のみ）
             if speaker_name_to_show:
                 try:
-                    name_surface = self.pygame_fonts["name"].render(speaker_name_to_show, True, speaker_text_color)
+                    name_surface = self._render_text_with_effects(self.pygame_fonts["name"], speaker_name_to_show, speaker_text_color, is_name=True)
                     self.screen.blit(name_surface, (self.name_start_x, y))
                 except Exception as e:
                     if self.debug:
@@ -591,7 +703,7 @@ class TextRenderer:
             # テキストを描画（この行の話者の色を使用）
             if single_line:  # 空の行は描画しない
                 try:
-                    text_surface = self.pygame_fonts["text"].render(single_line, True, speaker_text_color)
+                    text_surface = self._render_text_with_effects(self.pygame_fonts["text"], single_line, speaker_text_color, is_name=False)
                     self.screen.blit(text_surface, (self.text_start_x, y))
                 except Exception as e:
                     if self.debug:
