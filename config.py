@@ -62,7 +62,7 @@ FONT_EFFECTS = {
     "enable_shadow": True,          # 透明度0の黒い影を有効にする
     "enable_pixelated": True,       # 1/nサイズ→n倍拡大によるピクセル化
     "enable_stretched": True,       # 1.25倍横引き延ばし
-    "shadow_offset": (3, 3),        # 影のオフセット（右下）
+    "shadow_offset": (6, 6),        # 影のオフセット（右下）
     "shadow_alpha": 255,            # 影の透明度（0=完全透明、255=完全不透明）
     "pixelate_factor": 2,           # ピクセル化係数（1/nサイズにしてn倍拡大）
     "stretch_factor": 1.25          # 横引き延ばし係数

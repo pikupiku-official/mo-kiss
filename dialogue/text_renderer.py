@@ -196,81 +196,35 @@ class TextRenderer:
         }
     
     def _apply_font_effects(self, text_surface, is_shadow=False):
-        """フォント効果を適用する（影、ピクセル化、引き延ばし）"""
+        """フォント効果を適用する（横引き延ばし）"""
         if not FONT_EFFECTS:
             return text_surface
         
         processed_surface = text_surface.copy()
         
-        # 1. ピクセル化効果（完全なドット絵風、影にも適用）
-        if FONT_EFFECTS.get("enable_pixelated", False):
-            original_size = processed_surface.get_size()
-            pixelate_factor = FONT_EFFECTS.get("pixelate_factor", 4)
-            
-            # 完全なドット絵風処理（完全アンチエイリアス無効）
-            small_size = (max(1, original_size[0] // pixelate_factor), 
-                         max(1, original_size[1] // pixelate_factor))
-            
-            # 完全最近傍サンプリング（一切の補間なし）
-            small_surface = pygame.Surface(small_size, pygame.SRCALPHA)
-            small_surface.fill((0, 0, 0, 0))  # 完全透明で初期化
-            
-            # 各ピクセルを直接サンプリング
-            for y in range(small_size[1]):
-                for x in range(small_size[0]):
-                    # 元画像の対応するピクセルを直接取得（補間なし）
-                    src_x = min(x * pixelate_factor, original_size[0] - 1)
-                    src_y = min(y * pixelate_factor, original_size[1] - 1)
-                    pixel_color = processed_surface.get_at((src_x, src_y))
-                    small_surface.set_at((x, y), pixel_color)
-            
-            # 元のサイズに拡大（完全ブロック単位でドット絵風）
-            processed_surface = pygame.Surface(original_size, pygame.SRCALPHA)
-            processed_surface.fill((0, 0, 0, 0))  # 完全透明で初期化
-            
-            # 各小ピクセルをブロック状に拡大
-            for y in range(original_size[1]):
-                for x in range(original_size[0]):
-                    small_x = min(x // pixelate_factor, small_size[0] - 1)
-                    small_y = min(y // pixelate_factor, small_size[1] - 1)
-                    pixel_color = small_surface.get_at((small_x, small_y))
-                    processed_surface.set_at((x, y), pixel_color)
-        
-        # 2. 横引き延ばし効果
+        # 横引き延ばし効果
         if FONT_EFFECTS.get("enable_stretched", False):
             original_size = processed_surface.get_size()
             stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.25)
             new_width = int(original_size[0] * stretch_factor)
-            # 完全最近傍補間での横引き延ばし（ドット絵感を維持）
-            stretched_surface = pygame.Surface((new_width, original_size[1]), pygame.SRCALPHA)
-            stretched_surface.fill((0, 0, 0, 0))
-            
-            for y in range(original_size[1]):
-                for x in range(new_width):
-                    src_x = min(int(x / stretch_factor), original_size[0] - 1)
-                    pixel_color = processed_surface.get_at((src_x, y))
-                    stretched_surface.set_at((x, y), pixel_color)
-            
-            processed_surface = stretched_surface
+            stretched_size = (new_width, original_size[1])
+            processed_surface = pygame.transform.scale(processed_surface, stretched_size)
         
         return processed_surface
     
     def _render_text_with_effects(self, font, text, color, is_name=False):
         """テキストをエフェクト付きで描画"""
-        # アンチエイリアス設定を決定
-        use_antialiasing = not FONT_EFFECTS.get("enable_pixelated", False)
-        
-        # 通常のテキストを描画（ピクセル化時はアンチエイリアス無効）
-        text_surface = font.render(text, use_antialiasing, color)
+        # 通常のテキストを描画
+        text_surface = font.render(text, True, color)
         
         # 影効果が有効な場合
         if FONT_EFFECTS.get("enable_shadow", False):
-            shadow_offset = FONT_EFFECTS.get("shadow_offset", (2, 2))
-            shadow_alpha = FONT_EFFECTS.get("shadow_alpha", 128)
-            shadow_color = (255, 0, 0)  # デバッグ用の赤い影
+            shadow_offset = FONT_EFFECTS.get("shadow_offset", (3, 3))
+            shadow_alpha = FONT_EFFECTS.get("shadow_alpha", 255)
+            shadow_color = (0, 0, 0)  # 黒い影
             
-            # 影を描画（同じアンチエイリアス設定で）
-            shadow_surface = font.render(text, use_antialiasing, shadow_color)
+            # 影を描画（影にもエフェクトを適用）
+            shadow_surface = font.render(text, True, shadow_color)
             shadow_surface = self._apply_font_effects(shadow_surface, is_shadow=True)
             
             # テキストにエフェクトを適用
@@ -289,7 +243,7 @@ class TextRenderer:
             final_surface.fill((0, 0, 0, 0))  # 透明で初期化
             
             # 影を右下にオフセットして描画
-            shadow_pos = (abs(shadow_offset[0]), abs(shadow_offset[1]))
+            shadow_pos = (shadow_offset[0], shadow_offset[1])
             
             # 影を先に描画（透明度適用）
             if shadow_alpha > 0:  # 透明度が0より大きい場合のみ描画
