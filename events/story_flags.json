@@ -1,5 +1,6 @@
 {
   "choice": 1,
   "test_flag": true,
-  "async_test": "completed"
+  "async_test": "completed",
+  "choice_1": 4
 }

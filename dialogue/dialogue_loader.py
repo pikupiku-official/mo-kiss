@@ -30,6 +30,16 @@ class DialogueLoader:
         self.story_flags = {}
         self.load_story_flags()
         
+        # 選択肢履歴管理システム
+        self.choice_history = {}  # {ks_file: [choice_indices]}
+        self.current_ks_file = None
+        self.choice_counter = 0
+        
+        # name_managerとの連携を設定
+        from .name_manager import get_name_manager
+        name_manager = get_name_manager()
+        name_manager.set_dialogue_loader(self)
+        
         # 非同期処理用
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loading_tasks = {}  # ファイル読み込み中のタスク管理
@@ -71,6 +81,14 @@ class DialogueLoader:
                 if self.debug:
                     print(f"エラー: ファイル '{filename}' が見つかりません。カレントディレクトリ: {os.getcwd()}")
                 return self.get_default_dialogue()
+            
+            # 新しいKSファイルの場合は履歴をクリア
+            if self.current_ks_file != filename:
+                self.current_ks_file = filename
+                self.choice_history[filename] = []
+                self.choice_counter = 0
+                if self.debug:
+                    print(f"新しいKSファイル読み込み: {filename} - 選択肢履歴をクリア")
             
             with open(filename, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -609,18 +627,15 @@ class DialogueLoader:
                 # [choice]タグを検出
                 elif "[choice" in line:
                     try:
-                        # option1, option2, option3を抽出
-                        option1_match = re.search(r'option1="([^"]+)"', line)
-                        option2_match = re.search(r'option2="([^"]+)"', line)
-                        option3_match = re.search(r'option3="([^"]+)"', line)
-                        
+                        # option1 ～ option9 を抽出
+                        option_pattern = re.compile(r'option(\d+)="([^"]+)"')
+
                         options = []
-                        if option1_match:
-                            options.append(option1_match.group(1))
-                        if option2_match:
-                            options.append(option2_match.group(1))
-                        if option3_match:
-                            options.append(option3_match.group(1))
+                        for match in option_pattern.finditer(line):
+                            idx = int(match.group(1))
+                            if 1 <= idx <= 9:
+                                options.append(match.group(2))
+
                         
                         if len(options) >= 2:  # 最低2つの選択肢が必要
                             if self.debug:
@@ -885,6 +900,49 @@ class DialogueLoader:
         """ストーリーフラグを取得"""
         return self.story_flags.get(flag_name, default)
     
+    def record_choice(self, choice_index, choice_text):
+        """選択肢の記録（0ベースのインデックス）"""
+        if self.current_ks_file:
+            self.choice_counter += 1
+            choice_number = self.choice_counter
+            
+            # 履歴に追加
+            if self.current_ks_file not in self.choice_history:
+                self.choice_history[self.current_ks_file] = []
+            
+            choice_record = {
+                'number': choice_number,
+                'index': choice_index,
+                'text': choice_text
+            }
+            self.choice_history[self.current_ks_file].append(choice_record)
+            
+            # フラグとして保存（条件分岐で使用可能）
+            flag_name = f"choice_{choice_number}"
+            self.set_story_flag(flag_name, choice_index + 1)  # 1ベースで保存
+            
+            if self.debug:
+                print(f"選択肢記録: {flag_name} = {choice_index + 1} ('{choice_text}')")
+            
+            return choice_number
+        return None
+    
+    def get_choice_text(self, choice_number):
+        """選択肢番号から選択肢テキストを取得"""
+        if self.current_ks_file and self.current_ks_file in self.choice_history:
+            for choice in self.choice_history[self.current_ks_file]:
+                if choice['number'] == choice_number:
+                    return choice['text']
+        return f"{{選択肢{choice_number}}}"  # フォールバック
+    
+    def clear_current_file_choices(self):
+        """現在のファイルの選択肢履歴をクリア"""
+        if self.current_ks_file:
+            self.choice_history[self.current_ks_file] = []
+            self.choice_counter = 0
+            if self.debug:
+                print(f"選択肢履歴クリア: {self.current_ks_file}")
+    
     def check_condition(self, condition_str):
         """条件文字列を評価"""
         try:
@@ -906,8 +964,8 @@ class DialogueLoader:
                 
                 current_value = self.get_story_flag(flag_name)
                 result = current_value == expected_value
-                if self.debug:
-                    print(f"🔍 条件評価: {flag_name}({current_value}) == {expected_value} → {result}")
+                # 条件評価は常にログ出力（デバッグ用）
+                print(f"[CONDITION] 条件評価: {flag_name}({current_value}) == {expected_value} → {result}")
                 return result
             
             # AND/OR条件（基本的な実装）

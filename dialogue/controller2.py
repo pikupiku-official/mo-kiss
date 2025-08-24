@@ -52,6 +52,18 @@ def handle_mouse_click(game_state, mouse_pos, screen):
                 game_state['backlog_manager'].add_entry("橘純一", f"〇{selected_text}")
                 print(f"[BACKLOG] 選択肢をバックログに追加: {selected_text}")
             
+            # 選択肢履歴に記録（次のテキスト処理前に実行）
+            if 'dialogue_loader' in game_state and selected_text:
+                dialogue_loader = game_state['dialogue_loader']
+                choice_number = dialogue_loader.record_choice(selected_choice, selected_text)
+                print(f"[CHOICE_HISTORY] 選択肢を記録: 選択肢{choice_number} = '{selected_text}'")
+                
+                # name_managerに即座に反映（テキスト置換用）
+                from .name_manager import get_name_manager
+                name_manager = get_name_manager()
+                name_manager.set_dialogue_loader(dialogue_loader)
+                print(f"[CHOICE_HISTORY] name_managerに dialogue_loader 設定完了")
+            
             # 選択肢を非表示にして次に進む
             print(f"[CLICK] 選択肢を非表示にして次に進む")
             choice_renderer.hide_choices()

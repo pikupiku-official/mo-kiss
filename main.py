@@ -21,6 +21,7 @@ from config import *
 from menu.main_menu import MainMenu
 from map.map import AdvancedKimikissMap
 from dialogue.model import initialize_game as init_dialogue_game
+from title_screen import show_title_screen
 import pygame
 
 class GameApplication:
@@ -244,6 +245,12 @@ class GameApplication:
         """メインゲームループ"""
         if not self.initialize():
             return False
+        
+        # タイトル画面表示
+        if not show_title_screen(self.screen, DEBUG):
+            # タイトル画面でゲーム終了が選択された場合
+            print("🚪 タイトル画面でゲーム終了")
+            return True
             
         print("🎯 メインゲームループ開始")
         

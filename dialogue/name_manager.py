@@ -9,6 +9,7 @@ class NameManager:
         self.surname = ""
         self.name = ""
         self.data_file = "player_name.json"
+        self.dialogue_loader = None  # あとで設定
         self.load_names()
     
     def set_names(self, surname, name):
@@ -79,7 +80,25 @@ class NameManager:
         for variable, value in substitutions.items():
             result = result.replace(variable, value)
         
+        # 選択肢タグの置換 {選択肢1}, {選択肢2}, ...
+        if self.dialogue_loader:
+            result = re.sub(r'\{選択肢(\d+)\}', self._replace_choice_tag, result)
+        
         return result
+    
+    def _replace_choice_tag(self, match):
+        """選択肢タグを実際の選択肢テキストに置換"""
+        choice_number = int(match.group(1))
+        if self.dialogue_loader:
+            result = self.dialogue_loader.get_choice_text(choice_number)
+            print(f"[DEBUG] 選択肢タグ置換: {{選択肢{choice_number}}} → '{result}'")
+            return result
+        print(f"[DEBUG] 選択肢タグ置換失敗: dialogue_loader not found")
+        return match.group(0)  # 置換できない場合はそのまま返す
+    
+    def set_dialogue_loader(self, dialogue_loader):
+        """DialogueLoaderの参照を設定（選択肢タグ置換用）"""
+        self.dialogue_loader = dialogue_loader
     
     def has_names(self):
         """名前が設定されているかどうかを確認"""

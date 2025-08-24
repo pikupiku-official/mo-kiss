@@ -201,8 +201,24 @@ def normalize_dialogue_data(raw_data):
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
                 fadeout_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
             ])
+        
+        elif entry_type == 'if_start':
+            # if条件分岐開始 - 辞書形式をそのまま保持
+            normalized_data.append(entry)
             if DEBUG:
-                print(f"フェードアウト正規化: {fadeout_command}")
+                print(f"if_start追加: {entry}")
+        
+        elif entry_type == 'if_end':
+            # if条件分岐終了 - 辞書形式をそのまま保持
+            normalized_data.append(entry)
+            if DEBUG:
+                print(f"if_end追加: {entry}")
+        
+        elif entry_type == 'flag_set':
+            # フラグ設定 - 辞書形式をそのまま保持
+            normalized_data.append(entry)
+            if DEBUG:
+                print(f"flag_set追加: {entry}")
                 
         elif entry_type == 'fadein':
             # フェードインコマンドを追加

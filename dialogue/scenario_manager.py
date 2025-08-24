@@ -6,27 +6,36 @@ from .fade_manager import start_fadeout, start_fadein
 
 def advance_dialogue(game_state):
     """次の対話に進む"""
-    if game_state['current_paragraph'] >= len(game_state['dialogue_data']) - 1:
-        if DEBUG:
-            print("対話の終了に達しました")
+    max_index = len(game_state['dialogue_data']) - 1
+    
+    if game_state['current_paragraph'] >= max_index:
+        print(f"[DEBUG] 対話終了: 現在段落={game_state['current_paragraph']}, 最大={max_index}")
         return False
     
     game_state['current_paragraph'] += 1
-    current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
-
-    if DEBUG:
-        print(f"段落 {game_state['current_paragraph'] + 1}/{len(game_state['dialogue_data'])} に進みました")
-        print(f"現在の対話データ: {current_dialogue}")
     
-    if len(current_dialogue) < 6:
-        if DEBUG:
-            print("対話データの形式が不正です")
+    # 境界チェック
+    if game_state['current_paragraph'] >= len(game_state['dialogue_data']):
+        print(f"[ERROR] 段落インデックス越界: {game_state['current_paragraph']} >= {len(game_state['dialogue_data'])}")
         return False
     
-    dialogue_text = current_dialogue[6]
-    if DEBUG:
-        print(f"処理中のテキスト: '{dialogue_text[:50]}...'")
-        print(f"対話データ全体: {current_dialogue}")
+    current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
+
+    print(f"[DEBUG] 段落 {game_state['current_paragraph'] + 1}/{len(game_state['dialogue_data'])} に進みました")
+    print(f"[DEBUG] 現在のデータタイプ: {type(current_dialogue)}")
+    
+    # 辞書タイプの場合はそのまま処理
+    if isinstance(current_dialogue, dict):
+        dialogue_text = ""
+    else:
+        # リストタイプの場合
+        if len(current_dialogue) < 6:
+            print(f"[ERROR] 対話データの形式が不正: 長さ={len(current_dialogue)}")
+            return False
+        dialogue_text = current_dialogue[6] if len(current_dialogue) > 6 else ""
+    
+    print(f"[DEBUG] 処理中のテキスト: '{dialogue_text[:50] if dialogue_text else '(dict)'}'")
+    print(f"[DEBUG] 対話データ全体: {current_dialogue}")
 
     # スクロール停止コマンドかどうかチェック
     if dialogue_text and dialogue_text.startswith("_SCROLL_STOP"):
@@ -77,10 +86,31 @@ def advance_dialogue(game_state):
         return _handle_bgm_unpause(game_state, current_dialogue)
     
     else:
+        # 特殊タイプのコマンドチェック
+        if isinstance(current_dialogue, dict):
+            command_type = current_dialogue.get('type')
+            print(f"[DEBUG] dict型コマンド検出: type='{command_type}'")
+            
+            # if条件分岐開始
+            if command_type == 'if_start':
+                print(f"[DEBUG] if_start処理開始")
+                return _handle_if_start(game_state, current_dialogue)
+            
+            # if条件分岐終了
+            elif command_type == 'if_end':
+                print(f"[DEBUG] if_end処理開始")
+                return _handle_if_end(game_state, current_dialogue)
+            
+            # フラグ設定
+            elif command_type == 'flag_set':
+                print(f"[DEBUG] flag_set処理開始")
+                return _handle_flag_set(game_state, current_dialogue)
+        else:
+            print(f"[DEBUG] データ型: {type(current_dialogue)}, 内容: {current_dialogue}")
+        
         # 通常の対話テキスト
-        if DEBUG:
-            print(f"通常の対話テキストとして処理: '{dialogue_text}'")
-            print(f"現在のデータ全体: {current_dialogue}")
+        print(f"[DEBUG] 通常テキスト処理: '{dialogue_text}'")
+        print(f"[DEBUG] データ全体: {current_dialogue}")
         return _handle_dialogue_text(game_state, current_dialogue)
     
 def _handle_scroll_stop(game_state):
@@ -582,4 +612,91 @@ def _handle_bgm_unpause(game_state, current_dialogue):
             print("エラー: BGMManagerが見つかりません")
     
     # BGM再生開始コマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+def _handle_if_start(game_state, command_data):
+    """if条件分岐開始を処理"""
+    condition = command_data.get('condition', '')
+    dialogue_loader = game_state.get('dialogue_loader')
+    
+    if DEBUG:
+        print(f"条件分岐開始: condition='{condition}'")
+    
+    # 条件を評価
+    condition_met = False
+    if dialogue_loader:
+        condition_met = dialogue_loader.check_condition(condition)
+        if DEBUG:
+            print(f"条件評価結果: {condition} -> {condition_met}")
+    
+    # 条件が満たされない場合、対応するendifまでスキップ
+    if not condition_met:
+        current_pos = game_state['current_paragraph']
+        if_nesting = 1  # ネストレベル
+        max_pos = len(game_state['dialogue_data']) - 1
+        
+        print(f"[DEBUG] 条件不一致でスキップ開始: 現在位置={current_pos}, 最大位置={max_pos}")
+        
+        while current_pos < max_pos:
+            current_pos += 1
+            
+            # 境界チェック
+            if current_pos >= len(game_state['dialogue_data']):
+                print(f"[DEBUG] スキップ中に段落境界に到達: {current_pos}")
+                break
+                
+            entry = game_state['dialogue_data'][current_pos]
+            print(f"[DEBUG] スキップ中の段落{current_pos}をチェック: {type(entry)}")
+            
+            if isinstance(entry, dict):
+                entry_type = entry.get('type')
+                print(f"[DEBUG] dict型エントリ: type={entry_type}, nesting={if_nesting}")
+                
+                if entry_type == 'if_start':
+                    if_nesting += 1
+                elif entry_type == 'if_end':
+                    if_nesting -= 1
+                    if if_nesting == 0:
+                        # 対応するendifに到達
+                        game_state['current_paragraph'] = current_pos
+                        print(f"[DEBUG] 条件不一致により段落{current_pos}のendifまでスキップ完了")
+                        # endifに到達したので、次の段落に進む
+                        return advance_dialogue(game_state)
+        
+        # endifが見つからない場合
+        if if_nesting > 0:
+            print(f"[WARNING] 対応するendifが見つかりません。ネストレベル={if_nesting}")
+            # 見つからない場合は最後まで進む
+            game_state['current_paragraph'] = max_pos
+            return False
+    else:
+        if DEBUG:
+            print("条件一致により次の段落を実行")
+    
+    # 次の段落に進む
+    return advance_dialogue(game_state)
+
+def _handle_if_end(game_state, command_data):
+    """if条件分岐終了を処理"""
+    if DEBUG:
+        print("条件分岐終了")
+    
+    # 単純に次の段落に進む
+    return advance_dialogue(game_state)
+
+def _handle_flag_set(game_state, command_data):
+    """フラグ設定を処理"""
+    flag_name = command_data.get('name')
+    flag_value = command_data.get('value')
+    dialogue_loader = game_state.get('dialogue_loader')
+    
+    if DEBUG:
+        print(f"フラグ設定: {flag_name} = {flag_value}")
+    
+    if dialogue_loader and flag_name is not None:
+        dialogue_loader.set_story_flag(flag_name, flag_value)
+        if DEBUG:
+            print(f"フラグ設定完了: {flag_name} = {flag_value}")
+    
+    # 次の段落に進む
     return advance_dialogue(game_state)

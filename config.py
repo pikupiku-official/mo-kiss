@@ -57,6 +57,14 @@ SCREEN_HEIGHT = WINDOW_HEIGHT
 # デバッグモード（パフォーマンス向上のためFalseに）
 DEBUG = False
 
+# タイトル画面設定
+SHOW_TITLE_SCREEN = True            # タイトル画面を表示するかどうか（デバッグ時はFalseに）
+TITLE_IMAGE_PATH = "images/title.png"  # タイトル背景画像のパス
+TITLE_TEXT = "PRESS ANY KEY"        # タイトル画面のテキスト
+TITLE_TEXT_COLOR = (255, 255, 255)  # タイトルテキストの色
+TITLE_TEXT_Y_OFFSET = 100           # 画面中央からのY軸オフセット（下向き正数）
+TITLE_FONT_SIZE_RATIO = 0.05        # タイトルテキストのフォントサイズ比率（画面高さの5%）
+
 # フォント効果オプション
 FONT_EFFECTS = {
     "enable_shadow": True,          # 透明度0の黒い影を有効にする
@@ -106,6 +114,20 @@ GAME_START_YEAR = 1999              # ゲーム開始年（西暦）
 GAME_START_MONTH = 5                # ゲーム開始月
 GAME_START_DAY = 31                 # ゲーム開始日
 GAME_START_WEEKDAY = 0              # ゲーム開始曜日（0=月曜日、6=日曜日）
+
+# 選択肢表示設定
+CHOICE_START_X = 200                # 選択肢表示のX座標（仮想解像度基準、TEXTと同じ）
+CHOICE_START_Y = 755                # 選択肢表示のY座標（仮想解像度基準、TEXTと同じ）
+CHOICE_SPACING = 10                 # 選択肢間のスペーシング（ピクセル）
+CHOICE_NORMAL_COLOR = (255, 255, 255)    # 通常時の選択肢色
+CHOICE_HIGHLIGHT_COLOR = (255, 255, 0)   # ハイライト時の選択肢色（黄色）
+
+# 多列選択肢表示設定
+CHOICE_MAX_SINGLE_COLUMN = 3        # 単列表示の最大選択肢数
+CHOICE_MAX_DOUBLE_COLUMN = 6        # 2列表示の最大選択肢数
+CHOICE_MAX_TRIPLE_COLUMN = 9        # 3列表示の最大選択肢数
+CHOICE_COLUMN_WIDTH = 450           # 各列の幅（仮想解像度基準）
+CHOICE_COLUMN_SPACING = 50          # 列間のスペーシング（仮想解像度基準）
 
 # テキスト表示設定（仮想座標をスケーリング）
 def get_text_positions(screen):
