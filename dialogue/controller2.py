@@ -100,9 +100,12 @@ def handle_mouse_click(game_state, mouse_pos, screen):
             print(f"スキップモード: {'ON' if skip_mode else 'OFF'}")
             return
     
-    # UI以外の場所をクリックした場合、Enterキーと同じ処理を実行
-    print(f"[CLICK] 通常クリック処理（Enterキーと同様）")
-    handle_enter_key(game_state)
+    # 選択肢が表示中でない場合のみ、UI以外の場所をクリックした場合にEnterキーと同じ処理を実行
+    if not game_state['choice_renderer'].is_choice_showing():
+        print(f"[CLICK] 通常クリック処理（Enterキーと同様）")
+        handle_enter_key(game_state)
+    else:
+        print(f"[CLICK] 選択肢表示中のため通常クリック処理は無効")
 
 def handle_events(game_state, screen):
     """イベント処理を行う"""
@@ -206,11 +209,9 @@ def handle_enter_key(game_state):
         print(f"[ENTER] バックログが開いているため無効")
         return
     
-    # 選択肢が表示中の時は選択肢をスキップして次に進む
+    # 選択肢が表示中の時はEnterキーを無効にする
     if game_state['choice_renderer'].is_choice_showing():
-        print(f"[ENTER] 選択肢をスキップして次に進む")
-        game_state['choice_renderer'].hide_choices()
-        advance_to_next_dialogue(game_state)
+        print(f"[ENTER] 選択肢表示中のため無効（マウスクリックで選択してください）")
         return
         
     text_renderer = game_state['text_renderer']
