@@ -2,6 +2,7 @@ import pygame
 from config import *
 from .scroll_manager import ScrollManager
 from .name_manager import get_name_manager
+from .date_manager import get_current_game_date
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
@@ -31,6 +32,13 @@ class TextRenderer:
         self.char_spacing = TEXT_CHAR_SPACING
         # 名前表示モードの初期化
         self.name_display_mode = "auto"  # デフォルトは自動均等配置
+        
+        # 日付表示関連の初期化
+        self.date_display_enabled = DATE_DISPLAY_ENABLED
+        self.date_font_size = int(SCREEN_HEIGHT * DATE_FONT_SIZE_RATIO)
+        self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
+        self.date_color = DATE_TEXT_COLOR
+        self.date_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y)
 
         # n文字での自動改行を設定
         self.max_chars_per_line = TEXT_MAX_CHARS_PER_LINE
@@ -376,6 +384,50 @@ class TextRenderer:
             name_surface.blit(char_surface, (grid_x, grid_y))
         
         return name_surface
+    
+    def render_date(self):
+        """日付を左上に表示する（影効果付き）"""
+        if not self.date_display_enabled:
+            return
+        
+        try:
+            # 現在のゲーム内日付を取得
+            current_date = get_current_game_date()
+            date_text = current_date['era_format']
+            
+            # テキストと同じ影効果を適用
+            if FONT_EFFECTS.get("enable_shadow", False):
+                # 影を描画
+                shadow_color = (0, 0, 0)
+                shadow_surface = self.date_font.render(date_text, True, shadow_color)
+                
+                # メインテキストを描画
+                date_surface = self.date_font.render(date_text, True, self.date_color)
+                
+                # 影のオフセットを取得
+                offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
+                offx, offy = int(round(offx)), int(round(offy))
+                
+                # 合成サーフェスを作成
+                tw, th = date_surface.get_size()
+                sw, sh = shadow_surface.get_size()
+                final_w = max(tw, sw + offx)
+                final_h = max(th, sh + offy)
+                
+                final_surface = pygame.Surface((final_w, final_h), pygame.SRCALPHA)
+                final_surface.blit(shadow_surface, (offx, offy))  # 影を先に描画
+                final_surface.blit(date_surface, (0, 0))          # メインテキストを上に描画
+                
+                # 日付を左上に表示
+                self.screen.blit(final_surface, self.date_position)
+            else:
+                # 影効果なしの場合
+                date_surface = self.date_font.render(date_text, True, self.date_color)
+                self.screen.blit(date_surface, self.date_position)
+            
+        except Exception as e:
+            if self.debug:
+                print(f"日付表示エラー: {e}")
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager
@@ -812,6 +864,8 @@ class TextRenderer:
         if self.backlog_manager and self.backlog_manager.is_showing_backlog():
             return
         self.render_paragraph()
+        # 日付表示（バックログ表示時以外）
+        self.render_date()
     
     def render_text_window(self, game_state):
         """テキストウィンドウを描画する（メインループから呼び出し用）"""
@@ -879,3 +933,31 @@ class TextRenderer:
         self.name_display_mode = mode
         if self.debug:
             print(f"名前表示モードを{mode}に設定")
+    
+    def enable_date_display(self, enabled=True):
+        """日付表示の有効/無効を設定"""
+        self.date_display_enabled = enabled
+        if self.debug:
+            print(f"日付表示を{'有効' if enabled else '無効'}に設定")
+    
+    def set_date_position(self, x, y):
+        """日付表示位置を設定（仮想座標）"""
+        self.date_position = scale_pos(x, y)
+        if self.debug:
+            print(f"日付表示位置を({x}, {y})に設定")
+    
+    def advance_game_date(self, days=1):
+        """ゲーム内日付を進める"""
+        from .date_manager import advance_game_date
+        date_info = advance_game_date(days)
+        if self.debug:
+            print(f"ゲーム内日付を{days}日進めました: {date_info['era_format']}")
+        return date_info
+    
+    def set_game_date(self, year, month, day):
+        """ゲーム内日付を設定"""
+        from .date_manager import set_game_date
+        date_info = set_game_date(year, month, day)
+        if self.debug:
+            print(f"ゲーム内日付を設定しました: {date_info['era_format']}")
+        return date_info

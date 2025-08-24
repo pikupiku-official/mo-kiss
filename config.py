@@ -94,6 +94,19 @@ FONT_DEFAULT_SIZE_RATIO = 0.024  # デフォルトフォントサイズ比率（
 TEXT_LINE_HEIGHT_MULTIPLIER = 1.15   # 行間の倍率（1.0 = デフォルト）
 TEXT_CHAR_SPACING = 2               # 文字間隔の追加ピクセル数
 
+# 日付表示設定
+DATE_DISPLAY_ENABLED = True         # 日付表示の有効/無効
+DATE_DISPLAY_X = 30                 # 日付表示のX座標（仮想解像度基準）
+DATE_DISPLAY_Y = 30                 # 日付表示のY座標（仮想解像度基準）
+DATE_FONT_SIZE_RATIO = 0.04         # 日付フォントサイズ比率（画面高さの4%）
+DATE_TEXT_COLOR = (255, 255, 255)   # 日付テキストの色
+
+# ゲーム内日付設定（デフォルト値）
+GAME_START_YEAR = 1999              # ゲーム開始年（西暦）
+GAME_START_MONTH = 5                # ゲーム開始月
+GAME_START_DAY = 31                 # ゲーム開始日
+GAME_START_WEEKDAY = 0              # ゲーム開始曜日（0=月曜日、6=日曜日）
+
 # テキスト表示設定（仮想座標をスケーリング）
 def get_text_positions(screen):
     # 仮想座標を実際の画面座標にスケーリング
