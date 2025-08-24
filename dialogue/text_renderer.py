@@ -739,15 +739,22 @@ class TextRenderer:
             lines_to_draw = all_lines[-self.max_display_lines:]
             speaker_mapping_to_draw = line_speaker_mapping[-self.max_display_lines:]
         
-        # 表示エリア内での話者の初回出現を判定（修正点）
-        seen_speakers_in_display = set()
-        for mapping in speaker_mapping_to_draw:
+        # 話者名表示判定：他の話者を挟んだ場合は再表示する
+        previous_speaker = None
+        for i, mapping in enumerate(speaker_mapping_to_draw):
             speaker = mapping['speaker']
-            if speaker and speaker not in seen_speakers_in_display:
-                mapping['show_speaker'] = True  # 表示エリア内で初回出現
-                seen_speakers_in_display.add(speaker)
+            
+            if not speaker:
+                mapping['show_speaker'] = False
+                continue
+            
+            # 最初の行または前の話者と異なる場合は表示
+            if i == 0 or speaker != previous_speaker:
+                mapping['show_speaker'] = True
+                previous_speaker = speaker
             else:
-                mapping['show_speaker'] = False  # 既に出現済みまたは話者なし
+                # 同じ話者の連続する行では名前を非表示
+                mapping['show_speaker'] = False
         
         # 描画処理（修正：各行ごとに正しい話者の色を適用）
         y = self.text_start_y
