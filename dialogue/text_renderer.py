@@ -24,13 +24,16 @@ class TextRenderer:
         self.name_start_x = self.text_positions["name_1"][0]
         self.name_start_y = self.text_positions["name_1"][1]
         self.line_spacing = TEXT_LINE_SPACING
-        self.text_line_height = self.fonts["text_pygame"].get_height()
+        # 行間調整機能を追加
+        base_line_height = self.fonts["text_pygame"].get_height()
+        self.text_line_height = int(base_line_height * TEXT_LINE_HEIGHT_MULTIPLIER)
         self.text_padding = TEXT_PADDING
+        self.char_spacing = TEXT_CHAR_SPACING
 
-        # 26文字での自動改行を設定
-        self.max_chars_per_line = 26
+        # n文字での自動改行を設定
+        self.max_chars_per_line = TEXT_MAX_CHARS_PER_LINE
         # 最大表示行数
-        self.max_display_lines = 3
+        self.max_display_lines = TEXT_MAX_DISPLAY_LINES
 
         self.pygame_fonts = {
             "text": self.fonts["text_pygame"],
@@ -42,12 +45,12 @@ class TextRenderer:
 
         self.displayed_chars = 0
         self.last_char_time = 0
-        self.char_delay = 110
+        self.char_delay = TEXT_CHAR_DELAY
         self.is_text_complete = False
 
         # 新しい遅延設定を追加
-        self.punctuation_delay = 500  # 句読点「。」での追加遅延時間（ミリ秒）
-        self.paragraph_transition_delay = 1000  # スクロール終了後の段落切り替え遅延時間（ミリ秒）
+        self.punctuation_delay = TEXT_PUNCTUATION_DELAY  # 句読点「。」での追加遅延時間（ミリ秒）
+        self.paragraph_transition_delay = TEXT_PARAGRAPH_TRANSITION_DELAY  # スクロール終了後の段落切り替え遅延時間（ミリ秒）
         self.punctuation_waiting = False  # 句読点遅延中フラグ
         self.punctuation_wait_start = 0  # 句読点遅延開始時刻
         self.paragraph_transition_waiting = False  # 段落切り替え遅延中フラグ
@@ -72,7 +75,7 @@ class TextRenderer:
         self.name_manager = get_name_manager()
 
     def _wrap_text(self, text):
-        """テキストを26文字で自動改行する"""
+        """テキストをn文字で自動改行する（グリッドシステム対応）"""
         if not text:
             return []
         
@@ -86,7 +89,7 @@ class TextRenderer:
                 wrapped_lines.append('')
                 continue
             
-            # 指定文字数ごとに分割
+            # 指定文字数ごとに分割（グリッドシステム用に正確にn文字）
             current_pos = 0
             while current_pos < len(paragraph):
                 line_end = current_pos + self.max_chars_per_line
@@ -95,14 +98,14 @@ class TextRenderer:
                     wrapped_lines.append(paragraph[current_pos:])
                     break
                 else:
-                    # 指定文字数で切り取り
+                    # 指定文字数で切り取り（グリッドシステムで処理）
                     wrapped_lines.append(paragraph[current_pos:line_end])
                     current_pos = line_end
         
         return wrapped_lines
 
     def _get_display_lines_with_scroll(self, display_text_segment):
-        """表示用のテキストを26文字改行して、3行スクロール効果を適用"""
+        """表示用のテキストをn文字改行して、3行スクロール効果を適用"""
         wrapped_lines = self._wrap_text(display_text_segment)
         
         # 3行以下の場合はそのまま返す
@@ -118,15 +121,15 @@ class TextRenderer:
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
         try:
             # フォントサイズをスクリーンサイズに基づいて計算
-            name_font_size = int(SCREEN_HEIGHT * 48 / 1000)
-            text_font_size = int(SCREEN_HEIGHT * 48 / 1000)
-            default_font_size = int(SCREEN_HEIGHT * 0.024)  # 画面高さの2.7%
+            name_font_size = int(SCREEN_HEIGHT * FONT_NAME_SIZE_RATIO)
+            text_font_size = int(SCREEN_HEIGHT * FONT_TEXT_SIZE_RATIO)
+            default_font_size = int(SCREEN_HEIGHT * FONT_DEFAULT_SIZE_RATIO)
             
             # フォントファイルのパスを設定（プロジェクトルートから）
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             font_dir = os.path.join(project_root, "mo-kiss", "fonts")
             bold_font_path = os.path.join(font_dir, "MPLUS1p-Bold.ttf")
-            medium_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
+            medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
 
             fonts = {}
             
@@ -196,70 +199,121 @@ class TextRenderer:
         }
     
     def _apply_font_effects(self, text_surface, is_shadow=False):
-        """フォント効果を適用する（横引き延ばし）"""
+        """フォント効果を適用する（ピクセル化、横引き延ばし）"""
         if not FONT_EFFECTS:
             return text_surface
-        
-        processed_surface = text_surface.copy()
-        
-        # 横引き延ばし効果
-        if FONT_EFFECTS.get("enable_stretched", False):
-            original_size = processed_surface.get_size()
-            stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.25)
-            new_width = int(original_size[0] * stretch_factor)
-            stretched_size = (new_width, original_size[1])
-            processed_surface = pygame.transform.scale(processed_surface, stretched_size)
-        
-        return processed_surface
+
+        # 元の描画結果
+        original_surface = text_surface
+        orig_w, orig_h = original_surface.get_size()
+
+        # ここで最終幅を先に決めておく（横伸ばし考慮）
+        stretch_factor = float(FONT_EFFECTS.get("stretch_factor", 1.25)) \
+            if FONT_EFFECTS.get("enable_stretched", False) else 1.0
+        final_w = int(round(orig_w * stretch_factor))
+        final_h = orig_h
+
+        processed_surface = original_surface
+
+        if FONT_EFFECTS.get("enable_pixelated", False):
+            # 1/n に縮小
+            pixelate_factor = max(1, int(FONT_EFFECTS.get("pixelate_factor", 2)))
+            small_w = max(1, orig_w // pixelate_factor)
+            small_h = max(1, orig_h // pixelate_factor)
+
+            # 縮小はAA付き（にじみを抑えるならsmoothscaleがよい）
+            small_surface = pygame.transform.smoothscale(processed_surface, (small_w, small_h))
+
+            # ！！ここが肝：拡大は「横伸ばし後の最終サイズ」へ一発で
+            processed_surface = pygame.transform.smoothscale(small_surface, (final_w, final_h))
+        else:
+            # ピクセル化なしの場合だけ、必要なら一回だけ横方向拡大
+            if stretch_factor != 1.0:
+                processed_surface = pygame.transform.smoothscale(processed_surface, (final_w, final_h))
+
+        # 透明最適化（描画の滲み対策というより速度向上）
+        return processed_surface.convert_alpha()
+
     
     def _render_text_with_effects(self, font, text, color, is_name=False):
-        """テキストをエフェクト付きで描画"""
-        # 通常のテキストを描画
         text_surface = font.render(text, True, color)
-        
-        # 影効果が有効な場合
+        text_surface = self._apply_font_effects(text_surface, is_shadow=False)
+
         if FONT_EFFECTS.get("enable_shadow", False):
-            shadow_offset = FONT_EFFECTS.get("shadow_offset", (3, 3))
-            shadow_alpha = FONT_EFFECTS.get("shadow_alpha", 255)
-            shadow_color = (0, 0, 0)  # 黒い影
-            
-            # 影を描画（影にもエフェクトを適用）
+            shadow_color = (0, 0, 0)
             shadow_surface = font.render(text, True, shadow_color)
             shadow_surface = self._apply_font_effects(shadow_surface, is_shadow=True)
+
+            offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
+            offx, offy = int(round(offx)), int(round(offy))  # ← 揺れ防止
+
+            tw, th = text_surface.get_size()
+            sw, sh = shadow_surface.get_size()
+            final_w = max(tw, sw + offx)
+            final_h = max(th, sh + offy)
+
+            final_surface = pygame.Surface((final_w, final_h), pygame.SRCALPHA)
+            # blit位置も整数スナップ
+            final_surface.blit(shadow_surface, (offx, offy))
+            final_surface.blit(text_surface, (0, 0))
+            return final_surface.convert_alpha()
+
+        return text_surface
+
+    def _render_stable_text_line(self, displayed_line, color):
+        """文字送り時の揺れを防ぐ安定した行描画（絶対座標グリッドシステム）"""
+        if not displayed_line:
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+        
+        # 【根本解決】絶対座標グリッドシステム
+        # 各文字を固定されたグリッド位置に配置することで揺れを完全に解消
+        
+        return self._render_text_with_grid_system(displayed_line, color)
+    
+    def _render_text_with_grid_system(self, text_line, color):
+        """絶対座標グリッドシステムで文字を描画"""
+        if not text_line:
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+        
+        # 1文字あたりの標準幅を計算（日本語文字基準）
+        sample_char = "あ"  # 日本語の代表的な文字
+        sample_surface = self.pygame_fonts["text"].render(sample_char, True, color)
+        base_char_width = sample_surface.get_width()
+        
+        # フォント効果を考慮した文字幅（横引き延ばし効果込み）
+        stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.0) if FONT_EFFECTS.get("enable_stretched", False) else 1.0
+        grid_char_width = int(base_char_width * stretch_factor * 1.1) + self.char_spacing  # 文字間隔を追加
+        
+        # 行全体のサーフェスサイズを計算
+        max_chars = min(len(text_line), self.max_chars_per_line)
+        line_width = grid_char_width * max_chars
+        line_height = self.pygame_fonts["text"].get_height() * 2  # 高さも余裕を持たせる
+        
+        # 行サーフェスを作成
+        line_surface = pygame.Surface((line_width, line_height), pygame.SRCALPHA)
+        line_surface.fill((0, 0, 0, 0))  # 透明で初期化
+        
+        # 各文字を絶対座標グリッドに配置
+        for char_index, char in enumerate(text_line):
+            if char_index >= self.max_chars_per_line:
+                break
+                
+            # グリッド位置計算（絶対座標）
+            grid_x = char_index * grid_char_width
+            grid_y = 0
             
-            # テキストにエフェクトを適用
-            text_surface = self._apply_font_effects(text_surface, is_shadow=False)
+            # 個別文字をエフェクト付きで描画
+            char_surface = self._render_text_with_effects(
+                self.pygame_fonts["text"], 
+                char, 
+                color, 
+                is_name=False
+            )
             
-            # 最終サーフェスのサイズを計算（エフェクト適用後のサイズで）
-            text_width, text_height = text_surface.get_size()
-            shadow_width, shadow_height = shadow_surface.get_size()
-            
-            # 影とテキストの両方が収まるサイズを計算
-            final_width = max(text_width, shadow_width) + abs(shadow_offset[0])
-            final_height = max(text_height, shadow_height) + abs(shadow_offset[1])
-            
-            # 最終サーフェスを作成
-            final_surface = pygame.Surface((final_width, final_height), pygame.SRCALPHA)
-            final_surface.fill((0, 0, 0, 0))  # 透明で初期化
-            
-            # 影を右下にオフセットして描画
-            shadow_pos = (shadow_offset[0], shadow_offset[1])
-            
-            # 影を先に描画（透明度適用）
-            if shadow_alpha > 0:  # 透明度が0より大きい場合のみ描画
-                # 影のサーフェスに透明度を適用
-                temp_shadow = shadow_surface.copy()
-                temp_shadow.set_alpha(shadow_alpha)
-                final_surface.blit(temp_shadow, shadow_pos)
-            
-            # テキストを左上（基準位置）に描画
-            text_pos = (0, 0)
-            final_surface.blit(text_surface, text_pos)
-            
-            return final_surface
-        else:
-            # 影なしの場合はエフェクトのみ適用
-            return self._apply_font_effects(text_surface, is_shadow=False)
+            # 文字をグリッド位置に配置
+            line_surface.blit(char_surface, (grid_x, grid_y))
+        
+        return line_surface
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager
@@ -518,7 +572,9 @@ class TextRenderer:
         if self.scroll_manager.is_scroll_mode():
             return self.render_scroll_text()
         
-        display_text_segment = self.current_text[:self.displayed_chars]
+        # 【重要】文字送り時の揺れ対策：完全な文字列でエフェクトを計算してからマスクで切り取る
+        full_text = self.current_text  # 完全なテキスト
+        display_text_segment = full_text[:self.displayed_chars]  # 表示する部分
         
         # テキストを26文字で自動改行
         all_lines = self._wrap_text(display_text_segment)
@@ -544,7 +600,10 @@ class TextRenderer:
         if self.current_character_name and self.current_character_name.strip():
             try:
                 name_surface = self._render_text_with_effects(self.pygame_fonts["name"], self.current_character_name, text_color_to_use, is_name=True)
-                self.screen.blit(name_surface, (self.name_start_x, self.name_start_y))
+                # 名前の座標も整数にスナップ
+                name_pos_x = int(round(self.name_start_x))
+                name_pos_y = int(round(self.name_start_y))
+                self.screen.blit(name_surface, (name_pos_x, name_pos_y))
             except Exception as e:
                 if self.debug:
                     print(f"キャラクター名描画エラー: {e}, 名前: '{self.current_character_name}'")
@@ -553,8 +612,12 @@ class TextRenderer:
         for single_line in lines_to_draw:
             if single_line: # 空の行は描画しない
                 try:
-                    text_surface = self._render_text_with_effects(self.pygame_fonts["text"], single_line, text_color_to_use, is_name=False)
-                    self.screen.blit(text_surface, (self.text_start_x, y))
+                    # 【揺れ対策】完全な行でエフェクトを適用してから部分表示でマスク
+                    text_surface = self._render_stable_text_line(single_line, text_color_to_use)
+                    # 座標を整数にスナップして揺れを防止
+                    pos_x = int(round(self.text_start_x))
+                    pos_y = int(round(y))
+                    self.screen.blit(text_surface, (pos_x, pos_y))
                 except Exception as e:
                     if self.debug:
                         print(f"テキスト描画エラー: {e}, テキスト: '{single_line}'")
@@ -649,7 +712,10 @@ class TextRenderer:
             if speaker_name_to_show:
                 try:
                     name_surface = self._render_text_with_effects(self.pygame_fonts["name"], speaker_name_to_show, speaker_text_color, is_name=True)
-                    self.screen.blit(name_surface, (self.name_start_x, y))
+                    # スクロール時の名前座標も整数にスナップ
+                    scroll_name_x = int(round(self.name_start_x))
+                    scroll_name_y = int(round(y))
+                    self.screen.blit(name_surface, (scroll_name_x, scroll_name_y))
                 except Exception as e:
                     if self.debug:
                         print(f"スクロール話者名描画エラー: {e}, 名前: '{speaker_name_to_show}'")
@@ -657,8 +723,12 @@ class TextRenderer:
             # テキストを描画（この行の話者の色を使用）
             if single_line:  # 空の行は描画しない
                 try:
-                    text_surface = self._render_text_with_effects(self.pygame_fonts["text"], single_line, speaker_text_color, is_name=False)
-                    self.screen.blit(text_surface, (self.text_start_x, y))
+                    # 【重要】スクロール時もグリッドシステムを使用
+                    text_surface = self._render_stable_text_line(single_line, speaker_text_color)
+                    # スクロール時のテキスト座標も整数にスナップ
+                    scroll_text_x = int(round(self.text_start_x))
+                    scroll_text_y = int(round(y))
+                    self.screen.blit(text_surface, (scroll_text_x, scroll_text_y))
                 except Exception as e:
                     if self.debug:
                         print(f"スクロールテキスト描画エラー: {e}, テキスト: '{single_line}'")
@@ -715,3 +785,16 @@ class TextRenderer:
         self.max_display_lines = max_lines
         if self.debug:
             print(f"最大表示行数を{max_lines}行に設定")
+    
+    def set_line_height_multiplier(self, multiplier):
+        """行間の倍率を設定"""
+        base_line_height = self.fonts["text_pygame"].get_height()
+        self.text_line_height = int(base_line_height * multiplier)
+        if self.debug:
+            print(f"行間倍率を{multiplier}に設定（行高: {self.text_line_height}px）")
+    
+    def set_char_spacing(self, spacing):
+        """文字間隔を設定"""
+        self.char_spacing = spacing
+        if self.debug:
+            print(f"文字間隔を{spacing}pxに設定")

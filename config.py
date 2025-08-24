@@ -65,18 +65,34 @@ FONT_EFFECTS = {
     "shadow_offset": (6, 6),        # 影のオフセット（右下）
     "shadow_alpha": 255,            # 影の透明度（0=完全透明、255=完全不透明）
     "pixelate_factor": 2,           # ピクセル化係数（1/nサイズにしてn倍拡大）
-    "stretch_factor": 1.25          # 横引き延ばし係数
+    "stretch_factor": 1.2          # 横引き延ばし係数
 }
 
 # テキスト表示設定（仮想解像度1920x1080基準のピクセル値）
 TEXT_COLOR = (255, 255, 255)
 TEXT_COLOR_FEMALE = (255, 175, 227)
 TEXT_BG_COLOR = (0, 0, 0, 100)
-TEXT_START_X = 375  # 1文字分（約25px）左に移動
+TEXT_START_X = 435  # 1文字分（約25px）左に移動
 TEXT_START_Y = 765
-NAME_START_X = 195  # 1文字分（約25px）右に移動
+NAME_START_X = 200  # 1文字分（約25px）右に移動
 NAME_START_Y = TEXT_START_Y
-TEXT_PADDING = 11
+TEXT_PADDING = 0
+
+# テキスト表示パラメーター
+TEXT_MAX_CHARS_PER_LINE = 20  # 1行あたりの最大文字数
+TEXT_MAX_DISPLAY_LINES = 3    # 最大表示行数
+TEXT_CHAR_DELAY = 110         # 文字表示間隔（ミリ秒）
+TEXT_PUNCTUATION_DELAY = 500  # 句読点での追加遅延時間（ミリ秒）
+TEXT_PARAGRAPH_TRANSITION_DELAY = 1000  # 段落切り替え遅延時間（ミリ秒）
+
+# フォントサイズ設定（画面高さに対する比率）
+FONT_NAME_SIZE_RATIO = 0.04   # 名前フォントサイズ比率（画面高さのn%）
+FONT_TEXT_SIZE_RATIO = 0.04   # テキストフォントサイズ比率（画面高さのn%）
+FONT_DEFAULT_SIZE_RATIO = 0.024  # デフォルトフォントサイズ比率（画面高さのn%）
+
+# テキスト間隔調整設定
+TEXT_LINE_HEIGHT_MULTIPLIER = 1.15   # 行間の倍率（1.0 = デフォルト）
+TEXT_CHAR_SPACING = 2               # 文字間隔の追加ピクセル数
 
 # テキスト表示設定（仮想座標をスケーリング）
 def get_text_positions(screen):
