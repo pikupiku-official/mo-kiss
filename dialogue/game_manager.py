@@ -6,6 +6,7 @@ from image_manager import ImageManager
 from .text_renderer import TextRenderer
 from .backlog_manager import BacklogManager
 from .choice_renderer import ChoiceRenderer
+from .notification_manager import NotificationManager
 from config import *
 from .data_normalizer import normalize_dialogue_data
 
@@ -31,6 +32,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
     image_manager = ImageManager(DEBUG)
     text_renderer = TextRenderer(screen, DEBUG)
     choice_renderer = ChoiceRenderer(screen, DEBUG)
+    notification_manager = NotificationManager(screen, DEBUG)
     
     # バックログマネージャーの初期化
     backlog_fonts = {
@@ -42,6 +44,9 @@ def initialize_game(dialogue_file="events/E001.ks"):
     
     # TextRendererにBacklogManagerを設定
     text_renderer.set_backlog_manager(backlog_manager)
+    
+    # DialogueLoaderに通知システムを設定
+    dialogue_loader.notification_system = notification_manager
 
     # 画像パスのスキャンと必須画像のみロード
     try:
@@ -145,6 +150,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'text_renderer': text_renderer,
         'choice_renderer': choice_renderer,
         'backlog_manager': backlog_manager,
+        'notification_manager': notification_manager,
         'images': images,
         'dialogue_data': dialogue_data,
         'character_pos': character_pos,

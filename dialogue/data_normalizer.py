@@ -219,6 +219,11 @@ def normalize_dialogue_data(raw_data):
             normalized_data.append(entry)
             if DEBUG:
                 print(f"flag_set追加: {entry}")
+        
+        elif entry_type == 'event_unlock':
+            # イベント解禁 - 辞書形式をそのまま保持
+            normalized_data.append(entry)
+            print(f"[NORMALIZE] event_unlock追加: {entry}")
                 
         elif entry_type == 'fadein':
             # フェードインコマンドを追加

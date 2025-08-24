@@ -89,7 +89,7 @@ def advance_dialogue(game_state):
         # 特殊タイプのコマンドチェック
         if isinstance(current_dialogue, dict):
             command_type = current_dialogue.get('type')
-            print(f"[DEBUG] dict型コマンド検出: type='{command_type}'")
+            print(f"[DEBUG] dict型コマンド検出: type='{command_type}', データ={current_dialogue}")
             
             # if条件分岐開始
             if command_type == 'if_start':
@@ -105,6 +105,11 @@ def advance_dialogue(game_state):
             elif command_type == 'flag_set':
                 print(f"[DEBUG] flag_set処理開始")
                 return _handle_flag_set(game_state, current_dialogue)
+            
+            # イベント解禁
+            elif command_type == 'event_unlock':
+                print(f"[DEBUG] event_unlock処理開始: {current_dialogue}")
+                return _handle_event_unlock(game_state, current_dialogue)
         else:
             print(f"[DEBUG] データ型: {type(current_dialogue)}, 内容: {current_dialogue}")
         
@@ -697,6 +702,22 @@ def _handle_flag_set(game_state, command_data):
         dialogue_loader.set_story_flag(flag_name, flag_value)
         if DEBUG:
             print(f"フラグ設定完了: {flag_name} = {flag_value}")
+    
+    # 次の段落に進む
+    return advance_dialogue(game_state)
+
+def _handle_event_unlock(game_state, command_data):
+    """イベント解禁を処理"""
+    events = command_data.get('events', [])
+    dialogue_loader = game_state.get('dialogue_loader')
+    
+    print(f"[EVENT_UNLOCK] イベント解禁処理開始: {events}")
+    
+    if dialogue_loader and events:
+        dialogue_loader.unlock_events(events)
+        print(f"[EVENT_UNLOCK] イベント解禁完了: {events}")
+    else:
+        print(f"[EVENT_UNLOCK] 処理失敗: dialogue_loader={dialogue_loader}, events={events}")
     
     # 次の段落に進む
     return advance_dialogue(game_state)

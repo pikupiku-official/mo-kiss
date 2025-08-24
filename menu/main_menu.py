@@ -187,6 +187,11 @@ class MainMenu:
             "設定", self.fonts['medium'], 'green'
         )
         
+        self.buttons['home'] = Button(
+            button_x, button_y + button_spacing * 3, 300, 70,
+            "家", self.fonts['medium'], 'green'
+        )
+        
         # 右上のボタン（全て緑色、大きく調整）
         self.buttons['test'] = Button(
             LAYOUT['right_buttons_x'], LAYOUT['right_buttons_y'], 150, 60,
@@ -393,6 +398,9 @@ class MainMenu:
         elif button_name == 'reset':
             self._reset_to_defaults()
             return None
+        elif button_name == 'home':
+            print("家モジュールへ移動")
+            return "go_to_home"
         return None
     
     def _update_button_selection(self):
@@ -444,6 +452,7 @@ class MainMenu:
         self.buttons['start'].draw(self.screen)
         self.buttons['continue'].draw(self.screen)
         self.buttons['settings'].draw(self.screen)
+        self.buttons['home'].draw(self.screen)
         
         # 名前入力欄（「はじめから」ボタンの横に表示）
         self.text_inputs['surname'].draw(self.screen)

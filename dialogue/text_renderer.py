@@ -391,9 +391,10 @@ class TextRenderer:
             return
         
         try:
-            # 現在のゲーム内日付を取得
-            current_date = get_current_game_date()
-            date_text = current_date['era_format']
+            # time_manager.pyから現在のゲーム内日付を取得
+            from time_manager import get_time_manager
+            time_manager = get_time_manager()
+            date_text = time_manager.get_full_time_string()
             
             # テキストと同じ影効果を適用
             if FONT_EFFECTS.get("enable_shadow", False):

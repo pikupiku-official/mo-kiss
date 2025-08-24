@@ -35,6 +35,10 @@ class TitleScreen:
         self.blink_timer = 0
         self.blink_visible = True
         self.blink_interval = 1000  # 1秒間隔で点滅
+        
+        # BGM設定
+        self.bgm_loaded = False
+        self.load_title_bgm()
     
     def load_title_image(self):
         """タイトル背景画像を読み込む"""
@@ -53,6 +57,73 @@ class TitleScreen:
             if self.debug:
                 print(f"タイトル画像の読み込みに失敗: {e}")
             self.background_image = None
+    
+    def load_title_bgm(self):
+        """タイトル画面のBGMを読み込む"""
+        try:
+            pygame.mixer.init()
+            bgm_path = os.path.join(os.path.dirname(__file__), "sounds", "bgms", "koi_no_dancesite.mp3")
+            
+            if os.path.exists(bgm_path):
+                # m4aファイルの読み込みを試行
+                try:
+                    pygame.mixer.music.load(bgm_path)
+                    self.bgm_loaded = True
+                    if self.debug:
+                        print(f"タイトルBGMを読み込みました: {bgm_path}")
+                except pygame.error as e:
+                    if self.debug:
+                        print(f"m4aファイルの読み込みに失敗（フォーマット非対応の可能性）: {e}")
+                        print("代替BGMファイルを探しています...")
+                    
+                    # 代替BGMファイルを探す
+                    alternative_bgms = [
+                        "maou_bgm_8bit29.mp3",
+                        "maou_bgm_piano41.mp3",
+                        "Mok1_Lap1.mp3"
+                    ]
+                    
+                    for alt_bgm in alternative_bgms:
+                        alt_path = os.path.join(os.path.dirname(__file__), "sounds", "bgms", alt_bgm)
+                        if os.path.exists(alt_path):
+                            try:
+                                pygame.mixer.music.load(alt_path)
+                                self.bgm_loaded = True
+                                if self.debug:
+                                    print(f"代替タイトルBGMを読み込みました: {alt_path}")
+                                break
+                            except pygame.error:
+                                continue
+            else:
+                if self.debug:
+                    print(f"タイトルBGMファイルが見つかりません: {bgm_path}")
+                    
+        except Exception as e:
+            if self.debug:
+                print(f"BGM初期化エラー: {e}")
+            self.bgm_loaded = False
+    
+    def play_title_bgm(self):
+        """タイトルBGMを再生"""
+        if self.bgm_loaded:
+            try:
+                pygame.mixer.music.play(-1)  # ループ再生
+                pygame.mixer.music.set_volume(0.3)  # 音量を30%に設定
+                if self.debug:
+                    print("タイトルBGM再生開始")
+            except Exception as e:
+                if self.debug:
+                    print(f"BGM再生エラー: {e}")
+    
+    def stop_title_bgm(self):
+        """タイトルBGMを停止"""
+        try:
+            pygame.mixer.music.stop()
+            if self.debug:
+                print("タイトルBGM停止")
+        except Exception as e:
+            if self.debug:
+                print(f"BGM停止エラー: {e}")
     
     def calculate_positions(self):
         """テキスト位置を計算する"""
@@ -138,6 +209,9 @@ class TitleScreen:
         if self.debug:
             print("タイトル画面を開始")
         
+        # BGMを再生開始
+        self.play_title_bgm()
+        
         clock = pygame.time.Clock()
         running = True
         
@@ -145,12 +219,14 @@ class TitleScreen:
             # イベント処理
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    self.stop_title_bgm()  # BGMを停止
                     return False  # ゲーム終了
                 
                 # キー入力またはマウスクリックでタイトル画面を終了
                 if self.handle_input(event):
                     if self.debug:
                         print("タイトル画面を終了")
+                    self.stop_title_bgm()  # BGMを停止
                     return True  # メインメニューへ進む
             
             # 更新

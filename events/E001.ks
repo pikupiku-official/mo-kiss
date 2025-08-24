@@ -9,14 +9,16 @@
 
 [bg_show storage="test.bg.southexit"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 
-
-
 [chara_show name="T03_00_00"　eye="F03_En00_00" mouth="F03_Mn00_00" brow="F03_Bn00_00" cheek="" x="0.5" y="0.5" size="1.5" blink="true"]
 
 	//ナ レ//
 	「見慣れた中央線の車窓から流れる風景」
 	「すっかり通いなれた国分寺駅も」
 	「どこか気に入っているのかもしれない」
+
+[event_unlock
+
+[erevent_unlock events="E002,E003,E004,E005"]
 
 [SE se="電車のドアが開く1.mp3" volume="0.5" frequency="2"]
 
@@ -245,3 +247,5 @@
 	「そんなことを想像しています。」
 	「これは最後のテキストです。」
 	[scroll-stop]
+
+

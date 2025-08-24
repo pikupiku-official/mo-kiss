@@ -109,6 +109,11 @@ def handle_mouse_click(game_state, mouse_pos, screen):
 
 def handle_events(game_state, screen):
     """イベント処理を行う"""
+    # KSファイル終了チェック
+    if game_state.get('ks_finished', False):
+        print(f"[EVENTS] KSファイル終了フラグ検知")
+        return False  # KSファイル終了を通知
+    
     for event in pygame.event.get():
         # バックログ関連のイベント処理
         game_state['backlog_manager'].handle_input(event)
@@ -223,7 +228,11 @@ def handle_enter_key(game_state):
     else:
         # テキスト表示が完了していたら次の段落へ
         print(f"[ENTER] 次の段落に進む")
-        advance_to_next_dialogue(game_state)
+        can_continue = advance_to_next_dialogue(game_state)
+        if not can_continue:
+            print(f"[ENTER] KSファイル終了")
+            # KSファイル終了をgame_stateに記録
+            game_state['ks_finished'] = True
 
 def advance_to_next_dialogue(game_state):
     """次の対話に進む"""
@@ -268,6 +277,10 @@ def update_game(game_state):
     
     # フェードアニメーションの更新
     update_fade_animation(game_state)
+    
+    # 通知システムの更新
+    if 'notification_manager' in game_state:
+        game_state['notification_manager'].update()
 
     # 自動進行の処理（選択肢表示中は無効化）
     if (game_state['text_renderer'].is_ready_for_auto_advance() and 

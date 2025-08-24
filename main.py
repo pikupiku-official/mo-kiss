@@ -22,6 +22,8 @@ from menu.main_menu import MainMenu
 from map.map import AdvancedKimikissMap
 from dialogue.model import initialize_game as init_dialogue_game
 from title_screen import show_title_screen
+from time_manager import get_time_manager
+from home import HomeModule
 import pygame
 
 class GameApplication:
@@ -36,6 +38,7 @@ class GameApplication:
         self.main_menu = None
         self.map_system = None
         self.dialogue_game_state = None
+        self.home_module = None
         
         print("🎮 ビジュアルノベルゲーム起動中...")
 
@@ -78,6 +81,13 @@ class GameApplication:
                 print(f"❌ マップシステム初期化エラー: {e}")
                 self.switch_to_menu()
 
+    def switch_to_home(self):
+        """家モジュールに切り替え"""
+        print("🏠 家モジュールに切り替え")
+        self.current_mode = "home"
+        if not self.home_module:
+            self.home_module = HomeModule(self.screen)
+    
     def switch_to_dialogue(self, event_file=None):
         """会話モードに切り替え"""
         print(f"💬 会話モードに切り替え (イベント: {event_file})")
@@ -133,6 +143,8 @@ class GameApplication:
                 self.switch_to_dialogue("events/E001.ks")
             elif result == "dialogue_test":
                 self.switch_to_dialogue("events/E004.ks")
+            elif result == "go_to_home":
+                self.switch_to_home()
             elif result == "quit":
                 self.running = False
 
@@ -155,6 +167,20 @@ class GameApplication:
                     self.switch_to_dialogue(event_file)
                 elif result == "back_to_menu":
                     self.switch_to_menu()
+                elif result == "skip_to_home":
+                    self.switch_to_home()
+                elif result == "skip_time":
+                    # 時間スキップ処理（マップは継続）
+                    pass
+
+    def handle_home_events(self, events):
+        """家モードのイベント処理"""
+        if self.home_module:
+            result = self.home_module.handle_events(events)
+            if result == "go_to_map":
+                self.switch_to_map()
+            elif result == "go_to_main_menu":
+                self.switch_to_menu()
 
     def handle_dialogue_events(self):
         """会話モードのイベント処理"""
@@ -164,7 +190,16 @@ class GameApplication:
             from dialogue.controller2 import handle_events
             continue_dialogue = handle_events(self.dialogue_game_state, self.screen)
             if not continue_dialogue:  # 会話が終了した場合
-                self.switch_to_map()
+                print("💬 KSファイル終了 - 遷移判定開始")
+                
+                # 時間管理：放課後イベント終了時は家モジュールへ遷移
+                time_manager = get_time_manager()
+                if time_manager.is_after_school():
+                    print("[TIME] 放課後イベント終了 - 家モジュールに遷移")
+                    self.switch_to_home()
+                else:
+                    print("[TIME] 通常イベント終了 - mapモジュールに遷移")
+                    self.switch_to_map()
 
     def update(self):
         """ゲーム状態の更新"""
@@ -181,6 +216,10 @@ class GameApplication:
             if self.dialogue_game_state:
                 from dialogue.controller2 import update_game
                 update_game(self.dialogue_game_state)
+                
+        elif self.current_mode == "home":
+            if self.home_module:
+                self.home_module.update()
 
     def render(self):
         """画面描画"""
@@ -238,6 +277,15 @@ class GameApplication:
                 if 'backlog_manager' in self.dialogue_game_state:
                     backlog_manager = self.dialogue_game_state['backlog_manager']
                     backlog_manager.render()
+                
+                # 通知システム描画（最上位）
+                if 'notification_manager' in self.dialogue_game_state:
+                    notification_manager = self.dialogue_game_state['notification_manager']
+                    notification_manager.render()
+                    
+        elif self.current_mode == "home":
+            if self.home_module:
+                self.home_module.render()
 
         pygame.display.flip()
 
@@ -268,6 +316,8 @@ class GameApplication:
                         self.handle_menu_events(events)
                     elif self.current_mode == "map":
                         self.handle_map_events(events)
+                    elif self.current_mode == "home":
+                        self.handle_home_events(events)
                 
                 # 更新
                 self.update()

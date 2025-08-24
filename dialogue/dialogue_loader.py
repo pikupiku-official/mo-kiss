@@ -40,6 +40,9 @@ class DialogueLoader:
         name_manager = get_name_manager()
         name_manager.set_dialogue_loader(self)
         
+        # 通知システムの参照（後で設定される）
+        self.notification_system = None
+        
         # 非同期処理用
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loading_tasks = {}  # ファイル読み込み中のタスク管理
@@ -785,6 +788,27 @@ class DialogueLoader:
                         'type': 'if_end'
                     })
 
+                # [event_unlock]タグを検出 - イベント解禁
+                elif "[event_unlock" in line:
+                    try:
+                        events_match = re.search(r'events="([^"]+)"', line)
+                        
+                        if events_match:
+                            events_str = events_match.group(1)
+                            event_list = [event.strip() for event in events_str.split(',') if event.strip()]
+                            
+                            print(f"[PARSE] イベント解禁パース: {event_list}")
+                            
+                            dialogue_data.append({
+                                'type': 'event_unlock',
+                                'events': event_list
+                            })
+                            print(f"[PARSE] dialogue_dataに追加: event_unlock")
+                        
+                    except Exception as e:
+                        if self.debug:
+                            print(f"イベント解禁解析エラー（行 {line_num}）: {e} - {line}")
+
             except Exception as e:
                     if self.debug:
                         print(f"ダイアログ読み取りエラー")
@@ -1024,6 +1048,76 @@ class DialogueLoader:
             if self.debug:
                 print(f"❌ イベントフラグ更新エラー: {e}")
     
+    def unlock_events(self, event_list):
+        """イベントリストを解禁する"""
+        if not event_list:
+            return
+            
+        try:
+            import csv
+            csv_path = os.path.join("events", "events.csv")
+            
+            if not os.path.exists(csv_path):
+                print(f"❌ events.csvが見つかりません: {csv_path}")
+                return
+            
+            # CSVファイル読み込み
+            rows = []
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                fieldnames = reader.fieldnames
+                rows = list(reader)
+            
+            # 指定されたイベントを解禁
+            unlocked_count = 0
+            for event_id in event_list:
+                for row in rows:
+                    if row.get('Event') == event_id:
+                        if row.get('Enabled') != 'TRUE':
+                            row['Enabled'] = 'TRUE'
+                            unlocked_count += 1
+                            print(f"🔓 イベント解禁: {event_id}")
+                        break
+            
+            # CSVファイル書き込み
+            with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            
+            print(f"📝 イベント解禁完了: {unlocked_count}個のイベントを解禁")
+            
+            # 通知システムがあれば通知を発生
+            if hasattr(self, 'notification_system') and self.notification_system:
+                print(f"[NOTIFICATION] 通知システムが利用可能です")
+                for event_id in event_list:
+                    heroine_name = self._get_heroine_name_from_event(event_id)
+                    message = f"{heroine_name}のイベントが解禁されました"
+                    self.notification_system.add_notification(message)
+                    print(f"[NOTIFICATION] 通知追加: {message}")
+            else:
+                print(f"[NOTIFICATION] 通知システムが利用できません: hasattr={hasattr(self, 'notification_system')}, system={getattr(self, 'notification_system', None)}")
+            
+        except Exception as e:
+            print(f"❌ イベント解禁エラー: {e}")
+    
+    def _get_heroine_name_from_event(self, event_id):
+        """イベントIDからヒロイン名を取得"""
+        # events.csvからヒロイン名を取得
+        try:
+            import csv
+            csv_path = os.path.join("events", "events.csv")
+            
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get('Event') == event_id:
+                        return row.get('Character', '不明')
+        except:
+            pass
+        
+        return "不明"
+    
     def execute_story_command(self, command_data):
         """ストーリーコマンドを実行"""
         command_type = command_data.get('type')
@@ -1037,6 +1131,10 @@ class DialogueLoader:
             flag_name = command_data.get('name')
             flag_value = command_data.get('value')
             self.set_story_flag(flag_name, flag_value)
+            
+        elif command_type == 'event_unlock':
+            events = command_data.get('events', [])
+            self.unlock_events(events)
             
         elif command_type == 'check_condition':
             condition = command_data.get('condition', '')
