@@ -40,6 +40,9 @@ class GameApplication:
         self.dialogue_game_state = None
         self.home_module = None
         
+        # 現在実行中のイベント情報を保持
+        self.current_event_id = None
+        
         print("🎮 ビジュアルノベルゲーム起動中...")
 
     def initialize(self):
@@ -62,6 +65,80 @@ class GameApplication:
         except Exception as e:
             print(f"❌ アプリケーション初期化エラー: {e}")
             return False
+
+    def mark_current_event_as_completed(self):
+        """現在のイベントをcompleted_events.csvに記録（実行回数管理）"""
+        if not self.current_event_id:
+            print("[EVENT] 現在のイベントIDが設定されていません")
+            return
+        
+        try:
+            import csv
+            import os
+            from datetime import datetime
+            
+            # events.csvから該当イベント情報を取得
+            events_csv_path = os.path.join(os.path.dirname(__file__), "events", "events.csv")
+            completed_events_csv_path = os.path.join(os.path.dirname(__file__), "events", "completed_events.csv")
+            
+            event_info = None
+            
+            # events.csvから該当イベントを検索
+            if os.path.exists(events_csv_path):
+                with open(events_csv_path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        if row['イベントID'] == self.current_event_id:
+                            event_info = row
+                            break
+            
+            if not event_info:
+                print(f"[EVENT] events.csvに{self.current_event_id}が見つかりません")
+                return
+            
+            # completed_events.csvの既存データを読み込み
+            completed_events = []
+            file_exists = os.path.exists(completed_events_csv_path)
+            event_found = False
+            
+            if file_exists:
+                with open(completed_events_csv_path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        if row['イベントID'] == self.current_event_id:
+                            # 既存イベントの実行回数を+1
+                            current_count = int(row.get('実行回数', '0'))
+                            row['実行回数'] = str(current_count + 1)
+                            row['実行日時'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            event_found = True
+                            print(f"[EVENT] {self.current_event_id}の実行回数を{current_count + 1}に更新")
+                        completed_events.append(row)
+            
+            # 新しいイベントの場合は追加
+            if not event_found:
+                new_event = {
+                    'イベントID': self.current_event_id,
+                    '実行日時': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'ヒロイン名': event_info.get('対象のヒロイン', ''),
+                    '場所': event_info.get('場所', ''),
+                    'イベントタイトル': event_info.get('イベントのタイトル', ''),
+                    '実行回数': '1'
+                }
+                completed_events.append(new_event)
+                print(f"[EVENT] {self.current_event_id}を新規記録（実行回数: 1）")
+            
+            # ファイルに書き戻し
+            fieldnames = ['イベントID', '実行日時', 'ヒロイン名', '場所', 'イベントタイトル', '実行回数']
+            with open(completed_events_csv_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(completed_events)
+            
+            # イベントID をリセット
+            self.current_event_id = None
+            
+        except Exception as e:
+            print(f"[EVENT] イベント完了記録エラー: {e}")
 
     def switch_to_menu(self):
         """メインメニューモードに切り替え"""
@@ -92,6 +169,12 @@ class GameApplication:
         """会話モードに切り替え"""
         print(f"💬 会話モードに切り替え (イベント: {event_file})")
         self.current_mode = "dialogue"
+        
+        # イベントIDを抽出（events/E001.ks -> E001）
+        if event_file:
+            import os
+            self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
+            print(f"[EVENT] 開始イベントID: {self.current_event_id}")
         
         try:
             # 会話ゲームの初期化
@@ -191,6 +274,9 @@ class GameApplication:
             continue_dialogue = handle_events(self.dialogue_game_state, self.screen)
             if not continue_dialogue:  # 会話が終了した場合
                 print("💬 KSファイル終了 - 遷移判定開始")
+                
+                # イベント完了処理
+                self.mark_current_event_as_completed()
                 
                 # 時間管理：放課後イベント終了時は家モジュールへ遷移
                 time_manager = get_time_manager()

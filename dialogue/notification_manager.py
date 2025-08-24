@@ -47,18 +47,26 @@ class NotificationManager:
         if len(self.notifications) > self.max_notifications:
             self.notifications = self.notifications[-self.max_notifications:]
         
+        print(f"[NOTIFICATION] 通知追加: {message} (現在の通知数: {len(self.notifications)})")
         if self.debug:
-            print(f"通知追加: {message}")
+            print(f"[DEBUG] 通知詳細: {notification}")
     
     def update(self):
         """通知の状態を更新"""
         current_time = time.time() * 1000  # ミリ秒
         
+        if self.debug and self.notifications:
+            print(f"[NOTIFICATION_UPDATE] 更新開始: 通知数={len(self.notifications)}")
+        
         # 期限切れの通知を削除
+        old_count = len(self.notifications)
         self.notifications = [
             notif for notif in self.notifications 
             if current_time - notif['start_time'] < self.notification_duration
         ]
+        
+        if old_count != len(self.notifications):
+            print(f"[NOTIFICATION] {old_count - len(self.notifications)}個の通知が期限切れで削除されました")
         
         # アニメーション更新（フェードアウト）
         for i, notif in enumerate(self.notifications):
@@ -78,12 +86,19 @@ class NotificationManager:
     def render(self):
         """通知を描画"""
         if not self.notifications:
+            if self.debug:
+                print("[NOTIFICATION_RENDER] 通知が空のためスキップ")
             return
+        
+        print(f"[NOTIFICATION_RENDER] {len(self.notifications)}個の通知を描画中")
             
         for i, notif in enumerate(self.notifications):
             # 位置計算
             x = SCREEN_WIDTH - self.notification_width - self.margin_right
             y = self.margin_top + notif['y_offset']
+            
+            if self.debug:
+                print(f"[NOTIFICATION_RENDER] 通知{i}: pos=({x},{y}), alpha={notif['alpha']}, message='{notif['message']}'")
             
             # 背景描画
             bg_surface = pygame.Surface((self.notification_width, self.notification_height), pygame.SRCALPHA)
@@ -102,34 +117,63 @@ class NotificationManager:
             lines = self._wrap_text(notif['message'], self.notification_width - 20)
             
             for j, line in enumerate(lines):
-                text_surface = self.font.render(line, True, self.text_color)
+                if self.debug:
+                    print(f"[NOTIFICATION_RENDER] テキスト行{j}: '{line}'")
                 
-                # アルファ値を適用
-                if notif['alpha'] < 255:
-                    alpha_surface = pygame.Surface(text_surface.get_size(), pygame.SRCALPHA)
-                    alpha_surface.fill((255, 255, 255, notif['alpha']))
-                    alpha_surface.blit(text_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-                    text_surface = alpha_surface
-                
-                text_x = x + 10
-                text_y = y + 10 + (j * self.font.get_height())
-                self.screen.blit(text_surface, (text_x, text_y))
+                try:
+                    # 日本語対応のため、アンチエイリアスを有効にしてテキストを描画
+                    text_surface = self.font.render(line, True, self.text_color)
+                    
+                    if self.debug:
+                        print(f"[NOTIFICATION_RENDER] テキストサーフェス作成: サイズ={text_surface.get_size()}")
+                    
+                    # アルファ値を適用（簡単な方法に変更）
+                    if notif['alpha'] < 255:
+                        text_surface.set_alpha(notif['alpha'])
+                    
+                    text_x = x + 10
+                    text_y = y + 10 + (j * self.font.get_height())
+                    
+                    if self.debug:
+                        print(f"[NOTIFICATION_RENDER] テキスト描画位置: ({text_x}, {text_y})")
+                    
+                    self.screen.blit(text_surface, (text_x, text_y))
+                    
+                except Exception as e:
+                    print(f"[NOTIFICATION_RENDER] テキスト描画エラー: {e}")
+                    # フォールバック: シンプルな英語フォントで描画
+                    fallback_font = pygame.font.Font(None, 24)
+                    text_surface = fallback_font.render(line, True, self.text_color)
+                    text_x = x + 10
+                    text_y = y + 10 + (j * 24)
+                    self.screen.blit(text_surface, (text_x, text_y))
     
     def _wrap_text(self, text, max_width):
-        """テキストを指定幅で改行"""
-        words = text.split(' ')
+        """テキストを指定幅で改行（日本語対応）"""
+        if not text:
+            return [""]
+        
+        # 日本語テキストは文字単位で改行判定
         lines = []
         current_line = ""
         
-        for word in words:
-            test_line = current_line + (" " if current_line else "") + word
-            if self.font.size(test_line)[0] <= max_width - 20:
+        for char in text:
+            test_line = current_line + char
+            try:
+                # フォントサイズでテキスト幅をチェック
+                text_width = self.font.size(test_line)[0]
+                if text_width <= max_width - 20:
+                    current_line = test_line
+                else:
+                    # 現在の行を保存して新しい行を開始
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = char
+            except:
+                # フォント処理でエラーが発生した場合は文字を追加
                 current_line = test_line
-            else:
-                if current_line:
-                    lines.append(current_line)
-                current_line = word
         
+        # 最後の行を追加
         if current_line:
             lines.append(current_line)
         
@@ -140,3 +184,12 @@ class NotificationManager:
         self.notifications.clear()
         if self.debug:
             print("すべての通知をクリア")
+    
+    def add_test_notification(self):
+        """テスト用通知を追加"""
+        self.add_notification("テスト通知です")
+        print("[NOTIFICATION] テスト通知を追加しました")
+    
+    def get_notification_count(self):
+        """現在の通知数を取得"""
+        return len(self.notifications)

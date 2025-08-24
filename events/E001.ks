@@ -16,9 +16,7 @@
 	「すっかり通いなれた国分寺駅も」
 	「どこか気に入っているのかもしれない」
 
-[event_unlock
-
-[erevent_unlock events="E002,E003,E004,E005"]
+[event_unlock events="E002,E003,E004,E005"]
 
 [SE se="電車のドアが開く1.mp3" volume="0.5" frequency="2"]
 

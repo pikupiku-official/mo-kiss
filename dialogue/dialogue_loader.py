@@ -665,12 +665,21 @@ class DialogueLoader:
                     })
 
                 # [event_unlock]タグを検出 - イベント有効化/無効化
-                elif "[event_unlock" in line:
+                elif "[event_unlock" in line or "[erevent_unlock" in line:
                     try:
+                        # 両方のフォーマットに対応: events="..." と target="..."
+                        events_match = re.search(r'events="([^"]+)"', line)
                         target_events = re.search(r'target="([^"]+)"', line)
                         lock_events = re.search(r'lock="([^"]+)"', line)
                         
-                        unlock_list = target_events.group(1).split(',') if target_events else []
+                        # events= または target= から解禁リストを取得
+                        if events_match:
+                            unlock_list = events_match.group(1).split(',')
+                        elif target_events:
+                            unlock_list = target_events.group(1).split(',')
+                        else:
+                            unlock_list = []
+                            
                         lock_list = lock_events.group(1).split(',') if lock_events else []
                         
                         # 空白文字を除去
@@ -680,11 +689,20 @@ class DialogueLoader:
                         if self.debug:
                             print(f"イベント制御: 解放={unlock_list}, ロック={lock_list}")
                         
-                        dialogue_data.append({
-                            'type': 'event_control',
-                            'unlock': unlock_list,
-                            'lock': lock_list
-                        })
+                        # event_unlock形式でデータを追加
+                        if unlock_list:
+                            dialogue_data.append({
+                                'type': 'event_unlock',
+                                'events': unlock_list
+                            })
+                        
+                        # 互換性のため、旧形式も追加（ロックがある場合）
+                        if lock_list:
+                            dialogue_data.append({
+                                'type': 'event_control',
+                                'unlock': unlock_list,
+                                'lock': lock_list
+                            })
                         
                     except Exception as e:
                         if self.debug:
@@ -1068,15 +1086,28 @@ class DialogueLoader:
                 fieldnames = reader.fieldnames
                 rows = list(reader)
             
-            # 指定されたイベントを解禁
+            # 指定されたイベントを解禁（E***番号順に並び替え）
             unlocked_count = 0
-            for event_id in event_list:
+            unlocked_events = []
+            
+            # E***番号順にソート
+            sorted_event_list = sorted(event_list, key=lambda x: int(x[1:]) if x[1:].isdigit() else 999)
+            print(f"[EVENT_UNLOCK] イベント解禁順序: {sorted_event_list}")
+            
+            for event_id in sorted_event_list:
                 for row in rows:
-                    if row.get('Event') == event_id:
-                        if row.get('Enabled') != 'TRUE':
-                            row['Enabled'] = 'TRUE'
+                    if row.get('イベントID') == event_id:
+                        if row.get('有効フラグ') != 'TRUE':
+                            row['有効フラグ'] = 'TRUE'
                             unlocked_count += 1
-                            print(f"🔓 イベント解禁: {event_id}")
+                            heroine_name = row.get('対象のヒロイン', 'unknown')
+                            event_title = row.get('イベントのタイトル', '')
+                            unlocked_events.append({
+                                'id': event_id,
+                                'heroine': heroine_name,
+                                'title': event_title
+                            })
+                            print(f"🔓 イベント解禁: {event_id} - {heroine_name}: {event_title}")
                         break
             
             # CSVファイル書き込み
@@ -1085,18 +1116,17 @@ class DialogueLoader:
                 writer.writeheader()
                 writer.writerows(rows)
             
-            print(f"📝 イベント解禁完了: {unlocked_count}個のイベントを解禁")
+            # 通知システムに順番に通知を送信（E***番号順）
+            if self.notification_system and unlocked_events:
+                print(f"[NOTIFICATION] {len(unlocked_events)}個のイベント解禁通知を送信")
+                for event in unlocked_events:
+                    notification_msg = f"{event['heroine']}のイベントが解禁されました"
+                    self.notification_system.add_notification(notification_msg)
+                    print(f"[NOTIFICATION] 通知送信: {notification_msg}")
+            elif unlocked_events:
+                print(f"[NOTIFICATION] 通知システムが利用できません: notification_system={self.notification_system}")
             
-            # 通知システムがあれば通知を発生
-            if hasattr(self, 'notification_system') and self.notification_system:
-                print(f"[NOTIFICATION] 通知システムが利用可能です")
-                for event_id in event_list:
-                    heroine_name = self._get_heroine_name_from_event(event_id)
-                    message = f"{heroine_name}のイベントが解禁されました"
-                    self.notification_system.add_notification(message)
-                    print(f"[NOTIFICATION] 通知追加: {message}")
-            else:
-                print(f"[NOTIFICATION] 通知システムが利用できません: hasattr={hasattr(self, 'notification_system')}, system={getattr(self, 'notification_system', None)}")
+            print(f"📝 イベント解禁完了: {unlocked_count}個のイベントを解禁")
             
         except Exception as e:
             print(f"❌ イベント解禁エラー: {e}")
@@ -1111,8 +1141,8 @@ class DialogueLoader:
             with open(csv_path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if row.get('Event') == event_id:
-                        return row.get('Character', '不明')
+                    if row.get('イベントID') == event_id:
+                        return row.get('対象のヒロイン', '不明')
         except:
             pass
         
