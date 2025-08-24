@@ -29,6 +29,8 @@ class TextRenderer:
         self.text_line_height = int(base_line_height * TEXT_LINE_HEIGHT_MULTIPLIER)
         self.text_padding = TEXT_PADDING
         self.char_spacing = TEXT_CHAR_SPACING
+        # 名前表示モードの初期化
+        self.name_display_mode = "auto"  # デフォルトは自動均等配置
 
         # n文字での自動改行を設定
         self.max_chars_per_line = TEXT_MAX_CHARS_PER_LINE
@@ -314,6 +316,66 @@ class TextRenderer:
             line_surface.blit(char_surface, (grid_x, grid_y))
         
         return line_surface
+    
+    def _render_name_with_grid_system(self, name, color):
+        """名前を均等配置のグリッドシステムで描画"""
+        if not name:
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+        
+        # 通常表示モードの場合は従来通り
+        if getattr(self, 'name_display_mode', 'auto') == 'normal':
+            return self._render_text_with_effects(self.pygame_fonts["name"], name, color, is_name=True)
+        
+        # 1文字あたりの標準幅を計算（名前フォント基準）
+        sample_char = "あ"
+        sample_surface = self.pygame_fonts["name"].render(sample_char, True, color)
+        base_char_width = sample_surface.get_width()
+        
+        # フォント効果を考慮した文字幅
+        stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.0) if FONT_EFFECTS.get("enable_stretched", False) else 1.0
+        grid_char_width = int(base_char_width * stretch_factor * 1.1) + self.char_spacing
+        
+        # 名前の文字数に応じた均等配置ロジック
+        name_length = len(name)
+        if name_length == 1:
+            # 1文字の場合: 「　橘　」（前後に全角スペース）
+            display_name = "　" + name + "　"
+            total_chars = 3
+        elif name_length == 2:
+            # 2文字の場合: 「純　一」（間に全角スペース）
+            display_name = name[0] + "　" + name[1]
+            total_chars = 3
+        else:
+            # 3文字以上の場合: そのまま表示
+            display_name = name
+            total_chars = name_length
+        
+        # 名前全体のサーフェスサイズを計算
+        name_width = grid_char_width * total_chars
+        name_height = self.pygame_fonts["name"].get_height() * 2
+        
+        # 名前サーフェスを作成
+        name_surface = pygame.Surface((name_width, name_height), pygame.SRCALPHA)
+        name_surface.fill((0, 0, 0, 0))
+        
+        # 各文字を絶対座標グリッドに配置
+        for char_index, char in enumerate(display_name):
+            # グリッド位置計算
+            grid_x = char_index * grid_char_width
+            grid_y = 0
+            
+            # 個別文字をエフェクト付きで描画
+            char_surface = self._render_text_with_effects(
+                self.pygame_fonts["name"], 
+                char, 
+                color, 
+                is_name=True
+            )
+            
+            # 文字をグリッド位置に配置
+            name_surface.blit(char_surface, (grid_x, grid_y))
+        
+        return name_surface
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager
@@ -599,7 +661,8 @@ class TextRenderer:
 
         if self.current_character_name and self.current_character_name.strip():
             try:
-                name_surface = self._render_text_with_effects(self.pygame_fonts["name"], self.current_character_name, text_color_to_use, is_name=True)
+                # グリッドシステムで名前を描画
+                name_surface = self._render_name_with_grid_system(self.current_character_name, text_color_to_use)
                 # 名前の座標も整数にスナップ
                 name_pos_x = int(round(self.name_start_x))
                 name_pos_y = int(round(self.name_start_y))
@@ -711,7 +774,8 @@ class TextRenderer:
             # 話者名を各行の左側に描画（表示すべき場合のみ）
             if speaker_name_to_show:
                 try:
-                    name_surface = self._render_text_with_effects(self.pygame_fonts["name"], speaker_name_to_show, speaker_text_color, is_name=True)
+                    # グリッドシステムで話者名を描画
+                    name_surface = self._render_name_with_grid_system(speaker_name_to_show, speaker_text_color)
                     # スクロール時の名前座標も整数にスナップ
                     scroll_name_x = int(round(self.name_start_x))
                     scroll_name_y = int(round(y))
@@ -798,3 +862,13 @@ class TextRenderer:
         self.char_spacing = spacing
         if self.debug:
             print(f"文字間隔を{spacing}pxに設定")
+    
+    def set_name_display_mode(self, mode="auto"):
+        """名前表示モードを設定
+        
+        Args:
+            mode (str): "auto" = 自動均等配置, "normal" = 通常表示
+        """
+        self.name_display_mode = mode
+        if self.debug:
+            print(f"名前表示モードを{mode}に設定")
