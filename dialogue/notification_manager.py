@@ -12,7 +12,7 @@ class NotificationManager:
         # 通知リスト（最大3つ表示）
         self.notifications = []
         self.max_notifications = 3
-        self.notification_duration = 2000  # 2秒
+        self.notification_duration = 4000  # nミリ秒
         
         # 位置設定（右上エリア）
         self.notification_width = int(300 * SCALE)

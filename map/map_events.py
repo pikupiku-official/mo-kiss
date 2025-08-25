@@ -13,30 +13,31 @@ sys.path.insert(0, project_root)
 
 class GameEvent:
     def __init__(self, event_id: str, start_date: str, end_date: str, time_slots: str, 
-                 heroine: str, location: str, title: str, active: str):
+                 heroine: str, location: str, title: str):
         self.event_id = event_id
         self.start_date = self.parse_date(start_date)
         self.end_date = self.parse_date(end_date)
-        self.time_slots = time_slots.split(';') if time_slots else []
+        if time_slots:
+            slots = time_slots.split(';')
+            self.time_slots = [slot.strip() for slot in slots]
+        else:
+            self.time_slots = []
         self.heroine = heroine
         self.location = location
         self.title = title
-        self.active = active.upper() == 'TRUE'
+        # activeフラグはcompleted_events.csvから取得
     
     def parse_date(self, date_str: str) -> tuple:
         """日付文字列を解析 (例: '6月1日の朝' -> (6, 1, '朝'))"""
         import re
-        match = re.match(r'(\d+)月(\d+)日の(朝|昼|夜)', date_str)
+        match = re.match(r'(\d+)月(\d+)日の(朝|昼|放課後)', date_str)
         if match:
             month, day, time_slot = match.groups()
             return (int(month), int(day), time_slot)
         return (6, 1, '朝')  # デフォルト値
     
-    def is_active(self, current_date: datetime.date, current_time: str) -> bool:
-        """現在の日時でイベントが有効かチェック"""
-        if not self.active:
-            return False
-        
+    def is_in_time_period(self, current_date: datetime.date, current_time: str) -> bool:
+        """現在の日時でイベントが期間・時間帯内かチェック（有効フラグは別途チェック）"""
         # 日付の比較
         current_day_only = (current_date.month, current_date.day)
         start_day_only = (self.start_date[0], self.start_date[1])
@@ -46,32 +47,37 @@ class GameEvent:
         is_in_period = start_day_only <= current_day_only <= end_day_only
         is_right_time = current_time in self.time_slots
         
+        # デバッグ情報を出力
+        if self.event_id in ["E002", "E003", "E004"]:  # 初期イベントのデバッグ
+            print(f"[DEBUG EventManager] {self.event_id}: 現在({current_date.month}/{current_date.day} {current_time}) "
+                  f"期間({start_day_only}-{end_day_only}) 時間帯{self.time_slots} "
+                  f"期間内:{is_in_period} 時間帯OK:{is_right_time} -> {is_in_period and is_right_time}")
+        
         return is_in_period and is_right_time
 
 class EventManager:
     def __init__(self):
         self.events = []
-        self.completed_events = set()
+        self.completed_events_data = {}  # event_id -> {count, active_flag, executed_at, etc}
         self.events_file = os.path.join(project_root, "events", "events.csv")
-        self.completed_file = os.path.join(project_root, "events", "completed_events.csv")
+        self.completed_file = os.path.join(project_root, "data", "current_state", "completed_events.csv")
         self.load_events()
         self.load_completed_events()
     
     def load_events(self):
-        """CSVファイルからイベントを読み込み"""
+        """CSVファイルからイベントマスターデータを読み込み"""
         try:
             with open(self.events_file, 'r', encoding='utf-8') as file:
                 reader = csv.DictReader(file)
                 for row in reader:
                     event = GameEvent(
-                        row['event_id'],
-                        row['start_date'],
-                        row['end_date'],
-                        row['time_slots'],
-                        row['heroine'],
-                        row['location'],
-                        row['title'],
-                        row['active']
+                        row['イベントID'],
+                        row['イベント開始日時'],
+                        row['イベント終了日時'],
+                        row['イベントを選べる時間帯'],
+                        row['対象のヒロイン'],
+                        row['場所'],
+                        row['イベントのタイトル']
                     )
                     self.events.append(event)
         except FileNotFoundError:
@@ -80,16 +86,21 @@ class EventManager:
             print(f"イベント読み込みエラー: {e}")
     
     def load_completed_events(self):
-        """完了したイベントを読み込み"""
+        """completed_events.csvからイベント状態を読み込み"""
         try:
             with open(self.completed_file, 'r', encoding='utf-8') as file:
-                reader = csv.reader(file)
+                reader = csv.DictReader(file)
                 for row in reader:
-                    if row:
-                        self.completed_events.add(row[0])
+                    if row and 'イベントID' in row and row['イベントID']:
+                        event_id = row['イベントID']
+                        self.completed_events_data[event_id] = {
+                            'count': int(row.get('実行回数', '0')),
+                            'active': row.get('有効フラグ', 'TRUE').upper() == 'TRUE',
+                            'executed_at': row.get('実行日時', '')
+                        }
+            print(f"completed_events.csv読み込み完了: {len(self.completed_events_data)}個のイベント状態")
         except FileNotFoundError:
-            # ファイルが存在しない場合は新規作成
-            self.initialize_completed_events_file()
+            print(f"完了イベントファイルが見つかりません: {self.completed_file}")
         except Exception as e:
             print(f"完了イベント読み込みエラー: {e}")
     
@@ -102,28 +113,33 @@ class EventManager:
         except Exception as e:
             print(f"完了イベントファイル初期化エラー: {e}")
     
-    def mark_event_completed(self, event_id: str):
-        """イベントを完了としてマーク"""
-        if event_id not in self.completed_events:
-            self.completed_events.add(event_id)
-            try:
-                with open(self.completed_file, 'a', encoding='utf-8', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerow([event_id])
-            except Exception as e:
-                print(f"完了イベント保存エラー: {e}")
+    def is_event_completed(self, event_id: str) -> bool:
+        """イベントが完了済み（実行回数 > 0）かチェック"""
+        event_data = self.completed_events_data.get(event_id, {})
+        return event_data.get('count', 0) > 0
+    
+    def is_event_active(self, event_id: str) -> bool:
+        """イベントが有効かチェック"""
+        event_data = self.completed_events_data.get(event_id, {})
+        return event_data.get('active', True)
     
     def get_available_events(self, current_date: datetime.date, current_time: str, location: str = None, heroine: str = None) -> List[GameEvent]:
         """利用可能なイベントを取得"""
         available_events = []
         
         for event in self.events:
-            # 完了済みイベントはスキップ
-            if event.event_id in self.completed_events:
+            event_data = self.completed_events_data.get(event.event_id, {})
+            
+            # 有効フラグがFALSEのイベントはスキップ
+            if not event_data.get('active', True):
                 continue
             
-            # 現在の日時で有効なイベントかチェック
-            if not event.is_active(current_date, current_time):
+            # 既に実行済み（実行回数 > 0）のイベントはスキップ
+            if event_data.get('count', 0) > 0:
+                continue
+            
+            # 現在の日時で期間・時間帯内でないイベントはスキップ
+            if not event.is_in_time_period(current_date, current_time):
                 continue
             
             # 場所フィルター

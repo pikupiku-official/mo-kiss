@@ -43,30 +43,30 @@ ADVANCED_COLORS = {
 
 class GameEvent:
     def __init__(self, event_id: str, start_date: str, end_date: str, time_slots: str, 
-                 heroine: str, location: str, title: str, active: str):
+                 heroine: str, location: str, title: str):
         self.event_id = event_id
         self.start_date = self.parse_date(start_date)
         self.end_date = self.parse_date(end_date)
-        self.time_slots = time_slots.split(';') if time_slots else []
+        if time_slots:
+            slots = time_slots.split(';')
+            self.time_slots = [slot.strip() for slot in slots]
+        else:
+            self.time_slots = []
         self.heroine = heroine
         self.location = location
         self.title = title
-        self.active = active.upper() == 'TRUE'
     
     def parse_date(self, date_str: str) -> tuple:
         """日付文字列を解析 (例: '6月1日の朝' -> (6, 1, '朝'))"""
         import re
-        match = re.match(r'(\d+)月(\d+)日の(朝|昼|夜)', date_str)
+        match = re.match(r'(\d+)月(\d+)日の(朝|昼|放課後)', date_str)
         if match:
             month, day, time_slot = match.groups()
             return (int(month), int(day), time_slot)
         return (6, 1, '朝')  # デフォルト値
     
-    def is_active(self, current_date: datetime.date, current_time: str) -> bool:
-        """現在の日時でイベントが有効かチェック"""
-        if not self.active:
-            return False
-        
+    def is_in_time_period(self, current_date: datetime.date, current_time: str) -> bool:
+        """現在の日時でイベントが期間・時間帯内かチェック"""
         # 日付の比較
         current_day_only = (current_date.month, current_date.day)
         start_day_only = (self.start_date[0], self.start_date[1])
@@ -76,6 +76,11 @@ class GameEvent:
         is_in_period = start_day_only <= current_day_only <= end_day_only
         is_right_time = current_time in self.time_slots
         
+        # デバッグ情報を出力
+        if self.event_id in ["E002", "E003", "E004"]:  # 初期イベントのデバッグ
+            print(f"[DEBUG] {self.event_id}: 現在({current_date.month}/{current_date.day} {current_time}) "
+                  f"期間({start_day_only}-{end_day_only}) 時間帯{self.time_slots} "
+                  f"期間内:{is_in_period} 時間帯OK:{is_right_time} -> {is_in_period and is_right_time}")
         
         return is_in_period and is_right_time
 
@@ -125,7 +130,7 @@ class AdvancedKimikissMap:
         self.init_fonts()
         
         # 時間・曜日システムはtime_manager.pyに統合
-        self.time_manager = get_time_manager()
+        # セーブ/ロード対応のため毎回取得するように変更
         # 自動時間進行システムを削除
         
         # マップ状態
@@ -144,7 +149,7 @@ class AdvancedKimikissMap:
         
         # 実行済みイベント記録の管理 - /mo-kiss/events ディレクトリに配置
         project_root = os.path.dirname(os.path.dirname(__file__))  # map -> mo-kiss
-        self.completed_events_file = os.path.join(project_root, "events", "completed_events.csv")
+        self.completed_events_file = os.path.join(project_root, "data", "current_state", "completed_events.csv")
         
         # 実行時に常にCSVを初期化
         self.init_completed_events_csv()
@@ -316,7 +321,7 @@ class AdvancedKimikissMap:
     
     def get_map_type(self) -> MapType:
         """現在の曜日からマップタイプを判定"""
-        time_state = self.time_manager.get_time_state()
+        time_state = get_time_manager().get_time_state()
         weekday = time_state['weekday']  # 0=月曜, 6=日曜
         return MapType.WEEKDAY if weekday < 5 else MapType.WEEKEND
     
@@ -499,8 +504,7 @@ class AdvancedKimikissMap:
                         time_slots=row['イベントを選べる時間帯'],
                         heroine=row['対象のヒロイン'],
                         location=row['場所'],
-                        title=row['イベントのタイトル'],
-                        active=row['有効フラグ']
+                        title=row['イベントのタイトル']
                     )
                     self.events.append(event)
             print(f"イベント読み込み完了: {len(self.events)}個のイベント")
@@ -522,10 +526,8 @@ class AdvancedKimikissMap:
                         event_id = row['イベントID']
                         completed_events[event_id] = {
                             'executed_at': row['実行日時'],
-                            'heroine': row['ヒロイン名'],
-                            'location': row['場所'],
-                            'title': row['イベントタイトル'],
-                            'count': int(row['実行回数'])
+                            'count': int(row['実行回数']),
+                            'active': row.get('有効フラグ', 'TRUE').upper() == 'TRUE'
                         }
             print(f"実行済みイベント読み込み完了: {len(completed_events)}個")
         except Exception as e:
@@ -621,7 +623,7 @@ class AdvancedKimikissMap:
     def get_current_locations(self) -> List[EventLocation]:
         """現在のマップタイプに応じた場所リストを取得"""
         # 放課後と休日は街マップを使用
-        current_period = self.time_manager.get_current_period()
+        current_period = get_time_manager().get_current_period()
         if self.current_map_type == MapType.WEEKDAY and current_period == "放課後":
             return self.weekend_locations  # 放課後は街
         elif self.current_map_type == MapType.WEEKEND:
@@ -632,7 +634,7 @@ class AdvancedKimikissMap:
     def advance_time_after_event(self):
         """イベント終了後の時間進行（time_manager使用）"""
         # time_managerを使って時間帯を進める
-        self.time_manager.advance_period()
+        get_time_manager().advance_period()
         
         # マップタイプを更新
         self.current_map_type = self.get_map_type()
@@ -655,21 +657,27 @@ class AdvancedKimikissMap:
             location.has_event = False
         
         # 現在の時間帯名を取得
-        current_time_name = self.time_manager.get_current_period()
+        current_time_name = get_time_manager().get_current_period()
         
         # 現在の日付を取得
-        time_state = self.time_manager.get_time_state()
+        time_state = get_time_manager().get_time_state()
         current_date = datetime.date(time_state['year'], time_state['month'], time_state['day'])
         
         # アクティブなイベントをチェック（実行済みは除外）
         active_events = []
         for event in self.events:
-            if (event.is_active(current_date, current_time_name) and
-                not self.is_event_completed(event.event_id)):  # 実行済みイベントを除外
+            # completed_eventsから有効フラグと実行回数をチェック
+            event_data = self.completed_events.get(event.event_id, {})
+            is_active_flag = event_data.get('active', True)  # 有効フラグをチェック
+            is_not_completed = event_data.get('count', 0) == 0  # 未実行かチェック
+            
+            if (event.is_in_time_period(current_date, current_time_name) and
+                is_active_flag and
+                is_not_completed):
                 active_events.append(event)
         
         # 全イベント数と利用可能イベント数を表示
-        all_active_events = [event for event in self.events if event.is_active(current_date, current_time_name)]
+        all_active_events = [event for event in self.events if event.is_in_time_period(current_date, current_time_name)]
         completed_active_events = [event for event in all_active_events if self.is_event_completed(event.event_id)]
         
         print(f"📅 {time_state['month']}月{time_state['day']}日 {current_time_name}: "
@@ -688,7 +696,7 @@ class AdvancedKimikissMap:
         # 現在のマップタイプと利用可能場所をログ
         current_locations = self.get_current_locations()
         map_type_name = "学校" if self.current_map_type == MapType.WEEKDAY else "街"
-        current_period = self.time_manager.get_current_period()
+        current_period = get_time_manager().get_current_period()
         if self.current_map_type == MapType.WEEKDAY and current_period == "放課後":
             map_type_name = "街(放課後)"
         print(f"   現在のマップ: {map_type_name}, 利用可能場所: {[loc.name for loc in current_locations]}")
@@ -729,7 +737,7 @@ class AdvancedKimikissMap:
     
     def get_time_display(self) -> str:
         """時間表示用文字列を取得"""
-        return self.time_manager.get_full_time_string()
+        return get_time_manager().get_full_time_string()
     
     def draw_weekend_map(self):
         """休日マップ（街）の描画 - 以前の街並みから学校を除外"""
@@ -840,15 +848,21 @@ class AdvancedKimikissMap:
     
     def get_current_event_for_character(self, character_name: str, location_name: str):
         """指定キャラクター・場所の現在のイベントを取得（実行済みは除外）"""
-        current_time_name = self.time_manager.get_current_period()
-        time_state = self.time_manager.get_time_state()
+        current_time_name = get_time_manager().get_current_period()
+        time_state = get_time_manager().get_time_state()
         current_date = datetime.date(time_state['year'], time_state['month'], time_state['day'])
         
         for event in self.events:
+            # completed_eventsから有効フラグをチェック
+            event_data = self.completed_events.get(event.event_id, {})
+            is_active_flag = event_data.get('active', True)  # 有効フラグをチェック
+            is_not_completed = event_data.get('count', 0) == 0  # 未実行かチェック
+            
             if (event.heroine == character_name and 
                 event.location == location_name and
-                event.is_active(current_date, current_time_name) and
-                not self.is_event_completed(event.event_id)):  # 実行済みイベントを除外
+                event.is_in_time_period(current_date, current_time_name) and
+                is_active_flag and
+                is_not_completed):
                 return event
         return None
     
@@ -939,7 +953,7 @@ class AdvancedKimikissMap:
         pygame.draw.rect(self.screen, ADVANCED_COLORS['ui_border'], cal_rect, 2, border_radius=8)
         
         # 年・月・日表示
-        time_state = self.time_manager.get_time_state()
+        time_state = get_time_manager().get_time_state()
         month_year_day = f"{time_state['year']}年{time_state['month']}月{time_state['day']}日"
         month_text = self.fonts['medium'].render(month_year_day, True, ADVANCED_COLORS['text_color'])
         month_rect = month_text.get_rect(centerx=cal_rect.centerx, y=cal_rect.y + 8)
@@ -957,7 +971,7 @@ class AdvancedKimikissMap:
             self.screen.blit(day_text, day_rect)
         
         # カレンダーグリッド描画
-        time_state = self.time_manager.get_time_state()
+        time_state = get_time_manager().get_time_state()
         current_date_obj = datetime.date(time_state['year'], time_state['month'], time_state['day'])
         start_date = datetime.date(1999, 5, 31)  # 月曜日から開始
         end_date = datetime.date(1999, 7, 1)  # 終了日
@@ -995,7 +1009,7 @@ class AdvancedKimikissMap:
         time_square_size = 40
         time_spacing = 10
         
-        current_period = self.time_manager.get_current_period()
+        current_period = get_time_manager().get_current_period()
         
         for i, time_name in enumerate(time_slots):
             time_x = cal_rect.x + i * (time_square_size + time_spacing)
@@ -1221,7 +1235,11 @@ class AdvancedKimikissMap:
             current_period = time_manager.get_current_period()
             
             if current_period == "放課後":
-                print("[TIME] 放課後スキップ - 家モジュールに遷移")
+                # 放課後の場合は夜に進めてから家に遷移
+                time_manager.advance_period()  # 放課後 → 夜
+                new_period = time_manager.get_current_period()
+                print(f"[TIME] 放課後から夜に進行: {current_period} → {new_period}")
+                print("[TIME] 夜になったため家モジュールに遷移")
                 return "skip_to_home"
             else:
                 time_manager.advance_period()
@@ -1888,7 +1906,7 @@ class AdvancedKimikissMap:
             self.draw_terrain()
             
             # マップタイプ別描画（朝昼は学校、放課後は街）
-            current_period = self.time_manager.get_current_period()
+            current_period = get_time_manager().get_current_period()
             if current_period == "放課後" or self.current_map_type == MapType.WEEKEND:
                 self.draw_weekend_map()  # 放課後と休日は街マップ
             else:

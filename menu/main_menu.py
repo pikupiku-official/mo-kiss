@@ -10,6 +10,7 @@ from .main_menu_config import (
 from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton, TextInput
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dialogue.name_manager import get_name_manager
+from save_manager import get_save_manager
 
 class MainMenu:
     def __init__(self, screen=None):
@@ -34,6 +35,11 @@ class MainMenu:
         
         # 名前管理
         self.name_manager = get_name_manager()
+        
+        # セーブ管理
+        self.save_manager = get_save_manager()
+        self.save_slots = []
+        self.selected_slot = 0
         
         # screen が提供されている場合は即座に初期化
         if self.screen:
@@ -182,13 +188,23 @@ class MainMenu:
             "つづきから", self.fonts['medium'], 'green'
         )
         
-        self.buttons['settings'] = Button(
+        self.buttons['save'] = Button(
             button_x, button_y + button_spacing * 2, 300, 70,
+            "セーブ", self.fonts['medium'], 'green'
+        )
+        
+        self.buttons['load'] = Button(
+            button_x, button_y + button_spacing * 3, 300, 70,
+            "ロード", self.fonts['medium'], 'green'
+        )
+        
+        self.buttons['settings'] = Button(
+            button_x, button_y + button_spacing * 4, 300, 70,
             "設定", self.fonts['medium'], 'green'
         )
         
         self.buttons['home'] = Button(
-            button_x, button_y + button_spacing * 3, 300, 70,
+            button_x, button_y + button_spacing * 5, 300, 70,
             "家", self.fonts['medium'], 'green'
         )
         
@@ -319,6 +335,14 @@ class MainMenu:
         elif button_name == 'settings':
             self.state = MenuState.SETTINGS
             self._update_button_selection()
+        elif button_name == 'save':
+            self.state = MenuState.SAVE
+            self._load_save_slots()
+            self._update_button_selection()
+        elif button_name == 'load':
+            self.state = MenuState.LOAD
+            self._load_save_slots()
+            self._update_button_selection()
         elif button_name == 'test':
             print("テスト機能")
             # ここにテスト機能のロジックを追加
@@ -326,10 +350,16 @@ class MainMenu:
             if self.state == MenuState.SETTINGS:
                 self.state = MenuState.MAIN
                 self._update_button_selection()
+            elif self.state == MenuState.SAVE or self.state == MenuState.LOAD:
+                self.state = MenuState.MAIN
+                self._update_button_selection()
             else:
                 self.running = False
         elif button_name == 'reset':
             self._reset_to_defaults()
+        elif button_name.startswith('slot_'):
+            slot_num = int(button_name.split('_')[1])
+            self._handle_slot_click(slot_num)
     
     def handle_event(self, event):
         """単一のイベントを処理して結果を返す（main.pyからの呼び出し用）"""
@@ -377,10 +407,10 @@ class MainMenu:
         """ボタンクリック処理（main.py用に結果を返す）"""
         if button_name == 'start':
             print("新しいゲームを開始")
-            return "start_game"
+            return "new_game"
         elif button_name == 'continue':
             print("ゲームを続行")
-            return "start_game"
+            return "continue_game"
         elif button_name == 'settings':
             self.state = MenuState.SETTINGS
             self._update_button_selection()
@@ -398,9 +428,25 @@ class MainMenu:
         elif button_name == 'reset':
             self._reset_to_defaults()
             return None
+        elif button_name == 'save':
+            self.state = MenuState.SAVE
+            self._load_save_slots()
+            self._update_button_selection()
+            return None
+        elif button_name == 'load':
+            self.state = MenuState.LOAD
+            self._load_save_slots()
+            self._update_button_selection()
+            return None
         elif button_name == 'home':
             print("家モジュールへ移動")
             return "go_to_home"
+        elif button_name.startswith('slot_'):
+            slot_num = int(button_name.split('_')[1])
+            result = self._handle_slot_click(slot_num)
+            if result == 'game_loaded':
+                return "continue_game"
+            return None
         return None
     
     def _update_button_selection(self):
@@ -412,6 +458,12 @@ class MainMenu:
         # 現在の状態に応じて選択状態を設定
         if self.state == MenuState.SETTINGS:
             self.buttons['settings'].is_selected = True
+        elif self.state == MenuState.SAVE:
+            if 'save' in self.buttons:
+                self.buttons['save'].is_selected = True
+        elif self.state == MenuState.LOAD:
+            if 'load' in self.buttons:
+                self.buttons['load'].is_selected = True
     
     def _handle_slider_change(self, slider_name, value):
         self.audio_settings[f'{slider_name}_volume'] = int(value)
@@ -439,6 +491,96 @@ class MainMenu:
         
         print("設定を初期状態に戻しました")
     
+    def _load_save_slots(self):
+        """セーブスロット情報を読み込む"""
+        self.save_slots = []
+        for i in range(1, 11):  # saveslot_01 から saveslot_10 まで
+            slot_name = f"saveslot_{i:02d}"
+            if self.save_manager.has_save(slot_name):
+                metadata = self.save_manager.get_save_metadata(slot_name)
+                self.save_slots.append({
+                    'slot': i,
+                    'name': slot_name,
+                    'exists': True,
+                    'date': metadata.get('save_date', '不明'),
+                    'player_name': metadata.get('player_name', '名前なし')
+                })
+            else:
+                self.save_slots.append({
+                    'slot': i,
+                    'name': slot_name,
+                    'exists': False,
+                    'date': '',
+                    'player_name': ''
+                })
+        
+        # セーブ/ロード画面用のボタンを作成
+        self._create_save_load_buttons()
+    
+    def _create_save_load_buttons(self):
+        """セーブ/ロード画面のボタンを作成"""
+        # 既存のスロットボタンを削除
+        for key in list(self.buttons.keys()):
+            if key.startswith('slot_'):
+                del self.buttons[key]
+        
+        # スロットボタンを作成（5列x2行）
+        start_x = 150
+        start_y = 200
+        button_width = 200
+        button_height = 120
+        margin_x = 220
+        margin_y = 140
+        
+        for i, slot_info in enumerate(self.save_slots):
+            row = i // 5
+            col = i % 5
+            x = start_x + col * margin_x
+            y = start_y + row * margin_y
+            
+            slot_text = f"スロット {slot_info['slot']}"
+            if slot_info['exists']:
+                slot_text += f"\n{slot_info['player_name']}\n{slot_info['date']}"
+            else:
+                slot_text += "\n空きスロット"
+            
+            self.buttons[f"slot_{slot_info['slot']}"] = Button(
+                x, y, button_width, button_height,
+                slot_text, self.fonts['small'], 'green' if slot_info['exists'] else 'normal'
+            )
+    
+    def _handle_slot_click(self, slot_num):
+        """スロットクリック処理"""
+        slot_name = f"saveslot_{slot_num:02d}"
+        
+        if self.state == MenuState.SAVE:
+            # セーブ処理
+            try:
+                self.save_manager.save_game(slot_name)
+                print(f"スロット {slot_num} にセーブしました")
+                # スロット情報を再読み込み
+                self._load_save_slots()
+                return 'game_saved'
+            except Exception as e:
+                print(f"セーブに失敗しました: {e}")
+                return 'save_failed'
+        
+        elif self.state == MenuState.LOAD:
+            # ロード処理
+            if self.save_manager.has_save(slot_name):
+                try:
+                    self.save_manager.load_game(slot_name)
+                    print(f"スロット {slot_num} からロードしました")
+                    return 'game_loaded'
+                except Exception as e:
+                    print(f"ロードに失敗しました: {e}")
+                    return 'load_failed'
+            else:
+                print(f"スロット {slot_num} にセーブデータがありません")
+                return 'no_save_data'
+        
+        return None
+    
     def draw(self):
         # 背景
         self.screen.fill(COLORS['bg_main'])
@@ -451,6 +593,8 @@ class MainMenu:
         # メインメニューボタン（常に表示）
         self.buttons['start'].draw(self.screen)
         self.buttons['continue'].draw(self.screen)
+        self.buttons['save'].draw(self.screen)
+        self.buttons['load'].draw(self.screen)
         self.buttons['settings'].draw(self.screen)
         self.buttons['home'].draw(self.screen)
         
@@ -471,6 +615,10 @@ class MainMenu:
         # 設定画面
         if self.state == MenuState.SETTINGS:
             self._draw_settings_panel()
+        elif self.state == MenuState.SAVE:
+            self._draw_save_load_panel("セーブ")
+        elif self.state == MenuState.LOAD:
+            self._draw_save_load_panel("ロード")
         
         pygame.display.flip()
     
@@ -503,6 +651,28 @@ class MainMenu:
         
         # 初期設定に戻すボタンを描画
         self.buttons['reset'].draw(self.screen)
+    
+    def _draw_save_load_panel(self, title):
+        """セーブ/ロード画面を描画"""
+        # セーブ/ロードタイトル
+        title_text = self.fonts['title'].render(f"{title}画面", True, COLORS['text_title'])
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
+        self.screen.blit(title_text, title_rect)
+        
+        # スロットボタンを描画
+        for button_name, button in self.buttons.items():
+            if button_name.startswith('slot_'):
+                button.draw(self.screen)
+        
+        # 説明テキスト
+        if self.state == MenuState.SAVE:
+            instruction_text = "セーブしたいスロットを選択してください"
+        else:
+            instruction_text = "ロードしたいスロットを選択してください"
+        
+        instruction_surface = self.fonts['medium'].render(instruction_text, True, COLORS['text_main'])
+        instruction_rect = instruction_surface.get_rect(center=(SCREEN_WIDTH // 2, 500))
+        self.screen.blit(instruction_surface, instruction_rect)
     
     def update(self):
         """ゲーム状態の更新（main.pyからの呼び出し用）"""

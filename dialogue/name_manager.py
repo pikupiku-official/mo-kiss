@@ -8,7 +8,7 @@ class NameManager:
     def __init__(self):
         self.surname = ""
         self.name = ""
-        self.data_file = "player_name.json"
+        self.data_file = os.path.join("data", "current_state", "player_name.json")
         self.dialogue_loader = None  # あとで設定
         self.load_names()
     

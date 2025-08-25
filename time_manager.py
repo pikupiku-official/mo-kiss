@@ -7,10 +7,10 @@ class TimeManager:
     
     def __init__(self, debug=False):
         self.debug = debug
-        self.data_file = "time_state.json"
+        self.data_file = os.path.join("data", "current_state", "time_state.json")
         
         # 時間帯の定義
-        self.time_periods = ["朝", "昼", "放課後"]
+        self.time_periods = ["朝", "昼", "放課後", "夜"]
         
         # デフォルト値
         self.current_year = 1999
@@ -56,7 +56,7 @@ class TimeManager:
             print(f"[TIME] 保存エラー: {e}")
     
     def advance_period(self):
-        """時間帯を一つ進める（朝→昼→放課後→翌日の朝）"""
+        """時間帯を一つ進める（朝→昼→放課後→夜→翌日の朝）"""
         current_index = self.time_periods.index(self.current_period)
         
         if current_index < len(self.time_periods) - 1:
@@ -64,7 +64,7 @@ class TimeManager:
             self.current_period = self.time_periods[current_index + 1]
             print(f"[TIME] 時間帯進行: {self.current_period}")
         else:
-            # 放課後の場合は翌日の朝に進む
+            # 夜の場合は翌日の朝に進む
             self.advance_day()
             self.current_period = "朝"
             print(f"[TIME] 翌日に進行: {self.get_date_string()} {self.current_period}")
@@ -103,6 +103,10 @@ class TimeManager:
         """放課後かどうか判定"""
         return self.current_period == "放課後"
     
+    def is_night(self):
+        """夜かどうか判定"""
+        return self.current_period == "夜"
+    
     def get_date_string(self):
         """日付文字列を取得"""
         weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
@@ -132,6 +136,12 @@ def get_time_manager():
     global _time_manager
     if _time_manager is None:
         _time_manager = TimeManager()
+    return _time_manager
+
+def reload_time_manager():
+    """TimeManagerを再読み込み（セーブ/ロード後に使用）"""
+    global _time_manager
+    _time_manager = TimeManager()
     return _time_manager
 
 def init_time_manager():

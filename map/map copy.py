@@ -165,7 +165,7 @@ class AdvancedKimikissMap:
         
         # 実行済みイベント記録の管理 - /mo-kiss/events ディレクトリに配置
         project_root = os.path.dirname(os.path.dirname(__file__))  # map -> mo-kiss
-        self.completed_events_file = os.path.join(project_root, "events", "completed_events.csv")
+        self.completed_events_file = os.path.join(project_root, "data", "current_state", "completed_events.csv")
         
         # 実行時に常にCSVを初期化
         self.init_completed_events_csv()

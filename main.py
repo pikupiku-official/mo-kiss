@@ -24,6 +24,7 @@ from dialogue.model import initialize_game as init_dialogue_game
 from title_screen import show_title_screen
 from time_manager import get_time_manager
 from home import HomeModule
+from save_manager import get_save_manager
 import pygame
 
 class GameApplication:
@@ -79,7 +80,7 @@ class GameApplication:
             
             # events.csvから該当イベント情報を取得
             events_csv_path = os.path.join(os.path.dirname(__file__), "events", "events.csv")
-            completed_events_csv_path = os.path.join(os.path.dirname(__file__), "events", "completed_events.csv")
+            completed_events_csv_path = os.path.join(os.path.dirname(__file__), "data", "current_state", "completed_events.csv")
             
             event_info = None
             
@@ -109,26 +110,43 @@ class GameApplication:
                             # 既存イベントの実行回数を+1
                             current_count = int(row.get('実行回数', '0'))
                             row['実行回数'] = str(current_count + 1)
-                            row['実行日時'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            # ゲーム内時間で更新
+                            time_manager = get_time_manager()
+                            row['実行日時'] = time_manager.get_full_time_string()
+                            # 有効フラグがない場合はTRUEで設定
+                            if '有効フラグ' not in row:
+                                row['有効フラグ'] = 'TRUE'
+                            # 不要なフィールドを削除（古いデータからの移行）
+                            for field in ['ヒロイン名', '場所', 'イベントタイトル']:
+                                row.pop(field, None)
                             event_found = True
                             print(f"[EVENT] {self.current_event_id}の実行回数を{current_count + 1}に更新")
+                        else:
+                            # 他のイベントでも有効フラグがない場合はTRUEで設定
+                            if '有効フラグ' not in row:
+                                row['有効フラグ'] = 'TRUE'
+                            # 不要なフィールドを削除（古いデータからの移行）
+                            for field in ['ヒロイン名', '場所', 'イベントタイトル']:
+                                row.pop(field, None)
                         completed_events.append(row)
             
             # 新しいイベントの場合は追加
             if not event_found:
+                # ゲーム内時間を取得
+                time_manager = get_time_manager()
+                game_time_str = time_manager.get_full_time_string()
+                
                 new_event = {
                     'イベントID': self.current_event_id,
-                    '実行日時': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    'ヒロイン名': event_info.get('対象のヒロイン', ''),
-                    '場所': event_info.get('場所', ''),
-                    'イベントタイトル': event_info.get('イベントのタイトル', ''),
-                    '実行回数': '1'
+                    '実行日時': game_time_str,
+                    '実行回数': '1',
+                    '有効フラグ': 'TRUE'  # 実行時点では有効
                 }
                 completed_events.append(new_event)
                 print(f"[EVENT] {self.current_event_id}を新規記録（実行回数: 1）")
             
             # ファイルに書き戻し
-            fieldnames = ['イベントID', '実行日時', 'ヒロイン名', '場所', 'イベントタイトル', '実行回数']
+            fieldnames = ['イベントID', '実行日時', '実行回数', '有効フラグ']
             with open(completed_events_csv_path, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
@@ -147,6 +165,21 @@ class GameApplication:
         if not self.main_menu:
             self.main_menu = MainMenu(self.screen)
 
+    def _reload_game_systems(self):
+        """ゲームシステムを再初期化（ロード後に使用）"""
+        try:
+            # マップシステムを再初期化
+            print("[RELOAD] マップシステムを再初期化中...")
+            self.map_system = None  # 既存のインスタンスを削除
+            
+            # 家モジュールも再初期化
+            print("[RELOAD] 家モジュールを再初期化中...")
+            self.home_module = None  # 既存のインスタンスを削除
+            
+            print("[RELOAD] ゲームシステム再初期化完了")
+        except Exception as e:
+            print(f"[RELOAD] ゲームシステム再初期化エラー: {e}")
+    
     def switch_to_map(self):
         """マップモードに切り替え"""
         print("🗺️ マップモードに切り替え")
@@ -222,8 +255,32 @@ class GameApplication:
             
             result = self.main_menu.handle_event(event)
             
-            if result == "start_game":
+            if result == "new_game":
+                # 新規ゲーム：E001イベント開始
+                print("[NEW_GAME] E001イベントを開始")
                 self.switch_to_dialogue("events/E001.ks")
+            elif result == "continue_game":
+                # ゲーム続行：ロード完了後にマップシステムを再初期化
+                print("[CONTINUE] ロード完了 - システムを再初期化中...")
+                self._reload_game_systems()
+                
+                # 時間帯に応じて遷移先を決定
+                time_manager = get_time_manager()
+                current_period = time_manager.get_current_period()
+                print(f"[CONTINUE] ロード完了後の時間帯: {current_period}")
+                
+                if current_period == "夜":
+                    # 夜の場合は家に遷移
+                    print(f"[CONTINUE] 夜のため家モジュールに遷移")
+                    self.switch_to_home()
+                elif current_period in ["朝", "昼", "放課後"]:
+                    # 朝・昼・放課後の場合はマップに遷移
+                    print(f"[CONTINUE] {current_period}のためマップモジュールに遷移")
+                    self.switch_to_map()
+                else:
+                    # 予期しない時間帯の場合はマップに遷移
+                    print(f"[CONTINUE] 予期しない時間帯({current_period})のためマップモジュールに遷移")
+                    self.switch_to_map()
             elif result == "dialogue_test":
                 self.switch_to_dialogue("events/E004.ks")
             elif result == "go_to_home":
@@ -275,16 +332,40 @@ class GameApplication:
             if not continue_dialogue:  # 会話が終了した場合
                 print("💬 KSファイル終了 - 遷移判定開始")
                 
-                # イベント完了処理
+                # 時間進行処理のためにイベントIDを保存
+                current_event = self.current_event_id
+                
+                # イベント完了処理（この中でcurrent_event_idがNoneにリセットされる）
                 self.mark_current_event_as_completed()
                 
-                # 時間管理：放課後イベント終了時は家モジュールへ遷移
-                time_manager = get_time_manager()
-                if time_manager.is_after_school():
-                    print("[TIME] 放課後イベント終了 - 家モジュールに遷移")
-                    self.switch_to_home()
+                # E001以外のイベントは時間を進める
+                if current_event and current_event != "E001":
+                    time_manager = get_time_manager()
+                    current_period_before = time_manager.get_current_period()
+                    print(f"[DEBUG] イベント{current_event}完了後 - 現在時間帯: {current_period_before}")
+                    
+                    # 現在が放課後かどうか事前にチェック
+                    was_after_school = time_manager.is_after_school()
+                    print(f"[DEBUG] 放課後判定: {was_after_school}")
+                    
+                    if was_after_school:
+                        # 放課後イベント完了後は明示的に「夜」に設定
+                        print(f"[DEBUG] 放課後イベント完了 - 時間を進めます")
+                        time_manager.advance_period()  # 放課後 → 夜
+                        current_period_after = time_manager.get_current_period()
+                        print(f"[TIME] 放課後イベント{current_event}終了 - {current_period_before} → {current_period_after}: {time_manager.get_full_time_string()}")
+                        print("[TIME] 夜になったため家モジュールに遷移")
+                        self.switch_to_home()
+                    else:
+                        # 朝・昼のイベント完了後は通常の時間進行
+                        time_manager.advance_period()
+                        print(f"[TIME] {current_event}終了により時間進行: {time_manager.get_full_time_string()}")
+                        print("[TIME] イベント終了 - mapモジュールに遷移")
+                        self.switch_to_map()
                 else:
-                    print("[TIME] 通常イベント終了 - mapモジュールに遷移")
+                    # E001の場合は時間を進めずにmapに遷移
+                    if current_event == "E001":
+                        print("[TIME] E001終了 - 時間進行なしでmapモジュールに遷移")
                     self.switch_to_map()
 
     def update(self):
@@ -427,6 +508,12 @@ class GameApplication:
     def cleanup(self):
         """終了処理"""
         print("🔄 アプリケーション終了処理中...")
+        
+        # ゲーム状態を初期化（セーブシステム用）
+        save_manager = get_save_manager()
+        if save_manager.reset_current_state():
+            print("🎮 ゲーム状態を初期化しました")
+        
         pygame.quit()
         print("✅ アプリケーション終了")
 

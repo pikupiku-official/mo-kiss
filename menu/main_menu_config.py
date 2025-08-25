@@ -38,6 +38,7 @@ COLORS = {
 class MenuState(Enum):
     MAIN = "main"
     SETTINGS = "settings"
+    SAVE = "save"
     LOAD = "load"
 
 # フォントサイズ（大きく調整）
