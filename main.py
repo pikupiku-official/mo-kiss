@@ -97,8 +97,8 @@ class GameApplication:
                 print(f"[EVENT] events.csvに{self.current_event_id}が見つかりません")
                 return
             
-            # completed_events.csvの既存データを読み込み
-            completed_events = []
+            # completed_events.csvの全データを読み込み（全イベント保持）
+            all_events = []
             file_exists = os.path.exists(completed_events_csv_path)
             event_found = False
             
@@ -106,29 +106,24 @@ class GameApplication:
                 with open(completed_events_csv_path, 'r', encoding='utf-8') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
+                        # 不要なフィールドを削除（古いデータからの移行）
+                        for field in ['ヒロイン名', '場所', 'イベントタイトル']:
+                            row.pop(field, None)
+                        # 有効フラグがない場合はTRUEで設定
+                        if '有効フラグ' not in row:
+                            row['有効フラグ'] = 'TRUE'
+                            
                         if row['イベントID'] == self.current_event_id:
-                            # 既存イベントの実行回数を+1
+                            # 該当イベントの実行回数を+1
                             current_count = int(row.get('実行回数', '0'))
                             row['実行回数'] = str(current_count + 1)
                             # ゲーム内時間で更新
                             time_manager = get_time_manager()
                             row['実行日時'] = time_manager.get_full_time_string()
-                            # 有効フラグがない場合はTRUEで設定
-                            if '有効フラグ' not in row:
-                                row['有効フラグ'] = 'TRUE'
-                            # 不要なフィールドを削除（古いデータからの移行）
-                            for field in ['ヒロイン名', '場所', 'イベントタイトル']:
-                                row.pop(field, None)
                             event_found = True
                             print(f"[EVENT] {self.current_event_id}の実行回数を{current_count + 1}に更新")
-                        else:
-                            # 他のイベントでも有効フラグがない場合はTRUEで設定
-                            if '有効フラグ' not in row:
-                                row['有効フラグ'] = 'TRUE'
-                            # 不要なフィールドを削除（古いデータからの移行）
-                            for field in ['ヒロイン名', '場所', 'イベントタイトル']:
-                                row.pop(field, None)
-                        completed_events.append(row)
+                        
+                        all_events.append(row)
             
             # 新しいイベントの場合は追加
             if not event_found:
@@ -142,15 +137,15 @@ class GameApplication:
                     '実行回数': '1',
                     '有効フラグ': 'TRUE'  # 実行時点では有効
                 }
-                completed_events.append(new_event)
+                all_events.append(new_event)
                 print(f"[EVENT] {self.current_event_id}を新規記録（実行回数: 1）")
             
-            # ファイルに書き戻し
+            # ファイルに書き戻し（全イベントデータ保持）
             fieldnames = ['イベントID', '実行日時', '実行回数', '有効フラグ']
             with open(completed_events_csv_path, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(completed_events)
+                writer.writerows(all_events)
             
             # イベントID をリセット
             self.current_event_id = None

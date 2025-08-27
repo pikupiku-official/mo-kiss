@@ -309,12 +309,12 @@ class AdvancedKimikissMap:
         return False
     
     def init_completed_events_csv(self):
-        """completed_events.csvを初期化"""
+        """completed_events.csvを初期化（正しい形式）"""
         print("🔄 completed_events.csvを初期化しています...")
         try:
             with open(self.completed_events_file, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['イベントID', '実行日時', 'ヒロイン名', '場所', 'イベントタイトル', '実行回数'])
+                writer.writerow(['イベントID', '実行日時', '実行回数', '有効フラグ'])
             print("✅ completed_events.csv初期化完了")
         except Exception as e:
             print(f"❌ completed_events.csv初期化エラー: {e}")
@@ -566,26 +566,6 @@ class AdvancedKimikissMap:
         except Exception as e:
             print(f"❌ イベント記録保存エラー: {e}")
 
-    def write_completed_events_csv(self):
-        """実行済みイベントをCSVファイルに書き込み"""
-        try:
-            with open(self.completed_events_file, 'w', encoding='utf-8', newline='') as file:
-                fieldnames = ['イベントID', '実行日時', 'ヒロイン名', '場所', 'イベントタイトル', '実行回数']
-                writer = csv.DictWriter(file, fieldnames=fieldnames)
-                
-                # ヘッダーを書き込み
-                writer.writeheader()
-                
-                # データを書き込み
-                for event_id, data in self.completed_events.items():
-                    writer.writerow({
-                        'イベントID': event_id,
-                        '実行日時': data['executed_at'],
-                        'ヒロイン名': data['heroine'],
-                        '場所': data['location'],
-                        'イベントタイトル': data['title'],
-                        '実行回数': data['count']
-                    })
                     
         except Exception as e:
             print(f"❌ CSV書き込みエラー: {e}")

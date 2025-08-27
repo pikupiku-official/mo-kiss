@@ -1025,66 +1025,39 @@ class DialogueLoader:
                 print(f"❌ 条件評価エラー: {e} - {condition_str}")
             return False
     
-    def update_event_flags(self, unlock_events=[], lock_events=[]):
-        """events.csvの有効フラグを動的に更新"""
-        import csv
-        csv_path = os.path.join("events", "events.csv")
-        
-        try:
-            # CSVを読み込み
-            rows = []
-            with open(csv_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # 解放対象のイベント
-                    if row['イベントID'] in unlock_events:
-                        row['有効フラグ'] = 'TRUE'
-                        if self.debug:
-                            print(f"✅ イベント解放: {row['イベントID']} - {row['イベントのタイトル']}")
-                    
-                    # ロック対象のイベント  
-                    if row['イベントID'] in lock_events:
-                        row['有効フラグ'] = 'FALSE'
-                        if self.debug:
-                            print(f"🔒 イベントロック: {row['イベントID']} - {row['イベントのタイトル']}")
-                    
-                    rows.append(row)
-            
-            # CSVを書き込み
-            with open(csv_path, 'w', encoding='utf-8', newline='') as f:
-                fieldnames = ['イベントID', 'イベント開始日時', 'イベント終了日時', 
-                             'イベントを選べる時間帯', '対象のヒロイン', '場所', 
-                             'イベントのタイトル', '有効フラグ']
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(rows)
-            
-            if self.debug:
-                print(f"📝 events.csv更新完了: 解放{len(unlock_events)}個, ロック{len(lock_events)}個")
-            
-        except Exception as e:
-            if self.debug:
-                print(f"❌ イベントフラグ更新エラー: {e}")
     
     def unlock_events(self, event_list):
-        """イベントリストを解禁する"""
+        """イベントリストを解禁する（completed_events.csvの有効フラグを更新）"""
         if not event_list:
             return
             
         try:
             import csv
-            csv_path = os.path.join("events", "events.csv")
+            # 静的DBは読み込み専用、動的データはcompleted_events.csvに書き込み
+            events_csv_path = os.path.join("events", "events.csv")
+            completed_csv_path = os.path.join("data", "current_state", "completed_events.csv")
             
-            if not os.path.exists(csv_path):
-                print(f"❌ events.csvが見つかりません: {csv_path}")
+            if not os.path.exists(completed_csv_path):
+                print(f"❌ completed_events.csvが見つかりません: {completed_csv_path}")
                 return
             
-            # CSVファイル読み込み
+            # completed_events.csvファイル読み込み
             rows = []
-            with open(csv_path, 'r', encoding='utf-8') as f:
+            with open(completed_csv_path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
-                fieldnames = reader.fieldnames
                 rows = list(reader)
+            
+            # 静的DBから解禁対象イベントの詳細情報を取得
+            event_details = {}
+            if os.path.exists(events_csv_path):
+                with open(events_csv_path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        if row.get('イベントID') in event_list:
+                            event_details[row['イベントID']] = {
+                                'heroine': row.get('対象のヒロイン', 'unknown'),
+                                'title': row.get('イベントのタイトル', '')
+                            }
             
             # 指定されたイベントを解禁（E***番号順に並び替え）
             unlocked_count = 0
@@ -1100,8 +1073,9 @@ class DialogueLoader:
                         if row.get('有効フラグ') != 'TRUE':
                             row['有効フラグ'] = 'TRUE'
                             unlocked_count += 1
-                            heroine_name = row.get('対象のヒロイン', 'unknown')
-                            event_title = row.get('イベントのタイトル', '')
+                            details = event_details.get(event_id, {})
+                            heroine_name = details.get('heroine', 'unknown')
+                            event_title = details.get('title', '')
                             unlocked_events.append({
                                 'id': event_id,
                                 'heroine': heroine_name,
@@ -1110,8 +1084,9 @@ class DialogueLoader:
                             print(f"🔓 イベント解禁: {event_id} - {heroine_name}: {event_title}")
                         break
             
-            # CSVファイル書き込み
-            with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+            # completed_events.csvに書き込み（静的DBのevents.csvは保護）
+            fieldnames = ['イベントID', '実行日時', '実行回数', '有効フラグ']
+            with open(completed_csv_path, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(rows)
@@ -1148,6 +1123,45 @@ class DialogueLoader:
         
         return "不明"
     
+    def update_completed_events_flags(self, unlock_events=[], lock_events=[]):
+        """completed_events.csvの有効フラグを動的に更新（events.csvは読み込み専用）"""
+        import csv
+        completed_csv_path = os.path.join("data", "current_state", "completed_events.csv")
+        
+        try:
+            # completed_events.csvを読み込み
+            rows = []
+            with open(completed_csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # 解放対象のイベント
+                    if row['イベントID'] in unlock_events:
+                        row['有効フラグ'] = 'TRUE'
+                        if self.debug:
+                            print(f"✅ イベント解放: {row['イベントID']}")
+                    
+                    # ロック対象のイベント  
+                    if row['イベントID'] in lock_events:
+                        row['有効フラグ'] = 'FALSE'
+                        if self.debug:
+                            print(f"🔒 イベントロック: {row['イベントID']}")
+                    
+                    rows.append(row)
+            
+            # completed_events.csvに書き込み（静的DBのevents.csvは保護）
+            with open(completed_csv_path, 'w', encoding='utf-8', newline='') as f:
+                fieldnames = ['イベントID', '実行日時', '実行回数', '有効フラグ']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            
+            if self.debug:
+                print(f"📝 completed_events.csv更新完了: 解放{len(unlock_events)}個, ロック{len(lock_events)}個")
+            
+        except Exception as e:
+            if self.debug:
+                print(f"❌ イベントフラグ更新エラー: {e}")
+
     def execute_story_command(self, command_data):
         """ストーリーコマンドを実行"""
         command_type = command_data.get('type')
@@ -1155,7 +1169,7 @@ class DialogueLoader:
         if command_type == 'event_control':
             unlock_events = command_data.get('unlock', [])
             lock_events = command_data.get('lock', [])
-            self.update_event_flags(unlock_events, lock_events)
+            self.update_completed_events_flags(unlock_events, lock_events)
             
         elif command_type == 'flag_set':
             flag_name = command_data.get('name')
