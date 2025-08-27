@@ -3,6 +3,7 @@ import shutil
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
+from loading_screen import show_loading, hide_loading
 
 class SaveManager:
     """セーブ・ロード管理システム"""

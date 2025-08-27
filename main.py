@@ -25,6 +25,7 @@ from title_screen import show_title_screen
 from time_manager import get_time_manager
 from home import HomeModule
 from save_manager import get_save_manager
+from loading_screen import show_loading, hide_loading
 import pygame
 
 class GameApplication:
@@ -57,8 +58,14 @@ class GameApplication:
             self.screen = init_game()  # config.pyのinit_game()を使用
             self.clock = pygame.time.Clock()
             
+            # ローディング画面表示
+            show_loading("ゲームを初期化中...", self.screen)
+            
             # メインメニューの初期化
             self.main_menu = MainMenu(self.screen)
+            
+            # ローディング画面を隠す
+            hide_loading()
             
             print("✅ アプリケーション初期化完了")
             return True
@@ -163,6 +170,8 @@ class GameApplication:
     def _reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""
         try:
+            show_loading("ゲームシステムを再初期化中...", self.screen)
+            
             # マップシステムを再初期化
             print("[RELOAD] マップシステムを再初期化中...")
             self.map_system = None  # 既存のインスタンスを削除
@@ -171,8 +180,10 @@ class GameApplication:
             print("[RELOAD] 家モジュールを再初期化中...")
             self.home_module = None  # 既存のインスタンスを削除
             
+            hide_loading()
             print("[RELOAD] ゲームシステム再初期化完了")
         except Exception as e:
+            hide_loading()
             print(f"[RELOAD] ゲームシステム再初期化エラー: {e}")
     
     def switch_to_map(self):
@@ -181,9 +192,12 @@ class GameApplication:
         self.current_mode = "map"
         if not self.map_system:
             try:
+                show_loading("マップを読み込み中...", self.screen)
                 self.map_system = AdvancedKimikissMap()
+                hide_loading()
             except Exception as e:
                 print(f"❌ マップシステム初期化エラー: {e}")
+                hide_loading()
                 self.switch_to_menu()
 
     def switch_to_home(self):
@@ -191,7 +205,14 @@ class GameApplication:
         print("🏠 家モジュールに切り替え")
         self.current_mode = "home"
         if not self.home_module:
-            self.home_module = HomeModule(self.screen)
+            try:
+                show_loading("家を読み込み中...", self.screen)
+                self.home_module = HomeModule(self.screen)
+                hide_loading()
+            except Exception as e:
+                print(f"❌ 家モジュール初期化エラー: {e}")
+                hide_loading()
+                self.switch_to_menu()
     
     def switch_to_dialogue(self, event_file=None):
         """会話モードに切り替え"""
@@ -205,9 +226,13 @@ class GameApplication:
             print(f"[EVENT] 開始イベントID: {self.current_event_id}")
         
         try:
+            # ローディング画面表示
+            show_loading("イベントを読み込み中...", self.screen)
+            
             # 会話ゲームの初期化
             self.dialogue_game_state = init_dialogue_game()
             if not self.dialogue_game_state:
+                hide_loading()
                 print("❌ 会話ゲーム初期化失敗")
                 self.switch_to_menu()
                 return
@@ -230,15 +255,21 @@ class GameApplication:
                         print(f"✅ イベントファイル読み込み完了: {event_file}")
                     else:
                         print("❌ ダイアログデータの正規化に失敗")
+                        hide_loading()
                         self.switch_to_menu()
                         return
                 else:
                     print("❌ イベントファイルの読み込みに失敗")
+                    hide_loading()
                     self.switch_to_menu()
                     return
+            
+            # ローディング画面を隠す
+            hide_loading()
                 
         except Exception as e:
             print(f"❌ 会話モード初期化エラー: {e}")
+            hide_loading()
             self.switch_to_menu()
 
     def handle_menu_events(self, events):

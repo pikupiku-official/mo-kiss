@@ -8,6 +8,7 @@ from .main_menu_config import (
     COLORS, FONT_SIZES, LAYOUT, MenuState, DEFAULT_AUDIO_SETTINGS
 )
 from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton, TextInput
+from loading_screen import show_loading, hide_loading
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dialogue.name_manager import get_name_manager
 from save_manager import get_save_manager
@@ -556,24 +557,30 @@ class MainMenu:
         if self.state == MenuState.SAVE:
             # セーブ処理
             try:
+                show_loading("データを保存中...", self.screen)
                 self.save_manager.save_game(slot_name)
                 print(f"スロット {slot_num} にセーブしました")
                 # スロット情報を再読み込み
                 self._load_save_slots()
+                hide_loading()
                 return 'game_saved'
             except Exception as e:
                 print(f"セーブに失敗しました: {e}")
+                hide_loading()
                 return 'save_failed'
         
         elif self.state == MenuState.LOAD:
             # ロード処理
             if self.save_manager.has_save(slot_name):
                 try:
+                    show_loading("データを読み込み中...", self.screen)
                     self.save_manager.load_game(slot_name)
                     print(f"スロット {slot_num} からロードしました")
+                    hide_loading()
                     return 'game_loaded'
                 except Exception as e:
                     print(f"ロードに失敗しました: {e}")
+                    hide_loading()
                     return 'load_failed'
             else:
                 print(f"スロット {slot_num} にセーブデータがありません")

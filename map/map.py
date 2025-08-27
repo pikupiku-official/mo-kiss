@@ -16,6 +16,7 @@ sys.path.insert(0, project_root)
 
 # TimeManagerをインポート
 from time_manager import get_time_manager
+from loading_screen import show_loading, hide_loading
 
 # 初期化
 pygame.init()
