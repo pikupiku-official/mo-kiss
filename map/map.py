@@ -151,8 +151,7 @@ class AdvancedKimikissMap:
         project_root = os.path.dirname(os.path.dirname(__file__))  # map -> mo-kiss
         self.completed_events_file = os.path.join(project_root, "data", "current_state", "completed_events.csv")
         
-        # 実行時に常にCSVを初期化
-        self.init_completed_events_csv()
+        # CSVの初期化は削除（データを保護）
         
         self.completed_events = self.load_completed_events()
         
@@ -308,16 +307,6 @@ class AdvancedKimikissMap:
             
         return False
     
-    def init_completed_events_csv(self):
-        """completed_events.csvを初期化（正しい形式）"""
-        print("🔄 completed_events.csvを初期化しています...")
-        try:
-            with open(self.completed_events_file, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(['イベントID', '実行日時', '実行回数', '有効フラグ'])
-            print("✅ completed_events.csv初期化完了")
-        except Exception as e:
-            print(f"❌ completed_events.csv初期化エラー: {e}")
     
     def get_map_type(self) -> MapType:
         """現在の曜日からマップタイプを判定"""
@@ -1695,9 +1684,14 @@ class AdvancedKimikissMap:
     def get_completed_events_for_character(self, character_name):
         """キャラクターの実行済みイベント数を取得"""
         completed_count = 0
-        for event_id, data in self.completed_events.items():
-            if data['heroine'] == character_name:
-                completed_count += 1
+        
+        # 静的DBからヒロイン情報を取得して比較
+        for event in self.events:
+            if hasattr(event, 'heroine') and event.heroine == character_name:
+                # completed_eventsで実行回数をチェック
+                event_data = self.completed_events.get(event.event_id, {})
+                if event_data.get('count', 0) > 0:
+                    completed_count += 1
         
         return completed_count
     

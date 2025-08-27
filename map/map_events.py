@@ -104,14 +104,6 @@ class EventManager:
         except Exception as e:
             print(f"完了イベント読み込みエラー: {e}")
     
-    def initialize_completed_events_file(self):
-        """完了イベントファイルを初期化"""
-        try:
-            with open(self.completed_file, 'w', encoding='utf-8', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(['event_id'])
-        except Exception as e:
-            print(f"完了イベントファイル初期化エラー: {e}")
     
     def is_event_completed(self, event_id: str) -> bool:
         """イベントが完了済み（実行回数 > 0）かチェック"""
