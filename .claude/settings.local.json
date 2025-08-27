@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python3:*)",
       "Bash(rm:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "WebSearch"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
