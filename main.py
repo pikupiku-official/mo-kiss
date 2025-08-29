@@ -25,6 +25,7 @@ from title_screen import show_title_screen
 from time_manager import get_time_manager
 from home import HomeModule
 from save_manager import get_save_manager
+from loading_screen import show_loading, hide_loading
 import pygame
 
 class GameApplication:
@@ -57,8 +58,14 @@ class GameApplication:
             self.screen = init_game()  # config.pyのinit_game()を使用
             self.clock = pygame.time.Clock()
             
+            # ローディング画面表示
+            show_loading("ゲームを初期化中...", self.screen)
+            
             # メインメニューの初期化
             self.main_menu = MainMenu(self.screen)
+            
+            # ローディング画面を隠す
+            hide_loading()
             
             print("✅ アプリケーション初期化完了")
             return True
@@ -97,8 +104,8 @@ class GameApplication:
                 print(f"[EVENT] events.csvに{self.current_event_id}が見つかりません")
                 return
             
-            # completed_events.csvの既存データを読み込み
-            completed_events = []
+            # completed_events.csvの全データを読み込み（全イベント保持）
+            all_events = []
             file_exists = os.path.exists(completed_events_csv_path)
             event_found = False
             
@@ -106,29 +113,24 @@ class GameApplication:
                 with open(completed_events_csv_path, 'r', encoding='utf-8') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
+                        # 不要なフィールドを削除（古いデータからの移行）
+                        for field in ['ヒロイン名', '場所', 'イベントタイトル']:
+                            row.pop(field, None)
+                        # 有効フラグがない場合はTRUEで設定
+                        if '有効フラグ' not in row:
+                            row['有効フラグ'] = 'TRUE'
+                            
                         if row['イベントID'] == self.current_event_id:
-                            # 既存イベントの実行回数を+1
+                            # 該当イベントの実行回数を+1
                             current_count = int(row.get('実行回数', '0'))
                             row['実行回数'] = str(current_count + 1)
                             # ゲーム内時間で更新
                             time_manager = get_time_manager()
                             row['実行日時'] = time_manager.get_full_time_string()
-                            # 有効フラグがない場合はTRUEで設定
-                            if '有効フラグ' not in row:
-                                row['有効フラグ'] = 'TRUE'
-                            # 不要なフィールドを削除（古いデータからの移行）
-                            for field in ['ヒロイン名', '場所', 'イベントタイトル']:
-                                row.pop(field, None)
                             event_found = True
                             print(f"[EVENT] {self.current_event_id}の実行回数を{current_count + 1}に更新")
-                        else:
-                            # 他のイベントでも有効フラグがない場合はTRUEで設定
-                            if '有効フラグ' not in row:
-                                row['有効フラグ'] = 'TRUE'
-                            # 不要なフィールドを削除（古いデータからの移行）
-                            for field in ['ヒロイン名', '場所', 'イベントタイトル']:
-                                row.pop(field, None)
-                        completed_events.append(row)
+                        
+                        all_events.append(row)
             
             # 新しいイベントの場合は追加
             if not event_found:
@@ -142,15 +144,15 @@ class GameApplication:
                     '実行回数': '1',
                     '有効フラグ': 'TRUE'  # 実行時点では有効
                 }
-                completed_events.append(new_event)
+                all_events.append(new_event)
                 print(f"[EVENT] {self.current_event_id}を新規記録（実行回数: 1）")
             
-            # ファイルに書き戻し
+            # ファイルに書き戻し（全イベントデータ保持）
             fieldnames = ['イベントID', '実行日時', '実行回数', '有効フラグ']
             with open(completed_events_csv_path, 'w', encoding='utf-8', newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(completed_events)
+                writer.writerows(all_events)
             
             # イベントID をリセット
             self.current_event_id = None
@@ -168,6 +170,8 @@ class GameApplication:
     def _reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""
         try:
+            show_loading("ゲームシステムを再初期化中...", self.screen)
+            
             # マップシステムを再初期化
             print("[RELOAD] マップシステムを再初期化中...")
             self.map_system = None  # 既存のインスタンスを削除
@@ -176,8 +180,10 @@ class GameApplication:
             print("[RELOAD] 家モジュールを再初期化中...")
             self.home_module = None  # 既存のインスタンスを削除
             
+            hide_loading()
             print("[RELOAD] ゲームシステム再初期化完了")
         except Exception as e:
+            hide_loading()
             print(f"[RELOAD] ゲームシステム再初期化エラー: {e}")
     
     def switch_to_map(self):
@@ -186,9 +192,12 @@ class GameApplication:
         self.current_mode = "map"
         if not self.map_system:
             try:
+                show_loading("マップを読み込み中...", self.screen)
                 self.map_system = AdvancedKimikissMap()
+                hide_loading()
             except Exception as e:
                 print(f"❌ マップシステム初期化エラー: {e}")
+                hide_loading()
                 self.switch_to_menu()
 
     def switch_to_home(self):
@@ -196,7 +205,14 @@ class GameApplication:
         print("🏠 家モジュールに切り替え")
         self.current_mode = "home"
         if not self.home_module:
-            self.home_module = HomeModule(self.screen)
+            try:
+                show_loading("家を読み込み中...", self.screen)
+                self.home_module = HomeModule(self.screen)
+                hide_loading()
+            except Exception as e:
+                print(f"❌ 家モジュール初期化エラー: {e}")
+                hide_loading()
+                self.switch_to_menu()
     
     def switch_to_dialogue(self, event_file=None):
         """会話モードに切り替え"""
@@ -210,9 +226,13 @@ class GameApplication:
             print(f"[EVENT] 開始イベントID: {self.current_event_id}")
         
         try:
+            # ローディング画面表示
+            show_loading("イベントを読み込み中...", self.screen)
+            
             # 会話ゲームの初期化
             self.dialogue_game_state = init_dialogue_game()
             if not self.dialogue_game_state:
+                hide_loading()
                 print("❌ 会話ゲーム初期化失敗")
                 self.switch_to_menu()
                 return
@@ -235,15 +255,21 @@ class GameApplication:
                         print(f"✅ イベントファイル読み込み完了: {event_file}")
                     else:
                         print("❌ ダイアログデータの正規化に失敗")
+                        hide_loading()
                         self.switch_to_menu()
                         return
                 else:
                     print("❌ イベントファイルの読み込みに失敗")
+                    hide_loading()
                     self.switch_to_menu()
                     return
+            
+            # ローディング画面を隠す
+            hide_loading()
                 
         except Exception as e:
             print(f"❌ 会話モード初期化エラー: {e}")
+            hide_loading()
             self.switch_to_menu()
 
     def handle_menu_events(self, events):

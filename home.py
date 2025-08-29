@@ -11,6 +11,7 @@ import sys
 import os
 from time_manager import get_time_manager
 from save_manager import get_save_manager
+from loading_screen import show_loading, hide_loading
 
 class HomeModule:
     def __init__(self, screen):
@@ -234,25 +235,31 @@ class HomeModule:
         
         if self.save_mode == "save":
             try:
+                show_loading("データを保存中...", self.screen)
                 self.save_manager.save_game(slot_name)
                 print(f"[HOME] スロット {slot_num} にセーブしました")
                 # スロット情報を再読み込み
                 self._load_save_slots()
+                hide_loading()
                 # メインメニューに戻る
                 self.save_mode = None
             except Exception as e:
                 print(f"[HOME] セーブに失敗しました: {e}")
+                hide_loading()
         
         elif self.save_mode == "load":
             if slot_info['exists']:
                 try:
+                    show_loading("データを読み込み中...", self.screen)
                     self.save_manager.load_game(slot_name)
                     print(f"[HOME] スロット {slot_num} からロードしました")
+                    hide_loading()
                     # ゲームを再開（mapに戻る）
                     self.save_mode = None
                     return "go_to_map"
                 except Exception as e:
                     print(f"[HOME] ロードに失敗しました: {e}")
+                    hide_loading()
             else:
                 print(f"[HOME] スロット {slot_num} にセーブデータがありません")
         
