@@ -7,7 +7,7 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
-[bg_show storage="test.bg.9873.jpg" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="test.bg.9873" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 //ナレ//
 「＿＿＿」
 [SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
