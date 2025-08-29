@@ -35,16 +35,20 @@
 	[SE se="電車のドアが開く1.mp3" volume="0.5" frequency="1"]
 	//ナレ//
 	「＿＿＿」
-	[bg_show storage="test.bg.IMG_9901.jpg" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	[bg_show storage="test.bg.IMG_9901" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//ナレ//
 	「ドアが開くといつものようにあっという間に車内から押し出される。」
 	[SE se="休日でごった返す駅構内.mp3" volume="0.5" frequency="1"]
 	//ナレ//
 	「乗車口からいつも人が集中する階段へと移動して」
-	[bg_show storage="test.bg.DSCN3262.JPG" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//ナレ//
 	「＿＿＿」
-	[bg_show storage="test.bg.DSCN3314.JPG" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	[bg_show storage="test.bg.DSCN3262" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	//ナレ//
+	「＿＿＿」
+	[bg_show storage="test.bg.DSCN3314" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	//ナレ//
+	「＿＿＿」
 	「改札の出口へと向かう。出た後の構内は吹き曝しで、満員の中央線を我慢していた俺にはとても開放的に感じる。」
 	「心地よい春の風を感じながらなんの変哲もないホームを見て、俺はふと思う」
 	「すっかり通いなれた国分寺駅もどこか気に入っているのかもしれない、と」
