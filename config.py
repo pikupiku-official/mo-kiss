@@ -55,7 +55,7 @@ SCREEN_WIDTH = WINDOW_WIDTH
 SCREEN_HEIGHT = WINDOW_HEIGHT
 
 # デバッグモード（パフォーマンス向上のためFalseに）
-DEBUG = False
+DEBUG = True
 
 # タイトル画面設定
 SHOW_TITLE_SCREEN = True            # タイトル画面を表示するかどうか（デバッグ時はFalseに）

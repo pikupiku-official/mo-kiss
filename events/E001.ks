@@ -35,7 +35,7 @@
 	[SE se="電車のドアが開く1.mp3" volume="0.5" frequency="1"]
 	//ナレ//
 	「＿＿＿」
-	[bg_show storage="test.bg.IMG_9901" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	[bg_show storage="test.bg.9901" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//ナレ//
 	「ドアが開くといつものようにあっという間に車内から押し出される。」
 	[SE se="休日でごった返す駅構内.mp3" volume="0.5" frequency="1"]
