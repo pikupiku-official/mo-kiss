@@ -127,3 +127,48 @@ FONT_SIZES = {
 # ゲーム期間設定
 GAME_START_DATE = (1999, 5, 31)
 GAME_END_DATE = (1999, 7, 1)
+
+# BGM設定 - 時間帯・マップタイプ・特定日付別
+# 構造: {map_type: {time_slot: bgm_filename}}
+MAP_BGM_CONFIG = {
+    'weekday': {
+        '朝': 'subete_no_hajimari.mp3',
+        '昼': 'subete_no_hajimari.mp3',
+        '放課後': 'subete_no_hajimari.mp3',
+    },
+    'weekend': {
+        '朝': 'subete_no_hajimari.mp3',
+        '昼': 'subete_no_hajimari.mp3',
+        '放課後': 'subete_no_hajimari.mp3',
+    },
+    'default': 'subete_no_hajimari.mp3'  # デフォルトBGM
+}
+
+# 特定日付のBGM設定（優先度高）
+# 構造: {(month, day): bgm_filename}
+SPECIAL_DATE_BGM = {
+    # 例: (6, 1): 'special_event.mp3',
+    # 例: (6, 15): 'midterm_exam.mp3',
+}
+
+# マップ背景画像設定 - 時間帯・マップタイプ別
+# 構造: {map_type: {time_slot: background_filename}}
+MAP_BACKGROUND_CONFIG = {
+    'weekday': {
+        '朝': None,  # None = プログラム生成背景
+        '昼': None,
+        '放課後': None,
+    },
+    'weekend': {
+        '朝': None,
+        '昼': None,
+        '放課後': None,
+    },
+    'default': None  # デフォルト背景
+}
+
+# 特定日付の背景画像設定（優先度高）
+# 構造: {(month, day): background_filename}
+SPECIAL_DATE_BACKGROUND = {
+    # 例: (6, 1): 'opening_ceremony.png',
+}

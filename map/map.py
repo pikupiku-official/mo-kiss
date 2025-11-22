@@ -14,9 +14,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, "..", "..")
 sys.path.insert(0, project_root)
 
-# TimeManagerをインポート
+# TimeManagerとBGMManagerをインポート
 from time_manager import get_time_manager
 from loading_screen import show_loading, hide_loading
+from bgm_manager import BGMManager
 
 # 初期化
 pygame.init()
@@ -126,7 +127,11 @@ class AdvancedKimikissMap:
         
         # デバッグモード検出
         self.debug_mode = self.is_debug_mode()
-        
+
+        # BGM管理
+        self.bgm_manager = BGMManager(debug=self.debug_mode)
+        self.current_bgm = None  # 現在再生中のBGM
+
         # フォント設定
         self.init_fonts()
         
@@ -158,7 +163,12 @@ class AdvancedKimikissMap:
         
         self.init_maps()
         self.update_events()
-        
+
+        # BGMを再生
+        self.update_bgm()
+
+        print("✅ AdvancedKimikissMap 初期化完了")
+
     def init_fonts(self):
         """フォント初期化（クロスプラットフォーム対応）"""
         import platform
@@ -314,7 +324,46 @@ class AdvancedKimikissMap:
         time_state = get_time_manager().get_time_state()
         weekday = time_state['weekday']  # 0=月曜, 6=日曜
         return MapType.WEEKDAY if weekday < 5 else MapType.WEEKEND
-    
+
+    def get_current_bgm(self) -> str:
+        """現在の時間帯・日付・マップタイプに応じたBGMファイル名を取得"""
+        from map.map_config import MAP_BGM_CONFIG, SPECIAL_DATE_BGM
+
+        # 現在の時間帯と日付を取得
+        time_manager = get_time_manager()
+        time_state = time_manager.get_time_state()
+        current_period = time_manager.get_current_period()
+        current_date = (time_state['month'], time_state['day'])
+
+        # 特定日付のBGMを優先
+        if current_date in SPECIAL_DATE_BGM:
+            return SPECIAL_DATE_BGM[current_date]
+
+        # マップタイプを取得
+        map_type = 'weekday' if self.current_map_type == MapType.WEEKDAY else 'weekend'
+
+        # マップタイプ・時間帯に応じたBGMを取得
+        if map_type in MAP_BGM_CONFIG:
+            if current_period in MAP_BGM_CONFIG[map_type]:
+                return MAP_BGM_CONFIG[map_type][current_period]
+
+        # デフォルトBGM
+        return MAP_BGM_CONFIG.get('default', 'subete_no_hajimari.mp3')
+
+    def update_bgm(self):
+        """BGMを現在の状態に応じて更新"""
+        new_bgm = self.get_current_bgm()
+
+        # 既に同じBGMが再生中の場合はスキップ
+        if self.current_bgm == new_bgm:
+            return
+
+        # 新しいBGMを再生
+        if new_bgm:
+            self.bgm_manager.play_bgm(new_bgm)
+            self.current_bgm = new_bgm
+            print(f"🎵 マップBGM再生: {new_bgm}")
+
     def init_clouds(self):
         """雲の初期化（improved_map.pyと同じ）"""
         clouds = []

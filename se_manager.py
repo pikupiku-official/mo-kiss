@@ -167,15 +167,29 @@ class SEManager:
             sound.play()
             if i < int(frequency) - 1:  # 最後以外は待機
                 time.sleep(sound.get_length())
-    
+
+    def stop_all_se(self):
+        """すべてのSEを停止"""
+        try:
+            # pygameのすべてのサウンドチャンネルを停止
+            pygame.mixer.stop()
+            if self.debug:
+                print("SEManager: すべてのSEを停止しました")
+        except Exception as e:
+            if self.debug:
+                print(f"SE停止エラー: {e}")
+
     def cleanup(self):
         """リソースのクリーンアップ"""
+        # すべてのSEを停止
+        self.stop_all_se()
+
         # キャッシュをクリア
         with self.cache_lock:
             self.sound_cache.clear()
-        
+
         # ExecutorPoolをシャットダウン
         self.executor.shutdown(wait=False)
-        
+
         if self.debug:
             print("SEManager: リソースクリーンアップ完了")

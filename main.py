@@ -23,7 +23,7 @@ from map.map import AdvancedKimikissMap
 from dialogue.model import initialize_game as init_dialogue_game
 from title_screen import show_title_screen
 from time_manager import get_time_manager
-from home import HomeModule
+from home.home import HomeModule
 from save_manager import get_save_manager
 from loading_screen import show_loading, hide_loading
 import pygame
@@ -163,6 +163,24 @@ class GameApplication:
     def switch_to_menu(self):
         """メインメニューモードに切り替え"""
         print("📱 メインメニューモードに切り替え")
+
+        # dialogueモードから遷移する場合、全ての音を停止
+        if self.current_mode == "dialogue" and self.dialogue_game_state:
+            try:
+                self.dialogue_game_state['bgm_manager'].stop_bgm()
+                self.dialogue_game_state['se_manager'].stop_all_se()
+                print("🔇 dialogue終了: BGMとSEを停止しました")
+            except Exception as e:
+                print(f"⚠️ 音声停止エラー: {e}")
+
+        # mapモードから遷移する場合、BGMを停止
+        if self.current_mode == "map" and self.map_system:
+            try:
+                self.map_system.bgm_manager.stop_bgm()
+                print("🔇 map終了: BGMを停止しました")
+            except Exception as e:
+                print(f"⚠️ 音声停止エラー: {e}")
+
         self.current_mode = "menu"
         if not self.main_menu:
             self.main_menu = MainMenu(self.screen)
@@ -189,6 +207,16 @@ class GameApplication:
     def switch_to_map(self):
         """マップモードに切り替え"""
         print("🗺️ マップモードに切り替え")
+
+        # dialogueモードから遷移する場合、全ての音を停止
+        if self.current_mode == "dialogue" and self.dialogue_game_state:
+            try:
+                self.dialogue_game_state['bgm_manager'].stop_bgm()
+                self.dialogue_game_state['se_manager'].stop_all_se()
+                print("🔇 dialogue終了: BGMとSEを停止しました")
+            except Exception as e:
+                print(f"⚠️ 音声停止エラー: {e}")
+
         self.current_mode = "map"
         if not self.map_system:
             try:
@@ -203,6 +231,24 @@ class GameApplication:
     def switch_to_home(self):
         """家モジュールに切り替え"""
         print("🏠 家モジュールに切り替え")
+
+        # dialogueモードから遷移する場合、全ての音を停止
+        if self.current_mode == "dialogue" and self.dialogue_game_state:
+            try:
+                self.dialogue_game_state['bgm_manager'].stop_bgm()
+                self.dialogue_game_state['se_manager'].stop_all_se()
+                print("🔇 dialogue終了: BGMとSEを停止しました")
+            except Exception as e:
+                print(f"⚠️ 音声停止エラー: {e}")
+
+        # mapモードから遷移する場合、BGMを停止
+        if self.current_mode == "map" and self.map_system:
+            try:
+                self.map_system.bgm_manager.stop_bgm()
+                print("🔇 map終了: BGMを停止しました")
+            except Exception as e:
+                print(f"⚠️ 音声停止エラー: {e}")
+
         self.current_mode = "home"
         if not self.home_module:
             try:
@@ -217,8 +263,17 @@ class GameApplication:
     def switch_to_dialogue(self, event_file=None):
         """会話モードに切り替え"""
         print(f"💬 会話モードに切り替え (イベント: {event_file})")
+
+        # mapモードから遷移する場合、BGMを停止
+        if self.current_mode == "map" and self.map_system:
+            try:
+                self.map_system.bgm_manager.stop_bgm()
+                print("🔇 map終了: BGMを停止しました")
+            except Exception as e:
+                print(f"⚠️ 音声停止エラー: {e}")
+
         self.current_mode = "dialogue"
-        
+
         # イベントIDを抽出（events/E001.ks -> E001）
         if event_file:
             import os
