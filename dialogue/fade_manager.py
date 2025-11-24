@@ -75,21 +75,13 @@ def update_fade_animation(game_state):
     """フェードアニメーションを更新"""
     if not game_state.get('fade_state', {}).get('active'):
         return
-    
+
     fade_state = game_state['fade_state']
     current_time = pygame.time.get_ticks()
     elapsed = current_time - fade_state['start_time']
-    
-    # デバッグ出力（開始から1秒間は頻繁に、その後は1秒おき）
-    if not hasattr(game_state, 'last_fade_debug_time'):
-        game_state['last_fade_debug_time'] = 0
-    
-    debug_interval = 100 if elapsed < 1000 else 1000  # 最初は100ms、その後は1秒おき
-    if current_time - game_state['last_fade_debug_time'] > debug_interval:
-        progress_pct = (elapsed / fade_state['duration']) * 100 if fade_state['duration'] > 0 else 100
-        print(f"[FADE] 更新: type={fade_state['type']}, elapsed={elapsed}ms, duration={fade_state['duration']}ms, progress={progress_pct:.1f}%, alpha={fade_state['alpha']}")
-        game_state['last_fade_debug_time'] = current_time
-    
+
+    # 頻繁に呼ばれるのでログ出力しない
+
     if elapsed >= fade_state['duration']:
         # アニメーション完了
         if fade_state['type'] == 'fadeout':
@@ -100,15 +92,15 @@ def update_fade_animation(game_state):
             fade_state['active'] = False  # フェードイン完了で無効化
             print(f"[FADE] フェードイン完了: alpha=0, 無効化")
         return
-    
+
     # アルファ値を計算
     if fade_state['duration'] <= 0:
         print(f"[FADE] エラー: duration が0以下です: {fade_state['duration']}")
         fade_state['active'] = False
         return
-    
+
     progress = elapsed / fade_state['duration']
-    
+
     if fade_state['type'] == 'fadeout':
         # 0（透明）から255（不透明）へ
         fade_state['alpha'] = int(255 * progress)
@@ -120,26 +112,19 @@ def draw_fade_overlay(game_state):
     """フェードオーバーレイを描画"""
     if not game_state.get('fade_state', {}).get('active'):
         return
-    
+
     fade_state = game_state['fade_state']
-    
-    # デバッグ出力（描画時の状態を確認）
-    if not hasattr(game_state, 'last_draw_debug_time'):
-        game_state['last_draw_debug_time'] = 0
-    
-    current_time = pygame.time.get_ticks()
-    if current_time - game_state['last_draw_debug_time'] > 200:  # 200msおき
-        print(f"[FADE] 描画: alpha={fade_state['alpha']}, color={fade_state['color']}, active={fade_state['active']}")
-        game_state['last_draw_debug_time'] = current_time
-    
+
+    # 頻繁に呼ばれるのでログ出力しない
+
     if fade_state['alpha'] <= 0:
         return
-    
+
     screen = game_state['screen']
     overlay_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     overlay_surface.set_alpha(fade_state['alpha'])
     overlay_surface.fill(fade_state['color'])
-    
+
     screen.blit(overlay_surface, (0, 0))
 
 def is_fade_active(game_state):

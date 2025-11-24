@@ -528,27 +528,27 @@ class TextRenderer:
         if should_scroll and character_name:
             if self.debug:
                 print(f"[SCROLL] 新規スクロール開始: {character_name}")
-            
-            # 前のテキストがある場合は、それも含めてスクロール開始
-            if (hasattr(self, 'previous_text') and self.previous_text and 
-                hasattr(self, 'last_speaker') and self.last_speaker == character_name):
+
+            # 前のテキストがある場合は、話者に関係なく前のテキストも含めてスクロール開始
+            if (hasattr(self, 'previous_text') and self.previous_text and
+                hasattr(self, 'last_speaker') and self.last_speaker):
                 if self.debug:
-                    print(f"[SCROLL] 前のテキストを含めてスクロール開始: {character_name}")
-                
+                    print(f"[SCROLL] 前のテキストを含めてスクロール開始: {self.last_speaker} -> {character_name}")
+
                 # 重複防止：前のテキストが既にバックログに単独で存在する場合は削除
-                if (self.backlog_manager and self.backlog_manager.entries and 
-                    self.backlog_manager.entries[-1]["speaker"] == character_name and
+                if (self.backlog_manager and self.backlog_manager.entries and
+                    self.backlog_manager.entries[-1]["speaker"] == self.last_speaker and
                     self.backlog_manager.entries[-1]["text"] == self.previous_text):
                     removed_entry = self.backlog_manager.entries.pop()
                     if self.debug:
                         print(f"[BACKLOG] スクロール開始時に重複エントリを削除: {removed_entry['speaker']} - {removed_entry['text'][:30]}...")
-                
-                # 前のテキストでスクロール開始
-                self.scroll_manager.start_scroll_mode(character_name, self.previous_text)
-                # 現在のテキストを追加（修正点：話者情報も渡す）
+
+                # 前のテキストでスクロール開始（前の話者で）
+                self.scroll_manager.start_scroll_mode(self.last_speaker, self.previous_text)
+                # 現在のテキストを追加（現在の話者で）
                 self.scroll_manager.add_text_to_scroll(text, character_name)
             else:
-                # 新しくスクロール開始
+                # 前のテキストがない場合のみ新しくスクロール開始
                 self.scroll_manager.start_scroll_mode(character_name, text)
             
             self.displayed_chars = 0

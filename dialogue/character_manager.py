@@ -206,7 +206,7 @@ def start_blink_animation(game_state, character_name):
             eye_number = parts[2]  # 00
             
             print(f"[BLINK] {character_name}: eye_base='{eye_base}', eye_number='{eye_number}'")
-            
+
             # まばたきシーケンスを決定
             if eye_number == '00':
                 # 00 -> 01 -> 02 -> 01 -> 00
@@ -219,7 +219,25 @@ def start_blink_animation(game_state, character_name):
                 print(f"[BLINK] {character_name}: サポートされていない目の種類 '{eye_number}' - スキップ")
                 game_state['character_blink_timers'][character_name] = current_time + random.randint(3000, 6000)
                 return
-            
+
+            # まばたきシーケンスの全画像が存在するか確認
+            image_manager = game_state.get('image_manager')
+            if image_manager:
+                all_images_exist = True
+                for suffix in sequence:
+                    test_eye_type = f"{eye_base}_{suffix}"
+                    # image_pathsに存在するか確認
+                    if 'eyes' not in image_manager.image_paths or test_eye_type not in image_manager.image_paths['eyes']:
+                        print(f"[BLINK] {character_name}: まばたき画像が存在しません: {test_eye_type} - まばたき無効化")
+                        all_images_exist = False
+                        break
+
+                if not all_images_exist:
+                    # まばたきを無効化
+                    game_state['character_blink_enabled'][character_name] = False
+                    print(f"[BLINK] {character_name}: まばたき機能を無効化しました")
+                    return
+
             # まばたき状態を設定
             blink_state = game_state['character_blink_state'].get(character_name, {})
             blink_state.update({
@@ -231,7 +249,7 @@ def start_blink_animation(game_state, character_name):
                 'sequence_index': 0
             })
             game_state['character_blink_state'][character_name] = blink_state
-            
+
             print(f"[BLINK] {character_name}: まばたき開始 {base_eye_type} -> {sequence}")
         else:
             print(f"[BLINK] {character_name}: 目の種類の形式が不正 - スキップ")

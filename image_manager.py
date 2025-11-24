@@ -219,8 +219,12 @@ class ImageManager:
             optimal_size = self._get_optimal_size(filepath, size)
             cache_key = f"{filepath}_{optimal_size if optimal_size else 'original'}"
 
-            # キャッシュチェック（スレッドセーフ）
+            # キャッシュチェックとロード中チェック（スレッドセーフ）
+            load_event = None
+            should_load = False
+
             with self.lock:
+                # まずキャッシュを確認
                 if cache_key in self.image_cache:
                     self.image_cache.move_to_end(cache_key)
                     cached_image = self.image_cache[cache_key]
@@ -229,25 +233,44 @@ class ImageManager:
 
                 # ロード中かチェック
                 if cache_key in self.loading_tasks:
-                    # ロード中の場合は待たずにNoneを返す（次フレームで再試行）
-                    return None
+                    # 別スレッドがロード中の場合、イベントを取得して待機
+                    load_event = self.loading_tasks[cache_key]
+                    should_load = False
+                else:
+                    # 新規ロードの場合、イベントを作成
+                    import threading
+                    load_event = threading.Event()
+                    self.loading_tasks[cache_key] = load_event
+                    should_load = True
 
-                # ロード中フラグを設定
-                self.loading_tasks[cache_key] = True
-
-            # ロックを解放してから実際のロード処理
-            try:
-                # 新規ロード時のみログ出力
-                print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
-                result = self._load_image_immediately(filepath, optimal_size, cache_key)
-                if result is None:
-                    print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
-                return result
-            finally:
-                # ロード完了後、フラグを削除
+            # ロックの外で処理
+            if should_load:
+                # 自分がロードを担当する場合
+                try:
+                    # 新規ロード時のみログ出力
+                    print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
+                    result = self._load_image_immediately(filepath, optimal_size, cache_key)
+                    if result is None:
+                        print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
+                    return result
+                finally:
+                    # ロード完了後、イベントをシグナルして削除
+                    with self.lock:
+                        if cache_key in self.loading_tasks:
+                            load_event.set()  # 待機中のスレッドに通知
+                            del self.loading_tasks[cache_key]
+            else:
+                # 他スレッドがロード中の場合は待機
+                print(f"[IMG_WAIT] ロード完了待機: {image_type}/{image_key}")
+                load_event.wait(timeout=2.0)
+                # 待機後、キャッシュから再取得
                 with self.lock:
-                    if cache_key in self.loading_tasks:
-                        del self.loading_tasks[cache_key]
+                    if cache_key in self.image_cache:
+                        self.image_cache.move_to_end(cache_key)
+                        return self.image_cache[cache_key]
+                # タイムアウトまたはロード失敗
+                print(f"[IMG_WARN] ロード待機タイムアウト: {image_type}/{image_key}")
+                return None
         else:
             print(f"[IMG_ERROR] 画像パスが見つかりません: type={image_type}, key={image_key}")
             if image_type in self.image_paths:

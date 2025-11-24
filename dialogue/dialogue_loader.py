@@ -566,26 +566,30 @@ class DialogueLoader:
                                 # テキストの行数を計算（26文字改行考慮）
                                 line_count = self._wrap_text_and_count_lines(dialogue_text)
 
-                                # スクロール継続判定ロジック - [scroll-stop]まで継続（全テキストでスクロール表示）
+                                # スクロール継続判定ロジック - [scroll-stop]の直後のみ新規スクロール開始
                                 scroll_continue = False
                                 if not self.disable_scroll_continue and not has_scroll_stop:
                                     if dialogue_data:
                                         # 後ろから順に検索して、最後のscroll-stopまたは対話を見つける
+                                        found_dialogue_or_stop = False
                                         for i in range(len(dialogue_data) - 1, -1, -1):
                                             item = dialogue_data[i]
                                             if item.get('type') == 'scroll_stop':
-                                                # 最後にscroll-stopがあったら新しいスクロールを開始しない
+                                                # 最後にscroll-stopがあったら新規スクロール開始
                                                 scroll_continue = False
+                                                found_dialogue_or_stop = True
                                                 break
                                             elif item.get('type') == 'dialogue':
                                                 # 最後にscroll-stopがなければスクロールを継続
                                                 scroll_continue = True
+                                                found_dialogue_or_stop = True
                                                 break
-                                            # その他のコマンドは無視して継続検索
-                                            elif item.get('type') in ['character', 'bgm', 'move', 'hide', 'bg_show', 'bg_move']:
-                                                continue
-                                            else:
-                                                break
+                                            # その他の全てのコマンドは無視して継続検索
+
+                                        # dialogueもscroll_stopも見つからなかった場合（全てコマンド）
+                                        # 最初の台詞ではないのでスクロールを継続
+                                        if not found_dialogue_or_stop:
+                                            scroll_continue = True
 
                                 # 対話データを追加
                                 if self.debug:
