@@ -10,11 +10,11 @@
 [resetlaypos]
 
 ; 校門の背景
-[bg_show storage="school_gate" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="test.bg.schoolGate" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="school_daily" volume="0.5" loop="true"]
 
 ; 桃子登場
-[chara_show name="T03_00_00" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.7" y="0.5" size="1.2"]
+[chara_show name="T03_00_00" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.7" y="0.65" size="1.2"]
 
 //純一//
 「お、桃子じゃないか！」
@@ -576,3 +576,5 @@
 [chara_hide subh="T03_00_00"]
 [bg_show storage="black" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [fadeout color="black" time="2.0"]
+
+
