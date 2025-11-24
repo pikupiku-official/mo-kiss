@@ -29,6 +29,7 @@
 「驚かせちゃったな」
 
 ; 桃子の表情変更
+[chara_hide name="T03_00_00"]
 [chara_show name="T03_00_00" eye="F03_En00_01" mouth="F03_Ms00_00" brow="F03_Bn00_00" cheek="F03_Ce00_00"]
 
 //桃子//
@@ -576,5 +577,6 @@
 [chara_hide subh="T03_00_00"]
 [bg_show storage="black" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [fadeout color="black" time="2.0"]
+
 
 

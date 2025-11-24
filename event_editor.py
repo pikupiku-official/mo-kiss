@@ -43,7 +43,7 @@ sys.path.insert(0, project_root)
 # ログファイルの設定（デバッグ用）
 log_file = os.path.join(project_root, "event_editor.log")
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,  # DEBUGからINFOに変更（頻繁なログを抑制）
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
         logging.FileHandler(log_file, encoding='utf-8'),
@@ -518,8 +518,8 @@ class PreviewWindow:
                 try:
                     loop_count += 1
 
-                    # 定期的にログ出力（10秒ごと）
-                    if loop_count % 300 == 0:
+                    # 定期的にログ出力（60秒ごと = 30fps * 1800）
+                    if loop_count % 1800 == 0:
                         logger.debug(f"プレビューループ実行中: {loop_count}回目, game_state={'あり' if self.game_state else 'なし'}")
 
                     # コマンドキューをチェック
@@ -574,6 +574,7 @@ class PreviewWindow:
                             elif event.type == pygame.MOUSEBUTTONDOWN:
                                 # マウス座標を仮想座標に変換
                                 virtual_x, virtual_y = self.screen_to_virtual_coords(event.pos[0], event.pos[1])
+                                # マウスクリックは頻繁なのでログ出力しない
                                 if virtual_x is not None and virtual_y is not None:
                                     # 仮想座標でイベントを作成してキューに追加
                                     virtual_event = pygame.event.Event(
@@ -1150,7 +1151,7 @@ class EventEditorGUI:
         try:
             while True:
                 status_type, status_value = self.status_queue.get_nowait()
-                logger.debug(f"ステータス受信: {status_type} = {status_value}")
+                # ステータス受信は頻繁なのでログ出力しない（エラー以外）
 
                 if status_type == "initialized":
                     self.status_label.config(text="プレビュー初期化完了", foreground="green")
@@ -1159,7 +1160,7 @@ class EventEditorGUI:
                 elif status_type == "paragraph_update":
                     # 現在の段落番号を更新
                     self.current_paragraph_label.config(text=f"現在: {status_value}")
-                    print(f"[GUI] 段落更新: {status_value}")
+                    # 段落更新は頻繁すぎるのでログ出力しない
                 elif status_type == "error":
                     logger.error(f"プレビューエラー: {status_value}")
                     self.status_label.config(text=f"エラー: {status_value}", foreground="red")

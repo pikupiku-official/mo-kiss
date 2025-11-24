@@ -7,23 +7,19 @@ from .fade_manager import start_fadeout, start_fadein
 def advance_dialogue(game_state):
     """次の対話に進む"""
     max_index = len(game_state['dialogue_data']) - 1
-    
+
     if game_state['current_paragraph'] >= max_index:
-        print(f"[DEBUG] 対話終了: 現在段落={game_state['current_paragraph']}, 最大={max_index}")
         return False
-    
+
     game_state['current_paragraph'] += 1
-    
+
     # 境界チェック
     if game_state['current_paragraph'] >= len(game_state['dialogue_data']):
         print(f"[ERROR] 段落インデックス越界: {game_state['current_paragraph']} >= {len(game_state['dialogue_data'])}")
         return False
-    
+
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
 
-    print(f"[DEBUG] 段落 {game_state['current_paragraph'] + 1}/{len(game_state['dialogue_data'])} に進みました")
-    print(f"[DEBUG] 現在のデータタイプ: {type(current_dialogue)}")
-    
     # 辞書タイプの場合はそのまま処理
     if isinstance(current_dialogue, dict):
         dialogue_text = ""
@@ -33,9 +29,6 @@ def advance_dialogue(game_state):
             print(f"[ERROR] 対話データの形式が不正: 長さ={len(current_dialogue)}")
             return False
         dialogue_text = current_dialogue[6] if len(current_dialogue) > 6 else ""
-    
-    print(f"[DEBUG] 処理中のテキスト: '{dialogue_text[:50] if dialogue_text else '(dict)'}'")
-    print(f"[DEBUG] 対話データ全体: {current_dialogue}")
 
     # スクロール停止コマンドかどうかチェック
     if dialogue_text and dialogue_text.startswith("_SCROLL_STOP"):
@@ -89,33 +82,24 @@ def advance_dialogue(game_state):
         # 特殊タイプのコマンドチェック
         if isinstance(current_dialogue, dict):
             command_type = current_dialogue.get('type')
-            print(f"[DEBUG] dict型コマンド検出: type='{command_type}', データ={current_dialogue}")
-            
+
             # if条件分岐開始
             if command_type == 'if_start':
-                print(f"[DEBUG] if_start処理開始")
                 return _handle_if_start(game_state, current_dialogue)
-            
+
             # if条件分岐終了
             elif command_type == 'if_end':
-                print(f"[DEBUG] if_end処理開始")
                 return _handle_if_end(game_state, current_dialogue)
-            
+
             # フラグ設定
             elif command_type == 'flag_set':
-                print(f"[DEBUG] flag_set処理開始")
                 return _handle_flag_set(game_state, current_dialogue)
-            
+
             # イベント解禁
             elif command_type == 'event_unlock':
-                print(f"[DEBUG] event_unlock処理開始: {current_dialogue}")
                 return _handle_event_unlock(game_state, current_dialogue)
-        else:
-            print(f"[DEBUG] データ型: {type(current_dialogue)}, 内容: {current_dialogue}")
-        
+
         # 通常の対話テキスト
-        print(f"[DEBUG] 通常テキスト処理: '{dialogue_text}'")
-        print(f"[DEBUG] データ全体: {current_dialogue}")
         return _handle_dialogue_text(game_state, current_dialogue)
     
 def _handle_scroll_stop(game_state):
@@ -168,8 +152,11 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             if DEBUG:
                 print(f"警告: キャラクター画像 '{char_name}' が見つかりません")
             return
-            
-        if char_name not in game_state['active_characters']:
+
+        # キャラクターが新規登場か既存キャラクターの表情変更かを判定
+        is_new_character = char_name not in game_state['active_characters']
+
+        if is_new_character:
             game_state['active_characters'].append(char_name)
             if DEBUG:
                 print(f"キャラクター '{char_name}' を active_characters に追加")
@@ -180,7 +167,7 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
 
             # 仮想解像度に対する基準スケールを計算
             char_base_scale = VIRTUAL_HEIGHT / char_height  # 高さ基準でスケール計算
-            
+
             # 仮想座標系での描画サイズを計算
             virtual_width = char_width * char_base_scale * size
             virtual_height = char_height * char_base_scale * size
@@ -191,14 +178,14 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             virtual_center_y = VIRTUAL_HEIGHT * show_y
             virtual_pos_x = int(virtual_center_x - virtual_width // 2)
             virtual_pos_y = int(virtual_center_y - virtual_height // 2)
-            
+
             # 仮想座標を実座標にスケーリング
             pos_x, pos_y = scale_pos(virtual_pos_x, virtual_pos_y)
-            
+
             game_state['character_pos'][char_name] = [pos_x, pos_y]
             if DEBUG:
                 print(f"キャラクター '{char_name}' の位置設定: ({pos_x}, {pos_y}), サイズ: {size}")
-            
+
             # sizeパラメータをcharacter_zoomに設定
             game_state['character_zoom'][char_name] = size
 
@@ -212,32 +199,45 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
                 if DEBUG:
                     print(f"キャラクター '{char_name}' のまばたき機能を無効にしました")
 
-            # キャラクターの表情を更新
-            if len(current_dialogue) >= 6:
-                expressions = {
-                    'eye': current_dialogue[2] if current_dialogue[2] else '',
-                    'mouth': current_dialogue[3] if current_dialogue[3] else '',
-                    'brow': current_dialogue[4] if current_dialogue[4] else '',
-                    'cheek': current_dialogue[5] if len(current_dialogue) > 5 and current_dialogue[5] else ''
-                }
-                game_state['character_expressions'][char_name] = expressions
-                
-                print(f"[CHARACTER] '{char_name}' の表情設定: {expressions}")
-                print(f"[CHARACTER] まばたき有効: {blink_enabled}")
-                    
-                # 表情パーツも事前ロード
-                try:
-                    image_manager.preload_character_set(char_name, {
-                        'eyes': [expressions['eye']] if expressions['eye'] else [],
-                        'mouths': [expressions['mouth']] if expressions['mouth'] else [],
-                        'brows': [expressions['brow']] if expressions['brow'] else [],
-                        'cheeks': [expressions['cheek']] if expressions['cheek'] else []
-                    })
-                except Exception as e:
-                    if DEBUG:
-                        print(f"表情パーツ事前ロードエラー（続行）: {char_name}: {e}")
-            
             print(f"[CHARACTER] '{char_name}' が登場しました (x={show_x}, y={show_y}, size={size}, blink={blink_enabled}) -> ({pos_x}, {pos_y})")
+        else:
+            if DEBUG:
+                print(f"[CHARACTER] '{char_name}' は既に登場中 - 表情のみ更新します")
+
+        # キャラクターの表情を更新（新規登場でも既存でも実行）
+        if len(current_dialogue) >= 6:
+            # 既存の表情を取得（存在しない場合は空の表情）
+            existing_expressions = game_state['character_expressions'].get(char_name, {
+                'eye': '', 'mouth': '', 'brow': '', 'cheek': ''
+            })
+
+            # 新しい表情データを構築（空でない場合のみ上書き）
+            expressions = existing_expressions.copy()
+            if current_dialogue[2]:  # 目
+                expressions['eye'] = current_dialogue[2]
+            if current_dialogue[3]:  # 口
+                expressions['mouth'] = current_dialogue[3]
+            if current_dialogue[4]:  # 眉
+                expressions['brow'] = current_dialogue[4]
+            if len(current_dialogue) > 5 and current_dialogue[5]:  # 頬
+                expressions['cheek'] = current_dialogue[5]
+
+            game_state['character_expressions'][char_name] = expressions
+
+            print(f"[CHARACTER] '{char_name}' の表情{'設定' if is_new_character else '更新'}: {expressions}")
+            print(f"[CHARACTER] まばたき有効: {blink_enabled}")
+
+            # 表情パーツも事前ロード
+            try:
+                image_manager.preload_character_set(char_name, {
+                    'eyes': [expressions['eye']] if expressions['eye'] else [],
+                    'mouths': [expressions['mouth']] if expressions['mouth'] else [],
+                    'brows': [expressions['brow']] if expressions['brow'] else [],
+                    'cheeks': [expressions['cheek']] if expressions['cheek'] else []
+                })
+            except Exception as e:
+                if DEBUG:
+                    print(f"表情パーツ事前ロードエラー（続行）: {char_name}: {e}")
         
     # キャラクター登場コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
@@ -387,13 +387,6 @@ def _handle_dialogue_text(game_state, current_dialogue):
     dialogue_text = current_dialogue[6]  # textは6番目
     display_name = current_dialogue[10] if len(current_dialogue) > 10 and current_dialogue[10] else current_dialogue[1]  # speakerは10番目
     
-    if DEBUG:
-        print(f"=== 対話テキスト処理 ===")
-        print(f"テキスト: '{dialogue_text}'")
-        print(f"話者名: '{display_name}'")
-        print(f"現在の段落: {game_state['current_paragraph']}")
-        print(f"アクティブキャラクター: {game_state.get('active_characters', [])}")
-    
     # 表示名の有効性をチェック（CHARACTER_IMAGE_MAPは削除済み）
     # ファイル名直接使用するためチェック不要
     # if display_name and display_name not in CHARACTER_IMAGE_MAP:
@@ -439,17 +432,6 @@ def _handle_dialogue_text(game_state, current_dialogue):
                 expressions['cheek'] = current_dialogue[5]
             
             game_state['character_expressions'][char_name] = expressions
-            
-            if DEBUG:
-                print(f"[EXPR] === 表情保存デバッグ ===")
-                print(f"[EXPR] 話し手: {char_name}")
-                print(f"[EXPR] 保存する表情: {expressions}")
-                print(f"[EXPR] アクティブキャラクター: {game_state['active_characters']}")
-                print(f"[EXPR] 全表情データ: {game_state['character_expressions']}")
-                print(f"[EXPR] === 表情保存デバッグ終了 ===")
-    
-    if DEBUG:
-        print(f"対話設定完了: text='{dialogue_text[:30]}...', speaker={display_name}, scroll={should_scroll}")
     
     return True
 

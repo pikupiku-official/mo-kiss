@@ -169,18 +169,14 @@ def draw_background(game_state):
     
     # 現在の背景を取得
     bg_name = bg_state['current_bg']
-    
-    if DEBUG:
-        print(f"[BG] 背景描画開始: {bg_name}")
-        print(f"[BG] 背景状態: pos={bg_state['pos']}, zoom={bg_state['zoom']}")
-        print(f"[BG] 利用可能な背景: {list(image_manager.image_paths.get('backgrounds', {}).keys())}")
-    
+
+    # 頻繁に呼ばれるのでログ出力しない
+
     # 遅延ロードで背景画像を取得
     bg_image = image_manager.get_image("backgrounds", bg_name)
-    
+
     if bg_image:
-        if DEBUG:
-            print(f"[BG] 背景画像取得成功: {bg_name} ({bg_image.get_width()}x{bg_image.get_height()})")
+        pass  # 背景画像取得成功（ログ出力しない）
     else:
         if DEBUG:
             print(f"[BG] 背景画像が見つかりません: {bg_name}, デフォルトにフォールバック")

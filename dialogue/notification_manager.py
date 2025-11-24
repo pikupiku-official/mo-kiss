@@ -86,11 +86,9 @@ class NotificationManager:
     def render(self):
         """通知を描画"""
         if not self.notifications:
-            if self.debug:
-                print("[NOTIFICATION_RENDER] 通知が空のためスキップ")
-            return
-        
-        print(f"[NOTIFICATION_RENDER] {len(self.notifications)}個の通知を描画中")
+            return  # 頻繁に呼ばれるのでログ出力しない
+
+        # 通知描画（ログ出力しない）
             
         for i, notif in enumerate(self.notifications):
             # 位置計算

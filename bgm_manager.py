@@ -266,24 +266,17 @@ class BGMManager:
 
     def get_bgm_for_scene(self, scene_name):
         """シーン名からBGMファイル名を取得（直接ファイル名を返す）"""
-        if self.debug:
-            print(f"[BGM] BGM取得要求: {scene_name}")
-        
+        # 頻繁に呼ばれるのでログ出力しない
+
         # 直接ファイル名が指定された場合はそのまま返す
         if self.is_valid_bgm_filename(scene_name):
-            if self.debug:
-                print(f"[BGM] 直接ファイル名指定: {scene_name}")
             return scene_name
-        
+
         # 拡張子がない場合、.mp3を自動補完
         if scene_name and not any(scene_name.lower().endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a']):
             candidate = f"{scene_name}.mp3"
-            if self.debug:
-                print(f"[BGM] 拡張子自動補完: {scene_name} -> {candidate}")
             return candidate
-        
-        if self.debug:
-            print(f"[BGM] 無効なBGM名: {scene_name}")
+
         return None
     
     async def fade_out_async(self, fade_time=1.0):

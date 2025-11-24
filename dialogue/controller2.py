@@ -27,50 +27,40 @@ def setup_text_renderer_settings(game_state):
 
 def handle_mouse_click(game_state, mouse_pos, screen):
     """マウスクリックの処理"""
-    print(f"[CLICK] マウスクリック処理開始: pos={mouse_pos}")
-    
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
-        print(f"[CLICK] バックログが開いているためクリック無効")
         return
-    
+
     # テキストが非表示の時は無効化
     if not game_state['show_text']:
-        print(f"[CLICK] テキストが非表示のためクリック無効")
         return
-    
+
     # 選択肢が表示中の場合、選択肢をクリック処理
     choice_renderer = game_state['choice_renderer']
     if choice_renderer.is_choice_showing():
-        print(f"[CLICK] 選択肢表示中、クリック処理開始")
         selected_choice = choice_renderer.handle_mouse_click(mouse_pos)
-        print(f"[CLICK] 選択肢クリック結果: {selected_choice}")
         if selected_choice >= 0:
             # 選択された選択肢をバックログに追加
             selected_text = choice_renderer.get_last_selected_text()
             if selected_text and game_state['backlog_manager']:
                 game_state['backlog_manager'].add_entry("橘純一", f"〇{selected_text}")
-                print(f"[BACKLOG] 選択肢をバックログに追加: {selected_text}")
-            
+                print(f"[CHOICE] 選択: {selected_text}")
+
             # 選択肢履歴に記録（次のテキスト処理前に実行）
             if 'dialogue_loader' in game_state and selected_text:
                 dialogue_loader = game_state['dialogue_loader']
                 choice_number = dialogue_loader.record_choice(selected_choice, selected_text)
-                print(f"[CHOICE_HISTORY] 選択肢を記録: 選択肢{choice_number} = '{selected_text}'")
-                
+
                 # name_managerに即座に反映（テキスト置換用）
                 from .name_manager import get_name_manager
                 name_manager = get_name_manager()
                 name_manager.set_dialogue_loader(dialogue_loader)
-                print(f"[CHOICE_HISTORY] name_managerに dialogue_loader 設定完了")
-            
+
             # 選択肢を非表示にして次に進む
-            print(f"[CLICK] 選択肢を非表示にして次に進む")
             choice_renderer.hide_choices()
             advance_to_next_dialogue(game_state)
             return
         else:
-            print(f"[CLICK] 選択肢外をクリック")
             return
     
     # UI画像とボタン位置を取得
@@ -123,13 +113,15 @@ def handle_events(game_state, screen):
             
         elif event.type == pygame.MOUSEMOTION:
             # マウス移動の処理（選択肢のハイライト）
-            mouse_pos = pygame.mouse.get_pos()
+            # event.posを使用（event_editorから座標変換されたイベントに対応）
+            mouse_pos = event.pos
             game_state['choice_renderer'].handle_mouse_motion(mouse_pos)
-            
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             # マウスクリックの処理
             if event.button == 1:  # 左クリック
-                mouse_pos = pygame.mouse.get_pos()
+                # event.posを使用（event_editorから座標変換されたイベントに対応）
+                mouse_pos = event.pos
                 handle_mouse_click(game_state, mouse_pos, screen)
             
         elif event.type == pygame.KEYDOWN:

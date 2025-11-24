@@ -213,21 +213,46 @@ class ImageManager:
             return None
     
     def get_image(self, image_type, image_key, size=None):
-        """画像を取得（必要に応じて遅延ロード）"""
+        """画像を取得（必要に応じて遅延ロード）スレッドセーフ"""
         if image_type in self.image_paths and image_key in self.image_paths[image_type]:
             filepath = self.image_paths[image_type][image_key]
             optimal_size = self._get_optimal_size(filepath, size)
             cache_key = f"{filepath}_{optimal_size if optimal_size else 'original'}"
-            
-            # キャッシュにある場合
-            if cache_key in self.image_cache:
-                self.image_cache.move_to_end(cache_key)
-                return self.image_cache[cache_key]
-            
-            # キャッシュにない場合、即座にロード
-            return self._load_image_immediately(filepath, optimal_size, cache_key)
-            
-        return None
+
+            # キャッシュチェック（スレッドセーフ）
+            with self.lock:
+                if cache_key in self.image_cache:
+                    self.image_cache.move_to_end(cache_key)
+                    cached_image = self.image_cache[cache_key]
+                    # キャッシュヒットは頻繁すぎるのでログ出力しない
+                    return cached_image
+
+                # ロード中かチェック
+                if cache_key in self.loading_tasks:
+                    # ロード中の場合は待たずにNoneを返す（次フレームで再試行）
+                    return None
+
+                # ロード中フラグを設定
+                self.loading_tasks[cache_key] = True
+
+            # ロックを解放してから実際のロード処理
+            try:
+                # 新規ロード時のみログ出力
+                print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
+                result = self._load_image_immediately(filepath, optimal_size, cache_key)
+                if result is None:
+                    print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
+                return result
+            finally:
+                # ロード完了後、フラグを削除
+                with self.lock:
+                    if cache_key in self.loading_tasks:
+                        del self.loading_tasks[cache_key]
+        else:
+            print(f"[IMG_ERROR] 画像パスが見つかりません: type={image_type}, key={image_key}")
+            if image_type in self.image_paths:
+                print(f"[IMG_ERROR] 利用可能なキー ({image_type}): {list(self.image_paths[image_type].keys())[:10]}...")
+            return None
     
     async def get_image_async(self, image_type, image_key, size=None):
         """画像を非同期で取得"""

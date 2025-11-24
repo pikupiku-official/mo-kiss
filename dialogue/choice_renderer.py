@@ -419,24 +419,24 @@ class ChoiceRenderer:
         """選択肢を描画（多列表示、グリッドシステムとフォント効果付き）"""
         if not self.is_showing_choices or not self.choices:
             return
-        
-        print(f"[DEBUG] render呼び出し: 描画する選択肢数={len(self.choices)}")
-        
+
+        # 頻繁に呼ばれるのでログ出力しない
+
         for i, choice in enumerate(self.choices):
             # ハイライト色を決定
             color = self.highlight_color if i == self.hovered_choice else self.normal_color
-            
+
             # グリッドシステムで選択肢を描画（text_rendererと同じ効果）
             choice_surface = self._render_choice_with_grid_system(choice, color)
-            
+
             # 多列レイアウトでの座標を計算
             pos_x, pos_y = self._calculate_choice_coordinates(i, choice_surface, (self.current_columns, self.choices_per_column))
-            
+
             # 座標を整数にスナップして揺れを防止
             pos_x = int(round(pos_x))
             pos_y = int(round(pos_y))
-            
-            print(f"[DEBUG] 選択肢{i}描画: '{choice}' at ({pos_x}, {pos_y})")
+
+            # 描画（ログ出力しない）
             self.screen.blit(choice_surface, (pos_x, pos_y))
     
     def is_choice_showing(self):

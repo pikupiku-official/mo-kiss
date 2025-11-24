@@ -1,54 +1,80 @@
 *start
 
 ;----------------------------------------------
-;◆実験用
+;◆実験
+;桃子に帰り道、ミニストップに誘われるが…！？
 ;----------------------------------------------
 
-*scene1|&f.title+"実験用のシーン"
-[resetlaypos]
+*scene1|&f.title+"校門前"
 
-[bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[BGM bgm="school" volume="0" loop="true"]
+[bg_show storage="test.bg.TEUgate"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[BGM bgm="subete_no_hajimari" volume="0.2" loop="true"]
 
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
+[chara_show name="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
 	
-[choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
-
 	//桃子//
-	「こんにちは。」
-	「これは最初のテキストです。」
+	「ねえ、今日はミニスト寄ってかない？」
+
+
+[choice option1="いいよ、行こう！" option2="ミニストって？"]
+
+	//{苗字}//
+	「{選択肢1}」
+
+ [if condition="choice_1==1"]
+ 	//桃子//
+     	「え、本当！やったー！！」
+      	//{苗字}//
+     	「喜び方が大げさだよ」
+      	//増田//
+      	「確かに…あの声で締まる感じはあるよな。」
 	[scroll-stop]
+ [endif]
 
-
-[choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
-
-[chara_move subm="桃子" time="400" left="0.1" top="0.02" zoom="3"]
-
-	//桃子//
-	「会話の2番目の部分です。」
+ [if condition="choice_1==2"]
+      	//桃子//
+      	「ミニスト！通学路のミニストップだよ！」
+      	//{苗字}//
+      	「あ、殿ヶ谷戸立体のとこのミニストップね。」
+      	//桃子//
+      	「{苗字}もう二年生なんだからそんくらい知っててよね！」
 	[scroll-stop]
+ [endif]
 
-
-[bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move subm="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
+[chara_hide subh="T03_00_01"]
+[chara_show name="T03_00_01" eye="F03_Ex00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
 
 	//桃子//
-	「言葉は想像力を運ぶ電車です。」
-	「日本中どこまでも想像力を運ぶ『私たち』という路線図。」
-	「一個の私は想像力が乗り降りする一つ一つの駅みたいなもので、どんな小さな駅にも止まる各停みたいな言葉もあれば、仕事をしやすくしてくれる、急行みたいな言葉もあるし。」
+	「CM見た？ミニストの。」
+	//{苗字}//
+	「え、どんなやつだっけ？覚えてないや」
+
+[chara_hide subh="T03_00_01"]
+[chara_show name="T00_02_01" eye="F00_Ew00_00" mouth="F00_Mh01_03" brow="F00_Bn00_00" cheek="" x="0.5" y="1.05" size="2.5"]
+
+	//桃子//
+	「パイナップルソフトが世界一美味しそうなのっ！！」
+	//{苗字}//
+	「うわびっくりした！なんだよいきなり」
+
+[chara_show name="T00_02_01" eye="F00_Eh00_00" mouth="F00_Mh01_03" brow="F00_Bn00_00" cheek="" x="0.5" y="1.05" size="2.5"]
+
+	//桃子//
+	「いいから、早く行こ！ね！」
+	//{苗字}//
+	「焦らず行こうぜ…」
 	[scroll-stop]
 
 *scene2|&f.title+"教室のシーン"
 [resetlaypos]
 
-[bg_show storage="classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
+[chara_hide subh="T00_02_01"]
+[bg_show storage="test.bg.schoolroute01"  bg_x="0.5" bg_y="0.5" bg_zoom="1"]
 [BGM bgm="classroom" volume="0" loop="true"]
+[chara_show name="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
 
 	//桃子//
-	「別の場面に移動しました。」
-	[scroll-stop]
-
-[chara_show name="サナコ"　eye="eye2" mouth="mouth2" x="0.2" y="0.2"]
+	「今日は学校どうだったの？」
 
 	//桃子//
 	「わかる人にしかわからない、快速みたいな言葉もあって、一番言葉の集まる駅にしか止まらない、新幹線みたいな言葉もあります。」
@@ -56,24 +82,6 @@
 	「地下から地下へ受け渡されるよこしまな想像力たち。」
 	[scroll-stop]
 
-	//サナコ//
-	「でも時折、地下から地上に顔を出してビルの谷間をくぐるとき、不意の太陽が無理矢理たてじまに変えようとするから、想像力は眉をしかめたりします。」
-	[scroll-stop]
 
-[chara_hide subh="桃子"]
 
-[bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
-[chara_move subm="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
-
-	//サナコ//
-	「ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。」
-	「だけどほんとうに大事なのは、想像力が降りるべき駅で降りること。」
-	「次に乗り込むべき言葉に乗ること。」
-	「ただそれだけです。」
-	「だから、ダイアグラムの都合から、ぎゅうぎゅう詰めの急行と、すっかすかの各停が同じ時刻に出発して、」
-	「ほんの一瞬同じ速さで走るとき、急行の中の想像力がうらやましげに各停をながめることもあるのです。」
-	「２０１２年には東京メトロ副都心線と東急東横線がつながるみたいに、今まではつながれなかったあれもこれもつながるんだろうか。」
-	「そんなことを想像しています。」
-	「これは最後のテキストです。」
-	[scroll-stop]
 

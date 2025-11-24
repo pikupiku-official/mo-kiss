@@ -97,19 +97,21 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
 
 def hide_character(game_state, character_name):
     """キャラクターを退場させる"""
+    print(f"[HIDE] hide_character呼び出し: char_name='{character_name}'")
+    print(f"[HIDE] 現在のactive_characters: {game_state['active_characters']}")
+
     if character_name in game_state['active_characters']:
         game_state['active_characters'].remove(character_name)
-        if DEBUG:
-            print(f"キャラクター '{character_name}' が退場しました")
+        print(f"[HIDE] ✓ キャラクター '{character_name}' を退場させました")
+        print(f"[HIDE] 更新後のactive_characters: {game_state['active_characters']}")
     else:
-        if DEBUG:
-            print(f"キャラクター '{character_name}' はアクティブではありません")
+        print(f"[HIDE] ⚠ キャラクター '{character_name}' はアクティブではありません")
+        print(f"[HIDE] 現在のactive_characters: {game_state['active_characters']}")
 
     # アニメーション中の場合は停止
     if character_name in game_state['character_anim']:
         del game_state['character_anim'][character_name]
-        if DEBUG:
-            print(f"警告: キャラクター '{character_name}' の移動アニメーションを停止しました")
+        print(f"[HIDE] キャラクター '{character_name}' の移動アニメーションを停止しました")
 
 def set_blink_enabled(game_state, character_name, enabled):
     """キャラクターのまばたき機能の有効/無効を設定"""
@@ -314,32 +316,21 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     """顔パーツの描画（遅延ロード対応）"""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
-        if DEBUG:
-            print(f"[FACE] キャラクター '{char_name}' の位置情報がありません")
         return
-    
+
     character_pos = game_state['character_pos'][char_name]
     image_manager = game_state['image_manager']
-    
-    if DEBUG:
-        print(f"[FACE] 顔パーツ描画開始: {char_name}")
-        print(f"[FACE] パーツ情報 - eye:{eye_type}, mouth:{mouth_type}, brow:{brow_type}, cheek:{cheek_type}")
-    
+
     # キャラクター画像を遅延ロードで取得
     char_img = image_manager.get_image("characters", char_name)
     if not char_img:
-        if DEBUG:
-            print(f"[FACE] キャラクター画像 '{char_name}' が取得できません")
         return
-    
+
     # キャラクター画像のサイズと中央座標を一度だけ計算
     actual_char_width = char_img.get_width() * zoom_scale
     actual_char_height = char_img.get_height() * zoom_scale
     char_center_x = character_pos[0] + actual_char_width // 2
     char_center_y = character_pos[1] + actual_char_height // 2
-    
-    if DEBUG:
-        print(f"[FACE] キャラクター位置: {character_pos}, 中央: ({char_center_x}, {char_center_y}), ズーム: {zoom_scale}")
     
     # 眉毛を描画
     if brow_type:
@@ -351,26 +342,17 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
                 char_center_y - brow_img.get_height() // 2
             )
             screen.blit(brow_img, brow_pos)
-            if DEBUG:
-                print(f"[FACE] 眉毛描画完了: {brow_type} at {brow_pos}")
-        else:
-            if DEBUG:
-                print(f"[FACE] 眉毛画像が見つかりません: {brow_type}")
-    elif DEBUG:
-        print(f"[FACE] 眉毛データなし")
 
     # 目を描画（まばたき考慮）
     final_eye_type = eye_type
-    
+
     # まばたき中の場合は、まばたき用の目を使用
     if char_name in game_state.get('character_blink_state', {}) and \
        game_state['character_blink_state'][char_name].get('current_state') == 'blinking':
         blink_eye = game_state['character_expressions'].get(char_name, {}).get('eye_blink', '')
         if blink_eye:
             final_eye_type = blink_eye
-            if DEBUG:
-                print(f"[BLINK] {char_name}: まばたき中の目使用 {final_eye_type}")
-    
+
     if final_eye_type:
         eye_img = image_manager.get_image("eyes", final_eye_type)
         if eye_img:
@@ -380,14 +362,7 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
                 char_center_y - eye_img.get_height() // 2
             )
             screen.blit(eye_img, eye_pos)
-            if DEBUG:
-                print(f"[FACE] 目描画完了: {final_eye_type} at {eye_pos}")
-        else:
-            if DEBUG:
-                print(f"[FACE] 目画像が見つかりません: {final_eye_type}")
-    elif DEBUG:
-        print(f"[FACE] 目データなし")
-    
+
     # 口を描画
     if mouth_type:
         mouth_img = image_manager.get_image("mouths", mouth_type)
@@ -398,14 +373,7 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
                 char_center_y - mouth_img.get_height() // 2
             )
             screen.blit(mouth_img, mouth_pos)
-            if DEBUG:
-                print(f"[FACE] 口描画完了: {mouth_type} at {mouth_pos}")
-        else:
-            if DEBUG:
-                print(f"[FACE] 口画像が見つかりません: {mouth_type}")
-    elif DEBUG:
-        print(f"[FACE] 口データなし")
-    
+
     # 頬を描画
     if cheek_type:
         cheek_img = image_manager.get_image("cheeks", cheek_type)
@@ -416,13 +384,6 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
                 char_center_y - cheek_img.get_height() // 2
             )
             screen.blit(cheek_img, cheek_pos)
-            if DEBUG:
-                print(f"[FACE] 頬描画完了: {cheek_type} at {cheek_pos}")
-        else:
-            if DEBUG:
-                print(f"[FACE] 頬画像が見つかりません: {cheek_type}")
-    elif DEBUG:
-        print(f"[FACE] 頬データなし")
 
 def draw_characters(game_state):
     """画面上にキャラクターを描画する（遅延ロード対応）"""
@@ -458,36 +419,12 @@ def draw_characters(game_state):
             # 表情パーツを表示
             if game_state['show_face_parts']:
                 
-                # 保存された表情を優先して使用し、表情の継続表示を確保
+                # 保存された表情を使用（scenario_manager.pyで既に更新済み）
                 expressions = game_state['character_expressions'].get(char_name, {})
                 eye_type = expressions.get('eye', '')
                 mouth_type = expressions.get('mouth', '')
                 brow_type = expressions.get('brow', '')
                 cheek_type = expressions.get('cheek', '')
-                
-                # 現在の話し手の場合は対話データから新しい表情を取得（上書き）
-                if char_name == current_speaker and current_dialogue and len(current_dialogue) >= 6:
-                    if current_dialogue[2]:  # 新しい目の表情データがある場合のみ更新
-                        eye_type = current_dialogue[2]
-                    if current_dialogue[3]:  # 新しい口の表情データがある場合のみ更新
-                        mouth_type = current_dialogue[3]
-                    if current_dialogue[4]:  # 新しい眉の表情データがある場合のみ更新
-                        brow_type = current_dialogue[4]
-                    if len(current_dialogue) > 5 and current_dialogue[5]:  # 新しい頬の表情データがある場合のみ更新
-                        cheek_type = current_dialogue[5]
-                
-                # デバッグ出力
-                if DEBUG:
-                    print(f"[FACE] === {char_name}の表情デバッグ ===")
-                    print(f"[FACE] 現在の話し手: {current_speaker}")
-                    print(f"[FACE] アクティブキャラクター: {game_state['active_characters']}")
-                    expressions = game_state['character_expressions'].get(char_name, {})
-                    print(f"[FACE] 保存された表情: {expressions}")
-                    print(f"[FACE] 決定された表情: eye={eye_type}, mouth={mouth_type}, brow={brow_type}, cheek={cheek_type}")
-                    if current_dialogue and len(current_dialogue) >= 6:
-                        print(f"[FACE] 現在の対話データ: eye={current_dialogue[2]}, mouth={current_dialogue[3]}, brow={current_dialogue[4]}, cheek={current_dialogue[5] if len(current_dialogue) > 5 else 'None'}")
-                    print(f"[FACE] show_face_parts: {game_state['show_face_parts']}")
-                    print(f"[FACE] === デバッグ終了 ===")
                 
                 # 顔パーツを描画（必ず呼び出し）
                 # 顔パーツも同じスケールを適用
