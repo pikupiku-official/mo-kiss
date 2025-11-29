@@ -66,16 +66,16 @@ SLIDER_CONFIG = {
     'max_value': 100
 }
 
-# レイアウト設定（設定画面を下に移動）
+# レイアウト設定（4:3コンテンツ基準 - 1440x1080）
 LAYOUT = {
-    'title_y': 120,
-    'main_menu_start_y': 300,
-    'settings_panel_x': 500,
-    'settings_panel_y': 280,  # 200から280に下げる
-    'settings_panel_width': 800,  # 横幅を拡大
-    'settings_panel_height': 450,  # 高さは少し減らす
-    'right_buttons_x': 1200,
-    'right_buttons_y': 80
+    'title_y': 90,  # 120 * 0.75
+    'main_menu_start_y': 225,  # 300 * 0.75
+    'settings_panel_x': 375,  # 500 * 0.75
+    'settings_panel_y': 210,  # 280 * 0.75
+    'settings_panel_width': 600,  # 800 * 0.75
+    'settings_panel_height': 338,  # 450 * 0.75
+    'right_buttons_x': 900,  # 1200 * 0.75（4:3コンテンツ内の位置）
+    'right_buttons_y': 60  # 80 * 0.75
 }
 
 # 音声設定のデフォルト値

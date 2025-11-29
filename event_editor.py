@@ -110,7 +110,8 @@ class PreviewWindow:
             pygame.display.set_caption("KSファイル プレビュー（リサイズ可能）")
             logger.debug("ウィンドウ作成完了")
 
-            # 仮想画面を作成（1920x1080の固定サイズ）
+            # 仮想画面を作成（純粋な4:3コンテンツサイズ：1440x1080）
+            # エディタはリサイズ可能なので、固定ピラーボックスは不要
             logger.debug(f"仮想画面作成: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
             self.virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
             logger.debug("仮想画面作成完了")
@@ -130,6 +131,14 @@ class PreviewWindow:
         """プレビュー用のゲーム状態を初期化（新しいウィンドウを作らない）"""
         logger.info("ゲーム状態初期化開始")
         print("[INIT] ゲーム状態を初期化中...")
+
+        # ★エディタ専用設定：dialogueマネージャーがscale_pos()を使う際、
+        # OFFSET_X/Yを加算しないようにする（仮想画面が1440x1080のため）
+        import config
+        config.OFFSET_X = 0
+        config.OFFSET_Y = 0
+        config.SCALE = 1.0
+        logger.debug("エディタ用にOFFSET_X=0, OFFSET_Y=0, SCALE=1.0を設定")
 
         try:
             # 各マネージャーの初期化
@@ -161,6 +170,7 @@ class PreviewWindow:
             dialogue_loader.notification_system = notification_manager
 
             # 画像パスのスキャンと必須画像のみロード
+            # 仮想画面サイズ（1440x1080）を使用
             logger.debug("画像パススキャン開始")
             print("[INIT] 画像をロード中...")
             image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
@@ -349,23 +359,27 @@ class PreviewWindow:
 
     def get_scale_and_offset(self):
         """スケーリング係数とオフセットを計算（アスペクト比維持）"""
+        # 仮想画面の実際のサイズを取得
+        virtual_screen_width = self.virtual_screen.get_width()
+        virtual_screen_height = self.virtual_screen.get_height()
+
         # ウィンドウのアスペクト比
         window_aspect = self.window_width / self.window_height
         # 仮想画面のアスペクト比
-        virtual_aspect = VIRTUAL_WIDTH / VIRTUAL_HEIGHT
+        virtual_aspect = virtual_screen_width / virtual_screen_height
 
         if window_aspect > virtual_aspect:
             # ウィンドウの方が横長 → 高さに合わせる
-            scale = self.window_height / VIRTUAL_HEIGHT
-            scaled_width = int(VIRTUAL_WIDTH * scale)
+            scale = self.window_height / virtual_screen_height
+            scaled_width = int(virtual_screen_width * scale)
             scaled_height = self.window_height
             offset_x = (self.window_width - scaled_width) // 2
             offset_y = 0
         else:
             # ウィンドウの方が縦長 → 幅に合わせる
-            scale = self.window_width / VIRTUAL_WIDTH
+            scale = self.window_width / virtual_screen_width
             scaled_width = self.window_width
-            scaled_height = int(VIRTUAL_HEIGHT * scale)
+            scaled_height = int(virtual_screen_height * scale)
             offset_x = 0
             offset_y = (self.window_height - scaled_height) // 2
 
@@ -379,8 +393,10 @@ class PreviewWindow:
         virtual_x = (screen_x - offset_x) / scale
         virtual_y = (screen_y - offset_y) / scale
 
-        # 範囲外チェック
-        if virtual_x < 0 or virtual_x >= VIRTUAL_WIDTH or virtual_y < 0 or virtual_y >= VIRTUAL_HEIGHT:
+        # 範囲外チェック（仮想画面の実際のサイズで判定）
+        virtual_screen_width = self.virtual_screen.get_width()
+        virtual_screen_height = self.virtual_screen.get_height()
+        if virtual_x < 0 or virtual_x >= virtual_screen_width or virtual_y < 0 or virtual_y >= virtual_screen_height:
             return None, None
 
         return int(virtual_x), int(virtual_y)
@@ -390,7 +406,7 @@ class PreviewWindow:
         try:
             # 仮想画面に描画
             if not self.game_state:
-                # ゲーム状態がない場合は黒い画面を表示
+                # ゲーム状態がない場合は濃い青を表示
                 self.virtual_screen.fill((20, 20, 40))  # デバッグ用に濃い青
 
                 # デバッグテキスト表示
@@ -479,7 +495,7 @@ class PreviewWindow:
                 print(f"[RENDER] ウィンドウ: {self.window_width}x{self.window_height}, スケール: {scale:.2f}, 表示サイズ: {scaled_width}x{scaled_height}, オフセット: ({offset_x}, {offset_y})")
                 self._debug_count += 1
 
-            # ウィンドウを黒で塗りつぶし（レターボックス用）
+            # ウィンドウを黒で塗りつぶし（ピラーボックス/レターボックス用）
             self.window.fill((0, 0, 0))
 
             # 仮想画面をスケーリングして表示

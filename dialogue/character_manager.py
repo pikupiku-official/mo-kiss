@@ -296,15 +296,44 @@ def update_blink_animation(game_state, character_name, current_time):
     # まばたき中の目の表情を設定
     game_state['character_expressions'][character_name]['eye_blink'] = current_eye_type
 
+def update_character_fade_animations(game_state):
+    """キャラクターのフェードアニメーションを更新する"""
+    if 'character_fade_anim' not in game_state:
+        return
+
+    current_time = pygame.time.get_ticks()
+
+    for char_name, anim_data in list(game_state['character_fade_anim'].items()):
+        # 経過時間の計算
+        elapsed = current_time - anim_data['start_time']
+
+        if elapsed >= anim_data['duration']:
+            # アニメーション完了
+            game_state['character_alpha'][char_name] = anim_data['target_alpha']
+
+            # 完了時のコールバックがあれば実行
+            if 'on_complete' in anim_data and anim_data['on_complete']:
+                anim_data['on_complete']()
+
+            # アニメーション情報を削除
+            del game_state['character_fade_anim'][char_name]
+        else:
+            # アニメーション進行中
+            progress = elapsed / anim_data['duration']  # 0.0～1.0
+
+            # 現在のアルファ値を線形補間で計算
+            current_alpha = anim_data['start_alpha'] + (anim_data['target_alpha'] - anim_data['start_alpha']) * progress
+            game_state['character_alpha'][char_name] = int(current_alpha)
+
 def update_character_animations(game_state):
     """キャラクターアニメーションを更新する"""
     current_time = pygame.time.get_ticks()
-    
+
     # 各キャラクターのアニメーション状態を更新
     for char_name, anim_data in list(game_state['character_anim'].items()):
         # 経過時間の計算
         elapsed = current_time - anim_data['start_time']
-        
+
         if elapsed >= anim_data['duration']:
             # アニメーション完了
             game_state['character_pos'][char_name] = [
@@ -317,20 +346,23 @@ def update_character_animations(game_state):
         else:
             # アニメーション進行中
             progress = elapsed / anim_data['duration']  # 0.0～1.0
-            
+
             # 現在位置を線形補間で計算
             current_x = anim_data['start_x'] + (anim_data['target_x'] - anim_data['start_x']) * progress
             current_y = anim_data['start_y'] + (anim_data['target_y'] - anim_data['start_y']) * progress
             current_zoom = anim_data['start_zoom'] + (anim_data['target_zoom'] - anim_data['start_zoom']) * progress
-            
+
             # 位置を更新
             game_state['character_pos'][char_name] = [int(current_x), int(current_y)]
             game_state['character_zoom'][char_name] = current_zoom
-    
+
+    # フェードアニメーションの更新
+    update_character_fade_animations(game_state)
+
     # まばたきシステムの更新
     update_blink_system(game_state)
 
-def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale):
+def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale, alpha=255):
     """顔パーツの描画（遅延ロード対応）"""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
@@ -349,12 +381,15 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     actual_char_height = char_img.get_height() * zoom_scale
     char_center_x = character_pos[0] + actual_char_width // 2
     char_center_y = character_pos[1] + actual_char_height // 2
-    
+
     # 眉毛を描画
     if brow_type:
         brow_img = image_manager.get_image("brows", brow_type)
         if brow_img:
             brow_img = get_scaled_image(brow_img, zoom_scale)
+            if alpha < 255:
+                brow_img = brow_img.copy()
+                brow_img.set_alpha(alpha)
             brow_pos = (
                 char_center_x - brow_img.get_width() // 2,
                 char_center_y - brow_img.get_height() // 2
@@ -375,6 +410,9 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         eye_img = image_manager.get_image("eyes", final_eye_type)
         if eye_img:
             eye_img = get_scaled_image(eye_img, zoom_scale)
+            if alpha < 255:
+                eye_img = eye_img.copy()
+                eye_img.set_alpha(alpha)
             eye_pos = (
                 char_center_x - eye_img.get_width() // 2,
                 char_center_y - eye_img.get_height() // 2
@@ -386,6 +424,9 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         mouth_img = image_manager.get_image("mouths", mouth_type)
         if mouth_img:
             mouth_img = get_scaled_image(mouth_img, zoom_scale)
+            if alpha < 255:
+                mouth_img = mouth_img.copy()
+                mouth_img.set_alpha(alpha)
             mouth_pos = (
                 char_center_x - mouth_img.get_width() // 2,
                 char_center_y - mouth_img.get_height() // 2
@@ -397,6 +438,9 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         cheek_img = image_manager.get_image("cheeks", cheek_type)
         if cheek_img:
             cheek_img = get_scaled_image(cheek_img, zoom_scale)
+            if alpha < 255:
+                cheek_img = cheek_img.copy()
+                cheek_img.set_alpha(alpha)
             cheek_pos = (
                 char_center_x - cheek_img.get_width() // 2,
                 char_center_y - cheek_img.get_height() // 2
@@ -408,12 +452,13 @@ def draw_characters(game_state):
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']] if game_state['dialogue_data'] else None
     current_speaker = current_dialogue[1] if current_dialogue and len(current_dialogue) > 1 else None
     image_manager = game_state['image_manager']
+    screen = game_state['screen']
 
     for char_name in game_state['active_characters']:
         if char_name in game_state['character_pos']:
             # キャラクター画像を遅延ロードで取得
             char_img = image_manager.get_image("characters", char_name)
-            
+
             if not char_img:
                 if DEBUG:
                     print(f"警告: キャラクター画像 '{char_name}' が取得できません")
@@ -430,21 +475,28 @@ def draw_characters(game_state):
             char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()  # 高さ基準でスケール計算
             final_zoom = zoom_scale * char_base_scale * SCALE
             scaled_char_img = get_scaled_image(char_img, final_zoom)
-            
+
+            # アルファブレンディングを適用
+            alpha = game_state.get('character_alpha', {}).get(char_name, 255)
+            if alpha < 255:
+                # アルファ値が255未満の場合のみコピーして透明度を設定
+                scaled_char_img = scaled_char_img.copy()
+                scaled_char_img.set_alpha(alpha)
+
             # 画面に描画
             game_state['screen'].blit(scaled_char_img, (x, y))
 
             # 表情パーツを表示
             if game_state['show_face_parts']:
-                
+
                 # 保存された表情を使用（scenario_manager.pyで既に更新済み）
                 expressions = game_state['character_expressions'].get(char_name, {})
                 eye_type = expressions.get('eye', '')
                 mouth_type = expressions.get('mouth', '')
                 brow_type = expressions.get('brow', '')
                 cheek_type = expressions.get('cheek', '')
-                
+
                 # 顔パーツを描画（必ず呼び出し）
                 # 顔パーツも同じスケールを適用
                 face_final_zoom = zoom_scale * char_base_scale * SCALE
-                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, face_final_zoom)
+                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, face_final_zoom, alpha)

@@ -56,7 +56,7 @@ def normalize_dialogue_data(raw_data):
                 current_char = "T04_00_00"
             elif current_char == "サナコ":
                 current_char = "T08_01_00"
-            
+
             # 顔パーツはファイル名をそのまま使用
             current_eye = entry['eye']
             current_mouth = entry['mouth']
@@ -66,9 +66,10 @@ def normalize_dialogue_data(raw_data):
             show_x = entry.get('show_x', 0.5)
             show_y = entry.get('show_y', 0.5)
             size = entry.get('size', 1.0)
+            fade = entry.get('fade', 0.3)  # フェード時間を取得（デフォルト: 0.3秒）
             # デバッグ出力削除
             # キャラクター登場コマンドを追加
-            command_text = f"_CHARA_NEW_{current_char}_{show_x}_{show_y}_{size}_{current_blink}"
+            command_text = f"_CHARA_NEW_{current_char}_{show_x}_{show_y}_{size}_{current_blink}_{fade}"
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
                 command_text, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
@@ -166,13 +167,14 @@ def normalize_dialogue_data(raw_data):
                 hide_char = "T04_00_00"
             elif hide_char == "サナコ":
                 hide_char = "T08_01_00"
-            hide_command = f"_CHARA_HIDE_{hide_char}"
+            fade = entry.get('fade', 0.3)  # フェード時間を取得（デフォルト: 0.3秒）
+            hide_command = f"_CHARA_HIDE_{hide_char}_{fade}"
             normalized_data.append([
                 current_bg, hide_char, current_eye, current_mouth, current_brow, current_cheek,
                 hide_command, current_bgm, current_bgm_volume, current_bgm_loop, hide_char, False
             ])
             if DEBUG:
-                print(f"退場コマンド追加: {entry['character']}")
+                print(f"退場コマンド追加: {entry['character']} (fade={fade})")
 
         elif entry_type == 'scroll_stop':
             # スクロール停止コマンドを正規化形式で追加

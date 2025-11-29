@@ -119,31 +119,35 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"分割結果: {parts}")
 
-    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size,blink
+    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size,blink,fade
         # T04_00_00のようなアンダースコア含みファイル名に対応
-        if len(parts) >= 10:  # _CHARA_NEW_T04_00_00_x_y_size_blink の場合
+        if len(parts) >= 11:  # _CHARA_NEW_T04_00_00_x_y_size_blink_fade の場合
             char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
             x_index = 6
             y_index = 7
             size_index = 8
             blink_index = 9
+            fade_index = 10
         else:  # 通常のキャラクター名の場合
             char_name = parts[3]
             x_index = 4
             y_index = 5
             size_index = 6
             blink_index = 7
-        
+            fade_index = 8
+
         try:
             show_x = float(parts[x_index])
             show_y = float(parts[y_index])
             size = float(parts[size_index]) if len(parts) > size_index else 1.0
             blink_enabled = parts[blink_index].lower() == 'true' if len(parts) > blink_index else True
+            fade_time = float(parts[fade_index]) if len(parts) > fade_index else 0.3
         except (ValueError, IndexError):
             show_x = 0.5
             show_y = 0.5
             size = 1.0
             blink_enabled = True
+            fade_time = 0.3
 
         # まず画像の存在を確認（遅延ロード対応）
         image_manager = game_state['image_manager']
@@ -199,7 +203,31 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
                 if DEBUG:
                     print(f"キャラクター '{char_name}' のまばたき機能を無効にしました")
 
-            print(f"[CHARACTER] '{char_name}' が登場しました (x={show_x}, y={show_y}, size={size}, blink={blink_enabled}) -> ({pos_x}, {pos_y})")
+            # フェードイン処理を設定
+            if fade_time > 0:
+                # 透明度を0に設定してフェードインアニメーションを開始
+                if 'character_alpha' not in game_state:
+                    game_state['character_alpha'] = {}
+                if 'character_fade_anim' not in game_state:
+                    game_state['character_fade_anim'] = {}
+
+                game_state['character_alpha'][char_name] = 0
+                current_time = pygame.time.get_ticks()
+                game_state['character_fade_anim'][char_name] = {
+                    'start_alpha': 0,
+                    'target_alpha': 255,
+                    'start_time': current_time,
+                    'duration': fade_time * 1000  # 秒からミリ秒に変換
+                }
+                if DEBUG:
+                    print(f"キャラクター '{char_name}' のフェードイン開始: {fade_time}秒")
+            else:
+                # fade_time = 0の場合は即座に表示
+                if 'character_alpha' not in game_state:
+                    game_state['character_alpha'] = {}
+                game_state['character_alpha'][char_name] = 255
+
+            print(f"[CHARACTER] '{char_name}' が登場しました (x={show_x}, y={show_y}, size={size}, blink={blink_enabled}, fade={fade_time}) -> ({pos_x}, {pos_y})")
         else:
             if DEBUG:
                 print(f"[CHARACTER] '{char_name}' は既に登場中 - 表情のみ更新します")
@@ -248,15 +276,46 @@ def _handle_character_hide(game_state, dialogue_text):
     if DEBUG:
         print(f"退場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"退場コマンド解析: parts={parts}")
-    if len(parts) >= 4:  # _CHARA_HIDE_キャラクター名
+    if len(parts) >= 4:  # _CHARA_HIDE_キャラクター名_fade
         # T04_00_00のようなアンダースコア含みファイル名に対応
-        if len(parts) >= 6:  # _CHARA_HIDE_T04_00_00 の場合
+        if len(parts) >= 7:  # _CHARA_HIDE_T04_00_00_fade の場合
             char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
+            fade_index = 6
         else:  # 通常のキャラクター名の場合
             char_name = parts[3]
+            fade_index = 4
+
+        # フェード時間を取得
+        try:
+            fade_time = float(parts[fade_index]) if len(parts) > fade_index else 0.3
+        except (ValueError, IndexError):
+            fade_time = 0.3
+
         if DEBUG:
-            print(f"退場対象キャラクター名: '{char_name}'")
-        hide_character(game_state, char_name)
+            print(f"退場対象キャラクター名: '{char_name}', fade={fade_time}")
+
+        # フェードアウト処理
+        if fade_time > 0:
+            # フェードアウトアニメーションを開始
+            if 'character_alpha' not in game_state:
+                game_state['character_alpha'] = {}
+            if 'character_fade_anim' not in game_state:
+                game_state['character_fade_anim'] = {}
+
+            current_alpha = game_state['character_alpha'].get(char_name, 255)
+            current_time = pygame.time.get_ticks()
+            game_state['character_fade_anim'][char_name] = {
+                'start_alpha': current_alpha,
+                'target_alpha': 0,
+                'start_time': current_time,
+                'duration': fade_time * 1000,  # 秒からミリ秒に変換
+                'on_complete': lambda: hide_character(game_state, char_name)
+            }
+            if DEBUG:
+                print(f"キャラクター '{char_name}' のフェードアウト開始: {fade_time}秒")
+        else:
+            # fade_time = 0の場合は即座に非表示
+            hide_character(game_state, char_name)
     else:
         if DEBUG:
             print(f"エラー: 退場コマンドの形式が不正です: '{dialogue_text}'")

@@ -5,23 +5,9 @@ from typing import List, Dict, Tuple
 # 初期化
 pygame.init()
 
-# フルサイズウィンドウ設定
-from PyQt5.QtWidgets import QApplication
-import sys
+# config.pyの画面設定を使用（4:3対応）
+from config import SCREEN_WIDTH, SCREEN_HEIGHT
 
-# 画面サイズを取得してフルサイズに設定
-if QApplication.instance() is None:
-    _temp_app = QApplication(sys.argv if sys.argv else [''])
-    screen = _temp_app.primaryScreen()
-    screen_geometry = screen.geometry()
-    SCREEN_WIDTH = screen_geometry.width()
-    SCREEN_HEIGHT = screen_geometry.height()
-else:
-    app = QApplication.instance()
-    screen = app.primaryScreen()
-    screen_geometry = screen.geometry()
-    SCREEN_WIDTH = screen_geometry.width()
-    SCREEN_HEIGHT = screen_geometry.height()
 FPS = 60
 
 # マップタイプの定義

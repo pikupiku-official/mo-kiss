@@ -267,15 +267,26 @@ class HomeModule:
     
     def render(self):
         """描画処理"""
-        # 背景
-        self.screen.fill(self.bg_color)
-        
+        # 全画面を黒で塗りつぶし（ピラーボックス用）
+        self.screen.fill((0, 0, 0))
+
+        # 4:3コンテンツ領域に背景色を塗る
+        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
+        self.screen.fill(self.bg_color, content_rect)
+
+        # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
+        self.screen.set_clip(content_rect)
+
         if self.save_mode is None:
             # メインメニュー描画
             self._render_main_menu()
         else:
             # セーブ/ロード画面描画
             self._render_save_load_screen()
+
+        # ★クリッピング解除★
+        self.screen.set_clip(None)
     
     def _render_main_menu(self):
         """メインメニュー描画"""

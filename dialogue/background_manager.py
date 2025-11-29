@@ -166,7 +166,10 @@ def draw_background(game_state):
     screen = game_state['screen']
     bg_state = game_state['background_state']
     image_manager = game_state['image_manager']
-    
+
+    # 全画面を黒で塗りつぶし（ピラーボックス用）
+    screen.fill((0, 0, 0))
+
     # 現在の背景を取得
     bg_name = bg_state['current_bg']
 

@@ -157,9 +157,10 @@ class EventManager:
     def execute_event(self, event: GameEvent, screen):
         """イベントを実行"""
         print(f"イベント実行: {event.title} (ID: {event.event_id})")
-        
-        # 元の画面サイズを保存
-        original_size = screen.get_size()
+
+        # config.pyの画面サイズを使用（4:3対応）
+        from config import SCREEN_WIDTH, SCREEN_HEIGHT
+        original_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
         
         try:
             ks_file = os.path.join(project_root, "events", f"{event.event_id}.ks")

@@ -489,7 +489,13 @@ class GameApplication:
                 from dialogue.background_manager import draw_background
                 from dialogue.choice_renderer import ChoiceRenderer
                 from dialogue.fade_manager import draw_fade_overlay
-                
+
+                # ★ピラーボックスを「奈落」にする：dialogue描画全体を4:3コンテンツ領域にクリッピング★
+                from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+                content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
+                # 注：この設定で、UI・テキスト・選択肢・背景・キャラなどすべてがクリッピング範囲内に収まる
+                self.screen.set_clip(content_rect)
+
                 # 背景描画
                 draw_background(self.dialogue_game_state)
                 
@@ -530,7 +536,10 @@ class GameApplication:
                 if 'notification_manager' in self.dialogue_game_state:
                     notification_manager = self.dialogue_game_state['notification_manager']
                     notification_manager.render()
-                    
+
+                # ★クリッピング解除★
+                self.screen.set_clip(None)
+
         elif self.current_mode == "home":
             if self.home_module:
                 self.home_module.render()

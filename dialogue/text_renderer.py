@@ -30,8 +30,8 @@ class TextRenderer:
         self.text_line_height = int(base_line_height * TEXT_LINE_HEIGHT_MULTIPLIER)
         self.text_padding = TEXT_PADDING
         self.char_spacing = TEXT_CHAR_SPACING
-        # 名前表示モードの初期化
-        self.name_display_mode = "auto"  # デフォルトは自動均等配置
+        # 名前表示モードの初期化（config から読み込み）
+        self.name_display_mode = TEXT_RENDERER_CONFIG["name_spacing_mode"]  # "auto"=均等配置, "normal"=通常表示
         
         # 日付表示関連の初期化
         self.date_display_enabled = DATE_DISPLAY_ENABLED
@@ -292,7 +292,7 @@ class TextRenderer:
         
         # フォント効果を考慮した文字幅（横引き延ばし効果込み）
         stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.0) if FONT_EFFECTS.get("enable_stretched", False) else 1.0
-        grid_char_width = int(base_char_width * stretch_factor * 1.1) + self.char_spacing  # 文字間隔を追加
+        grid_char_width = int(base_char_width * stretch_factor * TEXT_RENDERER_CONFIG["grid_char_width_margin"]) + self.char_spacing  # 文字間隔を追加
         
         # 行全体のサーフェスサイズを計算
         max_chars = min(len(text_line), self.max_chars_per_line)
@@ -341,17 +341,17 @@ class TextRenderer:
         
         # フォント効果を考慮した文字幅
         stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.0) if FONT_EFFECTS.get("enable_stretched", False) else 1.0
-        grid_char_width = int(base_char_width * stretch_factor * 1.1) + self.char_spacing
+        grid_char_width = int(base_char_width * stretch_factor * TEXT_RENDERER_CONFIG["grid_char_width_margin"]) + self.char_spacing
         
         # 名前の文字数に応じた均等配置ロジック
         name_length = len(name)
         if name_length == 1:
-            # 1文字の場合: 「　橘　」（前後に全角スペース）
-            display_name = "　" + name + "　"
+            # 1文字の場合: config設定に従って前後にスペースを追加
+            display_name = TEXT_RENDERER_CONFIG["name_spacing_1char_prefix"] + name + TEXT_RENDERER_CONFIG["name_spacing_1char_suffix"]
             total_chars = 3
         elif name_length == 2:
-            # 2文字の場合: 「純　一」（間に全角スペース）
-            display_name = name[0] + "　" + name[1]
+            # 2文字の場合: config設定に従って間にスペースを追加
+            display_name = name[0] + TEXT_RENDERER_CONFIG["name_spacing_2char_middle"] + name[1]
             total_chars = 3
         else:
             # 3文字以上の場合: そのまま表示

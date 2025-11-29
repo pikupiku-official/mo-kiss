@@ -44,11 +44,14 @@ class TitleScreen:
         """タイトル背景画像を読み込む"""
         try:
             if os.path.exists(TITLE_IMAGE_PATH):
-                # 画像を読み込んで画面サイズにスケーリング
+                # 画像を読み込んで4:3コンテンツサイズにスケーリング
                 original_image = pygame.image.load(TITLE_IMAGE_PATH)
-                self.background_image = pygame.transform.scale(original_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+                # CONTENT_WIDTH/HEIGHTは4:3のコンテンツサイズ（正確な値）
+                from config import CONTENT_WIDTH, CONTENT_HEIGHT
+                content_size = (CONTENT_WIDTH, CONTENT_HEIGHT)
+                self.background_image = pygame.transform.scale(original_image, content_size)
                 if self.debug:
-                    print(f"タイトル画像を読み込みました: {TITLE_IMAGE_PATH}")
+                    print(f"タイトル画像を読み込みました: {TITLE_IMAGE_PATH} -> {content_size}")
             else:
                 if self.debug:
                     print(f"タイトル画像が見つかりません: {TITLE_IMAGE_PATH}")
@@ -131,10 +134,11 @@ class TitleScreen:
         text_surface = self.title_font.render(self.title_text, True, self.title_color)
         text_width = text_surface.get_width()
         text_height = text_surface.get_height()
-        
-        # 画面中央少し下に配置
-        self.text_x = (SCREEN_WIDTH - text_width) // 2
-        self.text_y = (SCREEN_HEIGHT // 2) + TITLE_TEXT_Y_OFFSET
+
+        # 仮想座標で画面中央少し下に配置し、scale_posでオフセット適用
+        virtual_x = (VIRTUAL_WIDTH // 2) + OFFSET_X - (text_width // 2)
+        virtual_y = (VIRTUAL_HEIGHT // 2) + TITLE_TEXT_Y_OFFSET
+        self.text_x, self.text_y = scale_pos(virtual_x, virtual_y)
     
     def update(self):
         """タイトル画面の更新（点滅効果）"""
@@ -147,39 +151,54 @@ class TitleScreen:
     
     def render(self):
         """タイトル画面を描画する"""
-        # 背景を描画
+        # 全画面を黒で塗りつぶし（ピラーボックス用）
+        self.screen.fill((0, 0, 0))
+
+        # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
+        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
+        self.screen.set_clip(content_rect)
+
+        # 背景画像を描画（クリッピング後は(0,0)基準で描画）
         if self.background_image:
-            self.screen.blit(self.background_image, (0, 0))
+            self.screen.blit(self.background_image, (OFFSET_X, OFFSET_Y))
         else:
-            # 背景画像がない場合は黒で塗りつぶし
-            self.screen.fill((0, 0, 0))
-        
+            # 背景画像がない場合もコンテンツ領域のみ黒で塗る
+            pass
+
         # "PRESS ANY KEY" テキストを点滅表示
         if self.blink_visible:
+            # クリッピング後は座標からOFFSETを引く
+            text_x_clipped = self.text_x - OFFSET_X
+            text_y_clipped = self.text_y - OFFSET_Y
+
             # 影効果を適用（テキストレンダラーと同様）
             if FONT_EFFECTS.get("enable_shadow", False):
                 # 影を描画
                 shadow_color = (0, 0, 0)
                 shadow_surface = self.title_font.render(self.title_text, True, shadow_color)
-                
+
                 # メインテキストを描画
                 text_surface = self.title_font.render(self.title_text, True, self.title_color)
-                
+
                 # 影のオフセットを取得
                 offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
                 offx, offy = int(round(offx)), int(round(offy))
-                
+
                 # 影を先に描画
-                shadow_x = self.text_x + offx
-                shadow_y = self.text_y + offy
+                shadow_x = text_x_clipped + offx
+                shadow_y = text_y_clipped + offy
                 self.screen.blit(shadow_surface, (shadow_x, shadow_y))
-                
+
                 # メインテキストを上に描画
-                self.screen.blit(text_surface, (self.text_x, self.text_y))
+                self.screen.blit(text_surface, (text_x_clipped, text_y_clipped))
             else:
                 # 影効果なしの場合
                 text_surface = self.title_font.render(self.title_text, True, self.title_color)
-                self.screen.blit(text_surface, (self.text_x, self.text_y))
+                self.screen.blit(text_surface, (text_x_clipped, text_y_clipped))
+
+        # ★クリッピング解除★
+        self.screen.set_clip(None)
     
     def handle_input(self, event):
         """

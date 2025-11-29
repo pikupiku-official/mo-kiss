@@ -33,26 +33,39 @@ DISPLAY_WIDTH = screen_geometry.width()
 DISPLAY_HEIGHT = screen_geometry.height()
 
 # 仮想画面の基準解像度（全ての座標・サイズ計算の基準）
-VIRTUAL_WIDTH = 1920
+VIRTUAL_WIDTH = 1440  # 4:3アスペクト比（1920から変更）
 VIRTUAL_HEIGHT = 1080
 
-# 実際のウィンドウサイズを16:9のアスペクト比に調整
-# フルサイズ（ディスプレイの100%）でウィンドウを表示
-WINDOW_WIDTH = DISPLAY_WIDTH  # 画面幅の100%（フルサイズ）
-WINDOW_HEIGHT = DISPLAY_HEIGHT  # 画面高さの100%（フルサイズ）
+# 実際のウィンドウサイズ（フルスクリーン）
+WINDOW_WIDTH = DISPLAY_WIDTH
+WINDOW_HEIGHT = DISPLAY_HEIGHT
+
+# 4:3コンテンツの実際の描画サイズを計算
+# ディスプレイの高さに合わせて4:3コンテンツをスケーリング
+CONTENT_HEIGHT = DISPLAY_HEIGHT
+CONTENT_WIDTH = int(CONTENT_HEIGHT * 4 / 3)  # 4:3比率を維持
+
+# コンテンツが画面幅を超える場合は幅に合わせる
+if CONTENT_WIDTH > DISPLAY_WIDTH:
+    CONTENT_WIDTH = DISPLAY_WIDTH
+    CONTENT_HEIGHT = int(CONTENT_WIDTH * 3 / 4)
 
 # スケーリング係数を計算
-SCALE_X = WINDOW_WIDTH / VIRTUAL_WIDTH
-SCALE_Y = WINDOW_HEIGHT / VIRTUAL_HEIGHT
-SCALE = min(SCALE_X, SCALE_Y)  # アスペクト比を維持するため小さい方を使用
+SCALE_X = CONTENT_WIDTH / VIRTUAL_WIDTH
+SCALE_Y = CONTENT_HEIGHT / VIRTUAL_HEIGHT
+SCALE = min(SCALE_X, SCALE_Y)  # アスペクト比を維持
 
-# フルサイズの場合、ウィンドウ位置は左上角（0, 0）
+# 4:3コンテンツを画面中央に配置するためのオフセット
+OFFSET_X = (DISPLAY_WIDTH - CONTENT_WIDTH) // 2
+OFFSET_Y = (DISPLAY_HEIGHT - CONTENT_HEIGHT) // 2
+
+# ウィンドウ位置（フルスクリーン）
 X_POS = 0
 Y_POS = 0
 
 # 定数として設定（元のコードとの互換性のため）
-SCREEN_WIDTH = WINDOW_WIDTH
-SCREEN_HEIGHT = WINDOW_HEIGHT
+SCREEN_WIDTH = WINDOW_WIDTH  # フルスクリーン幅
+SCREEN_HEIGHT = WINDOW_HEIGHT  # フルスクリーン高さ
 
 # デバッグモード（パフォーマンス向上のためFalseに）
 DEBUG = True
@@ -69,20 +82,20 @@ TITLE_FONT_SIZE_RATIO = 0.05        # タイトルテキストのフォントサ
 FONT_EFFECTS = {
     "enable_shadow": True,          # 透明度0の黒い影を有効にする
     "enable_pixelated": True,       # 1/nサイズ→n倍拡大によるピクセル化
-    "enable_stretched": True,       # 1.25倍横引き延ばし
+    "enable_stretched": True,       # 横引き延ばし
     "shadow_offset": (6, 6),        # 影のオフセット（右下）
     "shadow_alpha": 255,            # 影の透明度（0=完全透明、255=完全不透明）
-    "pixelate_factor": 2,           # ピクセル化係数（1/nサイズにしてn倍拡大）
-    "stretch_factor": 1.2          # 横引き延ばし係数
+    "pixelate_factor": 2.5,           # ピクセル化係数（1/nサイズにしてn倍拡大）
+    "stretch_factor": 1.05          # 横引き延ばし係数
 }
 
 # テキスト表示設定（仮想解像度1920x1080基準のピクセル値）
 TEXT_COLOR = (255, 255, 255)
-TEXT_COLOR_FEMALE = (255, 175, 227)
-TEXT_BG_COLOR = (0, 0, 0, 100)
-TEXT_START_X = 435  # 1文字分（約25px）左に移動
-TEXT_START_Y = 765
-NAME_START_X = 200  # 1文字分（約25px）右に移動
+TEXT_COLOR_FEMALE = (255, 200, 255)  # 女性キャラ用テキスト色（ピンク系）
+TEXT_BG_COLOR = (0, 0, 0, 50)
+TEXT_START_X = 298
+TEXT_START_Y = 798
+NAME_START_X = 95 
 NAME_START_Y = TEXT_START_Y
 TEXT_PADDING = 0
 
@@ -94,17 +107,42 @@ TEXT_PUNCTUATION_DELAY = 500  # 句読点での追加遅延時間（ミリ秒）
 TEXT_PARAGRAPH_TRANSITION_DELAY = 1000  # 段落切り替え遅延時間（ミリ秒）
 
 # フォントサイズ設定（画面高さに対する比率）
-FONT_NAME_SIZE_RATIO = 0.04   # 名前フォントサイズ比率（画面高さのn%）
-FONT_TEXT_SIZE_RATIO = 0.04   # テキストフォントサイズ比率（画面高さのn%）
+FONT_NAME_SIZE_RATIO = 0.045   # 名前フォントサイズ比率（画面高さのn%）
+FONT_TEXT_SIZE_RATIO = 0.045   # テキストフォントサイズ比率（画面高さのn%）
 FONT_DEFAULT_SIZE_RATIO = 0.024  # デフォルトフォントサイズ比率（画面高さのn%）
 
 # テキスト間隔調整設定
-TEXT_LINE_HEIGHT_MULTIPLIER = 1.15   # 行間の倍率（1.0 = デフォルト）
+TEXT_LINE_HEIGHT_MULTIPLIER = 1   # 行間の倍率（1.0 = デフォルト）
 TEXT_CHAR_SPACING = 2               # 文字間隔の追加ピクセル数
+
+# テキストレンダリング詳細設定
+TEXT_RENDERER_CONFIG = {
+    # グリッドシステム設定
+    "grid_char_width_margin": 1,      # グリッド文字幅の余白係数（基本文字幅×stretch_factor×この値＋文字間隔）
+
+    # 名前表示の均等配置設定
+    "name_spacing_mode": "auto",        # 名前表示モード: "auto"=均等配置, "normal"=通常表示
+    "name_spacing_1char_prefix": "　",  # 1文字名の前のスペース
+    "name_spacing_1char_suffix": "　",  # 1文字名の後のスペース
+    "name_spacing_2char_middle": "　",  # 2文字名の間のスペース
+    # 3文字以上の名前はそのまま表示される
+}
+
+# テキストボックス色設定
+TEXTBOX_COLOR_TINT = {
+    "enabled": True,            # 色変更を有効にする（True=有効, False=元の色のまま）
+    "color": (40, 83, 120),   # 乗算する色 (R, G, B)
+                                # 例: (255, 255, 255) = 白（変化なし）
+                                #     (255, 200, 200) = 赤みがかった色
+                                #     (200, 200, 255) = 青みがかった色
+                                #     (255, 255, 200) = 黄色みがかった色
+                                # ※元画像が黒の場合、乗算では色が変わりません
+                                #   元画像が白やグレーの部分が指定色に変わります
+}
 
 # 日付表示設定
 DATE_DISPLAY_ENABLED = True         # 日付表示の有効/無効
-DATE_DISPLAY_X = 30                 # 日付表示のX座標（仮想解像度基準）
+DATE_DISPLAY_X = 22                 # 30×0.75（4:3対応）
 DATE_DISPLAY_Y = 30                 # 日付表示のY座標（仮想解像度基準）
 DATE_FONT_SIZE_RATIO = 0.04         # 日付フォントサイズ比率（画面高さの4%）
 DATE_TEXT_COLOR = (255, 255, 255)   # 日付テキストの色
@@ -116,9 +154,9 @@ GAME_START_DAY = 31                 # ゲーム開始日
 GAME_START_WEEKDAY = 0              # ゲーム開始曜日（0=月曜日、6=日曜日）
 
 # 選択肢表示設定
-CHOICE_START_X = 200                # 選択肢表示のX座標（仮想解像度基準、TEXTと同じ）
-CHOICE_START_Y = 755                # 選択肢表示のY座標（仮想解像度基準、TEXTと同じ）
-CHOICE_SPACING = 10                 # 選択肢間のスペーシング（ピクセル）
+CHOICE_START_X = NAME_START_X                # 200×0.75（4:3対応）
+CHOICE_START_Y = NAME_START_Y                # Y座標は変更なし
+CHOICE_SPACING = 0                 # 選択肢間のスペーシング（ピクセル）
 CHOICE_NORMAL_COLOR = (255, 255, 255)    # 通常時の選択肢色
 CHOICE_HIGHLIGHT_COLOR = (255, 255, 0)   # ハイライト時の選択肢色（黄色）
 
@@ -126,8 +164,8 @@ CHOICE_HIGHLIGHT_COLOR = (255, 255, 0)   # ハイライト時の選択肢色（�
 CHOICE_MAX_SINGLE_COLUMN = 3        # 単列表示の最大選択肢数
 CHOICE_MAX_DOUBLE_COLUMN = 6        # 2列表示の最大選択肢数
 CHOICE_MAX_TRIPLE_COLUMN = 9        # 3列表示の最大選択肢数
-CHOICE_COLUMN_WIDTH = 450           # 各列の幅（仮想解像度基準）
-CHOICE_COLUMN_SPACING = 50          # 列間のスペーシング（仮想解像度基準）
+CHOICE_COLUMN_WIDTH = 337           # 450×0.75（4:3対応）
+CHOICE_COLUMN_SPACING = 37          # 50×0.75（4:3対応）
 
 # テキスト表示設定（仮想座標をスケーリング）
 def get_text_positions(screen):
@@ -146,12 +184,12 @@ def get_text_positions(screen):
         "line_height": line_height
     }
 
-# UI要素の設定（仮想解像度1920x1080基準のピクセル値）
+# UI要素の設定（仮想解像度1440x1080基準のピクセル値）
 TEXTBOX_MARGIN_BOTTOM = 50
 TEXT_LINE_SPACING = 80
-AUTO_BUTTON_MARGIN_RIGHT = 394
-SKIP_BUTTON_MARGIN_RIGHT = 249
-BUTTON_MARGIN_TOP = 703
+AUTO_BUTTON_MARGIN_RIGHT = 278
+SKIP_BUTTON_MARGIN_RIGHT = 156
+BUTTON_MARGIN_TOP = 750
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {
@@ -199,8 +237,8 @@ DEFAULT_BGM_VOLUME = 0.1
 DEFAULT_BGM_LOOP = True
 
 def scale_pos(x, y):
-    """仮想座標を実際の画面座標にスケーリング"""
-    return int(x * SCALE), int(y * SCALE)
+    """仮想座標を実際の画面座標にスケーリング（オフセット込み）"""
+    return int(x * SCALE + OFFSET_X), int(y * SCALE + OFFSET_Y)
 
 def scale_size(width, height):
     """仮想サイズを実際の画面サイズにスケーリング"""
@@ -209,9 +247,9 @@ def scale_size(width, height):
 def get_textbox_position(screen, text_box):
     """テキストボックスの位置を計算する（仮想座標で計算してスケーリング）"""
     # テキストボックスのサイズは既にスケーリング済みなのでそのまま使用
-    virtual_x = (VIRTUAL_WIDTH - 1632) // 2  # 仮想解像度でのテキストボックス幅
-    virtual_y = VIRTUAL_HEIGHT - 352 - TEXTBOX_MARGIN_BOTTOM  # 仮想解像度でのテキストボックス高さ
-    
+    virtual_x = (VIRTUAL_WIDTH - 1340) // 2 # 1632×0.75（4:3対応）
+    virtual_y = VIRTUAL_HEIGHT - 288 - TEXTBOX_MARGIN_BOTTOM  # 仮想解像度でのテキストボックス高さ
+
     return scale_pos(virtual_x, virtual_y)
 
 def get_ui_button_positions(screen):

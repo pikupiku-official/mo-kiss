@@ -14,12 +14,20 @@ class NotificationManager:
         self.max_notifications = 3
         self.notification_duration = 4000  # nミリ秒
         
-        # 位置設定（右上エリア）
-        self.notification_width = int(300 * SCALE)
-        self.notification_height = int(60 * SCALE) 
-        self.notification_spacing = int(10 * SCALE)
-        self.margin_right = int(20 * SCALE)
-        self.margin_top = int(20 * SCALE)
+        # 位置設定（右上エリア、4:3コンテンツ基準）
+        # 仮想座標（1440x1080基準）で定義
+        self.virtual_notification_width = 300
+        self.virtual_notification_height = 60
+        self.virtual_notification_spacing = 10
+        self.virtual_margin_right = 20
+        self.virtual_margin_top = 20
+
+        # 実座標に変換
+        self.notification_width = int(self.virtual_notification_width * SCALE)
+        self.notification_height = int(self.virtual_notification_height * SCALE)
+        self.notification_spacing = int(self.virtual_notification_spacing * SCALE)
+        self.margin_right = int(self.virtual_margin_right * SCALE)
+        self.margin_top = int(self.virtual_margin_top * SCALE)
         
         # フォント設定
         self.font_size = int(SCREEN_HEIGHT * 0.025)
@@ -91,9 +99,13 @@ class NotificationManager:
         # 通知描画（ログ出力しない）
             
         for i, notif in enumerate(self.notifications):
-            # 位置計算
-            x = SCREEN_WIDTH - self.notification_width - self.margin_right
-            y = self.margin_top + notif['y_offset']
+            # 位置計算（4:3コンテンツ基準）
+            # 仮想座標で計算
+            virtual_x = VIRTUAL_WIDTH - self.virtual_notification_width - self.virtual_margin_right
+            virtual_y = self.virtual_margin_top + int(notif['y_offset'] / SCALE)
+
+            # scale_pos()で実座標に変換
+            x, y = scale_pos(virtual_x, virtual_y)
             
             if self.debug:
                 print(f"[NOTIFICATION_RENDER] 通知{i}: pos=({x},{y}), alpha={notif['alpha']}, message='{notif['message']}'")

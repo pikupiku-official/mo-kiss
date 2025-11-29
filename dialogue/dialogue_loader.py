@@ -313,7 +313,7 @@ class DialogueLoader:
                         char_name = re.search(r'name="([^"]+)"', line)
                         if not char_name:
                             char_name = re.search(r'sub="([^"]+)"', line)
-                        
+
                         eye_type = re.search(r'eye="([^"]+)"', line)
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
@@ -322,6 +322,7 @@ class DialogueLoader:
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
                         size = re.search(r'size="([^"]+)"', line)
+                        fade = re.search(r'fade="([^"]+)"', line)
                         
                         if char_name:
                             current_char = char_name.group(1)
@@ -369,8 +370,17 @@ class DialogueLoader:
                                 current_blink = blink.group(1).lower() != "false" if blink else True
                             except (ValueError, AttributeError):
                                 current_blink = True
-                            
-                            # デバッグ出力削除 
+
+                            # fade パラメータを処理（デフォルト: 0.3秒）
+                            try:
+                                if fade:
+                                    current_fade = float(fade.group(1))
+                                else:
+                                    current_fade = 0.3  # デフォルト: 0.3秒
+                            except (ValueError, AttributeError):
+                                current_fade = 0.3
+
+                            # デバッグ出力削除
 
                             dialogue_data.append({
                                 'type': 'character',
@@ -382,7 +392,8 @@ class DialogueLoader:
                                 'blink': current_blink,
                                 'show_x': current_show_x,
                                 'show_y': current_show_y,
-                                'size': current_size
+                                'size': current_size,
+                                'fade': current_fade
                             })
                         else:
                             if self.debug:
@@ -525,15 +536,27 @@ class DialogueLoader:
                 elif "[chara_hide" in line:
                     try:
                         name_parts_h = re.search(r'subh="([^"]+)"', line)
+                        fade_h = re.search(r'fade="([^"]+)"', line)
+
                         if name_parts_h:
                             char_name = name_parts_h.group(1)
-                            
+
+                            # fade パラメータを処理（デフォルト: 0.3秒）
+                            try:
+                                if fade_h:
+                                    hide_fade = float(fade_h.group(1))
+                                else:
+                                    hide_fade = 0.3  # デフォルト: 0.3秒
+                            except (ValueError, AttributeError):
+                                hide_fade = 0.3
+
                             # デバッグ出力削除
-                            
+
                             # 退場コマンドをダイアログデータに追加
                             dialogue_data.append({
                                 'type': 'hide',
-                                'character': char_name
+                                'character': char_name,
+                                'fade': hide_fade
                             })
 
                             # 退場したキャラクターが現在のキャラクターだった場合、リセット

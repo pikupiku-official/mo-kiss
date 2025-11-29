@@ -623,20 +623,21 @@ class AdvancedKimikissMap:
         """マップ初期化"""
         # 平日マップ（学校のみ）- 建物描画に合わせて位置調整
         self.weekday_locations = [
-            EventLocation("教室", 400, 660, "みんなが集まる教室", "classroom"),  # 本館中央
-            EventLocation("図書館", 600, 350, "静かで落ち着いた図書館", "library"),  # 理科棟
-            EventLocation("体育館", 1300, 550, "体育の授業や部活で使う体育館", "gym"),  # 体育館建物中央
-            EventLocation("購買部", 625, 525, "パンや飲み物を買える購買部", "shop"),  # 本館と東棟の間
-            EventLocation("屋上", 600, 150, "景色の良い学校の屋上", "rooftop"),  # 本館屋上
-            EventLocation("学校正門", 1400, 900, "学校の正門", "gate"),  # 正門位置
+            # 座標は4:3基準（1440x1080）に変更（元の1920x1080の0.75倍）
+            EventLocation("教室", 300, 495, "みんなが集まる教室", "classroom"),  # 本館中央
+            EventLocation("図書館", 450, 263, "静かで落ち着いた図書館", "library"),  # 理科棟
+            EventLocation("体育館", 975, 413, "体育の授業や部活で使う体育館", "gym"),  # 体育館建物中央
+            EventLocation("購買部", 469, 394, "パンや飲み物を買える購買部", "shop"),  # 本館と東棟の間
+            EventLocation("屋上", 450, 113, "景色の良い学校の屋上", "rooftop"),  # 本館屋上
+            EventLocation("学校正門", 1050, 675, "学校の正門", "gate"),  # 正門位置
         ]
         
-        # 休日マップ（街のみ）- 以前の座標に合わせて調整
+        # 休日マップ（街のみ）- 座標は4:3基準（1440x1080）に変更
         self.weekend_locations = [
-            EventLocation("公園", 130, 650, "緑豊かな公園", "park"),
-            EventLocation("駅前", 700, 610, "賑やかな駅前広場", "station"),
-            EventLocation("商店街", 680, 400, "活気ある商店街", "shopping"),
-            EventLocation("カフェ", 360, 420, "おしゃれなカフェ", "cafe"),
+            EventLocation("公園", 98, 488, "緑豊かな公園", "park"),  # 130*0.75=97.5, 650*0.75=487.5
+            EventLocation("駅前", 525, 458, "賑やかな駅前広場", "station"),  # 700*0.75=525, 610*0.75=457.5
+            EventLocation("商店街", 510, 300, "活気ある商店街", "shopping"),  # 680*0.75=510, 400*0.75=300
+            EventLocation("カフェ", 270, 315, "おしゃれなカフェ", "cafe"),  # 360*0.75=270, 420*0.75=315
         ]
     
     def get_current_locations(self) -> List[EventLocation]:
@@ -798,17 +799,21 @@ class AdvancedKimikissMap:
     
     
     def draw_girl_icons(self):
-        """女の子アイコンの描画（イベント表示付き）- 確実表示版"""
+        """女の子アイコンの描画（イベント表示付き、4:3コンテンツ基準）"""
+        from config import scale_pos
+
         current_locations = self.get_current_locations()
-        
+
         icon_count = 0
         for location in current_locations:
             if location.girl_characters:
                 icon_count += len(location.girl_characters)
                 # キャラクターアイコンの描画
                 for i, char in enumerate(location.girl_characters):
-                    icon_x = location.x + (i * 50) - 10
-                    icon_y = location.y - 35
+                    # 仮想座標で計算してから実座標に変換
+                    virtual_icon_x = location.x + (i * 50) - 10
+                    virtual_icon_y = location.y - 35
+                    icon_x, icon_y = scale_pos(virtual_icon_x, virtual_icon_y)
                     
                     # イベント有無でアイコンの表示を変える（アルファ使わない）
                     if location.has_event:
@@ -903,26 +908,31 @@ class AdvancedKimikissMap:
         return points
     
     def draw_locations(self):
-        """場所マーカーの描画"""
+        """場所マーカーの描画（4:3コンテンツ基準）"""
+        from config import scale_pos
+
         current_locations = self.get_current_locations()
-        
+
         for location in current_locations:
+            # location座標を仮想座標から実座標に変換
+            actual_x, actual_y = scale_pos(location.x, location.y)
+
             # マーカーのサイズと色（固定）
             radius = 12
             marker_color = (70, 130, 180)
-            
+
             # マーカー描画
-            pygame.draw.circle(self.screen, marker_color, (location.x, location.y), radius)
-            pygame.draw.circle(self.screen, (255, 255, 255), (location.x, location.y), radius - 3)
-            pygame.draw.circle(self.screen, marker_color, (location.x, location.y), radius - 6)
-            
-            # 場所名ラベル（常時表示）
-            self.draw_location_label_always(location)
+            pygame.draw.circle(self.screen, marker_color, (actual_x, actual_y), radius)
+            pygame.draw.circle(self.screen, (255, 255, 255), (actual_x, actual_y), radius - 3)
+            pygame.draw.circle(self.screen, marker_color, (actual_x, actual_y), radius - 6)
+
+            # 場所名ラベル（常時表示、実座標を渡す）
+            self.draw_location_label_always(location, actual_x, actual_y)
     
-    def draw_location_label(self, location):
-        """場所ラベルの描画"""
+    def draw_location_label(self, location, actual_x, actual_y):
+        """場所ラベルの描画（実座標を使用）"""
         text = self.fonts['medium'].render(location.name, True, ADVANCED_COLORS['text_color'])
-        text_rect = text.get_rect(center=(location.x, location.y - 35))
+        text_rect = text.get_rect(center=(actual_x, actual_y - 35))
         
         # ラベル背景
         bg_rect = text_rect.inflate(12, 6)
@@ -933,13 +943,13 @@ class AdvancedKimikissMap:
         pygame.draw.rect(self.screen, ADVANCED_COLORS['ui_border'], bg_rect, 2, border_radius=5)
         self.screen.blit(text, text_rect)
     
-    def draw_location_label_always(self, location):
-        """場所ラベルの常時表示（アイコン右横）"""
+    def draw_location_label_always(self, location, actual_x, actual_y):
+        """場所ラベルの常時表示（アイコン右横、実座標を使用）"""
         text = self.fonts['small'].render(location.name, True, ADVANCED_COLORS['text_color'])
-        
+
         # アイコンの右横に表示
-        text_x = location.x + 25  # アイコンから25ピクセル右
-        text_y = location.y - text.get_height() // 2  # 縦中央揃え
+        text_x = actual_x + 25  # アイコンから25ピクセル右
+        text_y = actual_y - text.get_height() // 2  # 縦中央揃え
         text_rect = pygame.Rect(text_x, text_y, text.get_width(), text.get_height())
         
         # 背景（半透明）
@@ -955,12 +965,18 @@ class AdvancedKimikissMap:
         self.screen.blit(text, text_rect)
     
     def draw_calendar(self):
-        """カレンダーの描画 - 左上の端"""
-        # カレンダー位置とサイズ
-        cal_x = 10
-        cal_y = 10
-        cal_width = 200
-        cal_height = 180
+        """カレンダーの描画 - 左上の端（4:3コンテンツ基準）"""
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+
+        # カレンダー位置とサイズ（仮想座標1440x1080基準）
+        virtual_cal_x = 10
+        virtual_cal_y = 10
+        virtual_cal_width = 200
+        virtual_cal_height = 180
+
+        # 実座標に変換
+        cal_x, cal_y = scale_pos(virtual_cal_x, virtual_cal_y)
+        cal_width, cal_height = scale_size(virtual_cal_width, virtual_cal_height)
         
         # カレンダー背景
         cal_rect = pygame.Rect(cal_x, cal_y, cal_width, cal_height)
@@ -1072,16 +1088,28 @@ class AdvancedKimikissMap:
         self.skip_button_rect = skip_button_rect
     
     def draw_ui_panel(self):
-        """UIパネルの描画"""
-        panel_rect = pygame.Rect(SCREEN_WIDTH - 350, 0, 350, SCREEN_HEIGHT)
+        """UIパネルの描画（4:3コンテンツ基準）"""
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+
+        # UIパネル位置とサイズ（仮想座標1440x1080基準）
+        virtual_panel_width = 262  # 350 * 0.75 = 262.5 ≈ 262
+        virtual_panel_x = VIRTUAL_WIDTH - virtual_panel_width
+        virtual_panel_y = 0
+        virtual_panel_height = VIRTUAL_HEIGHT
+
+        # 実座標に変換
+        panel_x, panel_y = scale_pos(virtual_panel_x, virtual_panel_y)
+        panel_width, panel_height = scale_size(virtual_panel_width, virtual_panel_height)
+
+        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
         
         # パネル背景
         panel_surf = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
         panel_surf.fill((255, 255, 255, 200))
         self.screen.blit(panel_surf, panel_rect)
         
-        pygame.draw.line(self.screen, ADVANCED_COLORS['ui_border'], 
-                        (panel_rect.left, 0), (panel_rect.left, SCREEN_HEIGHT), 3)
+        pygame.draw.line(self.screen, ADVANCED_COLORS['ui_border'],
+                        (panel_rect.left, panel_rect.top), (panel_rect.left, panel_rect.bottom), 3)
         
         # 時間・曜日表示
         time_text = self.fonts['large'].render("時間情報", True, ADVANCED_COLORS['text_color'])
@@ -1146,21 +1174,24 @@ class AdvancedKimikissMap:
             y_offset += 70
     
     def handle_click(self, pos):
-        """クリック処理"""
+        """クリック処理（4:3コンテンツ基準）"""
+        from config import scale_pos
+
         x, y = pos
         print(f"🖱️ クリック検出: ({x}, {y})")
-        
+
         # キャラクターアイコンのクリック（優先処理）
         current_locations = self.get_current_locations()
         print(f"📍 現在の場所数: {len(current_locations)}")
-        
+
         for location in current_locations:
             if location.girl_characters:
                 print(f"🏢 {location.name} にキャラクター {len(location.girl_characters)} 人")
                 for i, char in enumerate(location.girl_characters):
-                    # 描画処理と同じ座標計算を使用
-                    icon_x = location.x + (i * 50)
-                    icon_y = location.y - 35
+                    # 描画処理と同じ座標計算を使用（仮想座標から実座標に変換）
+                    virtual_icon_x = location.x + (i * 50)
+                    virtual_icon_y = location.y - 35
+                    icon_x, icon_y = scale_pos(virtual_icon_x, virtual_icon_y)
                     distance = math.sqrt((x - icon_x)**2 + (y - icon_y)**2)
                     
                     print(f"   👤 {char.name}: 位置({icon_x}, {icon_y}), 距離={distance:.1f}")
@@ -1191,9 +1222,18 @@ class AdvancedKimikissMap:
                             print(f"⚠️ {char.name} @ {location.name} にイベントが見つかりません")
                         return None
         
-        # 右パネルのヒロインアイコンクリック判定
+        # 右パネルのヒロインアイコンクリック判定（4:3コンテンツ基準）
         # 描画処理と同じ座標を使用
-        panel_rect = pygame.Rect(SCREEN_WIDTH - 350, 0, 350, SCREEN_HEIGHT)
+        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+
+        virtual_panel_width = 262  # 350 * 0.75
+        virtual_panel_x = VIRTUAL_WIDTH - virtual_panel_width
+        virtual_panel_y = 0
+        virtual_panel_height = VIRTUAL_HEIGHT
+
+        panel_x, panel_y = scale_pos(virtual_panel_x, virtual_panel_y)
+        panel_width, panel_height = scale_size(virtual_panel_width, virtual_panel_height)
+        panel_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height)
         
         # draw_ui_panelと同じロジックでstart_yを計算（自動進行表示削除によりスペース節約）
         time_display = self.get_time_display()
@@ -1342,22 +1382,16 @@ class AdvancedKimikissMap:
             print(f"カレントディレクトリを変更: {current_dir} -> {project_root_abs}")
             
             try:
-                # イベント用の全画面サイズを計算
-                current_screen_size = self.screen.get_size()
-                event_screen_width = current_screen_size[0]
-                event_screen_height = current_screen_size[1]
-                event_screen_size = (event_screen_width, event_screen_height)
-                
-                # config.pyの画面サイズ設定をイベント用に更新
-                from ..config import update_screen_config
-                update_screen_config(event_screen_width, event_screen_height)
-                
+                # config.pyの画面サイズをそのまま使用（4:3対応）
+                from config import SCREEN_WIDTH, SCREEN_HEIGHT
+                current_screen_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
+
                 game_state = initialize_game()
-                # イベント画面用の全画面サイズに設定
-                screen = pygame.display.set_mode(event_screen_size)
-                
-                # UI要素をイベント用全画面サイズで再初期化
-                self.reinitialize_ui_elements(game_state, screen, event_screen_size)
+                # 画面サイズはconfig.pyの設定をそのまま使用（変更しない）
+                screen = self.screen
+
+                # UI要素を現在の画面サイズで再初期化
+                self.reinitialize_ui_elements(game_state, screen, current_screen_size)
                 
             finally:
                 # カレントディレクトリを元に戻す
@@ -1421,24 +1455,15 @@ class AdvancedKimikissMap:
                 # フレームレート制限
                 clock.tick(60)
             
-            # イベント終了時にマップ画面サイズに戻す
+            # イベント終了時（画面サイズは変更していないのでそのまま）
             print("🔙 イベント終了、マップ画面に戻ります")
-            from ..config import restore_original_screen_config
-            restore_original_screen_config()
-            self.screen = pygame.display.set_mode(current_screen_size)
             return "back_to_map"
             
         except Exception as e:
             print(f"❌ メインゲーム実行エラー: {e}")
             import traceback
             traceback.print_exc()
-            # エラー時もマップ画面サイズと設定を元に戻す
-            try:
-                from ..config import restore_original_screen_config
-                restore_original_screen_config()
-                self.screen = pygame.display.set_mode(current_screen_size)
-            except:
-                pass
+            # エラー時もマップ画面に戻る（画面サイズは変更していないのでそのまま）
             return "back_to_map"
     
     def update_game_state(self, game_state):
@@ -1832,6 +1857,9 @@ class AdvancedKimikissMap:
     
     def render(self):
         """画面描画（main.pyからの呼び出し用）"""
+        # 全画面を黒で塗りつぶし（ピラーボックス用）
+        self.screen.fill((0, 0, 0))
+
         # 背景画像を読み込んで描画
         try:
             if not hasattr(self, 'background_image'):
@@ -1840,43 +1868,57 @@ class AdvancedKimikissMap:
                     os.path.join(os.path.dirname(__file__), "..", "images", "maps", "school.png"),
                     os.path.join(os.path.dirname(__file__), "..", "images", "maps", "map_school.png")
                 ]
-                
+
                 background_loaded = False
                 for background_path in possible_paths:
                     if os.path.exists(background_path):
+                        from config import CONTENT_WIDTH, CONTENT_HEIGHT
                         self.background_image = pygame.image.load(background_path)
-                        # 画面サイズに合わせてスケール
-                        self.background_image = pygame.transform.scale(self.background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-                        print(f"[MAP] 背景画像読み込み成功: {background_path}")
+                        # 4:3コンテンツサイズに合わせてスケール（正確な値を使用）
+                        content_size = (CONTENT_WIDTH, CONTENT_HEIGHT)
+                        self.background_image = pygame.transform.scale(self.background_image, content_size)
+                        print(f"[MAP] 背景画像読み込み成功: {background_path} -> {content_size}")
                         background_loaded = True
                         break
-                
+
                 if not background_loaded:
                     print("[MAP] 背景画像が見つかりません。単色背景を使用します。")
                     self.background_image = None
-            
-            # 背景画像を描画、なければ単色背景
+
+            # 背景画像を4:3コンテンツ領域に描画
             if hasattr(self, 'background_image') and self.background_image:
-                self.screen.blit(self.background_image, (0, 0))
+                from config import OFFSET_X, OFFSET_Y
+                self.screen.blit(self.background_image, (OFFSET_X, OFFSET_Y))
             else:
-                self.screen.fill((240, 240, 240))
+                # 背景なしの場合は4:3領域のみ単色で塗る
+                from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+                content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
+                self.screen.fill((240, 240, 240), content_rect)
             
         except Exception as e:
             print(f"[MAP] 背景画像読み込みエラー: {e}")
             # フォールバック：単色背景
             self.screen.fill((240, 240, 240))
-        
+
+        # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
+        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
+        self.screen.set_clip(content_rect)
+
         # 共通UI描画
         self.draw_locations()
         self.draw_girl_icons()
         self.draw_calendar()
         self.draw_ui_panel()
-        
+
         # デバッグ情報
         if self.debug_mode:
             debug_text = f"デバッグモード - 時間: {self.animation_time}"
             debug_surface = self.fonts['small'].render(debug_text, True, (255, 255, 255))
             self.screen.blit(debug_surface, (10, 10))
+
+        # ★クリッピング解除★
+        self.screen.set_clip(None)
     
     def handle_event(self, event):
         """単一のイベントを処理して結果を返す（main.pyからの呼び出し用）"""

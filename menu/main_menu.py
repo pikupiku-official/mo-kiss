@@ -175,105 +175,113 @@ class MainMenu:
                 }
     
     def _create_ui_components(self):
-        # メインメニューボタン（全て緑色、もっと左に配置）
-        button_y = LAYOUT['main_menu_start_y']
-        button_spacing = 100
-        button_x = 100  # より左に配置
+        from config import SCALE  # SCALEをインポート
+
+        # メインメニューボタン（全て緑色、4:3コンテンツ基準で配置）
+        # 仮想座標（1440x1080基準）で位置を定義
+        virtual_button_x = 75  # 100 * 0.75（4:3基準）
+        virtual_button_y = LAYOUT['main_menu_start_y']
+        virtual_button_spacing = 75  # 100 * 0.75
+
+        # scale_pos()で実座標に変換
+        button_x, button_y = scale_pos(virtual_button_x, virtual_button_y)
+        _, spacing_offset = scale_pos(0, virtual_button_spacing)
+
         self.buttons['start'] = Button(
-            button_x, button_y, 300, 70, 
+            button_x, button_y, 300, 70,
             "はじめから", self.fonts['medium'], 'green'
         )
-        
+
         self.buttons['continue'] = Button(
-            button_x, button_y + button_spacing, 300, 70,
+            button_x, button_y + spacing_offset, 300, 70,
             "つづきから", self.fonts['medium'], 'green'
         )
-        
+
         self.buttons['save'] = Button(
-            button_x, button_y + button_spacing * 2, 300, 70,
+            button_x, button_y + spacing_offset * 2, 300, 70,
             "セーブ", self.fonts['medium'], 'green'
         )
-        
+
         self.buttons['load'] = Button(
-            button_x, button_y + button_spacing * 3, 300, 70,
+            button_x, button_y + spacing_offset * 3, 300, 70,
             "ロード", self.fonts['medium'], 'green'
         )
-        
+
         self.buttons['settings'] = Button(
-            button_x, button_y + button_spacing * 4, 300, 70,
+            button_x, button_y + spacing_offset * 4, 300, 70,
             "設定", self.fonts['medium'], 'green'
         )
-        
+
         self.buttons['home'] = Button(
-            button_x, button_y + button_spacing * 5, 300, 70,
+            button_x, button_y + spacing_offset * 5, 300, 70,
             "家", self.fonts['medium'], 'green'
         )
-        
-        # 右上のボタン（全て緑色、大きく調整）
+
+        # 右上のボタン（4:3コンテンツ基準で配置）
+        right_btn_x, right_btn_y = scale_pos(LAYOUT['right_buttons_x'], LAYOUT['right_buttons_y'])
+        _, right_btn_spacing = scale_pos(0, 60)  # 80 * 0.75 = 60
+
         self.buttons['test'] = Button(
-            LAYOUT['right_buttons_x'], LAYOUT['right_buttons_y'], 150, 60,
+            right_btn_x, right_btn_y, 150, 60,
             "テスト", self.fonts['small'], 'green'
         )
-        
+
         self.buttons['back'] = Button(
-            LAYOUT['right_buttons_x'], LAYOUT['right_buttons_y'] + 80, 150, 60,
+            right_btn_x, right_btn_y + right_btn_spacing, 150, 60,
             "戻る", self.fonts['small'], 'green'
         )
         
-        # 設定パネル
-        self.panels['settings'] = Panel(
-            LAYOUT['settings_panel_x'], LAYOUT['settings_panel_y'],
-            LAYOUT['settings_panel_width'], LAYOUT['settings_panel_height']
-        )
-        
-        # 設定用スライダー（横長パネルに合わせて調整）
-        slider_x = LAYOUT['settings_panel_x'] + 150
-        slider_y = LAYOUT['settings_panel_y'] + 120
-        slider_spacing = 90
-        
+        # 設定パネル（4:3コンテンツ基準）
+        panel_x, panel_y = scale_pos(LAYOUT['settings_panel_x'], LAYOUT['settings_panel_y'])
+        panel_w, panel_h = scale_size(LAYOUT['settings_panel_width'], LAYOUT['settings_panel_height'])
+
+        self.panels['settings'] = Panel(panel_x, panel_y, panel_w, panel_h)
+
+        # 設定用スライダー（4:3コンテンツ基準）
+        slider_x, slider_y = scale_pos(LAYOUT['settings_panel_x'] + 113, LAYOUT['settings_panel_y'] + 90)  # 150*0.75=113, 120*0.75=90
+        _, slider_spacing = scale_pos(0, 68)  # 90 * 0.75 = 68
+
         self.sliders['bgm'] = Slider(
             slider_x, slider_y, 300, 30, 0, 100, self.audio_settings['bgm_volume']
         )
-        
+
         self.sliders['voice'] = Slider(
             slider_x, slider_y + slider_spacing, 300, 30, 0, 100, self.audio_settings['voice_volume']
         )
-        
-        # 音量インジケーター（音符が入り切るよう調整）
-        indicator_x = slider_x + 320  # スライダーの右端から少し離す
+
+        # 音量インジケーター（4:3コンテンツ基準）
+        indicator_x = slider_x + 320
         self.volume_indicators['bgm'] = VolumeIndicator(
             indicator_x, slider_y - 5, self.audio_settings['bgm_volume']
         )
-        
+
         self.volume_indicators['voice'] = VolumeIndicator(
             indicator_x, slider_y + slider_spacing - 5, self.audio_settings['voice_volume']
         )
-        
-        # 振動切り替えボタン（横長パネルに合わせて調整）
-        vibration_button_x = LAYOUT['settings_panel_x'] + 150
-        vibration_button_y = LAYOUT['settings_panel_y'] + 60
+
+        # 振動切り替えボタン（4:3コンテンツ基準）
+        vib_btn_x, vib_btn_y = scale_pos(LAYOUT['settings_panel_x'] + 113, LAYOUT['settings_panel_y'] + 45)  # 150*0.75=113, 60*0.75=45
         self.toggle_buttons['vibration'] = ToggleButton(
-            vibration_button_x, vibration_button_y, 120, 45, 
+            vib_btn_x, vib_btn_y, 120, 45,
             self.fonts['small'], self.audio_settings['vibration']
         )
-        
-        # 初期設定に戻すボタン（少し上に移動）
-        reset_button_x = LAYOUT['settings_panel_x'] + 50
-        reset_button_y = LAYOUT['settings_panel_y'] + 350
+
+        # 初期設定に戻すボタン（4:3コンテンツ基準）
+        reset_btn_x, reset_btn_y = scale_pos(LAYOUT['settings_panel_x'] + 38, LAYOUT['settings_panel_y'] + 263)  # 50*0.75=38, 350*0.75=263
         self.buttons['reset'] = Button(
-            reset_button_x, reset_button_y, 240, 60,
+            reset_btn_x, reset_btn_y, 240, 60,
             "初期設定に戻す", self.fonts['small'], 'green'
         )
-        
-        # 名前入力欄（「はじめから」ボタンの右側）
-        name_input_x = button_x + 320  # 「はじめから」ボタンの右側
+
+        # 名前入力欄（「はじめから」ボタンの右側、4:3コンテンツ基準）
+        name_input_x = button_x + int(320 * SCALE)  # 「はじめから」ボタンの右側
         name_input_y = button_y
-        
+
         self.text_inputs['surname'] = TextInput(
             name_input_x, name_input_y, 120, 40,
             self.fonts['small'], max_length=3, placeholder="苗字"
         )
-        
+
         self.text_inputs['name'] = TextInput(
             name_input_x + 130, name_input_y, 120, 40,
             self.fonts['small'], max_length=3, placeholder="名前"
@@ -519,25 +527,29 @@ class MainMenu:
         self._create_save_load_buttons()
     
     def _create_save_load_buttons(self):
-        """セーブ/ロード画面のボタンを作成"""
+        """セーブ/ロード画面のボタンを作成（4:3コンテンツ基準）"""
         # 既存のスロットボタンを削除
         for key in list(self.buttons.keys()):
             if key.startswith('slot_'):
                 del self.buttons[key]
-        
-        # スロットボタンを作成（5列x2行）
-        start_x = 150
-        start_y = 200
+
+        # スロットボタンを作成（5列x2行、4:3コンテンツ基準）
+        # 仮想座標（1440基準）
+        virtual_start_x = 113  # 150 * 0.75
+        virtual_start_y = 150  # 200 * 0.75
         button_width = 200
         button_height = 120
-        margin_x = 220
-        margin_y = 140
-        
+        virtual_margin_x = 165  # 220 * 0.75
+        virtual_margin_y = 105  # 140 * 0.75
+
         for i, slot_info in enumerate(self.save_slots):
             row = i // 5
             col = i % 5
-            x = start_x + col * margin_x
-            y = start_y + row * margin_y
+            virtual_x = virtual_start_x + col * virtual_margin_x
+            virtual_y = virtual_start_y + row * virtual_margin_y
+
+            # scale_pos()で実座標に変換
+            x, y = scale_pos(virtual_x, virtual_y)
             
             slot_text = f"スロット {slot_info['slot']}"
             if slot_info['exists']:
@@ -589,12 +601,22 @@ class MainMenu:
         return None
     
     def draw(self):
-        # 背景
-        self.screen.fill(COLORS['bg_main'])
-        
-        # タイトル
+        # 全画面を黒で塗りつぶし（ピラーボックス用）
+        self.screen.fill((0, 0, 0))
+
+        # 4:3コンテンツ領域に背景色を塗る
+        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
+        self.screen.fill(COLORS['bg_main'], content_rect)
+
+        # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
+        self.screen.set_clip(content_rect)
+
+        # タイトル（4:3コンテンツ基準）
+        from config import VIRTUAL_WIDTH
         title_text = self.fonts['title'].render("メインメニュー", True, COLORS['text_title'])
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, LAYOUT['title_y']))
+        title_center_x, title_center_y = scale_pos(VIRTUAL_WIDTH // 2, LAYOUT['title_y'])
+        title_rect = title_text.get_rect(center=(title_center_x, title_center_y))
         self.screen.blit(title_text, title_rect)
         
         # メインメニューボタン（常に表示）
@@ -626,7 +648,10 @@ class MainMenu:
             self._draw_save_load_panel("セーブ")
         elif self.state == MenuState.LOAD:
             self._draw_save_load_panel("ロード")
-        
+
+        # ★クリッピング解除★
+        self.screen.set_clip(None)
+
         pygame.display.flip()
     
     def _draw_settings_panel(self):
@@ -660,25 +685,29 @@ class MainMenu:
         self.buttons['reset'].draw(self.screen)
     
     def _draw_save_load_panel(self, title):
-        """セーブ/ロード画面を描画"""
+        """セーブ/ロード画面を描画（4:3コンテンツ基準）"""
+        from config import VIRTUAL_WIDTH
+
         # セーブ/ロードタイトル
         title_text = self.fonts['title'].render(f"{title}画面", True, COLORS['text_title'])
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, 150))
+        title_center_x, title_center_y = scale_pos(VIRTUAL_WIDTH // 2, 113)  # 150 * 0.75 = 113
+        title_rect = title_text.get_rect(center=(title_center_x, title_center_y))
         self.screen.blit(title_text, title_rect)
-        
+
         # スロットボタンを描画
         for button_name, button in self.buttons.items():
             if button_name.startswith('slot_'):
                 button.draw(self.screen)
-        
+
         # 説明テキスト
         if self.state == MenuState.SAVE:
             instruction_text = "セーブしたいスロットを選択してください"
         else:
             instruction_text = "ロードしたいスロットを選択してください"
-        
+
         instruction_surface = self.fonts['medium'].render(instruction_text, True, COLORS['text_main'])
-        instruction_rect = instruction_surface.get_rect(center=(SCREEN_WIDTH // 2, 500))
+        instr_center_x, instr_center_y = scale_pos(VIRTUAL_WIDTH // 2, 375)  # 500 * 0.75 = 375
+        instruction_rect = instruction_surface.get_rect(center=(instr_center_x, instr_center_y))
         self.screen.blit(instruction_surface, instruction_rect)
     
     def update(self):
