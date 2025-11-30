@@ -1,5 +1,6 @@
 import pygame
 import time
+import os
 from config import *
 
 class NotificationManager:
@@ -31,7 +32,13 @@ class NotificationManager:
         
         # フォント設定
         self.font_size = int(SCREEN_HEIGHT * 0.025)
-        self.font = pygame.font.SysFont("msgothic", self.font_size)
+        # プロジェクト専用フォントを使用
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        font_path = os.path.join(project_root, "fonts", "MPLUS1p-Regular.ttf")
+        try:
+            self.font = pygame.font.Font(font_path, self.font_size)
+        except:
+            self.font = pygame.font.SysFont("msgothic", self.font_size)
         
         # 色設定
         self.bg_color = (0, 0, 0, 180)  # 半透明黒

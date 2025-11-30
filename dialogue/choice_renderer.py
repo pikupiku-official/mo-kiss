@@ -265,8 +265,8 @@ class ChoiceRenderer:
             default_font_size = int(SCREEN_HEIGHT * FONT_DEFAULT_SIZE_RATIO)
             
             # フォントファイルのパスを設定（プロジェクトルートから）
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            font_dir = os.path.join(project_root, "mo-kiss", "fonts")
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            font_dir = os.path.join(project_root, "fonts")
             medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
 
             fonts = {}

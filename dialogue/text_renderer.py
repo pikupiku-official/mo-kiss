@@ -36,7 +36,13 @@ class TextRenderer:
         # 日付表示関連の初期化
         self.date_display_enabled = DATE_DISPLAY_ENABLED
         self.date_font_size = int(SCREEN_HEIGHT * DATE_FONT_SIZE_RATIO)
-        self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
+        # プロジェクト専用フォントを使用
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        date_font_path = os.path.join(project_root, "fonts", "MPLUS1p-Regular.ttf")
+        try:
+            self.date_font = pygame.font.Font(date_font_path, self.date_font_size)
+        except:
+            self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
         self.date_color = DATE_TEXT_COLOR
         self.date_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y)
 
@@ -136,8 +142,8 @@ class TextRenderer:
             default_font_size = int(SCREEN_HEIGHT * FONT_DEFAULT_SIZE_RATIO)
             
             # フォントファイルのパスを設定（プロジェクトルートから）
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            font_dir = os.path.join(project_root, "mo-kiss", "fonts")
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            font_dir = os.path.join(project_root, "fonts")
             bold_font_path = os.path.join(font_dir, "MPLUS1p-Bold.ttf")
             medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
 

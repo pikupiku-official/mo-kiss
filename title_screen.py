@@ -1,6 +1,7 @@
 import pygame
 import os
 from config import *
+from path_utils import get_font_path
 
 class TitleScreen:
     """タイトル画面クラス"""
@@ -16,9 +17,20 @@ class TitleScreen:
         self.screen = screen
         self.debug = debug
         
-        # フォント設定
+        # フォント設定（クロスプラットフォーム対応）
         self.title_font_size = int(SCREEN_HEIGHT * TITLE_FONT_SIZE_RATIO)
-        self.title_font = pygame.font.SysFont("msgothic", self.title_font_size)
+        try:
+            font_path = get_font_path("MPLUS1p-Regular.ttf")
+            if os.path.exists(font_path):
+                self.title_font = pygame.font.Font(font_path, self.title_font_size)
+                if self.debug:
+                    print(f"[TITLE] フォント読み込み成功: {font_path}")
+            else:
+                raise FileNotFoundError(f"フォントファイルが見つかりません: {font_path}")
+        except Exception as e:
+            if self.debug:
+                print(f"[TITLE] フォント読み込みエラー: {e}、システムフォントにフォールバック")
+            self.title_font = pygame.font.SysFont("msgothic", self.title_font_size)
         
         # 背景画像の読み込み
         self.background_image = None

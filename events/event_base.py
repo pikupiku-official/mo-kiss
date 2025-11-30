@@ -41,8 +41,8 @@ class EventBase:
         import platform
         
         # プロジェクトフォントの正しいパス
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        font_dir = os.path.join(project_root, "mo-kiss", "fonts")
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        font_dir = os.path.join(project_root, "fonts")
         project_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
         
         # プラットフォーム別システムフォントパス

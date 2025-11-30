@@ -52,7 +52,7 @@ class HomeModule:
         try:
             # 絶対パスでフォントを指定
             project_root = os.path.dirname(os.path.dirname(__file__))
-            font_dir = os.path.join(project_root, "mo-kiss", "fonts")
+            font_dir = os.path.join(project_root, "fonts")
             project_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
             project_font_path = os.path.abspath(project_font_path)
             
