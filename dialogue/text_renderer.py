@@ -35,10 +35,11 @@ class TextRenderer:
         
         # 日付表示関連の初期化
         self.date_display_enabled = DATE_DISPLAY_ENABLED
-        self.date_font_size = int(SCREEN_HEIGHT * DATE_FONT_SIZE_RATIO)
+        # 日付フォントサイズ（仮想画面基準のピクセル値を使用）
+        self.date_font_size = DATE_FONT_SIZE
         # プロジェクト専用フォントを使用
         project_root = os.path.dirname(os.path.dirname(__file__))
-        date_font_path = os.path.join(project_root, "fonts", "MPLUS1p-Regular.ttf")
+        date_font_path = os.path.join(project_root, "fonts", "MPLUSRounded1c-Regular.ttf")
         try:
             self.date_font = pygame.font.Font(date_font_path, self.date_font_size)
         except:
@@ -136,16 +137,17 @@ class TextRenderer:
     def _init_fonts(self):
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
         try:
-            # フォントサイズをスクリーンサイズに基づいて計算
-            name_font_size = int(SCREEN_HEIGHT * FONT_NAME_SIZE_RATIO)
-            text_font_size = int(SCREEN_HEIGHT * FONT_TEXT_SIZE_RATIO)
-            default_font_size = int(SCREEN_HEIGHT * FONT_DEFAULT_SIZE_RATIO)
+            # フォントサイズを仮想画面基準のピクセル値で指定（VIRTUAL_HEIGHTに対してスケーリング）
+            # 仮想画面基準なので、実際のウィンドウサイズに関わらず一貫したサイズ
+            name_font_size = FONT_NAME_SIZE
+            text_font_size = FONT_TEXT_SIZE
+            default_font_size = FONT_DEFAULT_SIZE
             
             # フォントファイルのパスを設定（プロジェクトルートから）
             project_root = os.path.dirname(os.path.dirname(__file__))
             font_dir = os.path.join(project_root, "fonts")
-            bold_font_path = os.path.join(font_dir, "MPLUS1p-Bold.ttf")
-            medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
+            bold_font_path = os.path.join(font_dir, "MPLUSRounded1c-Bold.ttf")
+            medium_font_path = os.path.join(font_dir, "MPLUSRounded1c-Medium.ttf")
 
             fonts = {}
             
@@ -192,16 +194,11 @@ class TextRenderer:
             
         except Exception as e:
             print(f"フォント初期化エラー: {e}")
-            # エラーが発生した場合はフォールバック
-            # エラー時のフォールバック（仮想解像度基準）
-            from config import SCALE
-            virtual_fallback_font_size = 47  # 1080 * 0.044 = 47.52 → 47px
-            virtual_default_font_size = 29   # 1080 * 0.027 = 29.16 → 29px
-            
+            # エラーが発生した場合はフォールバック（仮想画面基準のピクセル値を使用）
             return self._get_fallback_fonts(
-                int(virtual_fallback_font_size * SCALE),
-                int(virtual_fallback_font_size * SCALE), 
-                int(virtual_default_font_size * SCALE)
+                FONT_NAME_SIZE,
+                FONT_TEXT_SIZE,
+                FONT_DEFAULT_SIZE
             )
         
     def _get_fallback_fonts(self, name_size, text_size, default_size):

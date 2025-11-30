@@ -30,7 +30,7 @@ class LoadingScreen:
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
             font_dir = os.path.join(current_dir, "fonts")
-            project_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
+            project_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
             project_font_path = os.path.abspath(project_font_path)
             
             if os.path.exists(project_font_path):

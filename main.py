@@ -32,19 +32,20 @@ class GameApplication:
     def __init__(self):
         """ゲームアプリケーションの初期化"""
         self.current_mode = "menu"  # "menu", "map", "dialogue"
-        self.screen = None
+        self.screen = None  # 実画面（フルスクリーン）
+        self.virtual_screen = None  # 仮想画面（1440x1080）
         self.clock = None
         self.running = True
-        
+
         # 各モードのインスタンス
         self.main_menu = None
         self.map_system = None
         self.dialogue_game_state = None
         self.home_module = None
-        
+
         # 現在実行中のイベント情報を保持
         self.current_event_id = None
-        
+
         print("🎮 ビジュアルノベルゲーム起動中...")
 
     def initialize(self):
@@ -53,20 +54,25 @@ class GameApplication:
             # Pygameの初期化
             pygame.init()
             pygame.mixer.init()
-            
-            # 画面設定
+
+            # 実画面設定（フルスクリーン）
             self.screen = init_game()  # config.pyのinit_game()を使用
+
+            # 仮想画面サーフェスを作成（1440x1080）
+            self.virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
+            print(f"✓ 仮想画面作成: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
+
             self.clock = pygame.time.Clock()
-            
+
             # ローディング画面表示
             show_loading("ゲームを初期化中...", self.screen)
-            
+
             # メインメニューの初期化
             self.main_menu = MainMenu(self.screen)
-            
+
             # ローディング画面を隠す
             hide_loading()
-            
+
             print("✅ アプリケーション初期化完了")
             return True
             
@@ -164,7 +170,7 @@ class GameApplication:
         """メインメニューモードに切り替え"""
         print("📱 メインメニューモードに切り替え")
 
-        # dialogueモードから遷移する場合、全ての音を停止
+        # dialogueモードから遷移する場合、全ての音を停止 + 座標系を元に戻す
         if self.current_mode == "dialogue" and self.dialogue_game_state:
             try:
                 self.dialogue_game_state['bgm_manager'].stop_bgm()
@@ -172,6 +178,14 @@ class GameApplication:
                 print("🔇 dialogue終了: BGMとSEを停止しました")
             except Exception as e:
                 print(f"⚠️ 音声停止エラー: {e}")
+
+            # 座標系を元に戻す
+            if '_original_scale' in self.dialogue_game_state:
+                import config
+                config.OFFSET_X = self.dialogue_game_state['_original_offset_x']
+                config.OFFSET_Y = self.dialogue_game_state['_original_offset_y']
+                config.SCALE = self.dialogue_game_state['_original_scale']
+                print(f"✓ 座標系を元に戻しました")
 
         # mapモードから遷移する場合、BGMを停止
         if self.current_mode == "map" and self.map_system:
@@ -208,7 +222,7 @@ class GameApplication:
         """マップモードに切り替え"""
         print("🗺️ マップモードに切り替え")
 
-        # dialogueモードから遷移する場合、全ての音を停止
+        # dialogueモードから遷移する場合、全ての音を停止 + 座標系を元に戻す
         if self.current_mode == "dialogue" and self.dialogue_game_state:
             try:
                 self.dialogue_game_state['bgm_manager'].stop_bgm()
@@ -216,6 +230,14 @@ class GameApplication:
                 print("🔇 dialogue終了: BGMとSEを停止しました")
             except Exception as e:
                 print(f"⚠️ 音声停止エラー: {e}")
+
+            # 座標系を元に戻す
+            if '_original_scale' in self.dialogue_game_state:
+                import config
+                config.OFFSET_X = self.dialogue_game_state['_original_offset_x']
+                config.OFFSET_Y = self.dialogue_game_state['_original_offset_y']
+                config.SCALE = self.dialogue_game_state['_original_scale']
+                print(f"✓ 座標系を元に戻しました")
 
         self.current_mode = "map"
         if not self.map_system:
@@ -279,13 +301,44 @@ class GameApplication:
             import os
             self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
             print(f"[EVENT] 開始イベントID: {self.current_event_id}")
-        
+
         try:
             # ローディング画面表示
             show_loading("イベントを読み込み中...", self.screen)
-            
-            # 会話ゲームの初期化
+
+            # ★dialogue用に座標系を仮想画面モードに切り替え★
+            # scale_pos()が仮想座標をそのまま返すように設定
+            import config
+            original_offset_x = config.OFFSET_X
+            original_offset_y = config.OFFSET_Y
+            original_scale = config.SCALE
+            config.OFFSET_X = 0
+            config.OFFSET_Y = 0
+            config.SCALE = 1.0
+            print(f"✓ 仮想画面モード: OFFSET=0, SCALE=1.0")
+
+            # 会話ゲームの初期化（仮想画面を使用）
             self.dialogue_game_state = init_dialogue_game()
+
+            # game_state['screen']を仮想画面に差し替え
+            if self.dialogue_game_state:
+                self.dialogue_game_state['screen'] = self.virtual_screen
+                # 各レンダラーのスクリーンも仮想画面に差し替え
+                if 'text_renderer' in self.dialogue_game_state:
+                    self.dialogue_game_state['text_renderer'].screen = self.virtual_screen
+                if 'choice_renderer' in self.dialogue_game_state:
+                    self.dialogue_game_state['choice_renderer'].screen = self.virtual_screen
+                if 'backlog_manager' in self.dialogue_game_state:
+                    self.dialogue_game_state['backlog_manager'].screen = self.virtual_screen
+                if 'notification_manager' in self.dialogue_game_state:
+                    self.dialogue_game_state['notification_manager'].screen = self.virtual_screen
+
+                # 元の設定を保存（他のモードで使用）
+                self.dialogue_game_state['_original_offset_x'] = original_offset_x
+                self.dialogue_game_state['_original_offset_y'] = original_offset_y
+                self.dialogue_game_state['_original_scale'] = original_scale
+
+                print(f"✓ dialogue用に仮想画面を設定: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
             if not self.dialogue_game_state:
                 hide_loading()
                 print("❌ 会話ゲーム初期化失敗")
@@ -482,7 +535,7 @@ class GameApplication:
                 self.map_system.render()
                 
         elif self.current_mode == "dialogue":
-            # 会話システムの描画
+            # 会話システムの描画（仮想画面に描画）
             if self.dialogue_game_state:
                 from dialogue.text_renderer import TextRenderer
                 from dialogue.character_manager import draw_characters
@@ -490,55 +543,57 @@ class GameApplication:
                 from dialogue.choice_renderer import ChoiceRenderer
                 from dialogue.fade_manager import draw_fade_overlay
 
-                # ★ピラーボックスを「奈落」にする：dialogue描画全体を4:3コンテンツ領域にクリッピング★
-                from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
-                content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
-                # 注：この設定で、UI・テキスト・選択肢・背景・キャラなどすべてがクリッピング範囲内に収まる
-                self.screen.set_clip(content_rect)
+                # 仮想画面をクリア
+                self.virtual_screen.fill((0, 0, 0))
 
                 # 背景描画
                 draw_background(self.dialogue_game_state)
-                
+
                 # キャラクター描画
                 draw_characters(self.dialogue_game_state)
-                
+
                 # フェードオーバーレイ描画（ゲームコンテンツの上、UIの下）
                 draw_fade_overlay(self.dialogue_game_state)
-                
+
                 # UIエレメント描画（テキストボックス等）
                 if ('image_manager' in self.dialogue_game_state and 'images' in self.dialogue_game_state):
                     image_manager = self.dialogue_game_state['image_manager']
                     images = self.dialogue_game_state['images']
                     show_text = self.dialogue_game_state.get('show_text', True)
-                    image_manager.draw_ui_elements(self.screen, images, show_text)
-                
+                    image_manager.draw_ui_elements(self.virtual_screen, images, show_text)
+
                 # 選択肢が表示中かどうかを確認
                 choice_showing = False
                 if 'choice_renderer' in self.dialogue_game_state:
                     choice_renderer = self.dialogue_game_state['choice_renderer']
                     choice_showing = choice_renderer.is_choice_showing()
-                
+
                 # テキスト描画（選択肢表示中はスキップ）
                 if not choice_showing and 'text_renderer' in self.dialogue_game_state:
                     text_renderer = self.dialogue_game_state['text_renderer']
                     text_renderer.render_text_window(self.dialogue_game_state)
-                
+
                 # 選択肢描画
                 if choice_showing:
                     choice_renderer.render()
-                
+
                 # バックログ描画（最後に描画して他の要素の上に表示）
                 if 'backlog_manager' in self.dialogue_game_state:
                     backlog_manager = self.dialogue_game_state['backlog_manager']
                     backlog_manager.render()
-                
+
                 # 通知システム描画（最上位）
                 if 'notification_manager' in self.dialogue_game_state:
                     notification_manager = self.dialogue_game_state['notification_manager']
                     notification_manager.render()
 
-                # ★クリッピング解除★
-                self.screen.set_clip(None)
+                # 仮想画面をフルスクリーンにスケーリングして転送
+                # 4:3コンテンツを画面中央に配置
+                scaled_surface = pygame.transform.smoothscale(
+                    self.virtual_screen,
+                    (CONTENT_WIDTH, CONTENT_HEIGHT)
+                )
+                self.screen.blit(scaled_surface, (OFFSET_X, OFFSET_Y))
 
         elif self.current_mode == "home":
             if self.home_module:

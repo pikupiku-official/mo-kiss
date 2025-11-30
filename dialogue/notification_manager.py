@@ -34,7 +34,7 @@ class NotificationManager:
         self.font_size = int(SCREEN_HEIGHT * 0.025)
         # プロジェクト専用フォントを使用
         project_root = os.path.dirname(os.path.dirname(__file__))
-        font_path = os.path.join(project_root, "fonts", "MPLUS1p-Regular.ttf")
+        font_path = os.path.join(project_root, "fonts", "MPLUSRounded1c-Regular.ttf")
         try:
             self.font = pygame.font.Font(font_path, self.font_size)
         except:

@@ -176,7 +176,7 @@ class AdvancedKimikissMap:
         # プロジェクトフォントの正しいパス
         project_root = os.path.dirname(os.path.dirname(__file__))
         font_dir = os.path.join(project_root, "fonts")
-        project_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
+        project_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
         
         # プラットフォーム別システムフォントパス
         system_font_paths = []

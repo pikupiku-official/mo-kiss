@@ -260,14 +260,14 @@ class ChoiceRenderer:
     def _init_fonts(self):
         """text_rendererと同じフォント設定を使用"""
         try:
-            # フォントサイズをスクリーンサイズに基づいて計算（text_rendererと同じ）
-            text_font_size = int(SCREEN_HEIGHT * FONT_TEXT_SIZE_RATIO)
-            default_font_size = int(SCREEN_HEIGHT * FONT_DEFAULT_SIZE_RATIO)
+            # フォントサイズを仮想画面基準のピクセル値で指定（text_rendererと同じ）
+            text_font_size = FONT_TEXT_SIZE
+            default_font_size = FONT_DEFAULT_SIZE
             
             # フォントファイルのパスを設定（プロジェクトルートから）
             project_root = os.path.dirname(os.path.dirname(__file__))
             font_dir = os.path.join(project_root, "fonts")
-            medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
+            medium_font_path = os.path.join(font_dir, "MPLUSRounded1c-Medium.ttf")
 
             fonts = {}
             

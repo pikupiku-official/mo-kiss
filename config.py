@@ -76,7 +76,7 @@ TITLE_IMAGE_PATH = "images/title.png"  # タイトル背景画像のパス
 TITLE_TEXT = "PRESS ANY KEY"        # タイトル画面のテキスト
 TITLE_TEXT_COLOR = (255, 255, 255)  # タイトルテキストの色
 TITLE_TEXT_Y_OFFSET = 100           # 画面中央からのY軸オフセット（下向き正数）
-TITLE_FONT_SIZE_RATIO = 0.05        # タイトルテキストのフォントサイズ比率（画面高さの5%）
+TITLE_FONT_SIZE = 54                # タイトルテキストのフォントサイズ（仮想画面基準のピクセル値）
 
 # フォント効果オプション
 FONT_EFFECTS = {
@@ -106,10 +106,10 @@ TEXT_CHAR_DELAY = 110         # 文字表示間隔（ミリ秒）
 TEXT_PUNCTUATION_DELAY = 500  # 句読点での追加遅延時間（ミリ秒）
 TEXT_PARAGRAPH_TRANSITION_DELAY = 1000  # 段落切り替え遅延時間（ミリ秒）
 
-# フォントサイズ設定（画面高さに対する比率）
-FONT_NAME_SIZE_RATIO = 0.045   # 名前フォントサイズ比率（画面高さのn%）
-FONT_TEXT_SIZE_RATIO = 0.045   # テキストフォントサイズ比率（画面高さのn%）
-FONT_DEFAULT_SIZE_RATIO = 0.024  # デフォルトフォントサイズ比率（画面高さのn%）
+# フォントサイズ設定（仮想解像度1440x1080基準のピクセル値）
+FONT_NAME_SIZE = 49    # 名前フォントサイズ（ピクセル）
+FONT_TEXT_SIZE = 49    # テキストフォントサイズ（ピクセル）
+FONT_DEFAULT_SIZE = 26  # デフォルトフォントサイズ（ピクセル）
 
 # テキスト間隔調整設定
 TEXT_LINE_HEIGHT_MULTIPLIER = 1   # 行間の倍率（1.0 = デフォルト）
@@ -144,7 +144,7 @@ TEXTBOX_COLOR_TINT = {
 DATE_DISPLAY_ENABLED = True         # 日付表示の有効/無効
 DATE_DISPLAY_X = 22                 # 30×0.75（4:3対応）
 DATE_DISPLAY_Y = 30                 # 日付表示のY座標（仮想解像度基準）
-DATE_FONT_SIZE_RATIO = 0.04         # 日付フォントサイズ比率（画面高さの4%）
+DATE_FONT_SIZE = 43                 # 日付フォントサイズ（仮想画面基準のピクセル値）
 DATE_TEXT_COLOR = (255, 255, 255)   # 日付テキストの色
 
 # ゲーム内日付設定（デフォルト値）
