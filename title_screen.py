@@ -17,10 +17,10 @@ class TitleScreen:
         self.screen = screen
         self.debug = debug
         
-        # フォント設定（クロスプラットフォーム対応）
-        self.title_font_size = int(SCREEN_HEIGHT * TITLE_FONT_SIZE_RATIO)
+        # フォント設定（仮想画面基準のピクセル値を使用）
+        self.title_font_size = TITLE_FONT_SIZE
         try:
-            font_path = get_font_path("MPLUS1p-Regular.ttf")
+            font_path = get_font_path("MPLUSRounded1c-Regular.ttf")
             if os.path.exists(font_path):
                 self.title_font = pygame.font.Font(font_path, self.title_font_size)
                 if self.debug:

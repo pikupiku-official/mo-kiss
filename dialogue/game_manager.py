@@ -12,18 +12,23 @@ from .data_normalizer import normalize_dialogue_data
 
 def initialize_game(dialogue_file="events/E001.ks"):
     """ゲームの初期化を行う
-    
+
     Args:
         dialogue_file (str): 読み込む対話ファイルのパス
-    """
-    # Pygameを初期化
-    init_qt_application()
-    pygame.init()
-    pygame.mixer.init()
 
-    # 画面の設定
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("テスト")
+    Note:
+        戻り値のgame_state['screen']は呼び出し側で仮想画面に差し替える想定
+    """
+    # Pygameを初期化（既に初期化されていても問題ない）
+    init_qt_application()
+    if not pygame.get_init():
+        pygame.init()
+    if not pygame.mixer.get_init():
+        pygame.mixer.init()
+
+    # 仮想画面サーフェスを作成（表示ウィンドウは作らない）
+    # 呼び出し側で適切なサーフェスに差し替えることを想定
+    screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
 
     # 各マネージャーの初期化
     bgm_manager = BGMManager(DEBUG)
@@ -48,12 +53,12 @@ def initialize_game(dialogue_file="events/E001.ks"):
     # DialogueLoaderに通知システムを設定
     dialogue_loader.notification_system = notification_manager
 
-    # 画像パスのスキャンと必須画像のみロード
+    # 画像パスのスキャンと必須画像のみロード（仮想画面サイズを使用）
     try:
         print("画像パススキャン中...")
-        image_manager.scan_image_paths(SCREEN_WIDTH, SCREEN_HEIGHT)
+        image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
         print("必須画像ロード中...")
-        images = image_manager.load_essential_images(SCREEN_WIDTH, SCREEN_HEIGHT)
+        images = image_manager.load_essential_images(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
     except Exception as e:
         print(f"画像の初期化に失敗しました： {e}")
         return None
