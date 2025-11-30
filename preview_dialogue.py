@@ -182,19 +182,63 @@ def preview_ks_file(ks_file_path):
     frame_count = 0
     while running:
         frame_count += 1
-        # イベント処理：QUITとVIDEORESIZEのみここで処理し、他は全てdialogue_handle_events()に任せる
+        # スケーリング情報を計算（マウス座標変換用）
+        window_aspect = window_width / window_height
+        virtual_aspect = VIRTUAL_WIDTH / VIRTUAL_HEIGHT
+
+        if window_aspect > virtual_aspect:
+            # ウィンドウが横長 → 左右にピラーボックス
+            scaled_height = window_height
+            scaled_width = int(scaled_height * virtual_aspect)
+            offset_x = (window_width - scaled_width) // 2
+            offset_y = 0
+        else:
+            # ウィンドウが縦長 → 上下にレターボックス
+            scaled_width = window_width
+            scaled_height = int(scaled_width / virtual_aspect)
+            offset_x = 0
+            offset_y = (window_height - scaled_height) // 2
+
+        # VIDEORESIZEのみ先に処理、その他は全てdialogue_handle_events()に任せる
+        events_to_repost = []
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.VIDEORESIZE:
+            if event.type == pygame.VIDEORESIZE:
                 # ウィンドウリサイズ処理
                 window_width, window_height = event.size
                 window = pygame.display.set_mode((window_width, window_height), pygame.RESIZABLE)
-            else:
-                # その他のイベントは再度キューに戻す（dialogue_handle_events用）
-                pygame.event.post(event)
+            elif event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+                # マウスイベントの座標を仮想画面座標に変換
+                window_mouse_x, window_mouse_y = event.pos
 
-        # dialogueサブシステムのイベント処理
+                # ピラーボックス領域外のクリックは無視
+                if (window_mouse_x < offset_x or window_mouse_x >= offset_x + scaled_width or
+                    window_mouse_y < offset_y or window_mouse_y >= offset_y + scaled_height):
+                    continue
+
+                # ウィンドウ座標から仮想画面座標に変換
+                relative_x = window_mouse_x - offset_x
+                relative_y = window_mouse_y - offset_y
+                virtual_x = int(relative_x * VIRTUAL_WIDTH / scaled_width)
+                virtual_y = int(relative_y * VIRTUAL_HEIGHT / scaled_height)
+
+                # 新しいイベントを作成（座標を変換）
+                new_event = pygame.event.Event(
+                    event.type,
+                    {'pos': (virtual_x, virtual_y),
+                     'button': getattr(event, 'button', None),
+                     'buttons': getattr(event, 'buttons', None),
+                     'rel': getattr(event, 'rel', None)}
+                )
+                events_to_repost.append(new_event)
+            else:
+                # その他のイベント（QUIT含む）は再度キューに戻す
+                events_to_repost.append(event)
+
+        # イベントを再投稿
+        for event in events_to_repost:
+            pygame.event.post(event)
+
+        # dialogueサブシステムのイベント処理（QUITもここで処理される）
         continue_running = dialogue_handle_events(game_state, virtual_screen)
         if not continue_running:
             running = False
@@ -255,8 +299,8 @@ def preview_ks_file(ks_file_path):
                     print(f"[PREVIEW] UI要素描画エラー: {e} (以降このエラーは抑制)")
                     error_logged['ui_elements'] = True
 
-        # テキスト描画
-        if game_state.get('show_text', True):
+        # テキスト描画（選択肢表示中は非表示）
+        if game_state.get('show_text', True) and not choice_renderer.is_showing_choices:
             text_renderer.render()
 
         # 選択肢描画
