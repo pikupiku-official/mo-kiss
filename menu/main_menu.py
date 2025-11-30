@@ -63,11 +63,9 @@ class MainMenu:
         
         # 第1段階: プロジェクト専用フォント
         try:
-            # 絶対パスでフォントを指定
-            project_root = os.path.dirname(os.path.dirname(__file__))
-            font_dir = os.path.join(project_root, "fonts")
-            project_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
-            project_font_path = os.path.abspath(project_font_path)
+            # 絶対パスでフォントを指定（path_utils使用）
+            from path_utils import get_font_path
+            project_font_path = get_font_path("MPLUS1p-Regular.ttf")
             print(f"フォントパスを試行中: {project_font_path}")
             print(f"フォントファイル存在確認: {os.path.exists(project_font_path)}")
             

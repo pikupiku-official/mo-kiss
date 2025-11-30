@@ -260,9 +260,9 @@ def _initialize_se(game_state):
         if len(entry) > 8 and entry[8]:  # SE情報がある場合（インデックス8）
             se_from_dialogue = entry[8]
             break
-    
-    # SEの再生を試行
-    if se_from_dialogue:
+
+    # SEの再生を試行（文字列型のみ処理）
+    if se_from_dialogue and isinstance(se_from_dialogue, str):
         if DEBUG:
             print(f"会話データからSEを発見: {se_from_dialogue}")
         

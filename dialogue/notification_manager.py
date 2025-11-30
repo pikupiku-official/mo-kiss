@@ -2,6 +2,7 @@ import pygame
 import time
 import os
 from config import *
+from path_utils import get_font_path
 
 class NotificationManager:
     """右上エリアの通知システム"""
@@ -30,14 +31,14 @@ class NotificationManager:
         self.margin_right = int(self.virtual_margin_right * SCALE)
         self.margin_top = int(self.virtual_margin_top * SCALE)
         
-        # フォント設定
+        # フォント設定（path_utils使用）
         self.font_size = int(SCREEN_HEIGHT * 0.025)
-        # プロジェクト専用フォントを使用
-        project_root = os.path.dirname(os.path.dirname(__file__))
-        font_path = os.path.join(project_root, "fonts", "MPLUS1p-Regular.ttf")
         try:
+            font_path = get_font_path("MPLUS1p-Regular.ttf")
             self.font = pygame.font.Font(font_path, self.font_size)
-        except:
+        except Exception as e:
+            if self.debug:
+                print(f"[NOTIFICATION] フォント読み込みエラー: {e}")
             self.font = pygame.font.SysFont("msgothic", self.font_size)
         
         # 色設定

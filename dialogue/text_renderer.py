@@ -6,6 +6,7 @@ from .date_manager import get_current_game_date
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
+from path_utils import get_font_path
 
 class TextRenderer:
     def __init__(self, screen, debug=False):
@@ -33,15 +34,15 @@ class TextRenderer:
         # 名前表示モードの初期化（config から読み込み）
         self.name_display_mode = TEXT_RENDERER_CONFIG["name_spacing_mode"]  # "auto"=均等配置, "normal"=通常表示
         
-        # 日付表示関連の初期化
+        # 日付表示関連の初期化（path_utils使用）
         self.date_display_enabled = DATE_DISPLAY_ENABLED
         self.date_font_size = int(SCREEN_HEIGHT * DATE_FONT_SIZE_RATIO)
-        # プロジェクト専用フォントを使用
-        project_root = os.path.dirname(os.path.dirname(__file__))
-        date_font_path = os.path.join(project_root, "fonts", "MPLUS1p-Regular.ttf")
         try:
+            date_font_path = get_font_path("MPLUS1p-Regular.ttf")
             self.date_font = pygame.font.Font(date_font_path, self.date_font_size)
-        except:
+        except Exception as e:
+            if self.debug:
+                print(f"[TEXT_RENDERER] 日付フォント読み込みエラー: {e}")
             self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
         self.date_color = DATE_TEXT_COLOR
         self.date_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y)
@@ -141,11 +142,9 @@ class TextRenderer:
             text_font_size = int(SCREEN_HEIGHT * FONT_TEXT_SIZE_RATIO)
             default_font_size = int(SCREEN_HEIGHT * FONT_DEFAULT_SIZE_RATIO)
             
-            # フォントファイルのパスを設定（プロジェクトルートから）
-            project_root = os.path.dirname(os.path.dirname(__file__))
-            font_dir = os.path.join(project_root, "fonts")
-            bold_font_path = os.path.join(font_dir, "MPLUS1p-Bold.ttf")
-            medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
+            # フォントファイルのパスを設定（path_utils使用）
+            bold_font_path = get_font_path("MPLUS1p-Bold.ttf")
+            medium_font_path = get_font_path("MPLUS1p-Medium.ttf")
 
             fonts = {}
             

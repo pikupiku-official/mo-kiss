@@ -40,10 +40,9 @@ class EventBase:
         """フォントを読み込み（クロスプラットフォーム対応）"""
         import platform
         
-        # プロジェクトフォントの正しいパス
-        project_root = os.path.dirname(os.path.dirname(__file__))
-        font_dir = os.path.join(project_root, "fonts")
-        project_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
+        # プロジェクトフォントの正しいパス（path_utils使用）
+        from path_utils import get_font_path
+        project_font_path = get_font_path("MPLUSRounded1c-Regular.ttf")
         
         # プラットフォーム別システムフォントパス
         system_font_paths = []

@@ -12,6 +12,7 @@ import os
 from time_manager import get_time_manager
 from save_manager import get_save_manager
 from loading_screen import show_loading, hide_loading
+from path_utils import get_font_path
 
 class HomeModule:
     def __init__(self, screen):
@@ -48,23 +49,22 @@ class HomeModule:
         # 段階的にフォントを試行
         font_initialized = False
         
-        # 第1段階: プロジェクト専用フォント
+        # 第1段階: プロジェクト専用フォント（path_utils使用）
         try:
-            # 絶対パスでフォントを指定
-            project_root = os.path.dirname(os.path.dirname(__file__))
-            font_dir = os.path.join(project_root, "fonts")
-            project_font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
-            project_font_path = os.path.abspath(project_font_path)
-            
-            test_font = pygame.font.Font(project_font_path, 16)
-            # 日本語テスト
-            test_surface = test_font.render('テスト', True, (0, 0, 0))
-            
-            if test_surface.get_width() > 10:
-                self.font = pygame.font.Font(project_font_path, 48)
-                self.large_font = pygame.font.Font(project_font_path, 64)
-                font_initialized = True
-                print("home.py: プロジェクト専用フォント (M PLUS Rounded 1c) を使用")
+            project_font_path = get_font_path("MPLUS1p-Regular.ttf")
+
+            if os.path.exists(project_font_path):
+                test_font = pygame.font.Font(project_font_path, 16)
+                # 日本語テスト
+                test_surface = test_font.render('テスト', True, (0, 0, 0))
+
+                if test_surface.get_width() > 10:
+                    self.font = pygame.font.Font(project_font_path, 48)
+                    self.large_font = pygame.font.Font(project_font_path, 64)
+                    font_initialized = True
+                    print("home.py: プロジェクト専用フォント (M PLUS Rounded 1c) を使用")
+            else:
+                raise FileNotFoundError(f"フォントファイルが見つかりません: {project_font_path}")
         except Exception as e:
             print(f"home.py: プロジェクト専用フォント読み込み失敗: {e}")
         

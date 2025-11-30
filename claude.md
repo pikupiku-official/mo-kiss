@@ -231,6 +231,69 @@ python3 path_utils.py
 OS: Windows=False, macOS=True, Linux=False
 ```
 
+### event_editor.py（開発ツール）のmacOS問題
+
+**⚠️ 既知の問題**: event_editor.pyはmacOSでTkinter/PyQt5の競合によりクラッシュします。
+
+**根本原因**:
+- プロジェクトがフォント処理にPyQt5を使用している
+- event_editor.pyがTkinterを使用している
+- macOSではPyQt5とTkinterは同時に使用できない（NSApplicationの競合）
+
+**エラー例**:
+```
+*** Terminating app due to uncaught exception 'NSInvalidArgumentException'
+reason: '-[QNSApplication macOSVersion]: unrecognized selector sent to instance'
+```
+
+**✅ 解決策: event_editor_mac.py を使用（編集機能のみ）**
+
+macOS用にPyQt5ベースで完全に書き直された **event_editor_mac.py** が利用可能です：
+
+```bash
+# macOSでの実行
+python3 event_editor_mac.py
+```
+
+**特徴:**
+- ✅ PyQt5ベースのGUI（Tkinter不使用）
+- ✅ macOSで完全に動作
+- ✅ KSファイル編集機能
+- ✅ **プレビュー機能（main.py を別プロセスで起動）**
+
+**macOSでのプレビュー機能の技術的実装:**
+- macOSではPygameをバックグラウンドスレッドで初期化できない（SDL制限）
+- PyQt5のメインスレッドとPygameのメインスレッドが競合するため、スレッド方式は不可
+- **解決策**: `subprocess.Popen()` で main.py を別プロセスとして起動
+- この方式により、エディタとゲームが完全に独立したプロセスで動作
+
+**プレビュー機能の動作:**
+1. event_editor_mac.py の「プレビュー」ボタンをクリック
+2. 保存確認ダイアログが表示される
+3. 保存後、main.py が新しいプロセスで起動
+4. エディタとゲームを同時に実行可能
+
+**対処方法まとめ**:
+
+1. **macOSで使用する場合**（推奨）
+   ```bash
+   python3 event_editor_mac.py
+   ```
+
+2. **Windows環境で使用する場合**
+   ```bash
+   python event_editor.py
+   ```
+
+3. **代替エディタを使用**
+   - VSCode、Sublime Text、Atomなどで.ksファイルを直接編集
+   - プレビューは main.py を実行して確認
+
+**注意**:
+- event_editor.py: Windows/Linux用（Tkinter使用）
+- event_editor_mac.py: macOS用（PyQt5使用）
+- ゲーム本体（main.py）は全環境で正常に動作します
+
 ## 参考リソース
 
 - [Pygame公式ドキュメント](https://www.pygame.org/docs/)
@@ -240,7 +303,11 @@ OS: Windows=False, macOS=True, Linux=False
 
 - 2025-12-01: `path_utils.py` 追加（クロスプラットフォーム対応）
 - 2025-12-01: フォントパス問題を修正（Mac環境対応）
+- 2025-12-01: 全モジュールを path_utils.py に移行完了
+- 2025-12-01: event_editor.py の macOS Tkinter 問題を文書化
+- 2025-12-01: **event_editor_mac.py 作成（PyQt5ベース、macOS完全対応）**
 - 2025-12-01: claude.md作成
+- 2025-12-01: **event_editor_mac.py のプレビュー機能実装（subprocess方式）**
 
 ## 重要な設計方針
 
