@@ -36,7 +36,8 @@ class TextRenderer:
         
         # 日付表示関連の初期化（path_utils使用）
         self.date_display_enabled = DATE_DISPLAY_ENABLED
-        self.date_font_size = int(SCREEN_HEIGHT * DATE_FONT_SIZE_RATIO)
+        # 日付フォントサイズ（仮想画面基準のピクセル値を使用）
+        self.date_font_size = DATE_FONT_SIZE
         try:
             date_font_path = get_font_path("MPLUS1p-Regular.ttf")
             self.date_font = pygame.font.Font(date_font_path, self.date_font_size)
