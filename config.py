@@ -278,8 +278,8 @@ def init_game():
     # ウィンドウのタイトルを設定
     pygame.display.set_caption("ビジュアルノベル")
     
-    # ウィンドウモードでウィンドウサイズを設定
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    # フルスクリーンモードで起動（ウィンドウ枠なし、Dockなし）
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
     
     # デバッグ出力削除（パフォーマンス向上）
     
