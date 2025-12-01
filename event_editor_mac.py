@@ -18,6 +18,7 @@ import queue
 import platform
 import traceback
 import logging
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -396,13 +397,16 @@ class EventEditorGUI(QMainWindow):
         self.current_file = None
         self.current_file_path = None
 
-        # プレビューウィンドウ用のキュー
+        # プレビューウィンドウ用のキュー（未使用だがPreviewWindowクラスとの互換性のため残す）
         self.command_queue = queue.Queue()
         self.status_queue = queue.Queue()
 
-        # プレビュースレッド
+        # プレビュースレッド（未使用だがPreviewWindowクラスとの互換性のため残す）
         self.preview_thread = None
         self.preview_running = False
+
+        # プレビュープロセス管理（別プロセス方式用 - macOS専用）
+        self.preview_process = None
 
         # eventsフォルダのパス
         self.events_dir = os.path.join(project_root, "events")
@@ -659,12 +663,34 @@ class EventEditorGUI(QMainWindow):
             print(f"❌ ファイル保存エラー: {e}")
 
     def start_preview(self):
-        """ダイアログプレビューを別プロセスとして起動"""
+        """ダイアログプレビューを別プロセスとして起動（macOS専用）"""
         logger.info("start_preview呼び出し（preview_dialogue.py起動）")
         try:
             if not self.current_file_path:
                 QMessageBox.warning(self, "警告", "ファイルが選択されていません")
                 return
+
+            # 既存のプレビュープロセスがあれば先に終了
+            if self.preview_process and self.preview_process.poll() is None:
+                reply = QMessageBox.question(
+                    self,
+                    "プレビュー起動",
+                    "既にプレビューが起動中です。\n再起動しますか？",
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                if reply == QMessageBox.No:
+                    return
+
+                # 既存プロセスを終了
+                logger.info(f"既存プレビュープロセス (PID={self.preview_process.pid}) を終了")
+                self.preview_process.terminate()
+                try:
+                    self.preview_process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    logger.warning("プレビュープロセスが応答しないため強制終了")
+                    self.preview_process.kill()
+                    self.preview_process.wait()
+                self.preview_process = None
 
             # 保存確認
             reply = QMessageBox.question(
@@ -693,55 +719,127 @@ class EventEditorGUI(QMainWindow):
                 )
                 return
 
+            # プレビュープロセスを起動して保存
             if platform.system() == 'Darwin':  # macOS
-                subprocess.Popen(['python3', preview_script, self.current_file_path])
-                self.status_label.setText("プレビューを起動しました")
+                self.preview_process = subprocess.Popen(['python3', preview_script, self.current_file_path])
+                self.preview_running = True
+                self.status_label.setText(f"プレビュー起動中 (PID={self.preview_process.pid})")
                 self.status_label.setStyleSheet("color: green;")
+                logger.info(f"プレビュープロセス起動: PID={self.preview_process.pid}")
                 QMessageBox.information(
                     self,
                     "プレビュー起動",
                     f"プレビューを起動しました。\n\n"
-                    f"ファイル: {self.current_file}\n\n"
+                    f"ファイル: {self.current_file}\n"
+                    f"PID: {self.preview_process.pid}\n\n"
                     "別ウィンドウでダイアログをプレビューできます。"
                 )
             else:
-                subprocess.Popen(['python', preview_script, self.current_file_path])
-                self.status_label.setText("プレビューを起動しました")
+                self.preview_process = subprocess.Popen(['python', preview_script, self.current_file_path])
+                self.preview_running = True
+                self.status_label.setText(f"プレビュー起動中 (PID={self.preview_process.pid})")
                 self.status_label.setStyleSheet("color: green;")
+                logger.info(f"プレビュープロセス起動: PID={self.preview_process.pid}")
 
-            print(f"▶ プレビュー起動: {preview_script} {self.current_file_path}")
+            print(f"▶ プレビュー起動: {preview_script} {self.current_file_path} (PID={self.preview_process.pid})")
 
         except Exception as e:
             logger.error(f"プレビュー起動エラー: {e}", exc_info=True)
             QMessageBox.critical(self, "エラー", f"プレビュー起動に失敗しました:\n{e}")
 
     def stop_preview(self):
-        """プレビューウィンドウを停止"""
+        """プレビューウィンドウを停止（macOS専用 - プロセスを終了）"""
         logger.info("stop_preview呼び出し")
         try:
-            if not self.preview_running:
+            if not self.preview_process:
                 QMessageBox.information(self, "情報", "プレビューは起動していません")
                 return
 
-            self.command_queue.put({'type': 'stop'})
+            # プロセスが実行中か確認
+            if self.preview_process.poll() is not None:
+                # 既に終了している
+                self.preview_process = None
+                self.preview_running = False
+                QMessageBox.information(self, "情報", "プレビューは既に終了しています")
+                self.status_label.setText("プレビュー終了済み")
+                self.status_label.setStyleSheet("color: gray;")
+                return
+
+            # プロセスを終了
+            pid = self.preview_process.pid
+            logger.info(f"プレビュープロセス (PID={pid}) を終了")
+            self.preview_process.terminate()
+
+            try:
+                self.preview_process.wait(timeout=3)
+                logger.info(f"プレビュープロセス (PID={pid}) が正常に終了しました")
+            except subprocess.TimeoutExpired:
+                logger.warning(f"プレビュープロセス (PID={pid}) が応答しないため強制終了")
+                self.preview_process.kill()
+                self.preview_process.wait()
+
+            self.preview_process = None
             self.preview_running = False
             self.status_label.setText("プレビュー停止")
             self.status_label.setStyleSheet("color: gray;")
-            print("⏹ プレビュー停止")
+            print(f"⏹ プレビュー停止 (PID={pid})")
+
+            QMessageBox.information(self, "停止完了", f"プレビュー (PID={pid}) を停止しました")
 
         except Exception as e:
+            logger.error(f"プレビュー停止エラー: {e}", exc_info=True)
             QMessageBox.critical(self, "エラー", f"プレビュー停止に失敗しました:\n{e}")
 
     def reload_preview(self):
-        """プレビューをリロード"""
-        if not self.preview_running:
-            QMessageBox.warning(self, "警告", "プレビューが起動していません")
-            return
+        """プレビューをリロード（macOS専用 - プロセスを再起動）"""
+        logger.info("reload_preview呼び出し")
+        try:
+            if not self.current_file_path:
+                QMessageBox.warning(self, "警告", "ファイルが選択されていません")
+                return
 
-        self.command_queue.put({'type': 'reload', 'keep_position': True})
-        self.status_label.setText("リロード中...")
-        self.status_label.setStyleSheet("color: orange;")
-        print("🔄 プレビューをリロード（位置保持）")
+            # 保存確認
+            reply = QMessageBox.question(
+                self,
+                "リロード",
+                f"{self.current_file} を保存してからリロードしますか？",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            )
+
+            if reply == QMessageBox.Cancel:
+                return
+            elif reply == QMessageBox.Yes:
+                self.save_file()
+
+            # 既存プロセスを終了
+            if self.preview_process and self.preview_process.poll() is None:
+                old_pid = self.preview_process.pid
+                logger.info(f"リロード: 既存プロセス (PID={old_pid}) を終了")
+                self.preview_process.terminate()
+                try:
+                    self.preview_process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    logger.warning("プロセスが応答しないため強制終了")
+                    self.preview_process.kill()
+                    self.preview_process.wait()
+
+            # 新しいプロセスを起動
+            preview_script = os.path.join(project_root, "preview_dialogue.py")
+
+            if platform.system() == 'Darwin':  # macOS
+                self.preview_process = subprocess.Popen(['python3', preview_script, self.current_file_path])
+            else:
+                self.preview_process = subprocess.Popen(['python', preview_script, self.current_file_path])
+
+            self.preview_running = True
+            self.status_label.setText(f"プレビューをリロード (PID={self.preview_process.pid})")
+            self.status_label.setStyleSheet("color: green;")
+            logger.info(f"リロード完了: 新しいプロセス (PID={self.preview_process.pid})")
+            print(f"🔄 プレビューをリロード (PID={self.preview_process.pid})")
+
+        except Exception as e:
+            logger.error(f"リロードエラー: {e}", exc_info=True)
+            QMessageBox.critical(self, "エラー", f"リロードに失敗しました:\n{e}")
 
     def jump_to_paragraph(self):
         """指定された段落にジャンプ"""
@@ -793,11 +891,24 @@ class EventEditorGUI(QMainWindow):
             self.preview_running = False
 
     def closeEvent(self, event):
-        """ウィンドウが閉じられる時の処理"""
+        """ウィンドウが閉じられる時の処理（macOS専用 - プロセスをクリーンアップ）"""
         logger.info("アプリケーション終了処理開始")
-        if self.preview_running:
-            self.stop_preview()
+
+        # プレビュープロセスが実行中なら終了
+        if self.preview_process and self.preview_process.poll() is None:
+            logger.info(f"終了処理: プレビュープロセス (PID={self.preview_process.pid}) を終了")
+            try:
+                self.preview_process.terminate()
+                self.preview_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                logger.warning("プロセスが応答しないため強制終了")
+                self.preview_process.kill()
+                self.preview_process.wait()
+            except Exception as e:
+                logger.error(f"プロセス終了エラー: {e}")
+
         event.accept()
+        logger.info("アプリケーション終了")
 
 
 def main():
