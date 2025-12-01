@@ -263,10 +263,11 @@ class ChoiceRenderer:
             # フォントサイズを仮想画面基準のピクセル値で指定（text_rendererと同じ）
             text_font_size = FONT_TEXT_SIZE
             default_font_size = FONT_DEFAULT_SIZE
-
-            # フォントファイルのパスを設定（path_utils使用）
-            from path_utils import get_font_path
-            medium_font_path = get_font_path("MPLUS1p-Medium.ttf")
+            
+            # フォントファイルのパスを設定（プロジェクトルートから）
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            font_dir = os.path.join(project_root, "fonts")
+            medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
 
             fonts = {}
             
