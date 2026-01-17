@@ -120,14 +120,26 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         print(f"分割結果: {parts}")
 
     if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size,blink
-        # T04_00_00のようなアンダースコア含みファイル名に対応
-        if len(parts) >= 10:  # _CHARA_NEW_T04_00_00_x_y_size_blink の場合
-            char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
+        # 新形式: _CHARA_NEW_T04_00_00_x_y_size_blink_fade_論理名
+        if len(parts) >= 12:
+            torso_id = f"{parts[3]}_{parts[4]}_{parts[5]}"  # 胴体パーツID（画像用）
+            char_name = parts[11]  # キャラクター論理名（管理用）
             x_index = 6
             y_index = 7
             size_index = 8
             blink_index = 9
-        else:  # 通常のキャラクター名の場合
+            # fade_index = 10  # 今後使用予定
+        # 旧形式: _CHARA_NEW_T04_00_00_x_y_size_blink (論理名なし)
+        elif len(parts) >= 10:
+            torso_id = f"{parts[3]}_{parts[4]}_{parts[5]}"
+            char_name = torso_id  # 後方互換性: 論理名=胴体ID
+            x_index = 6
+            y_index = 7
+            size_index = 8
+            blink_index = 9
+        # さらに古い形式: _CHARA_NEW_名前_x_y_size_blink
+        else:
+            torso_id = parts[3]
             char_name = parts[3]
             x_index = 4
             y_index = 5
@@ -145,13 +157,18 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             size = 1.0
             blink_enabled = True
 
-        # まず画像の存在を確認（遅延ロード対応）
+        # まず画像の存在を確認（遅延ロード対応）- torso_idを使用
         image_manager = game_state['image_manager']
-        char_img = image_manager.get_image("characters", char_name)
+        char_img = image_manager.get_image("characters", torso_id)
         if not char_img:
             if DEBUG:
                 print(f"警告: キャラクター画像 '{char_name}' が見つかりません")
             return
+
+        # キャラクター論理名 -> 胴体IDのマッピングを保存
+        if 'character_torso' not in game_state:
+            game_state['character_torso'] = {}
+        game_state['character_torso'][char_name] = torso_id
 
         # キャラクターが新規登場か既存キャラクターの表情変更かを判定
         is_new_character = char_name not in game_state['active_characters']
@@ -159,7 +176,7 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         if is_new_character:
             game_state['active_characters'].append(char_name)
             if DEBUG:
-                print(f"キャラクター '{char_name}' を active_characters に追加")
+                print(f"キャラクター '{char_name}' (胴体: {torso_id}) を active_characters に追加")
 
             # x,yパラメーターを使って位置を設定
             char_width = char_img.get_width()
@@ -248,11 +265,7 @@ def _handle_character_hide(game_state, dialogue_text):
         print(f"退場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"退場コマンド解析: parts={parts}")
     if len(parts) >= 4:  # _CHARA_HIDE_キャラクター名
-        # T04_00_00のようなアンダースコア含みファイル名に対応
-        if len(parts) >= 6:  # _CHARA_HIDE_T04_00_00 の場合
-            char_name = f"{parts[3]}_{parts[4]}_{parts[5]}"
-        else:  # 通常のキャラクター名の場合
-            char_name = parts[3]
+        char_name = parts[3]
         if DEBUG:
             print(f"退場対象キャラクター名: '{char_name}'")
         hide_character(game_state, char_name)

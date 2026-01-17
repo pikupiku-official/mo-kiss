@@ -309,10 +309,13 @@ class DialogueLoader:
                 # キャラクターを検出
                 elif "[chara_show" in line:
                     try:
-                        # name属性またはsub属性を検索
+                        # name属性（キャラクター論理名）を検索
                         char_name = re.search(r'name="([^"]+)"', line)
                         if not char_name:
                             char_name = re.search(r'sub="([^"]+)"', line)
+
+                        # torso属性（胴体パーツID）を検索（新形式）
+                        torso_id = re.search(r'torso="([^"]+)"', line)
 
                         eye_type = re.search(r'eye="([^"]+)"', line)
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
@@ -322,9 +325,12 @@ class DialogueLoader:
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
                         size = re.search(r'size="([^"]+)"', line)
-                        
+
                         if char_name:
                             current_char = char_name.group(1)
+
+                            # 後方互換性: torsoが指定されていない場合はnameを使用
+                            current_torso = torso_id.group(1) if torso_id else current_char
                             
                             # キャラクターごとの顔パーツを取得（初回の場合は初期化）
                             if current_char not in character_face_parts:
@@ -375,6 +381,7 @@ class DialogueLoader:
                             dialogue_data.append({
                                 'type': 'character',
                                 'name': current_char,
+                                'torso': current_torso,  # 胴体パーツID（新規追加）
                                 'eye': current_eye,
                                 'mouth': current_mouth,
                                 'brow': current_brow,
@@ -493,12 +500,15 @@ class DialogueLoader:
                 # キャラクター移動コマンドを検出
                 elif "[chara_move" in line:
                     try:
-                        name_parts_m = re.search(r'subm="([^"]+)"', line)
+                        # name属性を優先、なければsubmにフォールバック
+                        name_parts_m = re.search(r'name="([^"]+)"', line)
+                        if not name_parts_m:
+                            name_parts_m = re.search(r'subm="([^"]+)"', line)
                         time = re.search(r'time="([^"]+)"', line)
                         left = re.search(r'left="([^"]+)"', line)
                         top = re.search(r'top="([^"]+)"', line)
                         zoom = re.search(r'zoom="([^"]+)"', line)
-                        if name_parts_m and left and top and zoom:
+                        if name_parts_m and left and top:
                             char_name = name_parts_m.group(1)
                             move_time = time.group(1) if time else "600"
                             move_left = left.group(1)
@@ -524,7 +534,10 @@ class DialogueLoader:
                 # キャラクター退場コマンドを検出
                 elif "[chara_hide" in line:
                     try:
-                        name_parts_h = re.search(r'subh="([^"]+)"', line)
+                        # name属性を優先、なければsubhにフォールバック
+                        name_parts_h = re.search(r'name="([^"]+)"', line)
+                        if not name_parts_h:
+                            name_parts_h = re.search(r'subh="([^"]+)"', line)
                         if name_parts_h:
                             char_name = name_parts_h.group(1)
                             

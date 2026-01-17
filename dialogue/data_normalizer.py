@@ -50,12 +50,21 @@ def normalize_dialogue_data(raw_data):
             # デバッグ出力削除
                 
         elif entry_type == 'character':
-            current_char = entry['name']
-            # 桃子フォルダ用の名前変換
-            if current_char == "桃子":
-                current_char = "T04_00_00"
-            elif current_char == "サナコ":
-                current_char = "T08_01_00"
+            # キャラクター論理名を取得
+            char_name = entry['name']
+
+            # 胴体パーツIDを取得（新形式）
+            # 後方互換性: torsoがない場合はnameをフォールバック
+            torso_id = entry.get('torso', char_name)
+
+            # 旧形式との互換性のため、桃子フォルダ用の名前変換を適用
+            if torso_id == "桃子":
+                torso_id = "T04_00_00"
+            elif torso_id == "サナコ":
+                torso_id = "T08_01_00"
+
+            # current_charは画像ロード用にtorso_idを保持（character_manager.pyとの互換性維持）
+            current_char = torso_id
 
             # 顔パーツはファイル名をそのまま使用
             current_eye = entry['eye']
@@ -68,11 +77,11 @@ def normalize_dialogue_data(raw_data):
             size = entry.get('size', 1.0)
             fade = entry.get('fade', 0.3)  # フェード時間を取得（デフォルト: 0.3秒）
             # デバッグ出力削除
-            # キャラクター登場コマンドを追加
-            command_text = f"_CHARA_NEW_{current_char}_{show_x}_{show_y}_{size}_{current_blink}_{fade}"
+            # キャラクター登場コマンドを追加（torso_idを使用、論理名char_nameも渡す）
+            command_text = f"_CHARA_NEW_{torso_id}_{show_x}_{show_y}_{size}_{current_blink}_{fade}_{char_name}"
             normalized_data.append([
-                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
-                command_text, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                current_bg, torso_id, current_eye, current_mouth, current_brow, current_cheek,
+                command_text, current_bgm, current_bgm_volume, current_bgm_loop, char_name, False
             ])
             # デバッグ出力削除
                 
@@ -146,12 +155,8 @@ def normalize_dialogue_data(raw_data):
             # 移動コマンドを正規化形式で追加
             zoom_value = entry.get('zoom', '1.0')
             move_command = f"_MOVE_{entry['left']}_{entry['top']}_{entry['time']}_{zoom_value}"
+            # 論理名をそのまま使用（active_charactersと一致させる）
             move_char = entry['character']
-            # 桃子フォルダ用の名前変換
-            if move_char == "桃子":
-                move_char = "T04_00_00"
-            elif move_char == "サナコ":
-                move_char = "T08_01_00"
             normalized_data.append([
                 current_bg, move_char, current_eye, current_mouth, current_brow, current_cheek,
                 move_command, current_bgm, current_bgm_volume, current_bgm_loop, move_char, False
@@ -161,12 +166,8 @@ def normalize_dialogue_data(raw_data):
 
         elif entry_type == 'hide':
             # キャラクター退場コマンドを正規化形式で追加
+            # 論理名をそのまま使用（active_charactersと一致させる）
             hide_char = entry['character']
-            # 桃子フォルダ用の名前変換
-            if hide_char == "桃子":
-                hide_char = "T04_00_00"
-            elif hide_char == "サナコ":
-                hide_char = "T08_01_00"
             fade = entry.get('fade', 0.3)  # フェード時間を取得（デフォルト: 0.3秒）
             hide_command = f"_CHARA_HIDE_{hide_char}_{fade}"
             normalized_data.append([

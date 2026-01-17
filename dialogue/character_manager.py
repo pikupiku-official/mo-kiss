@@ -37,10 +37,12 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
     if character_name not in game_state['character_pos']:
         if DEBUG:
             print(f"警告: キャラクター '{character_name}' は登録されていません")
-        
+
         # 遅延ロードでキャラクター画像を取得
+        # 胴体IDを取得（新形式）後方互換性のためchar_nameをフォールバック
+        torso_id = game_state.get('character_torso', {}).get(character_name, character_name)
         image_manager = game_state['image_manager']
-        char_img = image_manager.get_image("characters", character_name)
+        char_img = image_manager.get_image("characters", torso_id)
         
         if char_img:
             char_width = char_img.get_width()
@@ -339,8 +341,11 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     character_pos = game_state['character_pos'][char_name]
     image_manager = game_state['image_manager']
 
-    # キャラクター画像を遅延ロードで取得
-    char_img = image_manager.get_image("characters", char_name)
+    # 胴体IDを取得（新形式）後方互換性のためchar_nameをフォールバック
+    torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
+
+    # キャラクター画像を遅延ロードで取得（torso_idを使用）
+    char_img = image_manager.get_image("characters", torso_id)
     if not char_img:
         return
 
@@ -415,8 +420,11 @@ def draw_characters(game_state):
 
     for char_name in game_state['active_characters']:
         if char_name in game_state['character_pos']:
-            # キャラクター画像を遅延ロードで取得
-            char_img = image_manager.get_image("characters", char_name)
+            # 胴体IDを取得（新形式）後方互換性のためchar_nameをフォールバック
+            torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
+
+            # キャラクター画像を遅延ロードで取得（torso_idを使用）
+            char_img = image_manager.get_image("characters", torso_id)
 
             if not char_img:
                 if DEBUG:
