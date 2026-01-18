@@ -16,6 +16,7 @@ import csv
 import re
 import pygame
 import threading
+import tempfile
 import queue
 import platform
 import traceback
@@ -29,7 +30,8 @@ from PyQt5.QtWidgets import (
     QTextEdit, QListWidget, QPushButton, QLabel, QSplitter,
     QLineEdit, QMessageBox, QToolBar, QAction, QGroupBox,
     QFormLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
-    QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem
+    QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
+    QFileDialog
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap
@@ -428,6 +430,11 @@ class StatusSignal(QObject):
     status_received = pyqtSignal(str, object)
 
 
+class PreviewSignal(QObject):
+    """プレビュー生成完了通知用のQObject"""
+    preview_ready = pyqtSignal(object, str, bool, str)
+
+
 class StepEditorDialog(QDialog):
     """step編集用ダイアログ"""
 
@@ -493,6 +500,66 @@ class StepEditorDialog(QDialog):
         "if": [("condition", "")],
         "event_control": [("unlock", ""), ("lock", "")],
     }
+    CUSTOM_EDITORS = {
+        "bg": [("storage", "storage", "text")],
+        "bg_show": [
+            ("storage", "storage", "text"),
+            ("bg_x", "bg_x", "text"),
+            ("bg_y", "bg_y", "text"),
+            ("bg_zoom", "bg_zoom", "text"),
+        ],
+        "bg_move": [
+            ("storage", "storage", "text"),
+            ("bg_left", "bg_left", "text"),
+            ("bg_top", "bg_top", "text"),
+            ("bg_zoom", "bg_zoom", "text"),
+            ("time", "time", "text"),
+        ],
+        "chara_show": [
+            ("name", "name", "text"),
+            ("torso", "torso", "text"),
+            ("eye", "eye", "text"),
+            ("mouth", "mouth", "text"),
+            ("brow", "brow", "text"),
+            ("cheek", "cheek", "text"),
+            ("blink", "blink", "bool"),
+            ("x", "x", "text"),
+            ("y", "y", "text"),
+            ("size", "size", "text"),
+            ("fade", "fade", "text"),
+        ],
+        "chara_shift": [
+            ("name", "name", "text"),
+            ("torso", "torso", "text"),
+            ("eye", "eye", "text"),
+            ("mouth", "mouth", "text"),
+            ("brow", "brow", "text"),
+            ("cheek", "cheek", "text"),
+            ("x", "x", "text"),
+            ("y", "y", "text"),
+            ("size", "size", "text"),
+            ("fade", "fade", "text"),
+        ],
+        "chara_move": [
+            ("name", "name", "text"),
+            ("left", "left", "text"),
+            ("top", "top", "text"),
+            ("zoom", "zoom", "text"),
+            ("time", "time", "text"),
+        ],
+        "chara_hide": [
+            ("name", "name", "text"),
+            ("fade", "fade", "text"),
+        ],
+    }
+    BROWSE_KEYS = {
+        "storage": "backgrounds",
+        "torso": "characters",
+        "eye": "eyes",
+        "mouth": "mouths",
+        "brow": "brows",
+        "cheek": "cheeks",
+    }
 
     def __init__(self, parent, step, actions=None):
         super().__init__(parent)
@@ -517,6 +584,8 @@ class StepEditorDialog(QDialog):
         self.preview_label.setFixedSize(400, 300)
         self.preview_label.setStyleSheet("border: 1px solid #888; background: #111; color: #ddd;")
         preview_layout.addWidget(self.preview_label, alignment=Qt.AlignCenter)
+        self.preview_refresh_btn = QPushButton("Preview Update")
+        preview_layout.addWidget(self.preview_refresh_btn, alignment=Qt.AlignCenter)
         preview_group.setLayout(preview_layout)
         left_layout.addWidget(preview_group)
 
@@ -573,6 +642,13 @@ class StepEditorDialog(QDialog):
         self.tag_combo.addItems(self.TAG_NAMES)
         editor_layout.addRow("tag", self.tag_combo)
 
+        self.custom_editor_widget = QWidget()
+        self.custom_editor_layout = QFormLayout(self.custom_editor_widget)
+        editor_layout.addRow(self.custom_editor_widget)
+
+        self.advanced_toggle = QCheckBox("詳細パラメータを表示")
+        editor_layout.addRow(self.advanced_toggle)
+
         self.params_table = QTableWidget(0, 2)
         self.params_table.setHorizontalHeaderLabels(["key", "value"])
         self.params_table.horizontalHeader().setStretchLastSection(True)
@@ -607,6 +683,8 @@ class StepEditorDialog(QDialog):
         self.apply_action_btn.clicked.connect(self._apply_action_editor)
         self.actions_list.currentItemChanged.connect(self._on_action_selected)
         self.tag_combo.currentTextChanged.connect(self._apply_param_template)
+        self.advanced_toggle.stateChanged.connect(self._on_advanced_toggle)
+        self.preview_refresh_btn.clicked.connect(self._request_preview_update)
 
         if self.actions_list.count() > 0:
             self.actions_list.setCurrentRow(0)
@@ -659,13 +737,13 @@ class StepEditorDialog(QDialog):
         tag, params = self._parse_action(current.text())
         if tag:
             self.tag_combo.setCurrentText(tag)
-        self._load_params(self._merge_with_template(tag, params))
+        self._load_action_into_editors(tag, params)
 
     def _apply_param_template(self, tag):
         if not tag:
             return
         params = self.PARAM_TEMPLATES.get(tag, [])
-        self._load_params(params)
+        self._load_action_into_editors(tag, params, from_template=True)
 
     def _add_param_row(self):
         row = self.params_table.rowCount()
@@ -725,9 +803,19 @@ class StepEditorDialog(QDialog):
         if current_row < 0:
             return
         tag = self.tag_combo.currentText().strip()
-        params = self._collect_params()
+        if self._is_custom_tag(tag) and not self.advanced_toggle.isChecked():
+            params = self._collect_custom_params()
+        else:
+            params = self._collect_params()
         text = self._build_action(tag, params)
         self.actions_list.item(current_row).setText(text)
+
+    def _request_preview_update(self):
+        parent = self.parent()
+        if not parent:
+            return
+        if hasattr(parent, "_preview_step_from_dialog"):
+            parent._preview_step_from_dialog(self.step, self)
 
     def _parse_action(self, text):
         text = text.strip()
@@ -781,6 +869,137 @@ class StepEditorDialog(QDialog):
             )
         )
 
+    def _is_custom_tag(self, tag):
+        return tag in self.CUSTOM_EDITORS
+
+    def _clear_custom_editor(self):
+        while self.custom_editor_layout.count():
+            item = self.custom_editor_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+        self.custom_fields = {}
+
+    def _build_custom_editor(self, tag):
+        self._clear_custom_editor()
+        schema = self.CUSTOM_EDITORS.get(tag)
+        if not schema:
+            self.custom_editor_widget.hide()
+            self.advanced_toggle.hide()
+            self.params_table.show()
+            return
+
+        for key, label, field_type in schema:
+            if field_type == "bool":
+                field = QComboBox()
+                field.addItems(["true", "false"])
+            else:
+                field = QLineEdit()
+            self.custom_fields[key] = field
+            if field_type != "bool" and key in self.BROWSE_KEYS:
+                wrapper = QWidget()
+                wrapper_layout = QHBoxLayout(wrapper)
+                wrapper_layout.setContentsMargins(0, 0, 0, 0)
+                wrapper_layout.addWidget(field, 1)
+                browse_btn = QPushButton("Browse")
+                browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_asset(k))
+                wrapper_layout.addWidget(browse_btn)
+                self.custom_editor_layout.addRow(label, wrapper)
+            else:
+                self.custom_editor_layout.addRow(label, field)
+
+        self.custom_editor_widget.show()
+        self.advanced_toggle.show()
+        self.params_table.setVisible(self.advanced_toggle.isChecked())
+
+    def _set_custom_values(self, params):
+        param_map = {key: value for key, value in params}
+        for key, field in self.custom_fields.items():
+            value = param_map.get(key, "")
+            if isinstance(field, QComboBox):
+                field.setCurrentText(value if value else "true")
+            else:
+                field.setText(value)
+
+    def _collect_custom_params(self):
+        params = []
+        for key, field in self.custom_fields.items():
+            if isinstance(field, QComboBox):
+                value = field.currentText().strip()
+            else:
+                value = field.text().strip()
+            if value != "":
+                params.append((key, value))
+        return params
+
+    def _browse_for_asset(self, key):
+        subdir = self.BROWSE_KEYS.get(key)
+        if not subdir:
+            return
+
+        base_dir = os.path.join(project_root, "images")
+        start_dir = base_dir
+
+        if key == "storage":
+            candidate = os.path.join(base_dir, subdir)
+            if os.path.isdir(candidate):
+                start_dir = candidate
+        else:
+            name_field = self.custom_fields.get("name")
+            name_value = name_field.text().strip() if name_field else ""
+            if name_value:
+                candidate = os.path.join(base_dir, name_value, subdir)
+                if os.path.isdir(candidate):
+                    start_dir = candidate
+            if start_dir == base_dir:
+                candidate = os.path.join(base_dir, subdir)
+                if os.path.isdir(candidate):
+                    start_dir = candidate
+                else:
+                    for root, dirs, _files in os.walk(base_dir):
+                        if os.path.basename(root) == subdir:
+                            start_dir = root
+                            break
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select image",
+            start_dir,
+            "Images (*.png *.jpg *.jpeg *.webp)",
+        )
+        if not file_path:
+            return
+
+        stem = os.path.splitext(os.path.basename(file_path))[0]
+        field = self.custom_fields.get(key)
+        if field is not None:
+            field.setText(stem)
+
+    def _load_action_into_editors(self, tag, params, from_template=False):
+        merged = self._merge_with_template(tag, params)
+        self._build_custom_editor(tag)
+        if self._is_custom_tag(tag):
+            self._set_custom_values(merged)
+            if self.advanced_toggle.isChecked():
+                self._load_params(merged)
+            elif from_template:
+                self._load_params(merged)
+        else:
+            self._load_params(merged)
+
+    def _on_advanced_toggle(self, state):
+        tag = self.tag_combo.currentText().strip()
+        if not self._is_custom_tag(tag):
+            return
+        if self.advanced_toggle.isChecked():
+            params = self._collect_custom_params()
+            self._load_params(self._merge_with_template(tag, params))
+            self.params_table.show()
+        else:
+            params = self._collect_params()
+            self._set_custom_values(self._merge_with_template(tag, params))
+            self.params_table.hide()
+
 class EventEditorGUI(QMainWindow):
     """PyQt5ベースのKSファイルエディタ"""
 
@@ -820,6 +1039,8 @@ class EventEditorGUI(QMainWindow):
         # シグナルオブジェクト
         self.status_signal = StatusSignal()
         self.status_signal.status_received.connect(self.handle_status)
+        self.preview_signal = PreviewSignal()
+        self.preview_signal.preview_ready.connect(self._on_preview_ready)
 
         # events.csvを読み込み
         self.load_events_metadata()
@@ -1421,16 +1642,15 @@ class EventEditorGUI(QMainWindow):
         self.text_editor.blockSignals(False)
         self.update_step_highlights()
 
-    def _apply_step_update(self, step, speaker, body, scroll_stop, actions):
-        """step内のセリフ/アクションを更新する"""
+    def _build_step_update_text(self, original_text, step, speaker, body, scroll_stop, actions, warn_scroll_stop=True):
         if not step:
-            return
+            return original_text
 
-        lines = self.text_editor.toPlainText().splitlines()
+        lines = original_text.splitlines()
         start_line = step.get("start_line", 0)
         end_line = step.get("end_line", start_line)
         if start_line < 0 or start_line >= len(lines):
-            return
+            return original_text
         region = lines[start_line : end_line + 1]
 
         def is_speaker_line(text):
@@ -1477,51 +1697,131 @@ class EventEditorGUI(QMainWindow):
             if scroll_stop:
                 line_text += "[scroll-stop]"
             new_region.append(line_text)
-        elif scroll_stop:
-            QMessageBox.warning(self, "警告", "セリフがないためscroll-stopを付けられません。")
+        elif scroll_stop and warn_scroll_stop:
+            QMessageBox.warning(self, "Warning", "Cannot set scroll-stop without dialogue text.")
 
         new_lines = lines[:start_line] + new_region + lines[end_line + 1 :]
+        return "\n".join(new_lines)
+
+    def _apply_step_update(self, step, speaker, body, scroll_stop, actions):
+        """step?????????????????"""
+        new_text = self._build_step_update_text(
+            self.text_editor.toPlainText(),
+            step,
+            speaker,
+            body,
+            scroll_stop,
+            actions,
+            warn_scroll_stop=True,
+        )
+
+        scrollbar = self.text_editor.verticalScrollBar()
+        old_scroll = scrollbar.value() if scrollbar else None
+        cursor = self.text_editor.textCursor()
+        old_pos = cursor.position()
+        old_anchor = cursor.anchor()
         self.text_editor.blockSignals(True)
-        self.text_editor.setPlainText("\n".join(new_lines))
+        self.text_editor.setPlainText(new_text)
+        if scrollbar and old_scroll is not None:
+            scrollbar.setValue(old_scroll)
+        doc_len = max(0, self.text_editor.document().characterCount() - 1)
+        new_pos = min(old_pos, doc_len)
+        new_anchor = min(old_anchor, doc_len)
+        cursor.setPosition(new_anchor)
+        cursor.setPosition(new_pos, QTextCursor.KeepAnchor)
+        self.text_editor.setTextCursor(cursor)
         self.text_editor.blockSignals(False)
         self.update_step_highlights()
 
-    def _generate_step_preview(self, step_index, dialog):
-        """stepのプレビュー画像を生成してダイアログに反映する"""
-        if not self.current_file_path:
-            return
-        if step_index is None:
-            return
-
+    def _run_step_preview(self, source_path, step_index, dialog, temp_path=None):
         preview_script = os.path.join(project_root, "preview_dialogue.py")
         if not os.path.exists(preview_script):
             return
 
         out_dir = os.path.join(project_root, "debug", "step_previews")
         os.makedirs(out_dir, exist_ok=True)
-        basename = os.path.splitext(os.path.basename(self.current_file_path))[0]
+        basename = os.path.splitext(os.path.basename(self.current_file_path or source_path))[0]
         out_path = os.path.join(out_dir, f"{basename}_step_{step_index + 1:04d}.png")
 
         cmd = [
             sys.executable,
             preview_script,
-            self.current_file_path,
+            source_path,
             "--step",
             str(step_index + 1),
             "--out",
             out_path,
         ]
 
-        try:
-            subprocess.run(cmd, check=True, timeout=30)
-        except Exception as e:
-            dialog.preview_label.setText(f"プレビュー生成失敗: {e}")
-            return
+        dialog.preview_label.setText("Generating preview...")
 
-        dialog.set_preview_image(out_path)
+        def worker():
+            success = True
+            message = ""
+            try:
+                subprocess.run(cmd, check=True, timeout=30)
+            except Exception as e:
+                success = False
+                message = f"Preview failed: {e}"
+            if temp_path:
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+            self.preview_signal.preview_ready.emit(dialog, out_path, success, message)
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+    def _on_preview_ready(self, dialog, image_path, success, message):
+        if not dialog or not hasattr(dialog, "preview_label"):
+            return
+        if not dialog.isVisible():
+            return
+        if not success:
+            dialog.preview_label.setText(message)
+            return
+        dialog.set_preview_image(image_path)
+
+    def _generate_step_preview(self, step_index, dialog):
+        """step????????????????"""
+        if not self.current_file_path:
+            return
+        if step_index is None:
+            return
+        self._run_step_preview(self.current_file_path, step_index, dialog)
+
+    def _preview_step_from_dialog(self, step, dialog):
+        if not step or step.get("step_index") is None:
+            return
+        if not self.current_file_path:
+            return
+        speaker, body, scroll_stop = dialog.get_dialogue_values()
+        actions = dialog.get_actions()
+        temp_text = self._build_step_update_text(
+            self.text_editor.toPlainText(),
+            step,
+            speaker,
+            body,
+            scroll_stop,
+            actions,
+            warn_scroll_stop=False,
+        )
+        out_dir = os.path.join(project_root, "debug", "step_previews")
+        os.makedirs(out_dir, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=".ks",
+            delete=False,
+            dir=out_dir,
+        ) as handle:
+            handle.write(temp_text)
+            temp_path = handle.name
+        self._run_step_preview(temp_path, step["step_index"], dialog, temp_path=temp_path)
 
     def _extract_actions_from_step(self, step):
-        """step範囲内のKSタグを抽出する"""
+        """step????KS???????"""
         if not step:
             return []
 
