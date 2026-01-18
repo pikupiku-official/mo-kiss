@@ -4,6 +4,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from bgm_manager import BGMManager
 from config import *
+from .ir_model import make_action, make_step, make_text
 
 # aiofilesの条件付きインポート
 try:
@@ -46,6 +47,7 @@ class DialogueLoader:
         # 非同期処理用
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loading_tasks = {}  # ファイル読み込み中のタスク管理
+        self.ir_data = None  # IR skeleton (optional)
 
     def _wrap_text_and_count_lines(self, text):
         """テキストを26文字で自動改行し、行数を返す"""
@@ -98,6 +100,7 @@ class DialogueLoader:
                 
             # 対話データを解析
             dialogue_data = self._parse_ks_content(content)
+            self.ir_data = self._build_ir_skeleton(dialogue_data)
 
             if self.debug:
                 print(f"{len(dialogue_data)} 個の対話エントリーが解析されました")
@@ -163,6 +166,7 @@ class DialogueLoader:
             
             # パース処理を別スレッドで実行（CPU集約的な処理のため）
             dialogue_data = await asyncio.to_thread(self._parse_ks_content, content)
+            self.ir_data = self._build_ir_skeleton(dialogue_data)
             
             if self.debug:
                 print(f"非同期読み込み完了: {len(dialogue_data)} 個の対話エントリーが解析されました")
@@ -325,6 +329,8 @@ class DialogueLoader:
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
                         size = re.search(r'size="([^"]+)"', line)
+                        fade = re.search(r'fade="([^"]+)"', line)
+                        fade_time = re.search(r'time="([^"]+)"', line)
 
                         if char_name:
                             current_char = char_name.group(1)
@@ -376,6 +382,14 @@ class DialogueLoader:
                             except (ValueError, AttributeError):
                                 current_blink = True
 
+                            fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                            current_fade = None
+                            if fade_source is not None:
+                                try:
+                                    current_fade = float(fade_source)
+                                except (ValueError, AttributeError):
+                                    current_fade = None
+
                             # デバッグ出力削除
 
                             dialogue_data.append({
@@ -389,7 +403,8 @@ class DialogueLoader:
                                 'blink': current_blink,
                                 'show_x': current_show_x,
                                 'show_y': current_show_y,
-                                'size': current_size
+                                'size': current_size,
+                                'fade': current_fade
                             })
                         else:
                             if self.debug:
@@ -400,6 +415,91 @@ class DialogueLoader:
                             print(f"キャラクター解析エラー（行 {line_num}）: {e} - {line}")
                     
                 # BGM一時停止を検出（[BGM より前にチェック）
+                
+                # chara_shift tag
+                elif "[chara_shift" in line:
+                    try:
+                        char_name = re.search(r'name="([^"]+)"', line)
+                        if not char_name:
+                            char_name = re.search(r'sub="([^"]+)"', line)
+
+                        torso_id = re.search(r'torso="([^"]+)"', line)
+                        eye_type = re.search(r'eye="([^"]+)"', line)
+                        mouth_type = re.search(r'mouth="([^"]+)"', line)
+                        brow_type = re.search(r'brow="([^"]+)"', line)
+                        cheek_type = re.search(r'cheek="([^"]+)"', line)
+                        show_x = re.search(r'x="([^"]+)"', line)
+                        show_y = re.search(r'y="([^"]+)"', line)
+                        size = re.search(r'size="([^"]+)"', line)
+                        fade = re.search(r'fade="([^"]+)"', line)
+                        fade_time = re.search(r'time="([^"]+)"', line)
+
+                        if char_name:
+                            current_char = char_name.group(1)
+                            current_torso = torso_id.group(1) if torso_id else None
+                            current_eye = eye_type.group(1) if eye_type else ""
+                            current_mouth = mouth_type.group(1) if mouth_type else ""
+                            current_brow = brow_type.group(1) if brow_type else ""
+                            current_cheek = cheek_type.group(1) if cheek_type else ""
+                            current_show_x = show_x.group(1) if show_x else None
+                            current_show_y = show_y.group(1) if show_y else None
+                            current_size = size.group(1) if size else None
+                            fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                            current_fade = None
+                            if fade_source is not None:
+                                try:
+                                    current_fade = float(fade_source)
+                                except (ValueError, AttributeError):
+                                    current_fade = None
+
+                            if current_char not in character_face_parts:
+                                character_face_parts[current_char] = {
+                                    'eye': "",
+                                    'mouth': "",
+                                    'brow': "",
+                                    'cheek': ""
+                                }
+
+                            if eye_type is not None:
+                                character_face_parts[current_char]['eye'] = current_eye
+                            if mouth_type is not None:
+                                character_face_parts[current_char]['mouth'] = current_mouth
+                            if brow_type is not None:
+                                character_face_parts[current_char]['brow'] = current_brow
+                            if cheek_type is not None:
+                                character_face_parts[current_char]['cheek'] = current_cheek
+
+                            shift_entry = {
+                                'type': 'chara_shift',
+                                'name': current_char
+                            }
+                            if torso_id is not None:
+                                shift_entry['torso'] = current_torso
+                            if eye_type is not None:
+                                shift_entry['eye'] = current_eye
+                            if mouth_type is not None:
+                                shift_entry['mouth'] = current_mouth
+                            if brow_type is not None:
+                                shift_entry['brow'] = current_brow
+                            if cheek_type is not None:
+                                shift_entry['cheek'] = current_cheek
+                            if show_x is not None:
+                                shift_entry['x'] = current_show_x
+                            if show_y is not None:
+                                shift_entry['y'] = current_show_y
+                            if size is not None:
+                                shift_entry['size'] = current_size
+                            if current_fade is not None:
+                                shift_entry['fade'] = current_fade
+                            dialogue_data.append(shift_entry)
+                        else:
+                            if self.debug:
+                                print(f"character name not found: {line}")
+
+                    except Exception as e:
+                        if self.debug:
+                            print(f"chara_shift parse error (line {line_num}): {e} - {line}")
+
                 elif "[BGMSTOP" in line:
                     try:
                         time_match = re.search(r'time="([^"]+)"', line)
@@ -540,13 +640,23 @@ class DialogueLoader:
                             name_parts_h = re.search(r'subh="([^"]+)"', line)
                         if name_parts_h:
                             char_name = name_parts_h.group(1)
+                            fade = re.search(r'fade="([^"]+)"', line)
+                            fade_time = re.search(r'time="([^"]+)"', line)
+                            fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                            current_fade = None
+                            if fade_source is not None:
+                                try:
+                                    current_fade = float(fade_source)
+                                except (ValueError, AttributeError):
+                                    current_fade = None
                             
                             # デバッグ出力削除
                             
                             # 退場コマンドをダイアログデータに追加
                             dialogue_data.append({
                                 'type': 'hide',
-                                'character': char_name
+                                'character': char_name,
+                                'fade': current_fade
                             })
 
                             # 退場したキャラクターが現在のキャラクターだった場合、リセット
@@ -681,51 +791,44 @@ class DialogueLoader:
                         'type': 'scroll_stop'
                     })
 
-                # [event_unlock]タグを検出 - イベント有効化/無効化
-                elif "[event_unlock" in line or "[erevent_unlock" in line:
+                # [event_control]????? - ???????/???
+                elif "[event_control" in line:
                     try:
-                        # 両方のフォーマットに対応: events="..." と target="..."
+                        unlock_match = re.search(r'unlock="([^"]+)"', line)
+                        lock_match = re.search(r'lock="([^"]+)"', line)
                         events_match = re.search(r'events="([^"]+)"', line)
                         target_events = re.search(r'target="([^"]+)"', line)
-                        lock_events = re.search(r'lock="([^"]+)"', line)
-                        
-                        # events= または target= から解禁リストを取得
-                        if events_match:
+
+                        if unlock_match:
+                            unlock_list = unlock_match.group(1).split(',')
+                        elif events_match:
                             unlock_list = events_match.group(1).split(',')
                         elif target_events:
                             unlock_list = target_events.group(1).split(',')
                         else:
                             unlock_list = []
-                            
-                        lock_list = lock_events.group(1).split(',') if lock_events else []
-                        
-                        # 空白文字を除去
+
+                        lock_list = lock_match.group(1).split(',') if lock_match else []
+
                         unlock_list = [event.strip() for event in unlock_list if event.strip()]
                         lock_list = [event.strip() for event in lock_list if event.strip()]
-                        
+
                         if self.debug:
-                            print(f"イベント制御: 解放={unlock_list}, ロック={lock_list}")
-                        
-                        # event_unlock形式でデータを追加
-                        if unlock_list:
-                            dialogue_data.append({
-                                'type': 'event_unlock',
-                                'events': unlock_list
-                            })
-                        
-                        # 互換性のため、旧形式も追加（ロックがある場合）
-                        if lock_list:
-                            dialogue_data.append({
-                                'type': 'event_control',
-                                'unlock': unlock_list,
-                                'lock': lock_list
-                            })
-                        
+                            print(f"??????(event_control): ??={unlock_list}, ???={lock_list}")
+
+                        dialogue_data.append({
+                            'type': 'event_control',
+                            'unlock': unlock_list,
+                            'lock': lock_list
+                        })
+
                     except Exception as e:
                         if self.debug:
-                            print(f"イベント制御解析エラー（行 {line_num}）: {e} - {line}")
+                            print(f"??????(event_control)??????? {line_num}?: {e} - {line}")
 
-                # [flag_set]タグを検出 - ストーリーフラグ設定
+
+
+                # [flag_set]????? - ??????????タグを検出 - ストーリーフラグ設定
                 elif "[flag_set" in line:
                     try:
                         flag_name = re.search(r'name="([^"]+)"', line)
@@ -823,27 +926,6 @@ class DialogueLoader:
                         'type': 'if_end'
                     })
 
-                # [event_unlock]タグを検出 - イベント解禁
-                elif "[event_unlock" in line:
-                    try:
-                        events_match = re.search(r'events="([^"]+)"', line)
-                        
-                        if events_match:
-                            events_str = events_match.group(1)
-                            event_list = [event.strip() for event in events_str.split(',') if event.strip()]
-                            
-                            print(f"[PARSE] イベント解禁パース: {event_list}")
-                            
-                            dialogue_data.append({
-                                'type': 'event_unlock',
-                                'events': event_list
-                            })
-                            print(f"[PARSE] dialogue_dataに追加: event_unlock")
-                        
-                    except Exception as e:
-                        if self.debug:
-                            print(f"イベント解禁解析エラー（行 {line_num}）: {e} - {line}")
-
             except Exception as e:
                     if self.debug:
                         print(f"ダイアログ読み取りエラー")
@@ -857,6 +939,39 @@ class DialogueLoader:
             print(f"解析完了: {len(dialogue_data)} 個の辞書エントリーを返します")
 
         return dialogue_data
+
+    def _build_ir_skeleton(self, dialogue_data):
+        """Build a minimal IR skeleton alongside existing dialogue data."""
+        steps = []
+        if not dialogue_data:
+            return {"steps": steps}
+
+        for index, entry in enumerate(dialogue_data, 1):
+            step_id = f"step_{index:04d}"
+            if isinstance(entry, dict) and entry.get("type") == "dialogue":
+                text = make_text(
+                    speaker=entry.get("character", ""),
+                    body=entry.get("text", ""),
+                    scroll=bool(entry.get("scroll_continue", False)),
+                )
+                steps.append(make_step(step_id=step_id, text=text))
+                continue
+
+            if isinstance(entry, dict):
+                action = entry.get("type", "unknown")
+                target = entry.get("character") or entry.get("name")
+                params = {k: v for k, v in entry.items() if k != "type"}
+                steps.append(
+                    make_step(
+                        step_id=step_id,
+                        actions=[make_action(action=action, target=target, params=params)],
+                    )
+                )
+                continue
+
+            steps.append(make_step(step_id=step_id))
+
+        return {"steps": steps}
 
     def set_max_chars_per_line(self, max_chars):
         """1行あたりの最大文字数を設定"""
@@ -1193,9 +1308,6 @@ class DialogueLoader:
             flag_value = command_data.get('value')
             self.set_story_flag(flag_name, flag_value)
             
-        elif command_type == 'event_unlock':
-            events = command_data.get('events', [])
-            self.unlock_events(events)
             
         elif command_type == 'check_condition':
             condition = command_data.get('condition', '')

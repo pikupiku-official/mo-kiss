@@ -37,23 +37,21 @@
       	「{苗字}ももう二年生なんだから、そんくらい知っててよー！」
  [endif]
 
-[chara_hide name="桃子"]
-[chara_show name="桃子" torso="T03_00_01" eye="F03_Ex00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
+[chara_shift name="桃子" eye="F03_Ex00_00"]
 
 	//桃子//
 	「CM見た？ミニストの。」
 	//{苗字}//
 	「え、どんなやつだっけ？覚えてないや」
 
-[chara_hide name="桃子"]
-[chara_show name="桃子" torso="T00_02_01" eye="F00_Ew00_00" mouth="F00_Mh01_03" brow="F00_Bn00_00" cheek="" x="0.5" y="1.05" size="2.5"]
+[chara_shift name="桃子" torso="T00_02_01" eye="F00_Ew00_00" mouth="F00_Mh01_03" brow="F00_Bn00_00" cheek="" x="0.5" y="1.05" size="2.5"]
 
 	//桃子//
 	「強がり！ほんとだって！パイナップルソフトくださーい。」
 	//{苗字}//
 	「うわびっくりした！なんだよいきなり。」
 
-[chara_show name="桃子" torso="T00_02_01" eye="F00_Eh00_00" mouth="F00_Mh01_03" brow="F00_Bn00_00" cheek="" x="0.5" y="1.05" size="2.5"]
+[chara_shift name="桃子" eye="F00_Eh00_00"]
 
 	//桃子//
 	「CMのマネ。似てるでしょ。」
@@ -73,10 +71,9 @@
 *scene2|&f.title+"教室のシーン"
 [resetlaypos]
 
-[chara_hide name="桃子"]
 [bg_show storage="test.bg.schoolroute01"  bg_x="0.5" bg_y="0.5" bg_zoom="1"]
 [BGM bgm="classroom" volume="0" loop="true"]
-[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
+[chara_shift name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
 [fadein time="1.5"]
 
 	//{苗字}//
@@ -202,8 +199,7 @@
 
 	//桃子//
 	「・・・」
-[chara_hide name="桃子"]
-[chara_show name="桃子" torso="T00_02_01" eye="F00_En00_00" mouth="F00_Mh01_01" brow="F00_Bn00_00" cheek="" x="0.55" y="0.6" size="0.4"]
+[chara_shift name="桃子" torso="T00_02_01" eye="F00_En00_00" mouth="F00_Mh01_01" brow="F00_Bn00_00" cheek="" x="0.55" y="0.6" size="0.4"]
 
 	「・・・」
 

@@ -542,6 +542,7 @@ class GameApplication:
                 from dialogue.background_manager import draw_background
                 from dialogue.choice_renderer import ChoiceRenderer
                 from dialogue.fade_manager import draw_fade_overlay
+                from dialogue.controller2 import draw_input_blocked_notice
 
                 # 仮想画面をクリア
                 self.virtual_screen.fill((0, 0, 0))
@@ -586,6 +587,8 @@ class GameApplication:
                 if 'notification_manager' in self.dialogue_game_state:
                     notification_manager = self.dialogue_game_state['notification_manager']
                     notification_manager.render()
+
+                draw_input_blocked_notice(self.dialogue_game_state, self.virtual_screen)
 
                 # 仮想画面をフルスクリーンにスケーリングして転送
                 # 4:3コンテンツを画面中央に配置

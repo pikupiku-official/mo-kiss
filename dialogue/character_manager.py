@@ -32,6 +32,48 @@ def get_scaled_image(image, zoom_scale):
     _scaled_image_cache[cache_key] = scaled_image
     return scaled_image
 
+def _blit_with_alpha(screen, image, pos, alpha):
+    if alpha >= 255:
+        screen.blit(image, pos)
+        return
+    temp = image.copy()
+    temp.set_alpha(alpha)
+    screen.blit(temp, pos)
+
+def start_character_part_fade(game_state, character_name, part_type, from_id, to_id, duration_ms):
+    if duration_ms <= 0:
+        return
+    if from_id == to_id:
+        if DEBUG:
+            print(f"[FADE] skip (same) char={character_name} part={part_type} id={from_id}")
+        return
+    if DEBUG:
+        print(f"[FADE] start char={character_name} part={part_type} from={from_id} to={to_id} duration_ms={duration_ms}")
+    fades = game_state.setdefault('character_part_fades', {})
+    char_fades = fades.setdefault(character_name, {})
+    char_fades[part_type] = {
+        'from': from_id,
+        'to': to_id,
+        'start_time': pygame.time.get_ticks(),
+        'duration': duration_ms
+    }
+
+def start_character_hide_fade(game_state, character_name, duration_ms):
+    if duration_ms <= 0:
+        hide_character(game_state, character_name)
+        return
+    if DEBUG:
+        print(f"[FADE] hide start char={character_name} duration_ms={duration_ms}")
+    expressions = game_state.get('character_expressions', {}).get(character_name, {})
+    torso_id = game_state.get('character_torso', {}).get(character_name, character_name)
+    start_character_part_fade(game_state, character_name, 'torso', torso_id, None, duration_ms)
+    start_character_part_fade(game_state, character_name, 'brow', expressions.get('brow'), None, duration_ms)
+    start_character_part_fade(game_state, character_name, 'eye', expressions.get('eye'), None, duration_ms)
+    start_character_part_fade(game_state, character_name, 'mouth', expressions.get('mouth'), None, duration_ms)
+    start_character_part_fade(game_state, character_name, 'cheek', expressions.get('cheek'), None, duration_ms)
+    hide_pending = game_state.setdefault('character_hide_pending', {})
+    hide_pending[character_name] = pygame.time.get_ticks() + duration_ms
+
 def move_character(game_state, character_name, target_x, target_y, duration=600, zoom=1.0):
     """キャラクターを指定位置に移動するアニメーションを設定する"""
     if character_name not in game_state['character_pos']:
@@ -331,132 +373,177 @@ def update_character_animations(game_state):
 
     # まばたきシステムの更新
     update_blink_system(game_state)
+    update_character_fades(game_state)
 
-def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale):
-    """顔パーツの描画（遅延ロード対応）"""
+def update_character_fades(game_state):
+    current_time = pygame.time.get_ticks()
+    fades = game_state.get('character_part_fades', {})
+    for char_name, part_map in list(fades.items()):
+        for part_type, fade in list(part_map.items()):
+            duration = fade.get('duration', 0)
+            if duration <= 0 or current_time - fade.get('start_time', 0) >= duration:
+                if DEBUG:
+                    print(f"[FADE] end char={char_name} part={part_type}")
+                part_map.pop(part_type, None)
+        if not part_map:
+            fades.pop(char_name, None)
+
+    hide_pending = game_state.get('character_hide_pending', {})
+    for char_name, end_time in list(hide_pending.items()):
+        if current_time >= end_time:
+            hide_pending.pop(char_name, None)
+            hide_character(game_state, char_name)
+            fades.pop(char_name, None)
+
+def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale, fade_map=None, current_time=None):
+    """Face parts rendering with optional crossfade."""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
         return
 
+    if current_time is None:
+        current_time = pygame.time.get_ticks()
+    if fade_map is None:
+        fade_map = {}
+
     character_pos = game_state['character_pos'][char_name]
     image_manager = game_state['image_manager']
 
-    # 胴体IDを取得（新形式）後方互換性のためchar_nameをフォールバック
     torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
-
-    # キャラクター画像を遅延ロードで取得（torso_idを使用）
     char_img = image_manager.get_image("characters", torso_id)
     if not char_img:
         return
 
-    # キャラクター画像のサイズと中央座標を一度だけ計算
     actual_char_width = char_img.get_width() * zoom_scale
     actual_char_height = char_img.get_height() * zoom_scale
     char_center_x = character_pos[0] + actual_char_width // 2
     char_center_y = character_pos[1] + actual_char_height // 2
 
-    # 眉毛を描画
-    if brow_type:
-        brow_img = image_manager.get_image("brows", brow_type)
-        if brow_img:
-            brow_img = get_scaled_image(brow_img, zoom_scale)
-            brow_pos = (
-                char_center_x - brow_img.get_width() // 2,
-                char_center_y - brow_img.get_height() // 2
-            )
-            screen.blit(brow_img, brow_pos)
+    def draw_part_image(part_img, alpha=255):
+        part_pos = (
+            char_center_x - part_img.get_width() // 2,
+            char_center_y - part_img.get_height() // 2
+        )
+        _blit_with_alpha(screen, part_img, part_pos, alpha)
 
-    # 目を描画（まばたき考慮）
+    def draw_part(part_type, part_id):
+        fade = fade_map.get(part_type)
+        if fade:
+            duration = fade.get('duration', 0)
+            start_time = fade.get('start_time', 0)
+            progress = 1.0 if duration <= 0 else min(1.0, (current_time - start_time) / duration)
+            if progress >= 1.0:
+                fade_map.pop(part_type, None)
+                part_id = fade.get('to')
+                if not part_id:
+                    return
+                fade = None
+            else:
+                from_id = fade.get('from')
+                to_id = fade.get('to')
+                if from_id:
+                    from_img = image_manager.get_image(part_type + "s", from_id)
+                    if from_img:
+                        from_img = get_scaled_image(from_img, zoom_scale)
+                        draw_part_image(from_img, int(255 * (1.0 - progress)))
+                if to_id:
+                    to_img = image_manager.get_image(part_type + "s", to_id)
+                    if to_img:
+                        to_img = get_scaled_image(to_img, zoom_scale)
+                        draw_part_image(to_img, int(255 * progress))
+                return
+
+        if part_id:
+            part_img = image_manager.get_image(part_type + "s", part_id)
+            if part_img:
+                part_img = get_scaled_image(part_img, zoom_scale)
+                draw_part_image(part_img)
+
     final_eye_type = eye_type
-
-    # まばたき中の場合は、まばたき用の目を使用
     if char_name in game_state.get('character_blink_state', {}) and \
        game_state['character_blink_state'][char_name].get('current_state') == 'blinking':
         blink_eye = game_state['character_expressions'].get(char_name, {}).get('eye_blink', '')
-        if blink_eye:
+        if blink_eye and 'eye' not in fade_map:
             final_eye_type = blink_eye
 
-    if final_eye_type:
-        eye_img = image_manager.get_image("eyes", final_eye_type)
-        if eye_img:
-            eye_img = get_scaled_image(eye_img, zoom_scale)
-        
-            eye_pos = (
-                char_center_x - eye_img.get_width() // 2,
-                char_center_y - eye_img.get_height() // 2
-            )
-            screen.blit(eye_img, eye_pos)
-
-    # 口を描画
-    if mouth_type:
-        mouth_img = image_manager.get_image("mouths", mouth_type)
-        if mouth_img:
-            mouth_img = get_scaled_image(mouth_img, zoom_scale)
-
-            mouth_pos = (
-                char_center_x - mouth_img.get_width() // 2,
-                char_center_y - mouth_img.get_height() // 2
-            )
-            screen.blit(mouth_img, mouth_pos)
-
-    # 頬を描画
-    if cheek_type:
-        cheek_img = image_manager.get_image("cheeks", cheek_type)
-        if cheek_img:
-            cheek_img = get_scaled_image(cheek_img, zoom_scale)
-
-            cheek_pos = (
-                char_center_x - cheek_img.get_width() // 2,
-                char_center_y - cheek_img.get_height() // 2
-            )
-            screen.blit(cheek_img, cheek_pos)
+    draw_part('brow', brow_type)
+    draw_part('eye', final_eye_type)
+    draw_part('mouth', mouth_type)
+    draw_part('cheek', cheek_type)
 
 def draw_characters(game_state):
-    """画面上にキャラクターを描画する（遅延ロード対応）"""
+    """Draw characters with optional part fades."""
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']] if game_state['dialogue_data'] else None
     current_speaker = current_dialogue[1] if current_dialogue and len(current_dialogue) > 1 else None
     image_manager = game_state['image_manager']
     screen = game_state['screen']
 
     for char_name in game_state['active_characters']:
-        if char_name in game_state['character_pos']:
-            # 胴体IDを取得（新形式）後方互換性のためchar_nameをフォールバック
-            torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
+        if char_name not in game_state['character_pos']:
+            continue
 
-            # キャラクター画像を遅延ロードで取得（torso_idを使用）
-            char_img = image_manager.get_image("characters", torso_id)
+        fade_map = game_state.get('character_part_fades', {}).get(char_name, {})
+        current_time = pygame.time.get_ticks()
+        torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
 
-            if not char_img:
-                if DEBUG:
-                    print(f"警告: キャラクター画像 '{char_name}' が取得できません")
-                continue
+        char_img = image_manager.get_image("characters", torso_id)
+        if not char_img:
+            if DEBUG:
+                print(f"??: ????????'{char_name}' ????????")
+            continue
 
-            # キャラクターの位置とズーム倍率を取得
-            x, y = game_state['character_pos'][char_name]
-            zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
-            # 自動スケールは無効化（元サイズで表示）
+        x, y = game_state['character_pos'][char_name]
+        zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
 
-            # ズーム倍率を適用してキャラクター画像をスケール（キャッシュ使用）
-            # キャラクター画像は非常に大きい（2894x4093）ので、仮想解像度に合わせて基準スケールを適用
-            # 仮想解像度1920x1080に対して適切なサイズに調整する基準スケール
-            char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()  # 高さ基準でスケール計算
-            final_zoom = zoom_scale * char_base_scale * SCALE
-            scaled_char_img = get_scaled_image(char_img, final_zoom)
+        def draw_torso_image(torso_key, alpha=255):
+            torso_img = image_manager.get_image("characters", torso_key)
+            if not torso_img:
+                return None
+            base_scale = VIRTUAL_HEIGHT / torso_img.get_height()
+            final_zoom = zoom_scale * base_scale * SCALE
+            scaled_img = get_scaled_image(torso_img, final_zoom)
+            _blit_with_alpha(screen, scaled_img, (x, y), alpha)
+            return torso_img
 
-            # 画面に描画
-            game_state['screen'].blit(scaled_char_img, (x, y))
+        torso_fade = fade_map.get('torso')
+        if torso_fade:
+            duration = torso_fade.get('duration', 0)
+            start_time = torso_fade.get('start_time', 0)
+            progress = 1.0 if duration <= 0 else min(1.0, (current_time - start_time) / duration)
+            if progress >= 1.0:
+                fade_map.pop('torso', None)
+                torso_to = torso_fade.get('to')
+                if torso_to:
+                    char_img = draw_torso_image(torso_to) or char_img
+                else:
+                    continue
+            else:
+                if torso_fade.get('from'):
+                    draw_torso_image(torso_fade.get('from'), int(255 * (1.0 - progress)))
+                if torso_fade.get('to'):
+                    draw_torso_image(torso_fade.get('to'), int(255 * progress))
+        else:
+            draw_torso_image(torso_id, 255)
 
-            # 表情パーツを表示
-            if game_state['show_face_parts']:
+        char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()
 
-                # 保存された表情を使用（scenario_manager.pyで既に更新済み）
-                expressions = game_state['character_expressions'].get(char_name, {})
-                eye_type = expressions.get('eye', '')
-                mouth_type = expressions.get('mouth', '')
-                brow_type = expressions.get('brow', '')
-                cheek_type = expressions.get('cheek', '')
+        if game_state['show_face_parts']:
+            expressions = game_state['character_expressions'].get(char_name, {})
+            eye_type = expressions.get('eye', '')
+            mouth_type = expressions.get('mouth', '')
+            brow_type = expressions.get('brow', '')
+            cheek_type = expressions.get('cheek', '')
 
-                # 顔パーツを描画（必ず呼び出し）
-                # 顔パーツも同じスケールを適用
-                face_final_zoom = zoom_scale * char_base_scale * SCALE
-                render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, face_final_zoom)
+            face_final_zoom = zoom_scale * char_base_scale * SCALE
+            render_face_parts(
+                game_state,
+                char_name,
+                brow_type,
+                eye_type,
+                mouth_type,
+                cheek_type,
+                face_final_zoom,
+                fade_map=fade_map,
+                current_time=current_time,
+            )
+

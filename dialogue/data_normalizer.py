@@ -75,7 +75,9 @@ def normalize_dialogue_data(raw_data):
             show_x = entry.get('show_x', 0.5)
             show_y = entry.get('show_y', 0.5)
             size = entry.get('size', 1.0)
-            fade = entry.get('fade', 0.3)  # フェード時間を取得（デフォルト: 0.3秒）
+            fade = entry.get('fade')
+            if fade is None:
+                fade = CHARA_TRANSITION_DEFAULT_MS / 1000.0
             # デバッグ出力削除
             # キャラクター登場コマンドを追加（torso_idを使用、論理名char_nameも渡す）
             command_text = f"_CHARA_NEW_{torso_id}_{show_x}_{show_y}_{size}_{current_blink}_{fade}_{char_name}"
@@ -168,7 +170,9 @@ def normalize_dialogue_data(raw_data):
             # キャラクター退場コマンドを正規化形式で追加
             # 論理名をそのまま使用（active_charactersと一致させる）
             hide_char = entry['character']
-            fade = entry.get('fade', 0.3)  # フェード時間を取得（デフォルト: 0.3秒）
+            fade = entry.get('fade')
+            if fade is None:
+                fade = CHARA_TRANSITION_DEFAULT_MS / 1000.0
             hide_command = f"_CHARA_HIDE_{hide_char}_{fade}"
             normalized_data.append([
                 current_bg, hide_char, current_eye, current_mouth, current_brow, current_cheek,
@@ -228,6 +232,13 @@ def normalize_dialogue_data(raw_data):
             normalized_data.append(entry)
             print(f"[NORMALIZE] event_unlock追加: {entry}")
                 
+        
+        elif entry_type == 'chara_shift':
+            # preserve chara_shift as dict entry
+            normalized_data.append(entry)
+            if DEBUG:
+                print(f"chara_shift added: {entry}")
+
         elif entry_type == 'fadein':
             # フェードインコマンドを追加
             fadein_command = f"_FADEIN_{entry['time']}"
@@ -241,6 +252,8 @@ def normalize_dialogue_data(raw_data):
     # 対話テキストエントリが含まれているかチェック
     dialogue_count = 0
     for i, entry in enumerate(normalized_data):
+        if isinstance(entry, dict):
+            continue
         if len(entry) > 6 and entry[6] and not entry[6].startswith('_'):
             dialogue_count += 1
     

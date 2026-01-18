@@ -1,11 +1,20 @@
 import pygame
 from config import *
-from .character_manager import move_character, hide_character, set_blink_enabled, init_blink_system
+from .character_manager import (
+    move_character,
+    hide_character,
+    set_blink_enabled,
+    init_blink_system,
+    start_character_part_fade,
+    start_character_hide_fade,
+)
 from .background_manager import show_background, move_background
 from .fade_manager import start_fadeout, start_fadein
 
 def advance_dialogue(game_state):
     """次の対話に進む"""
+    if game_state.get("use_ir") and game_state.get("ir_data"):
+        return advance_dialogue_ir(game_state)
     max_index = len(game_state['dialogue_data']) - 1
 
     if game_state['current_paragraph'] >= max_index:
@@ -102,6 +111,394 @@ def advance_dialogue(game_state):
         # 通常の対話テキスト
         return _handle_dialogue_text(game_state, current_dialogue)
     
+def advance_dialogue_ir(game_state):
+    """Advance dialogue using IR data."""
+    ir_data = game_state.get("ir_data") or {}
+    steps = ir_data.get("steps") or []
+    if not steps:
+        return False
+
+    next_index = game_state.get("ir_step_index", -1) + 1
+    if next_index >= len(steps):
+        return False
+
+    game_state["ir_step_index"] = next_index
+    step = steps[next_index]
+    if isinstance(step, dict) and "source_index" in step:
+        game_state["current_paragraph"] = step.get("source_index", next_index)
+    else:
+        game_state["current_paragraph"] = next_index
+    game_state["ir_anim_pending"] = False
+    game_state["ir_anim_end_time"] = None
+
+    actions = step.get("actions") if isinstance(step, dict) else None
+    choice_shown = False
+    if actions:
+        for action in actions:
+            action_type = action.get("action")
+            params = action.get("params") or {}
+            if action_type == "scroll_stop":
+                _ir_handle_scroll_stop(game_state)
+                return advance_dialogue_ir(game_state)
+            if action_type == "if_start":
+                return _handle_if_start(game_state, params)
+            if action_type == "if_end":
+                return _handle_if_end(game_state, params)
+            if action_type == "flag_set":
+                return _handle_flag_set(game_state, params)
+            if action_type == "event_unlock":
+                return _handle_event_unlock(game_state, params)
+            if action_type == "choice":
+                _ir_handle_choice(game_state, params)
+                choice_shown = True
+                continue
+            _ir_dispatch_action(game_state, action)
+
+    text = step.get("text") if isinstance(step, dict) else None
+    if text:
+        speaker = text.get("speaker")
+        body = text.get("body", "")
+        should_scroll = bool(text.get("scroll", False))
+        text_renderer = game_state.get("text_renderer")
+        if text_renderer:
+            active_characters = game_state.get("active_characters", [])
+            if isinstance(active_characters, dict):
+                active_characters = list(active_characters.keys())
+            text_renderer.set_dialogue(
+                body,
+                speaker,
+                should_scroll=should_scroll,
+                background=None,
+                active_characters=active_characters,
+            )
+        return True
+
+    if actions and not choice_shown:
+        if game_state.get("ir_anim_pending"):
+            game_state["ir_waiting_for_anim"] = True
+            return True
+        return advance_dialogue_ir(game_state)
+
+    return True
+
+def _ir_dispatch_action(game_state, action):
+    action_type = action.get("action")
+    target = action.get("target")
+    params = action.get("params") or {}
+
+    if action_type == "chara_show":
+        _ir_handle_character_show(game_state, target, params)
+    elif action_type == "chara_shift":
+        _ir_handle_character_shift(game_state, target, params)
+    elif action_type == "chara_hide":
+        _ir_handle_character_hide(game_state, target, params)
+    elif action_type == "chara_move":
+        _ir_handle_character_move(game_state, target, params)
+    elif action_type == "bg_show":
+        _ir_handle_background_show(game_state, params)
+    elif action_type == "bg_move":
+        _ir_handle_background_move(game_state, params)
+    elif action_type == "background":
+        bg_name = params.get("value") or params.get("storage")
+        if bg_name:
+            show_background(game_state, bg_name, 0.5, 0.5, 1.0)
+    elif action_type == "fadeout":
+        color = params.get("color", "black")
+        time = _to_float(params.get("time"), 1.0)
+        start_fadeout(game_state, color, time)
+    elif action_type == "fadein":
+        time = _to_float(params.get("time"), 1.0)
+        start_fadein(game_state, time)
+    elif action_type == "se_play":
+        _ir_handle_se_play(game_state, params)
+    elif action_type == "bgm_pause":
+        _ir_handle_bgm_pause(game_state, params)
+    elif action_type == "bgm_unpause":
+        _ir_handle_bgm_unpause(game_state, params)
+    _ir_register_action_animation(game_state, action)
+
+def _ir_handle_scroll_stop(game_state):
+    text_renderer = game_state.get("text_renderer")
+    if text_renderer:
+        text_renderer.scroll_manager.process_scroll_stop_command()
+
+def _ir_handle_choice(game_state, params):
+    options = params.get("options") or []
+    if not options:
+        return
+    choice_renderer = game_state.get("choice_renderer")
+    if choice_renderer:
+        choice_renderer.show_choices(options)
+
+def _ir_handle_character_show(game_state, target, params):
+    if not target:
+        return
+
+    fade_ms = _get_fade_ms(params, CHARA_TRANSITION_DEFAULT_MS)
+    torso_id = params.get("torso") or target
+    show_x = _to_float(params.get("x"), 0.5)
+    show_y = _to_float(params.get("y"), 0.5)
+    size = _to_float(params.get("size"), 1.0)
+    blink_enabled = params.get("blink", True)
+
+    image_manager = game_state.get("image_manager")
+    if not image_manager:
+        return
+    char_img = image_manager.get_image("characters", torso_id)
+    if not char_img:
+        return
+
+    if "character_torso" not in game_state:
+        game_state["character_torso"] = {}
+    game_state["character_torso"][target] = torso_id
+    hide_pending = game_state.get("character_hide_pending")
+    if hide_pending and target in hide_pending:
+        hide_pending.pop(target, None)
+
+    is_new_character = target not in game_state.get("active_characters", [])
+    if is_new_character:
+        game_state["active_characters"].append(target)
+
+        char_width = char_img.get_width()
+        char_height = char_img.get_height()
+        char_base_scale = VIRTUAL_HEIGHT / char_height
+        virtual_width = char_width * char_base_scale * size
+        virtual_height = char_height * char_base_scale * size
+        virtual_center_x = VIRTUAL_WIDTH * show_x
+        virtual_center_y = VIRTUAL_HEIGHT * show_y
+        virtual_pos_x = int(virtual_center_x - virtual_width // 2)
+        virtual_pos_y = int(virtual_center_y - virtual_height // 2)
+        pos_x, pos_y = scale_pos(virtual_pos_x, virtual_pos_y)
+
+        game_state["character_pos"][target] = [pos_x, pos_y]
+        game_state["character_zoom"][target] = size
+
+        set_blink_enabled(game_state, target, blink_enabled)
+        if blink_enabled:
+            init_blink_system(game_state, target)
+
+    _ir_update_expressions(game_state, target, params)
+    if fade_ms > 0:
+        start_character_part_fade(game_state, target, "torso", None, torso_id, fade_ms)
+        expressions = game_state.get("character_expressions", {}).get(target, {})
+        if expressions.get("brow"):
+            start_character_part_fade(game_state, target, "brow", None, expressions.get("brow"), fade_ms)
+        if expressions.get("eye"):
+            start_character_part_fade(game_state, target, "eye", None, expressions.get("eye"), fade_ms)
+        if expressions.get("mouth"):
+            start_character_part_fade(game_state, target, "mouth", None, expressions.get("mouth"), fade_ms)
+        if expressions.get("cheek"):
+            start_character_part_fade(game_state, target, "cheek", None, expressions.get("cheek"), fade_ms)
+
+    try:
+        image_manager.preload_character_set(target, {
+            "eyes": [params.get("eye")] if params.get("eye") else [],
+            "mouths": [params.get("mouth")] if params.get("mouth") else [],
+            "brows": [params.get("brow")] if params.get("brow") else [],
+            "cheeks": [params.get("cheek")] if params.get("cheek") else [],
+        })
+    except Exception:
+        pass
+
+def _ir_handle_character_shift(game_state, target, params):
+    if not target:
+        return
+    active_characters = game_state.get("active_characters", [])
+    if target not in active_characters:
+        active_characters.append(target)
+    hide_pending = game_state.get("character_hide_pending")
+    if hide_pending and target in hide_pending:
+        hide_pending.pop(target, None)
+    fade_ms = _get_fade_ms(params, CHARA_TRANSITION_DEFAULT_MS)
+    old_expressions = game_state.get("character_expressions", {}).get(target, {
+        "eye": "",
+        "mouth": "",
+        "brow": "",
+        "cheek": "",
+    }).copy()
+    old_torso = game_state.get("character_torso", {}).get(target)
+
+    torso_id = params.get("torso")
+    image_manager = game_state.get("image_manager")
+    if torso_id and image_manager and not image_manager.get_image("characters", torso_id):
+        torso_id = None
+    if torso_id:
+        if "character_torso" not in game_state:
+            game_state["character_torso"] = {}
+        game_state["character_torso"][target] = torso_id
+    _ir_update_expressions(game_state, target, params)
+
+    if fade_ms > 0:
+        if "torso" in params and torso_id and torso_id != old_torso:
+            start_character_part_fade(game_state, target, "torso", old_torso, torso_id, fade_ms)
+
+        new_expressions = game_state.get("character_expressions", {}).get(target, {})
+        for key, part in (("brow", "brow"), ("eye", "eye"), ("mouth", "mouth"), ("cheek", "cheek")):
+            if key not in params:
+                continue
+            old_val = old_expressions.get(key, "")
+            new_val = new_expressions.get(key, "")
+            if old_val != new_val:
+                start_character_part_fade(
+                    game_state,
+                    target,
+                    part,
+                    old_val or None,
+                    new_val or None,
+                    fade_ms,
+                )
+
+def _ir_handle_character_hide(game_state, target, params):
+    if not target:
+        return
+    fade_ms = _get_fade_ms(params or {}, CHARA_TRANSITION_DEFAULT_MS)
+    if fade_ms <= 0:
+        hide_character(game_state, target)
+        return
+    start_character_hide_fade(game_state, target, fade_ms)
+
+def _ir_handle_character_move(game_state, target, params):
+    if not target:
+        return
+    left = _to_float(params.get("left"), 0.0)
+    top = _to_float(params.get("top"), 0.0)
+    duration = _to_int(params.get("time"), 600)
+    zoom = _to_float(params.get("zoom"), 1.0)
+    move_character(game_state, target, left, top, duration, zoom)
+
+def _ir_handle_background_show(game_state, params):
+    storage = params.get("storage")
+    if not storage:
+        return
+    x = _to_float(params.get("x"), 0.5)
+    y = _to_float(params.get("y"), 0.5)
+    zoom = _to_float(params.get("zoom"), 1.0)
+    show_background(game_state, storage, x, y, zoom)
+
+def _ir_handle_background_move(game_state, params):
+    left = _to_float(params.get("left"), 0.0)
+    top = _to_float(params.get("top"), 0.0)
+    duration = _to_int(params.get("time"), 600)
+    zoom = _to_float(params.get("zoom"), 1.0)
+    move_background(game_state, left, top, duration, zoom)
+
+def _ir_handle_se_play(game_state, params):
+    se_manager = game_state.get("se_manager")
+    if not se_manager:
+        return
+    filename = params.get("file")
+    if not filename:
+        return
+    volume = _to_float(params.get("volume"), 0.5)
+    frequency = _to_int(params.get("frequency"), 1)
+    se_manager.play_se(filename, volume, frequency)
+
+def _ir_handle_bgm_pause(game_state, params):
+    bgm_manager = game_state.get("bgm_manager")
+    if not bgm_manager:
+        return
+    fade_time = _to_float(params.get("fade_time"), 0.0)
+    if fade_time > 0:
+        bgm_manager.pause_bgm_with_fade(fade_time)
+    else:
+        bgm_manager.pause_bgm()
+
+def _ir_handle_bgm_unpause(game_state, params):
+    bgm_manager = game_state.get("bgm_manager")
+    if not bgm_manager:
+        return
+    fade_time = _to_float(params.get("fade_time"), 0.0)
+    if fade_time > 0:
+        bgm_manager.unpause_bgm_with_fade(fade_time)
+    else:
+        bgm_manager.unpause_bgm()
+
+def _ir_update_expressions(game_state, target, params):
+    existing_expressions = game_state.get("character_expressions", {}).get(target, {
+        "eye": "",
+        "mouth": "",
+        "brow": "",
+        "cheek": "",
+    })
+    expressions = existing_expressions.copy()
+    if "eye" in params:
+        expressions["eye"] = params.get("eye") or ""
+    if "mouth" in params:
+        expressions["mouth"] = params.get("mouth") or ""
+    if "brow" in params:
+        expressions["brow"] = params.get("brow") or ""
+    if "cheek" in params:
+        expressions["cheek"] = params.get("cheek") or ""
+    game_state.setdefault("character_expressions", {})[target] = expressions
+
+def _to_float(value, default):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+def _to_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+def _get_fade_ms(params, default_ms):
+    if not isinstance(params, dict):
+        return default_ms
+    value = params.get("fade")
+    if value is None:
+        value = params.get("time")
+    if value is None:
+        return default_ms
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return default_ms
+    if value > 10:
+        return int(value)
+    return int(value * 1000)
+
+def _ir_get_action_duration_ms(action_type, params):
+    if action_type in ("chara_show", "chara_shift", "chara_hide"):
+        return _get_fade_ms(params or {}, CHARA_TRANSITION_DEFAULT_MS)
+    if action_type == "chara_move":
+        return _to_int((params or {}).get("time"), 600)
+    if action_type == "bg_move":
+        return _to_int((params or {}).get("time"), 600)
+    if action_type in ("fadeout", "fadein"):
+        return int(_to_float((params or {}).get("time"), 1.0) * 1000)
+    return 0
+
+def _ir_default_on_advance(action_type):
+    if action_type in ("fadeout", "fadein"):
+        return "complete"
+    if action_type in ("chara_show", "chara_shift", "chara_hide", "chara_move", "bg_show", "bg_move"):
+        return "complete"
+    return None
+
+def _ir_register_action_animation(game_state, action):
+    action_type = action.get("action")
+    anim = action.get("animation") or {}
+    on_advance = anim.get("on_advance") or _ir_default_on_advance(action_type)
+    if on_advance not in ("block", "complete", "interrupt"):
+        return
+    duration_ms = _ir_get_action_duration_ms(action_type, action.get("params") or {})
+    if duration_ms <= 0:
+        return
+    end_time = pygame.time.get_ticks() + duration_ms
+    active_anims = game_state.setdefault("ir_active_anims", [])
+    active_anims.append({
+        "action": action_type,
+        "target": action.get("target"),
+        "on_advance": on_advance,
+        "end_time": end_time,
+    })
+    game_state["ir_anim_pending"] = True
+    current_end = game_state.get("ir_anim_end_time")
+    if current_end is None or end_time > current_end:
+        game_state["ir_anim_end_time"] = end_time
+
 def _handle_scroll_stop(game_state):
     """スクロール停止コマンドを処理"""
     if DEBUG:
@@ -658,6 +1055,12 @@ def _handle_if_start(game_state, command_data):
                     if if_nesting == 0:
                         # 対応するendifに到達
                         game_state['current_paragraph'] = current_pos
+                        if game_state.get("use_ir"):
+                            ir_data = game_state.get("ir_data") or {}
+                            source_to_step = ir_data.get("source_to_step") or {}
+                            mapped_index = source_to_step.get(current_pos)
+                            if mapped_index is not None:
+                                game_state["ir_step_index"] = mapped_index
                         print(f"[DEBUG] 条件不一致により段落{current_pos}のendifまでスキップ完了")
                         # endifに到達したので、次の段落に進む
                         return advance_dialogue(game_state)
@@ -667,6 +1070,12 @@ def _handle_if_start(game_state, command_data):
             print(f"[WARNING] 対応するendifが見つかりません。ネストレベル={if_nesting}")
             # 見つからない場合は最後まで進む
             game_state['current_paragraph'] = max_pos
+            if game_state.get("use_ir"):
+                ir_data = game_state.get("ir_data") or {}
+                source_to_step = ir_data.get("source_to_step") or {}
+                mapped_index = source_to_step.get(max_pos)
+                if mapped_index is not None:
+                    game_state["ir_step_index"] = mapped_index
             return False
     else:
         if DEBUG:
