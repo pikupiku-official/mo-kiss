@@ -570,12 +570,16 @@ class StepEditorDialog(QDialog):
         self.resize(1100, 700)
 
         main_layout = QVBoxLayout(self)
-        content_layout = QHBoxLayout()
-        main_layout.addLayout(content_layout)
+        main_splitter = QSplitter(Qt.Horizontal)
+        main_layout.addWidget(main_splitter)
 
         # 左カラム: プレビュー + セリフ
-        left_layout = QVBoxLayout()
-        content_layout.addLayout(left_layout, 2)
+        left_panel = QWidget()
+        left_panel_layout = QVBoxLayout(left_panel)
+        left_panel_layout.setContentsMargins(0, 0, 0, 0)
+        left_splitter = QSplitter(Qt.Vertical)
+        left_panel_layout.addWidget(left_splitter)
+        main_splitter.addWidget(left_panel)
 
         preview_group = QGroupBox("プレビュー (4:3)")
         preview_layout = QVBoxLayout()
@@ -587,7 +591,7 @@ class StepEditorDialog(QDialog):
         self.preview_refresh_btn = QPushButton("Preview Update")
         preview_layout.addWidget(self.preview_refresh_btn, alignment=Qt.AlignCenter)
         preview_group.setLayout(preview_layout)
-        left_layout.addWidget(preview_group)
+        left_splitter.addWidget(preview_group)
 
         dialogue_group = QGroupBox("セリフ")
         dialogue_layout = QFormLayout()
@@ -595,8 +599,8 @@ class StepEditorDialog(QDialog):
         self.speaker_input.setText(self.step.get("speaker", ""))
         dialogue_layout.addRow("speaker", self.speaker_input)
 
-        self.body_input = QTextEdit()
-        self.body_input.setPlainText(self.step.get("body", ""))
+        self.body_input = QLineEdit()
+        self.body_input.setText(self.step.get("body", ""))
         dialogue_layout.addRow("body", self.body_input)
 
         self.scroll_checkbox = QCheckBox("scroll-stop")
@@ -604,11 +608,15 @@ class StepEditorDialog(QDialog):
         dialogue_layout.addRow(self.scroll_checkbox)
 
         dialogue_group.setLayout(dialogue_layout)
-        left_layout.addWidget(dialogue_group)
+        left_splitter.addWidget(dialogue_group)
 
         # 右カラム: アクション編集
-        right_layout = QVBoxLayout()
-        content_layout.addLayout(right_layout, 1)
+        right_panel = QWidget()
+        right_panel_layout = QVBoxLayout(right_panel)
+        right_panel_layout.setContentsMargins(0, 0, 0, 0)
+        right_splitter = QSplitter(Qt.Vertical)
+        right_panel_layout.addWidget(right_splitter)
+        main_splitter.addWidget(right_panel)
 
         actions_group = QGroupBox("アクション一覧")
         actions_layout = QVBoxLayout()
@@ -633,7 +641,7 @@ class StepEditorDialog(QDialog):
         actions_layout.addLayout(actions_buttons)
 
         actions_group.setLayout(actions_layout)
-        right_layout.addWidget(actions_group)
+        right_splitter.addWidget(actions_group)
 
         editor_group = QGroupBox("アクション編集")
         editor_layout = QFormLayout()
@@ -665,7 +673,11 @@ class StepEditorDialog(QDialog):
         editor_layout.addRow(params_buttons)
 
         editor_group.setLayout(editor_layout)
-        right_layout.addWidget(editor_group)
+        right_splitter.addWidget(editor_group)
+
+        main_splitter.setSizes([500, 500])
+        left_splitter.setSizes([300, 100])
+        right_splitter.setSizes([200, 600])
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText("保存/適用")
@@ -694,7 +706,7 @@ class StepEditorDialog(QDialog):
     def get_dialogue_values(self):
         """セリフ編集の値を取得"""
         speaker = self.speaker_input.text().strip()
-        body = self.body_input.toPlainText().strip()
+        body = self.body_input.text().replace("\n", " ").replace("\r", " ").strip()
         scroll_stop = self.scroll_checkbox.isChecked()
         return speaker, body, scroll_stop
 
@@ -873,12 +885,26 @@ class StepEditorDialog(QDialog):
         return tag in self.CUSTOM_EDITORS
 
     def _clear_custom_editor(self):
-        while self.custom_editor_layout.count():
-            item = self.custom_editor_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        while self.custom_editor_layout.rowCount():
+            for role in (QFormLayout.LabelRole, QFormLayout.FieldRole):
+                item = self.custom_editor_layout.itemAt(0, role)
+                if not item:
+                    continue
+                widget = item.widget()
+                layout = item.layout()
+                if widget:
+                    widget.deleteLater()
+                if layout:
+                    while layout.count():
+                        child = layout.takeAt(0)
+                        child_widget = child.widget()
+                        if child_widget:
+                            child_widget.deleteLater()
+                    layout.deleteLater()
+            self.custom_editor_layout.removeRow(0)
         self.custom_fields = {}
+        self.custom_editor_widget.adjustSize()
+        self.custom_editor_widget.updateGeometry()
 
     def _build_custom_editor(self, tag):
         self._clear_custom_editor()
@@ -911,6 +937,8 @@ class StepEditorDialog(QDialog):
         self.custom_editor_widget.show()
         self.advanced_toggle.show()
         self.params_table.setVisible(self.advanced_toggle.isChecked())
+        self.custom_editor_widget.adjustSize()
+        self.custom_editor_widget.updateGeometry()
 
     def _set_custom_values(self, params):
         param_map = {key: value for key, value in params}

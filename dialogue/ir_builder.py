@@ -68,7 +68,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
                     pending_sources = []
                 animation = None
                 if action_type == "chara_shift":
-                    animation = make_animation(on_advance=ON_ADVANCE_COMPLETE)
+                    animation = make_animation(on_advance=ON_ADVANCE_BLOCK)
                 emit_step(
                     actions=[make_action(action=action_type, target=target, params=params, animation=animation)],
                     source_index=source_index,
@@ -77,7 +77,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             else:
                 animation = None
                 if action_type == "chara_shift":
-                    animation = make_animation(on_advance=ON_ADVANCE_COMPLETE)
+                    animation = make_animation(on_advance=ON_ADVANCE_BLOCK)
                 pending_actions.append(
                     make_action(action=action_type, target=target, params=params, animation=animation)
                 )
@@ -130,7 +130,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
                 for act in pending_actions
             )
             if not has_pending_shift:
-                shift_action["animation"] = make_animation(on_advance=ON_ADVANCE_COMPLETE)
+                shift_action["animation"] = make_animation(on_advance=ON_ADVANCE_BLOCK)
                 combined_actions.append(shift_action)
         combined_sources = pending_sources + [source_index]
         emit_step(
@@ -242,7 +242,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
             action="chara_show",
             target=target,
             params=params,
-            animation=make_animation(on_advance=ON_ADVANCE_COMPLETE),
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
         )
 
     if text.startswith("_CHARA_HIDE_"):
@@ -253,7 +253,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
             action="chara_hide",
             target=target,
             params={"fade": fade},
-            animation=make_animation(on_advance=ON_ADVANCE_COMPLETE),
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
         )
 
     if text.startswith("_MOVE_"):
@@ -279,7 +279,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         return make_action(
             action="bg_show",
             params={"storage": storage, "x": x, "y": y, "zoom": zoom},
-            animation=make_animation(on_advance=ON_ADVANCE_COMPLETE),
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
         )
 
     if text.startswith("_BG_MOVE_"):

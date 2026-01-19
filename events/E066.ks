@@ -7,13 +7,14 @@
 
 *scene1|&f.title+"校門前"
 
+
+	
 [bg_show storage="test.bg.TEUgate"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="subete_no_hajimari" volume="0.2" loop="true"]
-
-[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.6" y="0.95" size="2"]
-	
-	//桃子//
-	「ねえ、今日はミニスト寄ってかない？」
+[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" blink="true" x="0.6" y="1" size="2" fade="0"]
+[fadein time="1.0"]
+//桃子//
+「ねえ、今日はミニスト寄ってかない？」
 
 
 [choice option1="いいよ、行こう！" option2="ミニストって？"]
@@ -268,7 +269,6 @@
 	//　　　//
 	「そのまま桃子と国立まで帰った。」
 	「今度は、僕がコンビニに入ろう。」
-
 
 
 
