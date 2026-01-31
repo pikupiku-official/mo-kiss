@@ -436,12 +436,13 @@ class ImageManager:
                     else:
                         screen.blit(ui_image, (x_pos, y_pos))
                 elif ui_name in ["auto", "skip"]:
+                    from config import UI_BUTTON_SCALE
                     button_positions = get_ui_button_positions(screen)
                     if ui_name in button_positions:
                         btn_x, btn_y = button_positions[ui_name]
                         # auto/skipボタンを0.9倍に縮小
                         original_size = ui_image.get_size()
-                        new_size = (int(original_size[0] * 0.9), int(original_size[1] * 0.9))
+                        new_size = (int(original_size[0] * UI_BUTTON_SCALE), int(original_size[1] * UI_BUTTON_SCALE))
                         scaled_ui_image = pygame.transform.scale(ui_image, new_size)
                         screen.blit(scaled_ui_image, (btn_x, btn_y))
     

@@ -1,0 +1,1765 @@
+{
+  "steps": [
+    {
+      "id": "step_0001",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "bg_show",
+          "params": {
+            "storage": "test.bg.9873",
+            "x": 0.5,
+            "y": 0.5,
+            "zoom": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
+      "source_index": 1
+    },
+    {
+      "id": "step_0002",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "見慣れた中央線の車窓から流れる風景",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "se_play",
+          "params": {
+            "file": "電車走行中1.mp3",
+            "volume": 0.5,
+            "frequency": 5
+          }
+        }
+      ],
+      "source_index": 3
+    },
+    {
+      "id": "step_0003",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "目の前に映るのは住宅地と畑",
+        "scroll": true
+      },
+      "source_index": 4
+    },
+    {
+      "id": "step_0004",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "国立で乗ってからそんな景色ばかりだ。",
+        "scroll": true
+      },
+      "source_index": 5
+    },
+    {
+      "id": "step_0005",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "やっぱりなんか物足りないんだよな。西新宿みたいな高層ビルもないしさ",
+        "scroll": true
+      },
+      "source_index": 6
+    },
+    {
+      "id": "step_0006",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "そんなことを考えていると、いつものアナウンスが響く",
+        "scroll": true
+      },
+      "source_index": 7
+    },
+    {
+      "id": "step_0007",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "俺を車内の隅に押し込んでいる周りの人たちも降りる支度をし始める。",
+        "scroll": true
+      },
+      "source_index": 8
+    },
+    {
+      "id": "step_0008",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "向かいの大学生らしき男がカバンに突っ込んだのはCar Graphic。表紙はジャガーだった",
+        "scroll": true
+      },
+      "source_index": 9
+    },
+    {
+      "id": "step_0009",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "俺もいつか、昨日の日曜洋画劇場で見たジェームズボンドみたいに",
+        "scroll": true
+      },
+      "source_index": 10
+    },
+    {
+      "id": "step_0010",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "イギリス車を乗り回してみたい、と思った。",
+        "scroll": true
+      },
+      "source_index": 11
+    },
+    {
+      "id": "step_0011",
+      "text": {
+        "speaker": "ナ レ",
+        "body": "中央線が国分寺駅のホームに滑り込んでゆき、ゆっくりと止まる。",
+        "scroll": true
+      },
+      "source_index": 12
+    },
+    {
+      "id": "step_0012",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "source_index": 13
+    },
+    {
+      "id": "step_0013",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "se_play",
+          "params": {
+            "file": "電車停車.mp3",
+            "volume": 0.5,
+            "frequency": 1
+          }
+        }
+      ],
+      "source_index": 15
+    },
+    {
+      "id": "step_0014",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "se_play",
+          "params": {
+            "file": "電車の発車ベル.mp3",
+            "volume": 0.5,
+            "frequency": 1
+          }
+        }
+      ],
+      "source_index": 17
+    },
+    {
+      "id": "step_0015",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "se_play",
+          "params": {
+            "file": "電車のドアが開く1.mp3",
+            "volume": 0.5,
+            "frequency": 1
+          }
+        }
+      ],
+      "source_index": 19
+    },
+    {
+      "id": "step_0016",
+      "text": {
+        "speaker": "ナレ",
+        "body": "ドアが開くといつものようにあっという間に車内から押し出される。",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "bg_show",
+          "params": {
+            "storage": "test.bg.9901",
+            "x": 0.5,
+            "y": 0.5,
+            "zoom": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
+      "source_index": 21
+    },
+    {
+      "id": "step_0017",
+      "text": {
+        "speaker": "ナレ",
+        "body": "乗車口からいつも人が集中する階段へと移動して",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "se_play",
+          "params": {
+            "file": "休日でごった返す駅構内.mp3",
+            "volume": 0.5,
+            "frequency": 1
+          }
+        }
+      ],
+      "source_index": 23
+    },
+    {
+      "id": "step_0018",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "source_index": 24
+    },
+    {
+      "id": "step_0019",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "bg_show",
+          "params": {
+            "storage": "test.bg.DSCN3262",
+            "x": 0.5,
+            "y": 0.5,
+            "zoom": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
+      "source_index": 26
+    },
+    {
+      "id": "step_0020",
+      "text": {
+        "speaker": "ナレ",
+        "body": "＿＿＿",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "bg_show",
+          "params": {
+            "storage": "test.bg.DSCN3314",
+            "x": 0.5,
+            "y": 0.5,
+            "zoom": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
+      "source_index": 28
+    },
+    {
+      "id": "step_0021",
+      "text": {
+        "speaker": "ナレ",
+        "body": "改札の出口へと向かう。出た後の構内は吹き曝しで、満員の中央線を我慢していた俺にはとても開放的に感じる。",
+        "scroll": true
+      },
+      "source_index": 29
+    },
+    {
+      "id": "step_0022",
+      "text": {
+        "speaker": "ナレ",
+        "body": "心地よい春の風を感じながらなんの変哲もないホームを見て、俺はふと思う",
+        "scroll": true
+      },
+      "source_index": 30
+    },
+    {
+      "id": "step_0023",
+      "text": {
+        "speaker": "ナレ",
+        "body": "すっかり通いなれた国分寺駅もどこか気に入っているのかもしれない、と",
+        "scroll": true
+      },
+      "source_index": 31
+    },
+    {
+      "id": "step_0024",
+      "text": {
+        "speaker": "ナレ",
+        "body": "それが多摩地域の良さかもしれないな",
+        "scroll": true
+      },
+      "source_index": 32
+    },
+    {
+      "id": "step_0025",
+      "text": {
+        "speaker": "ナレ",
+        "body": "少し汗ばんだ風を感じて",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "se_play",
+          "params": {
+            "file": "電車のドアが開く1.mp3",
+            "volume": 0.5,
+            "frequency": 2
+          }
+        }
+      ],
+      "source_index": 34
+    },
+    {
+      "id": "step_0026",
+      "text": {
+        "speaker": "ナレ",
+        "body": "いつもの通学路を歩けばふと",
+        "scroll": true
+      },
+      "source_index": 35
+    },
+    {
+      "id": "step_0027",
+      "text": {
+        "speaker": "ナレ",
+        "body": "朝にはふさわしくない声が聞こえた気がした",
+        "scroll": true
+      },
+      "source_index": 36
+    },
+    {
+      "id": "step_0028",
+      "text": {
+        "speaker": "{苗字}",
+        "body": "…んご…だんご…だんご三兄弟～",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "fadeout",
+          "params": {
+            "color": "black",
+            "time": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        }
+      ],
+      "source_index": 38
+    },
+    {
+      "id": "step_0029",
+      "text": {
+        "speaker": "{苗字}",
+        "body": "お！純一だっちゅーの！！",
+        "scroll": true
+      },
+      "source_index": 39
+    },
+    {
+      "id": "step_0030",
+      "text": {
+        "speaker": "純一",
+        "body": "（なんで朝からこいつの顔なんて…）",
+        "scroll": true
+      },
+      "actions": [
+        {
+          "action": "fadein",
+          "params": {
+            "time": 1.5
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        }
+      ],
+      "source_index": 41
+    },
+    {
+      "id": "step_0031",
+      "text": {
+        "speaker": "純一",
+        "body": "（ここは一旦...知らない顔をさせていただこう）",
+        "scroll": true
+      },
+      "source_index": 42
+    },
+    {
+      "id": "step_0032",
+      "text": {
+        "speaker": "{苗字}",
+        "body": "おーい！無視すんなって！この苗字は{苗字}、名前は{名前}の{フルネーム}をサァ…",
+        "scroll": true
+      },
+      "source_index": 43
+    },
+    {
+      "id": "step_0033",
+      "text": {
+        "speaker": "純一",
+        "body": "朝っぱらから元気すぎるんだよ、お前は！",
+        "scroll": true
+      },
+      "source_index": 44
+    },
+    {
+      "id": "step_0034",
+      "text": {
+        "speaker": "純一",
+        "body": "(そう、こいつは{フルネーム}。彼は高校からの友人で…)",
+        "scroll": true
+      },
+      "source_index": 45
+    },
+    {
+      "id": "step_0035",
+      "text": {
+        "speaker": "増田",
+        "body": "モー娘。で誰が好き？",
+        "scroll": true
+      },
+      "source_index": 46
+    },
+    {
+      "id": "step_0036",
+      "actions": [
+        {
+          "action": "choice",
+          "params": {
+            "options": [
+              "中澤裕子",
+              "石黒彩",
+              "飯田圭織",
+              "安倍なつみ",
+              "福田明日香",
+              "保田圭",
+              "矢口真里",
+              "市井紗耶香",
+              "後藤真希"
+            ]
+          }
+        }
+      ],
+      "source_index": 47
+    },
+    {
+      "id": "step_0037",
+      "text": {
+        "speaker": "純一",
+        "body": "{選択肢1}が好きかな。",
+        "scroll": true
+      },
+      "source_index": 48
+    },
+    {
+      "id": "step_0038",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==1"
+          }
+        }
+      ],
+      "source_index": 49
+    },
+    {
+      "id": "step_0039",
+      "text": {
+        "speaker": "増田",
+        "body": "中澤！？ …渋いなぁ。オトナっぽい人好きだよなお前。",
+        "scroll": true
+      },
+      "source_index": 50
+    },
+    {
+      "id": "step_0040",
+      "text": {
+        "speaker": "純一",
+        "body": "ほら『サマーナイトタウン』とか、中澤の低い声が映えてただろ。",
+        "scroll": true
+      },
+      "source_index": 51
+    },
+    {
+      "id": "step_0041",
+      "text": {
+        "speaker": "増田",
+        "body": "確かに…あの声で締まる感じはあるよな。",
+        "scroll": true
+      },
+      "source_index": 52
+    },
+    {
+      "id": "step_0042",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 53
+    },
+    {
+      "id": "step_0043",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==2"
+          }
+        }
+      ],
+      "source_index": 54
+    },
+    {
+      "id": "step_0044",
+      "text": {
+        "speaker": "増田",
+        "body": "石黒？ あー、クール系だよな。ちょっと不良っぽい。",
+        "scroll": true
+      },
+      "source_index": 55
+    },
+    {
+      "id": "step_0045",
+      "text": {
+        "speaker": "純一",
+        "body": "『抱いてＨＯＬＤ　ＯＮ　ＭＥ！』で、あのハモりがかっこよかったんだよ。",
+        "scroll": true
+      },
+      "source_index": 56
+    },
+    {
+      "id": "step_0046",
+      "text": {
+        "speaker": "増田",
+        "body": "わかるわかる、目線とかも鋭いしさ。大人っぽいとこ憧れてんの？",
+        "scroll": true
+      },
+      "source_index": 57
+    },
+    {
+      "id": "step_0047",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 58
+    },
+    {
+      "id": "step_0048",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==3"
+          }
+        }
+      ],
+      "source_index": 59
+    },
+    {
+      "id": "step_0049",
+      "text": {
+        "speaker": "増田",
+        "body": "ジョンソン！？なんで？",
+        "scroll": true
+      },
+      "source_index": 60
+    },
+    {
+      "id": "step_0050",
+      "text": {
+        "speaker": "純一",
+        "body": "ジョンソンジョンソン言うけど、冷静に見たら一番美人だろ！",
+        "scroll": true
+      },
+      "source_index": 61
+    },
+    {
+      "id": "step_0051",
+      "text": {
+        "speaker": "増田",
+        "body": "でもうたばん見てたら、おもしろキャラでしか見れないぜあれは。",
+        "scroll": true
+      },
+      "source_index": 62
+    },
+    {
+      "id": "step_0052",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 63
+    },
+    {
+      "id": "step_0053",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==4"
+          }
+        }
+      ],
+      "source_index": 64
+    },
+    {
+      "id": "step_0054",
+      "text": {
+        "speaker": "増田",
+        "body": "やっぱなっちか！王道すぎるわ〜。",
+        "scroll": true
+      },
+      "source_index": 65
+    },
+    {
+      "id": "step_0055",
+      "text": {
+        "speaker": "純一",
+        "body": "でもどう考えてもモーニングの顔は、あたしよ。って感じじゃん。",
+        "scroll": true
+      },
+      "source_index": 66
+    },
+    {
+      "id": "step_0056",
+      "text": {
+        "speaker": "純一",
+        "body": "あとちゃんと一番顔が良いし。",
+        "scroll": true
+      },
+      "source_index": 67
+    },
+    {
+      "id": "step_0057",
+      "text": {
+        "speaker": "増田",
+        "body": "まあセンターだし歌割も…。貴さんがああいうのも分かるわ。",
+        "scroll": true
+      },
+      "source_index": 68
+    },
+    {
+      "id": "step_0058",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 69
+    },
+    {
+      "id": "step_0059",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==5"
+          }
+        }
+      ],
+      "source_index": 70
+    },
+    {
+      "id": "step_0060",
+      "text": {
+        "speaker": "増田",
+        "body": "福田！？…もう脱退しちゃったじゃん。",
+        "scroll": true
+      },
+      "source_index": 71
+    },
+    {
+      "id": "step_0061",
+      "text": {
+        "speaker": "純一",
+        "body": "でも『モーニングコーヒー』のハモりとか、『サマーナイトタウン』の声とか、味あったんだよな。",
+        "scroll": true
+      },
+      "source_index": 72
+    },
+    {
+      "id": "step_0062",
+      "text": {
+        "speaker": "増田",
+        "body": "うん…正直もうちょっと見てたかったよな。惜しいよなあ。",
+        "scroll": true
+      },
+      "source_index": 73
+    },
+    {
+      "id": "step_0063",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 74
+    },
+    {
+      "id": "step_0064",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==6"
+          }
+        }
+      ],
+      "source_index": 75
+    },
+    {
+      "id": "step_0065",
+      "text": {
+        "speaker": "増田",
+        "body": "保田？ お前マニアックだな…。",
+        "scroll": true
+      },
+      "source_index": 76
+    },
+    {
+      "id": "step_0066",
+      "text": {
+        "speaker": "純一",
+        "body": "いや、『Ｍｅｍｏｒｙ 青春の光』の力強い声とか、実は支えてるんだぜ。",
+        "scroll": true
+      },
+      "source_index": 77
+    },
+    {
+      "id": "step_0067",
+      "text": {
+        "speaker": "増田",
+        "body": "確かに歌うまいよな。地味に聞かせるとこあるわ。",
+        "scroll": true
+      },
+      "source_index": 78
+    },
+    {
+      "id": "step_0068",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 79
+    },
+    {
+      "id": "step_0069",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==7"
+          }
+        }
+      ],
+      "source_index": 80
+    },
+    {
+      "id": "step_0070",
+      "text": {
+        "speaker": "増田",
+        "body": "矢口ね！ 元気キャラっぽいもんな、お前好きそう。",
+        "scroll": true
+      },
+      "source_index": 81
+    },
+    {
+      "id": "step_0071",
+      "text": {
+        "speaker": "純一",
+        "body": "『抱いてＨＯＬＤ　ＯＮ　ＭＥ！』のラップ、矢口じゃなきゃできなかっただろ。",
+        "scroll": true
+      },
+      "source_index": 82
+    },
+    {
+      "id": "step_0072",
+      "text": {
+        "speaker": "増田",
+        "body": "あーあれな！ ちょっとイタいと思ったけど…クセになるんだよな。",
+        "scroll": true
+      },
+      "source_index": 83
+    },
+    {
+      "id": "step_0073",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 84
+    },
+    {
+      "id": "step_0074",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==8"
+          }
+        }
+      ],
+      "source_index": 85
+    },
+    {
+      "id": "step_0075",
+      "text": {
+        "speaker": "増田",
+        "body": "市井？ おお、ギャルっぽいとこ狙いかよ。",
+        "scroll": true
+      },
+      "source_index": 86
+    },
+    {
+      "id": "step_0076",
+      "text": {
+        "speaker": "純一",
+        "body": "新曲の『真夏の光線』のＰＶ見た？",
+        "scroll": true
+      },
+      "source_index": 87
+    },
+    {
+      "id": "step_0077",
+      "text": {
+        "speaker": "増田",
+        "body": "あー、あれ可愛かったな…。市井あんな可愛かったっけ？",
+        "scroll": true
+      },
+      "source_index": 88
+    },
+    {
+      "id": "step_0078",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 89
+    },
+    {
+      "id": "step_0079",
+      "actions": [
+        {
+          "action": "if_start",
+          "params": {
+            "type": "if_start",
+            "condition": "choice_1==9"
+          }
+        }
+      ],
+      "source_index": 90
+    },
+    {
+      "id": "step_0080",
+      "text": {
+        "speaker": "増田",
+        "body": "後藤…？聞いたことないぞ、そんなメンバー。",
+        "scroll": true
+      },
+      "source_index": 91
+    },
+    {
+      "id": "step_0081",
+      "text": {
+        "speaker": "純一",
+        "body": "あれ、言ったはいいけど、誰だ…？",
+        "scroll": true
+      },
+      "source_index": 92
+    },
+    {
+      "id": "step_0082",
+      "text": {
+        "speaker": "増田",
+        "body": "だって、中澤・石黒・ジョンソン・なっち・福田で、保田圭・矢口・市井が入って、そのあと福田が抜けちゃって７人だろ？",
+        "scroll": true
+      },
+      "source_index": 93
+    },
+    {
+      "id": "step_0083",
+      "text": {
+        "speaker": "純一",
+        "body": "いや、そんなことは分かってるんだけど…",
+        "scroll": true
+      },
+      "source_index": 94
+    },
+    {
+      "id": "step_0084",
+      "text": {
+        "speaker": "増田",
+        "body": "でも、なんかいきなりセンターで大活躍しそうな名前だな。",
+        "scroll": true
+      },
+      "source_index": 95
+    },
+    {
+      "id": "step_0085",
+      "text": {
+        "speaker": "純一",
+        "body": "確かに…",
+        "scroll": true
+      },
+      "source_index": 96
+    },
+    {
+      "id": "step_0086",
+      "actions": [
+        {
+          "action": "if_end",
+          "params": {
+            "type": "if_end"
+          }
+        }
+      ],
+      "source_index": 97
+    },
+    {
+      "id": "step_0087",
+      "text": {
+        "speaker": "増田",
+        "body": "まったく、つれない顔すんじゃないよもう",
+        "scroll": true
+      },
+      "source_index": 98
+    },
+    {
+      "id": "step_0088",
+      "text": {
+        "speaker": "純一",
+        "body": "そうはいっても、朝の通学路なんてだなぁ…",
+        "scroll": true
+      },
+      "source_index": 99
+    },
+    {
+      "id": "step_0089",
+      "text": {
+        "speaker": "桃子",
+        "body": "じゅんいちーー！",
+        "scroll": true
+      },
+      "source_index": 100
+    },
+    {
+      "id": "step_0090",
+      "text": {
+        "speaker": "桃子",
+        "body": "おはよー！",
+        "scroll": true
+      },
+      "source_index": 101
+    },
+    {
+      "id": "step_0091",
+      "text": {
+        "speaker": "純一",
+        "body": "桃子か、珍しくゆっくりだね",
+        "scroll": true
+      },
+      "source_index": 102
+    },
+    {
+      "id": "step_0092",
+      "text": {
+        "speaker": "純一",
+        "body": "（朝から元気いっぱいのこいつは幼馴染の愛沼桃子）",
+        "scroll": true
+      },
+      "source_index": 103
+    },
+    {
+      "id": "step_0093",
+      "text": {
+        "speaker": "純一",
+        "body": "（僕とは小学生以来の幼馴染で、増田と共に一緒のクラスだ）",
+        "scroll": true
+      },
+      "source_index": 104
+    },
+    {
+      "id": "step_0094",
+      "text": {
+        "speaker": "桃子",
+        "body": "家族で古畑任三郎観て夜更かししちゃったんだー、ふわぁ～",
+        "scroll": true
+      },
+      "source_index": 105
+    },
+    {
+      "id": "step_0095",
+      "text": {
+        "speaker": "増田",
+        "body": "え、でも古畑は火曜でしょ？",
+        "scroll": true
+      },
+      "source_index": 106
+    },
+    {
+      "id": "step_0096",
+      "text": {
+        "speaker": "増田",
+        "body": "まさか、わざわざ録画して見てるの？",
+        "scroll": true
+      },
+      "source_index": 107
+    },
+    {
+      "id": "step_0097",
+      "text": {
+        "speaker": "桃子",
+        "body": "うん！うちはみんな三谷幸喜大好きでね～",
+        "scroll": true
+      },
+      "source_index": 108
+    },
+    {
+      "id": "step_0098",
+      "text": {
+        "speaker": "増田",
+        "body": "愛沼のとこは家族みんな相変わらず仲良しだねぇ",
+        "scroll": true
+      },
+      "source_index": 109
+    },
+    {
+      "id": "step_0099",
+      "text": {
+        "speaker": "桃子",
+        "body": "えへへ…",
+        "scroll": true
+      },
+      "source_index": 110
+    },
+    {
+      "id": "step_0100",
+      "text": {
+        "speaker": "純一",
+        "body": "やれやれ…",
+        "scroll": true
+      },
+      "source_index": 111
+    },
+    {
+      "id": "step_0101",
+      "text": {
+        "speaker": "純一",
+        "body": "…それよりテニス部は今日朝練ないのか？",
+        "scroll": true
+      },
+      "source_index": 112
+    },
+    {
+      "id": "step_0102",
+      "text": {
+        "speaker": "桃子",
+        "body": "えっ！いっけない",
+        "scroll": true
+      },
+      "source_index": 113
+    },
+    {
+      "id": "step_0103",
+      "text": {
+        "speaker": "桃子",
+        "body": "それじゃ先行くね！ばいばーい！",
+        "scroll": true
+      },
+      "source_index": 114
+    },
+    {
+      "id": "step_0104",
+      "text": {
+        "speaker": "増田",
+        "body": "…結局、俺ら二人ってことだな！",
+        "scroll": true
+      },
+      "source_index": 115
+    },
+    {
+      "id": "step_0105",
+      "text": {
+        "speaker": "純一",
+        "body": "なんてこった…",
+        "scroll": true
+      },
+      "source_index": 116
+    },
+    {
+      "id": "step_0106",
+      "text": {
+        "speaker": "増田",
+        "body": "よし、そうと決まればＬＯＶＥマシーンでも歌ってくか？",
+        "scroll": true
+      },
+      "source_index": 117
+    },
+    {
+      "id": "step_0107",
+      "text": {
+        "speaker": "純一",
+        "body": "勘弁してくれよぉ…",
+        "scroll": true
+      },
+      "source_index": 118
+    },
+    {
+      "id": "step_0108",
+      "actions": [
+        {
+          "action": "chara_show",
+          "target": "T04",
+          "params": {
+            "torso": "T04_00_00",
+            "name": "T04",
+            "x": 0.5,
+            "y": 0.5,
+            "size": 0.4,
+            "blink": true,
+            "fade": 0.5,
+            "eye": "F04_Ea00_00",
+            "mouth": "F04_Ma00_00",
+            "brow": "F04_Ba00_00",
+            "cheek": ""
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        },
+        {
+          "action": "choice",
+          "params": {
+            "options": [
+              "熱が出たりすると気づくんだ",
+              "僕には体があるってこと",
+              "鼻がつまったりすると解るんだ"
+            ]
+          }
+        }
+      ],
+      "source_index": 120
+    },
+    {
+      "id": "step_0109",
+      "text": {
+        "speaker": "桃子",
+        "body": "こんにちは。",
+        "scroll": true
+      },
+      "source_index": 121
+    },
+    {
+      "id": "step_0110",
+      "text": {
+        "speaker": "桃子",
+        "body": "これは最初のテキストです。",
+        "scroll": true
+      },
+      "source_index": 122
+    },
+    {
+      "id": "step_0111",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 123
+    },
+    {
+      "id": "step_0112",
+      "actions": [
+        {
+          "action": "choice",
+          "params": {
+            "options": [
+              "今まで呼吸をしていた事",
+              "君の存在だって何度も確かめはするけど"
+            ]
+          }
+        }
+      ],
+      "source_index": 124
+    },
+    {
+      "id": "step_0113",
+      "text": {
+        "speaker": "桃子",
+        "body": "会話の2番目の部分です。",
+        "scroll": false
+      },
+      "actions": [
+        {
+          "action": "chara_move",
+          "target": "T04_00_00",
+          "params": {
+            "left": 0.1,
+            "top": 0.02,
+            "time": 400,
+            "zoom": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        }
+      ],
+      "source_index": 126
+    },
+    {
+      "id": "step_0114",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 127
+    },
+    {
+      "id": "step_0115",
+      "text": {
+        "speaker": "桃子",
+        "body": "言葉は想像力を運ぶ電車です。",
+        "scroll": false
+      },
+      "actions": [
+        {
+          "action": "bg_move",
+          "params": {
+            "left": 0.1,
+            "top": 0.1,
+            "time": 1000,
+            "zoom": 1.5
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        },
+        {
+          "action": "chara_move",
+          "target": "T04_00_00",
+          "params": {
+            "left": -0.2,
+            "top": 0.0,
+            "time": 1000,
+            "zoom": 0.6
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        }
+      ],
+      "source_index": 130
+    },
+    {
+      "id": "step_0116",
+      "text": {
+        "speaker": "桃子",
+        "body": "日本中どこまでも想像力を運ぶ『私たち』という路線図。",
+        "scroll": true
+      },
+      "source_index": 131
+    },
+    {
+      "id": "step_0117",
+      "text": {
+        "speaker": "桃子",
+        "body": "一個の私は想像力が乗り降りする一つ一つの駅みたいなもので、どんな小さな駅にも止まる各停みたいな言葉もあれば、仕事をしやすくしてくれる、急行みたいな言葉もあるし。",
+        "scroll": true
+      },
+      "source_index": 132
+    },
+    {
+      "id": "step_0118",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 133
+    },
+    {
+      "id": "step_0119",
+      "text": {
+        "speaker": "桃子",
+        "body": "別の場面に移動しました。",
+        "scroll": false
+      },
+      "actions": [
+        {
+          "action": "bg_show",
+          "params": {
+            "storage": "test.bg.classroom",
+            "x": 0.6,
+            "y": 0.4,
+            "zoom": 1.8
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
+      "source_index": 135
+    },
+    {
+      "id": "step_0120",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 136
+    },
+    {
+      "id": "step_0121",
+      "text": {
+        "speaker": "桃子",
+        "body": "わかる人にしかわからない、快速みたいな言葉もあって、一番言葉の集まる駅にしか止まらない、新幹線みたいな言葉もあります。",
+        "scroll": false
+      },
+      "actions": [
+        {
+          "action": "chara_show",
+          "target": "T08",
+          "params": {
+            "torso": "T08_00_00",
+            "name": "T08",
+            "x": 0.2,
+            "y": 0.2,
+            "size": 0.3,
+            "blink": true,
+            "fade": 0.5,
+            "eye": "F08_En00_02",
+            "mouth": "F08_Ma00_00",
+            "brow": "F08_Bn00_00",
+            "cheek": "F08_Ce00_00"
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
+      "source_index": 138
+    },
+    {
+      "id": "step_0122",
+      "text": {
+        "speaker": "桃子",
+        "body": "地下の暗闇を走る言葉もあります。",
+        "scroll": true
+      },
+      "source_index": 139
+    },
+    {
+      "id": "step_0123",
+      "text": {
+        "speaker": "桃子",
+        "body": "地下から地下へ受け渡されるよこしまな想像力たち。",
+        "scroll": true
+      },
+      "source_index": 140
+    },
+    {
+      "id": "step_0124",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 141
+    },
+    {
+      "id": "step_0125",
+      "text": {
+        "speaker": "サナコ",
+        "body": "でも時折、地下から地上に顔を出してビルの谷間をくぐるとき、不意の太陽が無理矢理たてじまに変えようとするから、想像力は眉をしかめたりします。",
+        "scroll": false
+      },
+      "source_index": 142
+    },
+    {
+      "id": "step_0126",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 143
+    },
+    {
+      "id": "step_0127",
+      "text": {
+        "speaker": "サナコ",
+        "body": "ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。",
+        "scroll": false
+      },
+      "actions": [
+        {
+          "action": "chara_hide",
+          "target": "桃子",
+          "params": {
+            "fade": 0.5
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        },
+        {
+          "action": "bg_move",
+          "params": {
+            "left": 0.0,
+            "top": 0.0,
+            "time": 1000,
+            "zoom": 1.0
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        },
+        {
+          "action": "chara_move",
+          "target": "T08_00_00",
+          "params": {
+            "left": 0.1,
+            "top": 0.1,
+            "time": 600,
+            "zoom": 1.7
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "complete"
+          }
+        }
+      ],
+      "source_index": 147
+    },
+    {
+      "id": "step_0128",
+      "text": {
+        "speaker": "サナコ",
+        "body": "だけどほんとうに大事なのは、想像力が降りるべき駅で降りること。",
+        "scroll": true
+      },
+      "source_index": 148
+    },
+    {
+      "id": "step_0129",
+      "text": {
+        "speaker": "サナコ",
+        "body": "次に乗り込むべき言葉に乗ること。",
+        "scroll": true
+      },
+      "source_index": 149
+    },
+    {
+      "id": "step_0130",
+      "text": {
+        "speaker": "サナコ",
+        "body": "ただそれだけです。",
+        "scroll": true
+      },
+      "source_index": 150
+    },
+    {
+      "id": "step_0131",
+      "text": {
+        "speaker": "サナコ",
+        "body": "だから、ダイアグラムの都合から、ぎゅうぎゅう詰めの急行と、すっかすかの各停が同じ時刻に出発して、",
+        "scroll": true
+      },
+      "source_index": 151
+    },
+    {
+      "id": "step_0132",
+      "text": {
+        "speaker": "サナコ",
+        "body": "ほんの一瞬同じ速さで走るとき、急行の中の想像力がうらやましげに各停をながめることもあるのです。",
+        "scroll": true
+      },
+      "source_index": 152
+    },
+    {
+      "id": "step_0133",
+      "text": {
+        "speaker": "サナコ",
+        "body": "２０１２年には東京メトロ副都心線と東急東横線がつながるみたいに、今まではつながれなかったあれもこれもつながるんだろうか。",
+        "scroll": true
+      },
+      "source_index": 153
+    },
+    {
+      "id": "step_0134",
+      "text": {
+        "speaker": "サナコ",
+        "body": "そんなことを想像しています。",
+        "scroll": true
+      },
+      "source_index": 154
+    },
+    {
+      "id": "step_0135",
+      "text": {
+        "speaker": "サナコ",
+        "body": "これは最後のテキストです。",
+        "scroll": true
+      },
+      "source_index": 155
+    },
+    {
+      "id": "step_0136",
+      "actions": [
+        {
+          "action": "scroll_stop"
+        }
+      ],
+      "source_index": 156
+    }
+  ],
+  "source_to_step": {
+    "0": 0,
+    "1": 0,
+    "2": 1,
+    "3": 1,
+    "4": 2,
+    "5": 3,
+    "6": 4,
+    "7": 5,
+    "8": 6,
+    "9": 7,
+    "10": 8,
+    "11": 9,
+    "12": 10,
+    "13": 11,
+    "14": 12,
+    "15": 12,
+    "16": 13,
+    "17": 13,
+    "18": 14,
+    "19": 14,
+    "20": 15,
+    "21": 15,
+    "22": 16,
+    "23": 16,
+    "24": 17,
+    "25": 18,
+    "26": 18,
+    "27": 19,
+    "28": 19,
+    "29": 20,
+    "30": 21,
+    "31": 22,
+    "32": 23,
+    "33": 24,
+    "34": 24,
+    "35": 25,
+    "36": 26,
+    "37": 27,
+    "38": 27,
+    "39": 28,
+    "40": 29,
+    "41": 29,
+    "42": 30,
+    "43": 31,
+    "44": 32,
+    "45": 33,
+    "46": 34,
+    "47": 35,
+    "48": 36,
+    "49": 37,
+    "50": 38,
+    "51": 39,
+    "52": 40,
+    "53": 41,
+    "54": 42,
+    "55": 43,
+    "56": 44,
+    "57": 45,
+    "58": 46,
+    "59": 47,
+    "60": 48,
+    "61": 49,
+    "62": 50,
+    "63": 51,
+    "64": 52,
+    "65": 53,
+    "66": 54,
+    "67": 55,
+    "68": 56,
+    "69": 57,
+    "70": 58,
+    "71": 59,
+    "72": 60,
+    "73": 61,
+    "74": 62,
+    "75": 63,
+    "76": 64,
+    "77": 65,
+    "78": 66,
+    "79": 67,
+    "80": 68,
+    "81": 69,
+    "82": 70,
+    "83": 71,
+    "84": 72,
+    "85": 73,
+    "86": 74,
+    "87": 75,
+    "88": 76,
+    "89": 77,
+    "90": 78,
+    "91": 79,
+    "92": 80,
+    "93": 81,
+    "94": 82,
+    "95": 83,
+    "96": 84,
+    "97": 85,
+    "98": 86,
+    "99": 87,
+    "100": 88,
+    "101": 89,
+    "102": 90,
+    "103": 91,
+    "104": 92,
+    "105": 93,
+    "106": 94,
+    "107": 95,
+    "108": 96,
+    "109": 97,
+    "110": 98,
+    "111": 99,
+    "112": 100,
+    "113": 101,
+    "114": 102,
+    "115": 103,
+    "116": 104,
+    "117": 105,
+    "118": 106,
+    "119": 107,
+    "120": 107,
+    "121": 108,
+    "122": 109,
+    "123": 110,
+    "124": 111,
+    "125": 112,
+    "126": 112,
+    "127": 113,
+    "128": 114,
+    "129": 114,
+    "130": 114,
+    "131": 115,
+    "132": 116,
+    "133": 117,
+    "134": 118,
+    "135": 118,
+    "136": 119,
+    "137": 120,
+    "138": 120,
+    "139": 121,
+    "140": 122,
+    "141": 123,
+    "142": 124,
+    "143": 125,
+    "144": 126,
+    "145": 126,
+    "146": 126,
+    "147": 126,
+    "148": 127,
+    "149": 128,
+    "150": 129,
+    "151": 130,
+    "152": 131,
+    "153": 132,
+    "154": 133,
+    "155": 134,
+    "156": 135
+  }
+}

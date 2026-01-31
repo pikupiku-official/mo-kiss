@@ -193,10 +193,10 @@
 
 ## イベント制御
 ```
-[event_control unlock="E001,E002" lock="E003,E004"]
+[event_unlock events="E001,E002"]
 ```
-- `unlock` / `lock` にカンマ区切りで指定
-- 互換のため `events` / `target` も `unlock` と同義で受理される
+- `events` もしくは `target` にカンマ区切りで指定
+- `lock` は旧形式として受理されるが、現行のシナリオ実行では `unlock` のみ保証
 
 ## 特殊仕様
 - 表情パーツは**明示的に変更されるまで保持**される

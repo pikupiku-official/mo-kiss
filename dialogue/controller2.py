@@ -5,6 +5,28 @@ from .character_manager import update_character_animations
 from .background_manager import update_background_animation
 from .fade_manager import update_fade_animation
 
+def _to_virtual_mouse_pos(mouse_pos, screen, game_state):
+    """Translate screen mouse coords to virtual coords when needed."""
+    if not screen or not game_state or 'screen' not in game_state:
+        return mouse_pos
+
+    if screen == game_state['screen']:
+        return mouse_pos
+
+    from config import CONTENT_WIDTH, CONTENT_HEIGHT, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, OFFSET_X, OFFSET_Y
+
+    x, y = mouse_pos
+    offset_x = game_state.get('_original_offset_x', OFFSET_X)
+    offset_y = game_state.get('_original_offset_y', OFFSET_Y)
+    x -= offset_x
+    y -= offset_y
+
+    if CONTENT_WIDTH and CONTENT_HEIGHT:
+        x = x * VIRTUAL_WIDTH / CONTENT_WIDTH
+        y = y * VIRTUAL_HEIGHT / CONTENT_HEIGHT
+
+    return (int(x), int(y))
+
 def is_point_in_rect(point, rect_pos, rect_size):
     """点が矩形の範囲内にあるかどうかを判定する"""
     x, y = point
@@ -27,6 +49,10 @@ def setup_text_renderer_settings(game_state):
 
 def handle_mouse_click(game_state, mouse_pos, screen):
     """マウスクリックの処理"""
+    if game_state.get("use_ir"):
+        fast_until = game_state.get("ir_fast_forward_until")
+        if fast_until is not None and pygame.time.get_ticks() < fast_until:
+            return
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
         return
@@ -72,7 +98,8 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     if 'auto' in ui_images and ui_images['auto'] and 'auto' in button_positions:
         auto_btn = ui_images['auto']
         auto_pos = button_positions['auto']
-        auto_size = (auto_btn.get_width(), auto_btn.get_height())
+        from config import UI_BUTTON_SCALE
+        auto_size = (int(auto_btn.get_width() * UI_BUTTON_SCALE), int(auto_btn.get_height() * UI_BUTTON_SCALE))
         
         if is_point_in_rect(mouse_pos, auto_pos, auto_size):
             auto_mode = game_state['text_renderer'].toggle_auto_mode()
@@ -83,7 +110,8 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     if 'skip' in ui_images and ui_images['skip'] and 'skip' in button_positions:
         skip_btn = ui_images['skip']
         skip_pos = button_positions['skip']
-        skip_size = (skip_btn.get_width(), skip_btn.get_height())
+        from config import UI_BUTTON_SCALE
+        skip_size = (int(skip_btn.get_width() * UI_BUTTON_SCALE), int(skip_btn.get_height() * UI_BUTTON_SCALE))
         
         if is_point_in_rect(mouse_pos, skip_pos, skip_size):
             skip_mode = game_state['text_renderer'].toggle_skip_mode()
@@ -114,14 +142,14 @@ def handle_events(game_state, screen):
         elif event.type == pygame.MOUSEMOTION:
             # マウス移動の処理（選択肢のハイライト）
             # event.posを使用（event_editorから座標変換されたイベントに対応）
-            mouse_pos = event.pos
+            mouse_pos = _to_virtual_mouse_pos(event.pos, screen, game_state)
             game_state['choice_renderer'].handle_mouse_motion(mouse_pos)
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             # マウスクリックの処理
             if event.button == 1:  # 左クリック
                 # event.posを使用（event_editorから座標変換されたイベントに対応）
-                mouse_pos = event.pos
+                mouse_pos = _to_virtual_mouse_pos(event.pos, screen, game_state)
                 handle_mouse_click(game_state, mouse_pos, screen)
             
         elif event.type == pygame.KEYDOWN:
@@ -200,6 +228,10 @@ def handle_events(game_state, screen):
 def handle_enter_key(game_state):
     """Enterキーが押されたときの処理"""
     print(f"[ENTER] Enterキー処理開始")
+    if game_state.get("use_ir"):
+        fast_until = game_state.get("ir_fast_forward_until")
+        if fast_until is not None and pygame.time.get_ticks() < fast_until:
+            return
     
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
@@ -217,14 +249,23 @@ def handle_enter_key(game_state):
         # テキスト表示中ならスキップ
         print(f"[ENTER] テキスト表示をスキップ")
         text_renderer.skip_text()
-    else:
-        # テキスト表示が完了していたら次の段落へ
-        print(f"[ENTER] 次の段落に進む")
-        can_continue = advance_to_next_dialogue(game_state)
-        if not can_continue:
-            print(f"[ENTER] KSファイル終了")
-            # KSファイル終了をgame_stateに記録
-            game_state['ks_finished'] = True
+        return
+
+    if game_state.get("use_ir") and not is_ir_idle(game_state):
+        if _ir_has_blocking_anims(game_state):
+            return
+        _ir_fast_forward_animations(game_state, 300)
+
+    if game_state.get("use_ir") and not is_ir_idle(game_state):
+        return
+
+    # テキスト/アニメがidleなら次の段落へ
+    print(f"[ENTER] 次の段落に進む")
+    can_continue = advance_to_next_dialogue(game_state)
+    if not can_continue:
+        print(f"[ENTER] KSファイル終了")
+        # KSファイル終了をgame_stateに記録
+        game_state['ks_finished'] = True
 
 def advance_to_next_dialogue(game_state):
     """次の対話に進む"""
@@ -250,6 +291,123 @@ def advance_to_next_dialogue(game_state):
             game_state['last_dialogue_logged'] = True
         return False
 
+def is_ir_idle(game_state):
+    """IRアニメーションがアイドルか判定する（暫定）"""
+    if not game_state.get("use_ir"):
+        return True
+    return not game_state.get("ir_anim_pending", False)
+
+def is_input_blocked(game_state):
+    if not game_state.get("use_ir"):
+        return False
+    fast_until = game_state.get("ir_fast_forward_until")
+    if fast_until is not None and pygame.time.get_ticks() < fast_until:
+        return True
+    return game_state.get("ir_anim_pending") and _ir_has_blocking_anims(game_state)
+
+def draw_input_blocked_notice(game_state, surface):
+    if not is_input_blocked(game_state):
+        return
+    text_renderer = game_state.get("text_renderer")
+    font = None
+    if text_renderer and hasattr(text_renderer, "fonts"):
+        font = text_renderer.fonts.get("default") or text_renderer.fonts.get("text")
+    if not font:
+        font = pygame.font.SysFont("Arial", 20)
+    label = font.render("INPUT BLOCKED", True, (255, 0, 0))
+    x = surface.get_width() - label.get_width() - 8
+    y = 8
+    surface.blit(label, (x, y))
+
+def _update_ir_active_anims(game_state):
+    active_anims = game_state.get("ir_active_anims") or []
+    fast_until = game_state.get("ir_fast_forward_until")
+    if fast_until is not None and pygame.time.get_ticks() >= fast_until:
+        if DEBUG:
+            print("[IR] fast-forward ended")
+        game_state["ir_fast_forward_until"] = None
+    if not active_anims:
+        game_state["ir_anim_pending"] = False
+        game_state["ir_anim_end_time"] = None
+        game_state["ir_fast_forward_active"] = False
+        return
+    now = pygame.time.get_ticks()
+    active_anims[:] = [anim for anim in active_anims if anim.get("end_time", 0) > now]
+    if active_anims:
+        game_state["ir_anim_pending"] = True
+        game_state["ir_anim_end_time"] = max(anim.get("end_time", 0) for anim in active_anims)
+    else:
+        game_state["ir_anim_pending"] = False
+    game_state["ir_anim_end_time"] = None
+
+def _ir_has_blocking_anims(game_state):
+    active_anims = game_state.get("ir_active_anims") or []
+    return any(anim.get("on_advance") == "block" for anim in active_anims)
+
+def _ir_fast_forward_animations(game_state, duration_ms):
+    now = pygame.time.get_ticks()
+    fast_until = game_state.get("ir_fast_forward_until")
+    if fast_until is not None and now < fast_until:
+        return
+    if fast_until is not None and now >= fast_until:
+        game_state["ir_fast_forward_until"] = None
+        game_state["ir_fast_forward_active"] = False
+    duration_ms = max(int(duration_ms), 0)
+    if DEBUG:
+        print(f"[IR] fast-forward start duration_ms={duration_ms}")
+    game_state["ir_fast_forward_until"] = now + duration_ms
+    game_state["ir_fast_forward_active"] = True
+
+    def retime(start_time, duration):
+        if duration <= 0:
+            return now, 0
+        elapsed = max(0, now - start_time)
+        if elapsed >= duration:
+            return now, 0
+        progress = elapsed / duration
+        remaining = duration - elapsed
+        new_duration = min(duration_ms, remaining)
+        new_start = now - int(progress * new_duration)
+        return new_start, int(new_duration)
+
+    character_anim = game_state.get("character_anim", {})
+    for anim in list(character_anim.values()):
+        start, dur = retime(anim.get("start_time", now), anim.get("duration", 0))
+        anim["start_time"] = start
+        anim["duration"] = dur
+
+    bg_state = game_state.get("background_state", {})
+    bg_anim = bg_state.get("anim")
+    if bg_anim:
+        start, dur = retime(bg_anim.get("start_time", now), bg_anim.get("duration", 0))
+        bg_anim["start_time"] = start
+        bg_anim["duration"] = dur
+
+    fades = game_state.get("character_part_fades", {})
+    for part_map in fades.values():
+        for fade in part_map.values():
+            start, dur = retime(fade.get("start_time", now), fade.get("duration", 0))
+            fade["start_time"] = start
+            fade["duration"] = dur
+
+    hide_pending = game_state.get("character_hide_pending", {})
+    for char_name, end_time in list(hide_pending.items()):
+        remaining = max(0, end_time - now)
+        hide_pending[char_name] = now + min(remaining, duration_ms)
+
+    fade_state = game_state.get("fade_state", {})
+    if fade_state.get("active"):
+        start, dur = retime(fade_state.get("start_time", now), fade_state.get("duration", 0))
+        fade_state["start_time"] = start
+        fade_state["duration"] = dur
+
+    active_anims = game_state.get("ir_active_anims") or []
+    for anim in active_anims:
+        anim["end_time"] = now + duration_ms
+    game_state["ir_anim_pending"] = bool(active_anims)
+    game_state["ir_anim_end_time"] = (now + duration_ms) if active_anims else None
+
+
 def update_game(game_state):
     """ゲーム状態の更新"""
     # TextRendererの初期設定が完了していない場合は実行
@@ -274,8 +432,25 @@ def update_game(game_state):
     if 'notification_manager' in game_state:
         game_state['notification_manager'].update()
 
+    if game_state.get("use_ir"):
+        text_renderer = game_state.get("text_renderer")
+        if text_renderer and text_renderer.skip_mode:
+            if game_state.get("ir_anim_pending"):
+                if _ir_has_blocking_anims(game_state):
+                    if DEBUG:
+                        print("[IR] skip blocked by on_advance=block")
+                elif not game_state.get("ir_fast_forward_active"):
+                    _ir_fast_forward_animations(game_state, 300)
+        _update_ir_active_anims(game_state)
+        if game_state.get("ir_waiting_for_anim") and is_ir_idle(game_state):
+            game_state["ir_waiting_for_anim"] = False
+            advance_to_next_dialogue(game_state)
+
+
     # 自動進行の処理（選択肢表示中は無効化）
     if (game_state['text_renderer'].is_ready_for_auto_advance() and 
+        is_ir_idle(game_state) and
+        not is_input_blocked(game_state) and
         not game_state['backlog_manager'].is_showing_backlog() and
         not game_state['choice_renderer'].is_choice_showing()):
         # 自動的に次の対話に進む
@@ -292,14 +467,12 @@ def update_game(game_state):
     # 現在の会話データを取得
     if game_state['dialogue_data'] and game_state['current_paragraph'] < len(game_state['dialogue_data']):
         current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']]
-        
-        # データの長さをチェック
-        if len(current_dialogue) > 8:
+        if isinstance(current_dialogue, list) and len(current_dialogue) > 8:
             bgm_name = current_dialogue[7]
             bgm_volume = current_dialogue[8]
             bgm_loop = current_dialogue[9] if len(current_dialogue) > 9 else True
             
-            # BGMの変更を確認（拡張子自動補完対応）
+            # BGM?????????????????
             if bgm_name:
                 bgm_manager = game_state['bgm_manager']
                 actual_bgm_filename = bgm_manager.get_bgm_for_scene(bgm_name)

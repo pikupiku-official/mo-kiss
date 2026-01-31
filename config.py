@@ -69,6 +69,10 @@ SCREEN_HEIGHT = WINDOW_HEIGHT  # フルスクリーン高さ
 
 # デバッグモード（パフォーマンス向上のためFalseに）
 DEBUG = True
+USE_IR = True
+IR_DUMP_JSON = True  # Write IR JSON to disk when True.
+IR_DUMP_DIR = "debug/ir"
+CHARA_TRANSITION_DEFAULT_MS = 500
 
 # タイトル画面設定
 SHOW_TITLE_SCREEN = True            # タイトル画面を表示するかどうか（デバッグ時はFalseに）
@@ -190,6 +194,7 @@ TEXT_LINE_SPACING = 80
 AUTO_BUTTON_MARGIN_RIGHT = 278
 SKIP_BUTTON_MARGIN_RIGHT = 156
 BUTTON_MARGIN_TOP = 750
+UI_BUTTON_SCALE = 0.9
 
 # 顔のパーツの相対位置を設定
 FACE_POS = {

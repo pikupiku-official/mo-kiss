@@ -9,6 +9,7 @@ from .choice_renderer import ChoiceRenderer
 from .notification_manager import NotificationManager
 from config import *
 from .data_normalizer import normalize_dialogue_data
+from .ir_builder import build_ir_from_normalized, dump_ir_json, get_ir_dump_path
 
 def initialize_game(dialogue_file="events/E001.ks"):
     """ゲームの初期化を行う
@@ -107,6 +108,16 @@ def initialize_game(dialogue_file="events/E001.ks"):
         dialogue_data = get_default_normalized_dialogue()
 
     # キャラクター画像は元サイズで表示（自動スケーリング無効）
+    # IR data (normalized dialogue -> IR)
+    ir_data = build_ir_from_normalized(dialogue_data)
+    if IR_DUMP_JSON:
+        try:
+            dump_ir_json(ir_data, get_ir_dump_path(dialogue_file, IR_DUMP_DIR))
+            if DEBUG:
+                print(f"IR JSON dumped: {get_ir_dump_path(dialogue_file, IR_DUMP_DIR)}")
+        except Exception as e:
+            print(f"IR JSON dump failed: {e}")
+
     if "characters" in image_manager.image_paths and image_manager.image_paths["characters"]:
         first_char_key = list(image_manager.image_paths["characters"].keys())[0]
         print(f"キャラクター画像確認: {first_char_key} (元サイズで表示)")
@@ -158,6 +169,15 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'notification_manager': notification_manager,
         'images': images,
         'dialogue_data': dialogue_data,
+        'ir_data': ir_data,
+        'ir_step_index': -1,
+        'ir_anim_pending': False,
+        'ir_anim_end_time': None,
+        'ir_active_anims': [],
+        'ir_waiting_for_anim': False,
+        'ir_fast_forward_until': None,
+        'ir_fast_forward_active': False,
+        'use_ir': USE_IR,
         'character_pos': character_pos,
         'character_anim': character_anim,
         'character_zoom': character_zoom,
@@ -165,6 +185,8 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'character_blink_enabled': character_blink_enabled,
         'character_blink_state': character_blink_state,
         'character_blink_timers': character_blink_timers,
+        'character_part_fades': {},
+        'character_hide_pending': {},
         'fade_state': fade_state,
         'background_state': background_state,
         'show_face_parts': True,
