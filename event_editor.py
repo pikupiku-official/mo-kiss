@@ -1159,6 +1159,8 @@ class EventEditorGUI(QMainWindow):
         file_layout = QVBoxLayout()
         self.file_listbox = QListWidget()
         self.file_listbox.itemClicked.connect(self.on_file_select)
+        self.file_listbox.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.file_listbox.customContextMenuRequested.connect(self.show_file_context_menu)
         file_layout.addWidget(self.file_listbox)
 
         new_event_button = QPushButton("+ 新規イベント")
@@ -1214,6 +1216,83 @@ class EventEditorGUI(QMainWindow):
             self.file_listbox.addItem(ks_file)
 
         print(f"KSファイルを読み込みました: {len(ks_files)}件")
+
+    def show_file_context_menu(self, pos):
+        """KSファイル一覧の右クリックメニューを表示"""
+        item = self.file_listbox.itemAt(pos)
+        if not item:
+            return
+
+        menu = QMenu(self)
+        delete_action = menu.addAction("イベントを削除")
+        selected = menu.exec_(self.file_listbox.mapToGlobal(pos))
+        if selected == delete_action:
+            self.delete_event(item.text())
+
+    def delete_event(self, ks_filename):
+        """KSファイルとevents.csvの行を削除する"""
+        if not ks_filename:
+            return
+
+        event_id = os.path.splitext(ks_filename)[0]
+        ks_path = os.path.join(self.events_dir, ks_filename)
+
+        reply = QMessageBox.question(
+            self,
+            "確認",
+            f"{ks_filename} を削除しますか？\nKSファイルとevents.csvの行を削除します。",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        errors = []
+        if os.path.exists(ks_path):
+            try:
+                os.remove(ks_path)
+            except Exception as e:
+                errors.append(f"KSファイル削除: {e}")
+
+        id_key = "イベントID"
+        if id_key not in self.events_headers:
+            id_key = next((h for h in self.events_headers if "ID" in h or "id" in h.lower()), None)
+        if id_key:
+            before_count = len(self.events_rows)
+            self.events_rows = [row for row in self.events_rows if row.get(id_key) != event_id]
+            if len(self.events_rows) != before_count:
+                if not self.save_events_csv():
+                    errors.append("events.csvの保存に失敗しました")
+        else:
+            errors.append("events.csvのイベントID列が見つかりません")
+
+        self.load_file_list()
+
+        if self.current_file_path == ks_path:
+            self._clear_current_event()
+
+        if errors:
+            QMessageBox.warning(self, "警告", "削除中に問題が発生しました:\n" + "\n".join(errors))
+        else:
+            self.status_label.setText(f"削除完了: {ks_filename}")
+            self.status_label.setStyleSheet("color: green;")
+
+    def _clear_current_event(self):
+        """削除時に現在の表示をクリアする"""
+        self.current_file = None
+        self.current_file_path = None
+        self.current_event_id = None
+        self.current_steps = []
+        self.paragraph_line_map = []
+
+        if self.text_editor:
+            self.text_editor.blockSignals(True)
+            self.text_editor.setPlainText("")
+            self.text_editor.blockSignals(False)
+
+        for field in self.event_fields.values():
+            field.setText("")
+
+        self.update_step_highlights()
 
     def load_events_metadata(self):
         """events.csvを読み込み、メタデータを保持する"""
@@ -1339,7 +1418,8 @@ class EventEditorGUI(QMainWindow):
 
         try:
             with open(ks_path, 'w', encoding='utf-8') as f:
-                f.write("; New event\n")
+                f.write("//speaker//\n")
+                f.write("「セリフ」\n")
         except Exception as e:
             QMessageBox.critical(self, "エラー", f"KSファイル作成に失敗しました:\n{e}")
             return
@@ -1576,11 +1656,15 @@ class EventEditorGUI(QMainWindow):
         cursor = self.text_editor.cursorForPosition(pos)
         line_number = cursor.blockNumber()
         step = self._find_step_for_line(line_number)
+        has_steps = bool(getattr(self, "current_steps", None))
 
         menu = QMenu(self)
         edit_action = menu.addAction("このstepを編集")
         add_before_action = menu.addAction("このstepの前に追加")
         add_after_action = menu.addAction("このstepの後に追加")
+        add_here_action = None
+        if not step and not has_steps:
+            add_here_action = menu.addAction("ここにstepを追加")
         menu.addSeparator()
         toggle_scroll_action = menu.addAction("scroll-stopを付与/解除")
 
@@ -1591,7 +1675,14 @@ class EventEditorGUI(QMainWindow):
             toggle_scroll_action.setEnabled(False)
 
         selected = menu.exec_(self.text_editor.mapToGlobal(pos))
-        if not selected or not step:
+        if not selected:
+            return
+
+        if selected == add_here_action:
+            self._insert_step_template_at_line(line_number)
+            return
+
+        if not step:
             return
 
         if selected == edit_action:
@@ -1663,6 +1754,27 @@ class EventEditorGUI(QMainWindow):
             insert_at = 0
         if insert_at > len(lines):
             insert_at = len(lines)
+
+        new_lines = lines[:insert_at] + template_lines + lines[insert_at:]
+        self.text_editor.blockSignals(True)
+        self.text_editor.setPlainText("\n".join(new_lines))
+        self.text_editor.blockSignals(False)
+        self.update_step_highlights()
+
+    def _insert_step_template_at_line(self, line_number):
+        """stepが無い場合に、指定行へテンプレートstepを挿入する"""
+        if not self.text_editor:
+            return
+
+        lines = self.text_editor.toPlainText().splitlines()
+        insert_at = max(0, min(line_number, len(lines)))
+
+        template_lines = [
+            "; --- new step ---",
+            "//speaker//",
+            "「セリフ」",
+            "",
+        ]
 
         new_lines = lines[:insert_at] + template_lines + lines[insert_at:]
         self.text_editor.blockSignals(True)
