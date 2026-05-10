@@ -48,7 +48,14 @@ class DialogueSubsystem(SubsystemBase):
             self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
 
         # game_state を初期化
+        # text_renderer 等が __init__ 時に scale_pos() で座標をベイクするため、
+        # OFFSET_X=0/SCALE=1.0 の仮想画面モードで初期化する。初期化後は復元する
+        # （on_enter() で改めてリセットする）。
+        import config as _cfg
+        _pre_x, _pre_y, _pre_scale = _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE
+        _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = 0, 0, 1.0
         self.game_state = _init_game()
+        _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = _pre_x, _pre_y, _pre_scale
 
         # 全レンダラーの screen を仮想画面に差し替え
         self._swap_to_virtual_screen()

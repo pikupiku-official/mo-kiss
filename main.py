@@ -189,7 +189,7 @@ class GameApplication:
         # 共通遷移
         if result == "go_to_map":
             self.switch_to_map()
-        elif result in ("go_to_menu", "back_to_menu"):
+        elif result in ("go_to_menu", "back_to_menu", "go_to_main_menu"):
             self.switch_to_menu()
         elif result in ("go_to_home", "skip_to_home"):
             self.switch_to_home()
