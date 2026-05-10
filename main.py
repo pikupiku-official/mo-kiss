@@ -19,7 +19,7 @@ sys.path.append(os.path.dirname(__file__))
 
 from config import *
 from menu.main_menu import MainMenu
-from map.map import AdvancedKimikissMap
+from map.map import FieldMap
 from dialogue.model import initialize_game as init_dialogue_game
 from title_screen import show_title_screen
 from time_manager import get_time_manager
@@ -243,7 +243,7 @@ class GameApplication:
         if not self.map_system:
             try:
                 show_loading("マップを読み込み中...", self.screen)
-                self.map_system = AdvancedKimikissMap()
+                self.map_system = FieldMap(self.screen)
                 hide_loading()
             except Exception as e:
                 print(f"❌ マップシステム初期化エラー: {e}")

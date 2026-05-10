@@ -1,7 +1,7 @@
 """
 subsystem_base.py - サブシステム基底クラス
 
-全サブシステム（MainMenu / HomeModule / AdvancedKimikissMap / DialogueSubsystem 等）が
+全サブシステム（MainMenu / HomeModule / FieldMap / DialogueSubsystem 等）が
 継承する抽象基底クラス。
 
 統一インターフェース:

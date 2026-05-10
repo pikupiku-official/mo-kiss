@@ -18,6 +18,7 @@ sys.path.insert(0, project_root)
 from time_manager import get_time_manager
 from loading_screen import show_loading, hide_loading
 from bgm_manager import BGMManager
+from subsystem_base import SubsystemBase
 
 # 初期化
 pygame.init()
@@ -111,16 +112,18 @@ class Character:
         self.friendship_level = 0
         self.mood = "normal"
 
-class AdvancedKimikissMap:
-    def __init__(self):
-        print("🚀 AdvancedKimikissMap 初期化開始...")
-        
-        # main.pyから呼ばれる場合は既存の画面を使用
-        self.screen = pygame.display.get_surface()
-        if self.screen is None:
-            # スタンドアローンで実行される場合のみ画面を初期化
-            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-            pygame.display.set_caption("Advanced Kimikiss Map - 曜日・時間システム")
+class FieldMap(SubsystemBase):
+    def __init__(self, screen=None):
+        print("🚀 FieldMap 初期化開始...")
+
+        # screen が渡されなければ既存の画面を使用（スタンドアローン起動対応）
+        if screen is None:
+            screen = pygame.display.get_surface()
+        if screen is None:
+            screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+            pygame.display.set_caption("mo-kiss フィールドマップ")
+
+        super().__init__(screen)
         
         self.clock = pygame.time.Clock()
         self.running = True
@@ -167,7 +170,7 @@ class AdvancedKimikissMap:
         # BGMを再生
         self.update_bgm()
 
-        print("✅ AdvancedKimikissMap 初期化完了")
+        print("✅ FieldMap 初期化完了")
 
     def init_fonts(self):
         """フォント初期化（クロスプラットフォーム対応）"""
@@ -1849,6 +1852,20 @@ class AdvancedKimikissMap:
                 done_label = self.fonts['small'].render("done", True, (0, 100, 200))
                 self.screen.blit(done_label, (info_x + 35, completed_y + 5))
     
+    def cleanup(self):
+        """サブシステム終了時の処理（SubsystemBase実装）"""
+        try:
+            self.bgm_manager.stop_bgm()
+            print("🔇 FieldMap cleanup: BGM停止")
+        except Exception as e:
+            print(f"⚠️ FieldMap cleanupエラー: {e}")
+
+    def on_enter(self):
+        """サブシステム開始時の処理（SubsystemBase実装）"""
+        self.update_events()
+        self.update_bgm()
+        print("🎵 FieldMap on_enter: BGM再生")
+
     def update(self):
         """ゲーム状態の更新（main.pyからの呼び出し用）"""
         # アニメーション更新
@@ -1919,6 +1936,15 @@ class AdvancedKimikissMap:
         # ★クリッピング解除★
         self.screen.set_clip(None)
     
+    def handle_events(self, events) -> str | None:
+        """イベントリストを処理（SubsystemBase実装）"""
+        result = None
+        for event in events:
+            r = self.handle_event(event)
+            if r is not None:
+                result = r
+        return result
+
     def handle_event(self, event):
         """単一のイベントを処理して結果を返す（main.pyからの呼び出し用）"""
         if event.type == pygame.QUIT:
@@ -1991,7 +2017,7 @@ class AdvancedKimikissMap:
         sys.exit()
 
 if __name__ == "__main__":
-    print("=== Advanced Kimikiss Map ===")
+    print("=== mo-kiss FieldMap ===")
     print("機能:")
     print("- 曜日・時間帯システム")
     print("- 自動時間進行（5秒間隔）")
@@ -2006,5 +2032,5 @@ if __name__ == "__main__":
     print("- ESC: 終了")
     print("=========================")
     
-    game = AdvancedKimikissMap()
+    game = FieldMap()
     game.run()
