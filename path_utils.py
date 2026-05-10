@@ -13,10 +13,17 @@ def get_project_root():
     """
     プロジェクトルートディレクトリを取得
 
+    開発時: path_utils.py の場所（プロジェクトルート）を返す。
+    PyInstaller 等でパッケージ化時: .exe のあるディレクトリを返す。
+
     Returns:
-        str: プロジェクトルート（mo-kissディレクトリ）の絶対パス
+        str: プロジェクトルートの絶対パス
     """
-    # このファイル（path_utils.py）はmo-kissディレクトリ直下にある
+    if getattr(sys, 'frozen', False):
+        # PyInstaller / cx_Freeze 等でパッケージ化されている場合
+        # sys.executable = .exe のフルパス → その横に assets がある
+        return os.path.dirname(os.path.abspath(sys.executable))
+    # 開発時: path_utils.py はプロジェクトルート直下にある
     return os.path.dirname(os.path.abspath(__file__))
 
 

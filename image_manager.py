@@ -6,6 +6,7 @@ import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from config import get_textbox_position, get_ui_button_positions
+from path_utils import get_project_root
 
 class ImageManager:
     def __init__(self, debug=False, cache_size=50):
@@ -307,7 +308,7 @@ class ImageManager:
         self.default_sizes['background'] = (screen_width, screen_height)
 
         # imagesディレクトリ内のすべてのファイルをスキャン
-        project_root = os.path.dirname(os.path.abspath(__file__))
+        project_root = get_project_root()
         images_dir = os.path.join(project_root, "images")
         
         if self.debug:
