@@ -57,8 +57,11 @@ class DialogueSubsystem(SubsystemBase):
         import config as _cfg
         _pre_x, _pre_y, _pre_scale = _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE
         _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = 0, 0, 1.0
-        self.game_state = _init_game()
-        _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = _pre_x, _pre_y, _pre_scale
+        try:
+            self.game_state = _init_game()
+        finally:
+            # 例外発生時も必ず config を復元（⑦修正）
+            _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = _pre_x, _pre_y, _pre_scale
 
         # 全レンダラーの screen を仮想画面に差し替え
         self._swap_to_virtual_screen()

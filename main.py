@@ -79,6 +79,7 @@ class GameApplication:
             # 初期サブシステムをタイトル画面に設定（フェーズ8）
             self.current_subsystem = TitleSubsystem(self.screen)
             self.current_mode = "title"
+            self.current_subsystem.on_enter()  # BGM再生等の初期化処理（①修正）
 
             print("✅ アプリケーション初期化完了")
             return True
@@ -466,108 +467,6 @@ class GameApplication:
                         print("[TIME] E001終了 - 時間進行なしでmapモジュールに遷移")
                     self.switch_to_map()
 
-    def update(self):
-        """ゲーム状態の更新"""
-        if self.current_mode == "menu":
-            if self.main_menu:
-                self.main_menu.update()
-                
-        elif self.current_mode == "map":
-            if self.map_system:
-                self.map_system.update()
-                
-        elif self.current_mode == "dialogue":
-            # 会話システムの更新
-            if self.dialogue_game_state:
-                from dialogue.controller2 import update_game
-                update_game(self.dialogue_game_state)
-                
-        elif self.current_mode == "home":
-            if self.home_module:
-                self.home_module.update()
-
-    def render(self):
-        """画面描画"""
-        self.screen.fill((0, 0, 0))  # 画面クリア
-        
-        if self.current_mode == "menu":
-            if self.main_menu:
-                self.main_menu.render()
-                
-        elif self.current_mode == "map":
-            if self.map_system:
-                self.map_system.render()
-                
-        elif self.current_mode == "dialogue":
-            # 会話システムの描画（仮想画面に描画）
-            if self.dialogue_game_state:
-                from dialogue.text_renderer import TextRenderer
-                from dialogue.character_manager import draw_characters
-                from dialogue.background_manager import draw_background
-                from dialogue.choice_renderer import ChoiceRenderer
-                from dialogue.fade_manager import draw_fade_overlay
-                from dialogue.controller2 import draw_input_blocked_notice
-
-                # 仮想画面をクリア
-                self.virtual_screen.fill((0, 0, 0))
-
-                # 背景描画
-                draw_background(self.dialogue_game_state)
-
-                # キャラクター描画
-                draw_characters(self.dialogue_game_state)
-
-                # フェードオーバーレイ描画（ゲームコンテンツの上、UIの下）
-                draw_fade_overlay(self.dialogue_game_state)
-
-                # UIエレメント描画（テキストボックス等）
-                if ('image_manager' in self.dialogue_game_state and 'images' in self.dialogue_game_state):
-                    image_manager = self.dialogue_game_state['image_manager']
-                    images = self.dialogue_game_state['images']
-                    show_text = self.dialogue_game_state.get('show_text', True)
-                    image_manager.draw_ui_elements(self.virtual_screen, images, show_text)
-
-                # 選択肢が表示中かどうかを確認
-                choice_showing = False
-                if 'choice_renderer' in self.dialogue_game_state:
-                    choice_renderer = self.dialogue_game_state['choice_renderer']
-                    choice_showing = choice_renderer.is_choice_showing()
-
-                # テキスト描画（選択肢表示中はスキップ）
-                if not choice_showing and 'text_renderer' in self.dialogue_game_state:
-                    text_renderer = self.dialogue_game_state['text_renderer']
-                    text_renderer.render_text_window(self.dialogue_game_state)
-
-                # 選択肢描画
-                if choice_showing:
-                    choice_renderer.render()
-
-                # バックログ描画（最後に描画して他の要素の上に表示）
-                if 'backlog_manager' in self.dialogue_game_state:
-                    backlog_manager = self.dialogue_game_state['backlog_manager']
-                    backlog_manager.render()
-
-                # 通知システム描画（最上位）
-                if 'notification_manager' in self.dialogue_game_state:
-                    notification_manager = self.dialogue_game_state['notification_manager']
-                    notification_manager.render()
-
-                draw_input_blocked_notice(self.dialogue_game_state, self.virtual_screen)
-
-                # 仮想画面をフルスクリーンにスケーリングして転送
-                # 4:3コンテンツを画面中央に配置
-                scaled_surface = pygame.transform.smoothscale(
-                    self.virtual_screen,
-                    (CONTENT_WIDTH, CONTENT_HEIGHT)
-                )
-                self.screen.blit(scaled_surface, (OFFSET_X, OFFSET_Y))
-
-        elif self.current_mode == "home":
-            if self.home_module:
-                self.home_module.render()
-
-        pygame.display.flip()
-
     def run(self):
         """メインゲームループ（フェーズ4: current_subsystem による統一制御）"""
         if not self.initialize():
@@ -579,10 +478,12 @@ class GameApplication:
             try:
                 if self.current_overlay:
                     # OPTIONオーバーレイがアクティブ
+                    # update() は意図的に呼ばない = ゲームがポーズ状態になる（⑤）
+                    # BGMはBGMManager側で継続するため別途停止不要
                     ov_result = self.current_overlay.handle_events()
                     if ov_result:
                         self._handle_overlay_result(ov_result)
-                    # ベースシステムの描画後にオーバーレイを重ねる
+                    # ベースシステムを描画してからOPTIONを上に重ねる
                     if self.current_subsystem:
                         self.current_subsystem.render()
                     if self.current_overlay:  # handle後にNoneになる場合を考慮
