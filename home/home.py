@@ -144,6 +144,8 @@ class HomeModule(SubsystemBase):
         if events is None:
             events = pygame.event.get()
         for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return "show_option"
             if event.type == pygame.KEYDOWN:
                 if self.save_mode is None:
                     # メインメニュー状態

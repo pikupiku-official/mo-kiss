@@ -1951,6 +1951,8 @@ class FieldMap(SubsystemBase):
         """単一のイベントを処理して結果を返す（main.pyからの呼び出し用）"""
         if event.type == pygame.QUIT:
             return "back_to_menu"
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            return "show_option"
         elif event.type == pygame.MOUSEBUTTONDOWN:
             print(f"🖱️ マウスボタンが押されました: ボタン={event.button}, 位置={event.pos}")
             if event.button == 1:  # 左クリック

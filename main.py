@@ -21,7 +21,8 @@ from config import *
 from menu.main_menu import MainMenu
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
-from title_screen import show_title_screen
+from title_subsystem import TitleSubsystem
+from option_overlay import OptionOverlay
 from time_manager import get_time_manager
 from home.home import HomeModule
 from save_manager import get_save_manager
@@ -43,6 +44,7 @@ class GameApplication:
         self.dialogue_game_state = None  # 下位互换性のため残存
         self.home_module = None
         self.current_subsystem = None   # 現在アクティブな SubsystemBase 実装
+        self.current_overlay = None    # OPTIONオーバーレイ（None=非表示）
 
         # 現在実行中のイベント情報を保持
         self.current_event_id = None
@@ -74,9 +76,9 @@ class GameApplication:
             # ローディング画面を隠す
             hide_loading()
 
-            # 初期サブシステムをメインメニューに設定
-            self.current_subsystem = self.main_menu
-            self.current_mode = "menu"
+            # 初期サブシステムをタイトル画面に設定（フェーズ8）
+            self.current_subsystem = TitleSubsystem(self.screen)
+            self.current_mode = "title"
 
             print("✅ アプリケーション初期化完了")
             return True
@@ -171,6 +173,31 @@ class GameApplication:
         except Exception as e:
             print(f"[EVENT] イベント完了記録エラー: {e}")
 
+    def show_option(self):
+        """OPTIONオーバーレイを表示（BGM継続）"""
+        if self.current_overlay is None:
+            self.current_overlay = OptionOverlay(self.screen, self.current_mode)
+            print("[OPTION] オーバーレイ表示")
+
+    def hide_option(self):
+        """OPTIONオーバーレイを閉じる"""
+        self.current_overlay = None
+        print("[OPTION] オーバーレイ非表示")
+
+    def _handle_overlay_result(self, result: str):
+        """オーバーレイからの戻り値を処理"""
+        if result == "resume":
+            self.hide_option()
+        elif result == "save":
+            from save_manager import get_save_manager
+            get_save_manager().save_game("saveslot_auto")
+            # TODO: スロット選択UIを開く（フェーズ7で実装）
+        elif result == "load":
+            pass  # TODO: スロット選択UIを開く（フェーズ7で実装）
+        elif result in ("go_to_menu", "quit"):
+            self.hide_option()
+            self._handle_transition(result)
+
     def switch_to(self, subsystem, mode_name: str):
         """サブシステム切り替えの統一メソッド（フェーズ4中心）"""
         if self.current_subsystem:
@@ -191,6 +218,8 @@ class GameApplication:
             self.switch_to_map()
         elif result in ("go_to_menu", "back_to_menu", "go_to_main_menu"):
             self.switch_to_menu()
+        elif result == "show_option":
+            self.show_option()
         elif result in ("go_to_home", "skip_to_home"):
             self.switch_to_home()
 
@@ -542,26 +571,27 @@ class GameApplication:
         if not self.initialize():
             return False
 
-        # タイトル画面表示
-        if not show_title_screen(self.screen, DEBUG):
-            print('🚪 タイトル画面でゲーム終了')
-            return True
-
-        print('🎯 メインゲームループ開始')
+        print('🎯 メインゲームループ開始（タイトル → メインメニュー → ゲーム）')
 
         while self.running:
             try:
-                if self.current_subsystem:
-                    # イベント処理（各サブシステムが pygame.event.get() を内部管理）
+                if self.current_overlay:
+                    # OPTIONオーバーレイがアクティブ
+                    ov_result = self.current_overlay.handle_events()
+                    if ov_result:
+                        self._handle_overlay_result(ov_result)
+                    # ベースシステムの描画後にオーバーレイを重ねる
+                    if self.current_subsystem:
+                        self.current_subsystem.render()
+                    if self.current_overlay:  # handle後にNoneになる場合を考慮
+                        self.current_overlay.render_overlay()
+                elif self.current_subsystem:
+                    # 通常モード
                     result = self.current_subsystem.handle_events()
                     if result:
                         self._handle_transition(result)
-
-                    # 更新
                     if self.current_subsystem:
                         self.current_subsystem.update()
-
-                    # 描画
                     if self.current_subsystem:
                         self.current_subsystem.render()
 
