@@ -100,7 +100,7 @@ class DialogueSubsystem(SubsystemBase):
             self._saved_offset_y = None
             self._saved_scale    = None
 
-    def handle_events(self, events) -> str | None:
+    def handle_events(self, events=None) -> str | None:
         """
         イベント処理（追加問題A対応）
 
