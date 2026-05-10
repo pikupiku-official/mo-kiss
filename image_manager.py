@@ -307,8 +307,8 @@ class ImageManager:
         self.default_sizes['background'] = (screen_width, screen_height)
 
         # imagesディレクトリ内のすべてのファイルをスキャン
-        project_root = os.path.dirname(os.path.dirname(__file__))
-        images_dir = os.path.join(project_root, "mo-kiss", "images")
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        images_dir = os.path.join(project_root, "images")
         
         if self.debug:
             print(f"画像パススキャン開始: {images_dir}")
