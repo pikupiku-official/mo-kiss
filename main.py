@@ -311,6 +311,7 @@ class GameApplication:
                 hide_loading()
                 self.switch_to_menu()
                 return
+        get_save_manager().save_game("saveslot_auto")
         self.switch_to(self.map_system, "map")
 
     def switch_to_home(self):
@@ -325,6 +326,7 @@ class GameApplication:
                 hide_loading()
                 self.switch_to_menu()
                 return
+        get_save_manager().save_game("saveslot_auto")
         self.switch_to(self.home_module, "home")
     
     def switch_to_dialogue(self, event_file=None):

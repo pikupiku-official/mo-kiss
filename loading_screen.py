@@ -6,6 +6,7 @@
 import pygame
 import os
 import sys
+from path_utils import get_project_root
 
 class LoadingScreen:
     """ローディング画面を管理するクラス"""
@@ -28,8 +29,6 @@ class LoadingScreen:
         
         # 第1段階: プロジェクト専用フォント (M PLUS Rounded 1c)
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            font_dir = os.path.join(current_dir, "fonts")
             project_font_path = os.path.join(font_dir, "MPLUSRounded1c-Regular.ttf")
             project_font_path = os.path.abspath(project_font_path)
             

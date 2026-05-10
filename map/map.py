@@ -11,8 +11,9 @@ from enum import Enum
 
 # プロジェクトルートをパスに追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.join(current_dir, "..", "..")
+project_root = os.path.join(current_dir, "..")
 sys.path.insert(0, project_root)
+from path_utils import get_project_root as _get_project_root
 
 # TimeManagerとBGMManagerをインポート
 from time_manager import get_time_manager
@@ -157,7 +158,7 @@ class FieldMap(SubsystemBase):
         self.load_events()  # イベントCSV読み込み
         
         # 実行済みイベント記録の管理 - /mo-kiss/events ディレクトリに配置
-        project_root = os.path.dirname(os.path.dirname(__file__))  # map -> mo-kiss
+        project_root = _get_project_root()
         self.completed_events_file = os.path.join(project_root, "data", "current_state", "completed_events.csv")
         
         # CSVの初期化は削除（データを保護）
@@ -401,10 +402,7 @@ class FieldMap(SubsystemBase):
         """キャラクター画像を読み込み、円形に切り抜く"""
         print("📁 load_character_images メソッド実行中...")
         # 現在のファイルからの相対パスを確実に計算
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # map から mo-kiss ルートディレクトリへ
-        project_root = os.path.dirname(current_dir)
-        project_root = os.path.abspath(project_root)  # 絶対パスに変換
+        project_root = _get_project_root()
         icon_dir = os.path.join(project_root, "images", "icons")
         icon_size = 35  # アイコンサイズ（通常時）
         
@@ -530,8 +528,7 @@ class FieldMap(SubsystemBase):
         self.events = []
         try:
             # /mo-kiss/events ディレクトリのevents.csvを読み込み
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(current_dir)  # map -> mo-kiss
+            project_root = _get_project_root()
             csv_path = os.path.join(project_root, 'events', 'events.csv')
             print(f"CSVファイルパス: {csv_path}")
             
@@ -1317,357 +1314,9 @@ class FieldMap(SubsystemBase):
         # 自動進行システム削除により、クリック切り替えエリアを削除
     
     def execute_event(self, event_info):
-        """イベントを実行"""
+        """イベントを実行（DialogueSubsystem 経由で main.py が処理するため launch_event を返す）"""
         print(f"🎬 イベント実行開始: {event_info.event_id}")
-        
-        try:
-            # イベントファイルのパスを設定
-            import sys
-            import importlib.util
-            
-            # mo-kissルートディレクトリのeventsフォルダを参照
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(current_dir)
-            events_dir = os.path.join(project_root, "events")
-            
-            # .ksファイルを優先的に使用
-            ks_file_path = os.path.join(events_dir, f"{event_info.event_id}.ks")
-            
-            print(f"📁 .ksファイルパス: {ks_file_path}")
-            
-            if os.path.exists(ks_file_path):
-                print(f"📜 .ksファイルを使用してメインゲームを起動: {ks_file_path}")
-                # メインゲームシステムを起動
-                result = self.launch_main_game(ks_file_path, event_info)
-                
-                if result == "quit":
-                    self.running = False
-                elif result == "back_to_map":
-                    # イベント実行記録を保存
-                    self.save_completed_event(event_info)
-                    # イベント終了後に時間を進める
-                    self.advance_time_after_event()
-                    
-            else:
-                print(f"⚠️ .ksファイルが見つかりません: {ks_file_path}")
-                print("イベント実行をスキップします。")
-                
-        except Exception as e:
-            print(f"❌ イベント実行エラー: {e}")
-            print(f"イベントファイルの実行に失敗しました: {event_info.event_id}")
-            import traceback
-            traceback.print_exc()
-    
-    def launch_main_game(self, ks_file_path, event_info):
-        """同じウィンドウでメインゲームシステムを実行"""
-        print(f"🎮 メインゲームシステムを起動: {ks_file_path}")
-        
-        try:
-            # メインゲームの初期化処理を実行
-            from ..dialogue.model import initialize_game, initialize_first_scene
-            from ..dialogue.controller2 import handle_events
-            
-            print("🎯 ゲーム状態を初期化中...")
-            
-            # Pygameを再初期化（既存のウィンドウを使用）
-            if not pygame.get_init():
-                pygame.init()
-            
-            # 既存の画面を使用
-            screen = self.screen
-            
-            # カレントディレクトリをプロジェクトルートに変更
-            import os
-            current_dir = os.getcwd()
-            project_root_abs = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-            os.chdir(project_root_abs)
-            print(f"カレントディレクトリを変更: {current_dir} -> {project_root_abs}")
-            
-            try:
-                # config.pyの画面サイズをそのまま使用（4:3対応）
-                from config import SCREEN_WIDTH, SCREEN_HEIGHT
-                current_screen_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
-
-                game_state = initialize_game()
-                # 画面サイズはconfig.pyの設定をそのまま使用（変更しない）
-                screen = self.screen
-
-                # UI要素を現在の画面サイズで再初期化
-                self.reinitialize_ui_elements(game_state, screen, current_screen_size)
-                
-            finally:
-                # カレントディレクトリを元に戻す
-                os.chdir(current_dir)
-            if not game_state:
-                print("❌ ゲーム状態の初期化に失敗しました")
-                return "back_to_map"
-            
-            # 画面を設定
-            game_state['screen'] = screen
-            
-            # .ksファイルからダイアログを読み込み
-            print(f"📜 .ksファイルを読み込み: {ks_file_path}")
-            dialogue_loader = game_state.get('dialogue_loader')
-            if dialogue_loader:
-                # ファイルパスを正規化
-                import os
-                normalized_path = os.path.normpath(ks_file_path)
-                if os.path.exists(normalized_path):
-                    print(f"✅ .ksファイルが見つかりました: {normalized_path}")
-                    raw_dialogue_data = dialogue_loader.load_dialogue_from_ks(normalized_path)
-                    if raw_dialogue_data:
-                        from ..dialogue.data_normalizer import normalize_dialogue_data
-                        dialogue_data = normalize_dialogue_data(raw_dialogue_data)
-                        if dialogue_data:
-                            game_state['dialogue_data'] = dialogue_data
-                            game_state['current_paragraph'] = 0
-                            initialize_first_scene(game_state)
-                            print(f"🎯 .ksファイルの読み込み完了: {len(dialogue_data)}個のダイアログ")
-                        else:
-                            print("❌ ダイアログデータの正規化に失敗")
-                    else:
-                        print("❌ .ksファイルの読み込みに失敗")
-                else:
-                    print(f"❌ .ksファイルが見つかりません: {normalized_path}")
-            
-            print("🎮 メインゲームループを開始...")
-            
-            # メインゲームループを実行
-            clock = pygame.time.Clock()
-            running = True
-            
-            while running:
-                # イベント処理
-                running = handle_events(game_state, screen)
-                if not running:
-                    break
-                
-                # ESCキーでマップに戻る
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_ESCAPE]:
-                    print("🔙 ESCキーでマップに戻ります")
-                    break
-                
-                # ゲーム状態の更新
-                self.update_game_state(game_state)
-                
-                # 描画処理
-                self.render_game(game_state)
-                
-                # フレームレート制限
-                clock.tick(60)
-            
-            # イベント終了時（画面サイズは変更していないのでそのまま）
-            print("🔙 イベント終了、マップ画面に戻ります")
-            return "back_to_map"
-            
-        except Exception as e:
-            print(f"❌ メインゲーム実行エラー: {e}")
-            import traceback
-            traceback.print_exc()
-            # エラー時もマップ画面に戻る（画面サイズは変更していないのでそのまま）
-            return "back_to_map"
-    
-    def update_game_state(self, game_state):
-        """ゲーム状態を更新"""
-        try:
-            # テキスト表示の更新
-            if 'text_renderer' in game_state:
-                game_state['text_renderer'].update()
-            
-            # 背景アニメーションの更新
-            from dialogue.model import update_background_animation
-            update_background_animation(game_state)
-            
-            # キャラクターアニメーションの更新
-            from dialogue.character_manager import update_character_animations
-            update_character_animations(game_state)
-            
-            # controller2のupdate_game関数を使用（auto/skip機能に必要）
-            from dialogue.controller2 import update_game
-            update_game(game_state)
-        except Exception as e:
-            print(f"ゲーム状態更新エラー: {e}")
-    
-    def render_game(self, game_state):
-        """ゲーム画面を描画"""
-        try:
-            screen = game_state['screen']
-            
-            # 画面をクリア
-            screen.fill((0, 0, 0))
-            
-            # 背景を描画
-            from dialogue.model import draw_background
-            draw_background(game_state)
-            
-            # キャラクターを描画
-            if 'active_characters' in game_state and game_state['active_characters']:
-                from dialogue.character_manager import draw_characters
-                draw_characters(game_state)
-            
-            # UI画像を描画 (auto, skip, text-box) - バックログ表示中は描画しない
-            if ('image_manager' in game_state and 'images' in game_state and
-                not game_state.get('backlog_manager', type('', (), {'is_showing_backlog': lambda: False})).is_showing_backlog()):
-                image_manager = game_state['image_manager']
-                images = game_state['images']
-                show_text = game_state.get('show_text', True)
-                image_manager.draw_ui_elements(screen, images, show_text)
-            
-            # テキストを描画（選択肢表示中またはバックログ表示中は非表示）
-            if ('text_renderer' in game_state and 
-                game_state.get('show_text', True) and 
-                not game_state.get('choice_renderer', type('', (), {'is_choice_showing': lambda: False})).is_choice_showing() and
-                not game_state.get('backlog_manager', type('', (), {'is_showing_backlog': lambda: False})).is_showing_backlog()):
-                game_state['text_renderer'].render()
-            
-            # 選択肢を描画
-            if 'choice_renderer' in game_state:
-                game_state['choice_renderer'].render()
-            
-            # バックログを描画
-            if 'backlog_manager' in game_state:
-                game_state['backlog_manager'].render()
-            
-            # 画面を更新
-            pygame.display.flip()
-            
-        except Exception as e:
-            print(f"❌ 描画エラー: {e}")
-            import traceback
-            traceback.print_exc()
-            # エラー時は黒い画面
-            screen.fill((0, 0, 0))
-            pygame.display.flip()
-    
-    def reinitialize_ui_elements(self, game_state, screen, screen_size):
-        """画面サイズ変更後にUI要素を再初期化"""
-        try:
-            from dialogue.text_renderer import TextRenderer
-            from dialogue.choice_renderer import ChoiceRenderer
-            from dialogue.backlog_manager import BacklogManager
-            from image_manager import ImageManager
-            
-            # 新しい画面サイズでUI要素を再作成
-            text_renderer = TextRenderer(screen, DEBUG)
-            choice_renderer = ChoiceRenderer(screen, DEBUG)
-            
-            # バックログマネージャーの再初期化
-            backlog_manager = BacklogManager(screen, text_renderer.fonts, DEBUG)
-            text_renderer.set_backlog_manager(backlog_manager)
-            
-            # 画像マネージャーで画像を新しいサイズで再読み込み
-            image_manager = ImageManager(DEBUG)
-            images = image_manager.load_all_images(screen_size[0], screen_size[1])
-            
-            # ゲーム状態を更新
-            game_state['text_renderer'] = text_renderer
-            game_state['choice_renderer'] = choice_renderer
-            game_state['backlog_manager'] = backlog_manager
-            game_state['image_manager'] = image_manager
-            game_state['images'] = images
-            
-            print(f"UI要素を画面サイズ {screen_size} で再初期化しました")
-            
-        except Exception as e:
-            print(f"UI要素再初期化エラー: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def draw_background(self, game_state):
-        """背景を描画"""
-        try:
-            screen = game_state['screen']
-            bg_state = game_state.get('background_state', {})
-            bg_name = bg_state.get('current_bg', 'school')
-            
-            
-            if 'images' in game_state and 'backgrounds' in game_state['images']:
-                if bg_name in game_state['images']['backgrounds']:
-                    bg_image = game_state['images']['backgrounds'][bg_name]
-                    if bg_image:
-                        screen.blit(bg_image, (0, 0))
-        except Exception as e:
-            print(f"❌ 背景描画エラー: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def run_ks_event_in_window(self, dialogue_data, event_info):
-        """現在のウィンドウで.ksイベントを実行"""
-        print(f"📜 .ksイベントを実行: {len(dialogue_data)}個のダイアログ")
-        
-        current_dialogue = 0
-        event_running = True
-        
-        # 強制的に最初の画面を表示
-        
-        # フォント設定
-        font_large = pygame.font.Font(None, 36)
-        font_medium = pygame.font.Font(None, 24)
-        font_small = pygame.font.Font(None, 18)
-        
-        while event_running and current_dialogue < len(dialogue_data):
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    return "quit"
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return "back_to_map"
-                    elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
-                        current_dialogue += 1
-                        if current_dialogue >= len(dialogue_data):
-                            event_running = False
-            
-            # 画面描画
-            self.screen.fill((20, 25, 35))  # 暗い背景
-            
-            if current_dialogue < len(dialogue_data):
-                dialogue_item = dialogue_data[current_dialogue]
-                
-                # タイトル表示
-                title_text = font_large.render(event_info.title, True, (255, 215, 0))
-                title_rect = title_text.get_rect(center=(self.screen_width // 2, 50))
-                self.screen.blit(title_text, title_rect)
-                
-                # テキストボックス
-                text_box_rect = pygame.Rect(50, self.screen_height - 200, 
-                                          self.screen_width - 100, 150)
-                pygame.draw.rect(self.screen, (40, 45, 60, 200), text_box_rect)
-                pygame.draw.rect(self.screen, (70, 130, 180), text_box_rect, 3)
-                
-                # 話者名
-                if len(dialogue_item) > 9 and dialogue_item[9]:
-                    speaker = dialogue_item[9]
-                elif len(dialogue_item) > 1 and dialogue_item[1]:
-                    speaker = dialogue_item[1]
-                else:
-                    speaker = "ナレーション"
-                    
-                speaker_text = font_medium.render(speaker, True, (255, 215, 0))
-                self.screen.blit(speaker_text, (text_box_rect.left + 20, text_box_rect.top + 10))
-                
-                # セリフ
-                if len(dialogue_item) > 5 and dialogue_item[5]:
-                    dialogue_text = dialogue_item[5]
-                    # 長いテキストを改行
-                    lines = self.wrap_text(dialogue_text, font_small, text_box_rect.width - 40)
-                    for i, line in enumerate(lines[:4]):  # 最大4行まで
-                        text_surface = font_small.render(line, True, (255, 255, 255))
-                        self.screen.blit(text_surface, (text_box_rect.left + 20, text_box_rect.top + 45 + i * 25))
-                
-                # 進行状況
-                progress_text = font_small.render(f"{current_dialogue + 1}/{len(dialogue_data)}", True, (255, 255, 255))
-                self.screen.blit(progress_text, (text_box_rect.right - 100, text_box_rect.bottom - 30))
-                
-                # 操作説明
-                help_text = font_small.render("Space/Enter: 次へ  ESC: マップに戻る", True, (192, 192, 192))
-                help_rect = help_text.get_rect(center=(self.screen_width // 2, self.screen_height - 30))
-                self.screen.blit(help_text, help_rect)
-            
-            pygame.display.flip()
-            self.clock.tick(60)
-        
-        return "back_to_map"
+        return f"launch_event:events/{event_info.event_id}.ks"
     
     def wrap_text(self, text, font, max_width):
         """テキストを指定幅で改行"""
@@ -1881,8 +1530,8 @@ class FieldMap(SubsystemBase):
             if not hasattr(self, 'background_image'):
                 # school.pngとmap_school.pngの両方を試行
                 possible_paths = [
-                    os.path.join(os.path.dirname(__file__), "..", "images", "maps", "school.png"),
-                    os.path.join(os.path.dirname(__file__), "..", "images", "maps", "map_school.png")
+                    os.path.join(_get_project_root(), "images", "maps", "school.png"),
+                    os.path.join(_get_project_root(), "images", "maps", "map_school.png")
                 ]
 
                 background_loaded = False

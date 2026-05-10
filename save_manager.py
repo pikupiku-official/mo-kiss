@@ -4,12 +4,13 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional
 from loading_screen import show_loading, hide_loading
+from path_utils import get_project_root
 
 class SaveManager:
     """セーブ・ロード管理システム"""
     
     def __init__(self, project_root: str = None):
-        self.project_root = project_root or os.path.dirname(os.path.abspath(__file__))
+        self.project_root = project_root or get_project_root()
         self.current_state_dir = os.path.join(self.project_root, "data", "current_state")
         self.save_dir = os.path.join(self.project_root, "data", "save")
         self.templates_dir = os.path.join(self.project_root, "data", "templates")
@@ -19,6 +20,7 @@ class SaveManager:
             "completed_events.csv",
             "time_state.json", 
             "player_name.json"
+            "dialogue_state.json"
         ]
         
         # ディレクトリが存在しない場合は作成
@@ -124,6 +126,16 @@ class SaveManager:
                 else:
                     print(f"[SAVE] 警告: {filename}が見つかりません")
             
+            # サムネイル保存
+            try:
+                import pygame as _pg
+                screen = _pg.display.get_surface()
+                if screen:
+                    thumbnail = _pg.transform.scale(screen, (320, 240))
+                    _pg.image.save(thumbnail, os.path.join(slot_path, "thumbnail.png"))
+                    print(f"[SAVE] thumbnail.png -> {slot_name}")
+            except Exception as _te:
+                print(f"[SAVE] サムネイル保存スキップ: {_te}")
             print(f"✅ ゲームを{slot_name}に保存しました")
             return True
             
@@ -187,7 +199,8 @@ class SaveManager:
             template_mapping = {
                 "completed_events.csv": "completed_events_template.csv",
                 "time_state.json": "time_state_template.json",
-                "player_name.json": "player_name_template.json"
+                "player_name.json": "player_name_template.json",
+                "dialogue_state.json": "dialogue_state_template.json"
             }
             
             for current_name, template_name in template_mapping.items():

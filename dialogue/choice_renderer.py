@@ -265,7 +265,8 @@ class ChoiceRenderer:
             default_font_size = FONT_DEFAULT_SIZE
             
             # フォントファイルのパスを設定（プロジェクトルートから）
-            project_root = os.path.dirname(os.path.dirname(__file__))
+            from path_utils import get_project_root
+            project_root = get_project_root()
             font_dir = os.path.join(project_root, "fonts")
             medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
 

@@ -47,6 +47,9 @@ class DialogueSubsystem(SubsystemBase):
         if event_file:
             self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
 
+        # 段落セーブ用の最後の保存段落インデックス (Task 2c)
+        self._last_saved_paragraph: int = -2
+
         # game_state を初期化
         # text_renderer 等が __init__ 時に scale_pos() で座標をベイクするため、
         # OFFSET_X=0/SCALE=1.0 の仮想画面モードで初期化する。初期化後は復元する
@@ -109,15 +112,34 @@ class DialogueSubsystem(SubsystemBase):
 
     def handle_events(self, events=None) -> str | None:
         """
-        イベント処理（追加問題A対応）
-
-        events 引数は無視する。
-        controller2.handle_events() が内部で pygame.event.get() を呼ぶため。
+        イベント処理（追加問題A対応 + ESC競合修正 Task3 + 段落保存 Task2c）
 
         Returns:
+            "show_option"    : ESC が押されて OPTION を開く（バックログ非表示時のみ）
             "dialogue_ended" : KS ファイルが終了した
             None             : 会話継続中
         """
+        import pygame
+
+        # Task3: バックログ非表示時のみ ESC を先取りして show_option を返す
+        backlog = self.game_state.get('backlog_manager')
+        if not (backlog and backlog.is_showing_backlog()):
+            esc_pressed = False
+            other_events = []
+            for e in pygame.event.get(pygame.KEYDOWN):
+                if e.key == pygame.K_ESCAPE:
+                    esc_pressed = True
+                else:
+                    other_events.append(e)
+            # ESC以外のイベントをキューに戻す
+            for e in other_events:
+                try:
+                    pygame.event.post(e)
+                except Exception:
+                    pass
+            if esc_pressed:
+                return "show_option"
+
         from dialogue.controller2 import handle_events as _ctrl_events
 
         try:
@@ -126,9 +148,30 @@ class DialogueSubsystem(SubsystemBase):
             print(f"⚠️ DialogueSubsystem handle_events エラー: {e}")
             return "dialogue_ended"
 
+        # Task2c: 段落が進んだときだけ dialogue_state.json に保存
+        current_para = self.game_state.get('current_paragraph', -1)
+        if current_para != self._last_saved_paragraph:
+            self._last_saved_paragraph = current_para
+            self._save_dialogue_state(current_para)
+
         if not continue_dialogue:
             return "dialogue_ended"
         return None
+
+    def _save_dialogue_state(self, paragraph_index: int):
+        """現在の段落インデックスを dialogue_state.json に書き込む（Task 2c）"""
+        try:
+            import json
+            from path_utils import get_project_root
+            state_path = os.path.join(get_project_root(), "data", "current_state", "dialogue_state.json")
+            state = {
+                "event_id": self.current_event_id,
+                "paragraph_index": paragraph_index
+            }
+            with open(state_path, 'w', encoding='utf-8') as f:
+                json.dump(state, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"⚠️ dialogue_state.json 保存エラー: {e}")
 
     def update(self):
         """ゲームロジック更新"""
