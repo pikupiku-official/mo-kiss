@@ -180,11 +180,17 @@ class DialogueSubsystem(SubsystemBase):
         draw_input_blocked_notice(gs, self.virtual_screen)
 
         # 仮想画面をフルスクリーンにスケーリングして転送
+        # on_enter()でOFFSET_X=0にリセットしているが、スクリーンへの
+        # blit位置は元のOFFSET（中央寄せ用）を使う必要がある。
+        # 旧main.pyは "from config import *" の初回バインド値（=元OFFSET）を
+        # 使っていたため偶然正しく動いていた。
+        blit_x = self._saved_offset_x if self._saved_offset_x is not None else OFFSET_X
+        blit_y = self._saved_offset_y if self._saved_offset_y is not None else OFFSET_Y
         try:
             scaled = pygame.transform.smoothscale(
                 self.virtual_screen, (CONTENT_WIDTH, CONTENT_HEIGHT)
             )
-            self.screen.blit(scaled, (OFFSET_X, OFFSET_Y))
+            self.screen.blit(scaled, (blit_x, blit_y))
         except Exception as e:
             print(f"⚠️ DialogueSubsystem render スケーリングエラー: {e}")
 
