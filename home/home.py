@@ -13,10 +13,11 @@ from time_manager import get_time_manager
 from save_manager import get_save_manager
 from loading_screen import show_loading, hide_loading
 from path_utils import get_font_path
+from subsystem_base import SubsystemBase
 
-class HomeModule:
+class HomeModule(SubsystemBase):
     def __init__(self, screen):
-        self.screen = screen
+        super().__init__(screen)
         self.font = None
         self.large_font = None
         self._init_fonts()

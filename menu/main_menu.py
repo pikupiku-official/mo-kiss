@@ -4,6 +4,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos, scale_size
+from subsystem_base import SubsystemBase
 from .main_menu_config import (
     COLORS, FONT_SIZES, LAYOUT, MenuState, DEFAULT_AUDIO_SETTINGS
 )
@@ -13,9 +14,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dialogue.name_manager import get_name_manager
 from save_manager import get_save_manager
 
-class MainMenu:
+class MainMenu(SubsystemBase):
     def __init__(self, screen=None):
-        self.screen = screen
+        super().__init__(screen)
         self.clock = pygame.time.Clock()
         self.running = True
         self.state = MenuState.MAIN
@@ -292,7 +293,9 @@ class MainMenu:
         # SDL2テキスト入力の初期化（IME対応）
         pygame.key.set_repeat()  # キーリピート設定をリセット
     
-    def handle_events(self):
+    def handle_events(self, events=None):
+        # events 引数は SubsystemBase インターフェースのため受け取るが無視する。
+        # MainMenu は内部で pygame.event.get() を使用する（追加問題E対応）。
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
