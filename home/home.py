@@ -139,8 +139,10 @@ class HomeModule(SubsystemBase):
                 self.font = pygame.font.Font(default_font, 48)
                 self.large_font = pygame.font.Font(default_font, 64)
         
-    def handle_events(self, events):
-        """イベント処理"""
+    def handle_events(self, events=None):
+        """イベント処理。events=None時はpygame.event.get()を内部呼び出し。"""
+        if events is None:
+            events = pygame.event.get()
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if self.save_mode is None:

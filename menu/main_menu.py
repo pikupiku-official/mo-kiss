@@ -293,9 +293,18 @@ class MainMenu(SubsystemBase):
         # SDL2テキスト入力の初期化（IME対応）
         pygame.key.set_repeat()  # キーリピート設定をリセット
     
-    def handle_events(self, events=None):
-        # events 引数は SubsystemBase インターフェースのため受け取るが無視する。
-        # MainMenu は内部で pygame.event.get() を使用する（追加問題E対応）。
+    def handle_events(self, events=None) -> str | None:
+        """SubsystemBase I/F実装。events=Noneのpygame.event.get()内部呼び出し。"""
+        if events is None:
+            events = pygame.event.get()
+        for event in events:
+            result = self.handle_event(event)
+            if result:
+                return result
+        return None
+
+    def _handle_events_internal(self):
+        """UI内部動作用（集約イベント処理）—内部でのpygame.event.get()を維持。"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False

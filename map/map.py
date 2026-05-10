@@ -1936,8 +1936,10 @@ class FieldMap(SubsystemBase):
         # ★クリッピング解除★
         self.screen.set_clip(None)
     
-    def handle_events(self, events) -> str | None:
-        """イベントリストを処理（SubsystemBase実装）"""
+    def handle_events(self, events=None) -> str | None:
+        """イベント処理（SubsystemBase実装）。events=None時はpygame.event.get()を内部呼び出し。"""
+        if events is None:
+            events = pygame.event.get()
         result = None
         for event in events:
             r = self.handle_event(event)

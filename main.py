@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(__file__))
 from config import *
 from menu.main_menu import MainMenu
 from map.map import FieldMap
-from dialogue.model import initialize_game as init_dialogue_game
+from dialogue.dialogue_subsystem import DialogueSubsystem
 from title_screen import show_title_screen
 from time_manager import get_time_manager
 from home.home import HomeModule
@@ -40,8 +40,9 @@ class GameApplication:
         # 各モードのインスタンス
         self.main_menu = None
         self.map_system = None
-        self.dialogue_game_state = None
+        self.dialogue_game_state = None  # 下位互换性のため残存
         self.home_module = None
+        self.current_subsystem = None   # 現在アクティブな SubsystemBase 実装
 
         # 現在実行中のイベント情報を保持
         self.current_event_id = None
@@ -72,6 +73,10 @@ class GameApplication:
 
             # ローディング画面を隠す
             hide_loading()
+
+            # 初期サブシステムをメインメニューに設定
+            self.current_subsystem = self.main_menu
+            self.current_mode = "menu"
 
             print("✅ アプリケーション初期化完了")
             return True
@@ -166,38 +171,85 @@ class GameApplication:
         except Exception as e:
             print(f"[EVENT] イベント完了記録エラー: {e}")
 
+    def switch_to(self, subsystem, mode_name: str):
+        """サブシステム切り替えの統一メソッド（フェーズ4中心）"""
+        if self.current_subsystem:
+            self.current_subsystem.cleanup()
+            print(f"🔇 {self.current_mode} cleanup完了")
+        self.current_subsystem = subsystem
+        self.current_mode = mode_name
+        self.current_subsystem.on_enter()
+        print(f"✅ {mode_name} に切り替え")
+
+    def _handle_transition(self, result: str):
+        """サブシステムからの遷移結果をルーティング（フェーズ4中心）"""
+        if not result:
+            return
+
+        # 共通遷移
+        if result == "go_to_map":
+            self.switch_to_map()
+        elif result in ("go_to_menu", "back_to_menu"):
+            self.switch_to_menu()
+        elif result in ("go_to_home", "skip_to_home"):
+            self.switch_to_home()
+
+        # dialogue終了
+        elif result == "dialogue_ended":
+            print("💬 KSファイル終了 - 遷移判定開始")
+            current_event = self.current_event_id
+            self.mark_current_event_as_completed()
+            if current_event and current_event != "E001":
+                time_manager = get_time_manager()
+                current_period_before = time_manager.get_current_period()
+                was_after_school = time_manager.is_after_school()
+                print(f"[DEBUG] イベント{current_event}完了後 - 時間帯: {current_period_before}, 放課後: {was_after_school}")
+                if was_after_school:
+                    time_manager.advance_period()
+                    print(f"[TIME] 放課後イベント終了 → {time_manager.get_full_time_string()} → 家モジュールへ")
+                    self.switch_to_home()
+                else:
+                    time_manager.advance_period()
+                    print(f"[TIME] イベント{current_event}終了 → {time_manager.get_full_time_string()} → mapへ")
+                    self.switch_to_map()
+            else:
+                print("[TIME] E001終了 - 時間進行なしでmapへ")
+                self.switch_to_map()
+
+        # dialogue開始
+        elif result.startswith("launch_event:"):
+            event_file = result.split(":", 1)[1]
+            self.switch_to_dialogue(event_file)
+        elif result.startswith("start_event:"):
+            event_id = result.split(":", 1)[1]
+            self.switch_to_dialogue(f"events/{event_id}.ks")
+
+        # メニュー固有
+        elif result == "new_game":
+            print("[NEW_GAME] E001イベントを開始")
+            self.switch_to_dialogue("events/E001.ks")
+        elif result == "dialogue_test":
+            self.switch_to_dialogue("events/E004.ks")
+        elif result == "continue_game":
+            print("[CONTINUE] ロード完了 - システムを再初期化中...")
+            self._reload_game_systems()
+            time_manager = get_time_manager()
+            current_period = time_manager.get_current_period()
+            print(f"[CONTINUE] ロード完了後の時間帯: {current_period}")
+            if current_period == "夜":
+                self.switch_to_home()
+            else:
+                self.switch_to_map()
+
+        # 終了
+        elif result == "quit":
+            self.running = False
+
     def switch_to_menu(self):
         """メインメニューモードに切り替え"""
-        print("📱 メインメニューモードに切り替え")
-
-        # dialogueモードから遷移する場合、全ての音を停止 + 座標系を元に戻す
-        if self.current_mode == "dialogue" and self.dialogue_game_state:
-            try:
-                self.dialogue_game_state['bgm_manager'].stop_bgm()
-                self.dialogue_game_state['se_manager'].stop_all_se()
-                print("🔇 dialogue終了: BGMとSEを停止しました")
-            except Exception as e:
-                print(f"⚠️ 音声停止エラー: {e}")
-
-            # 座標系を元に戻す
-            if '_original_scale' in self.dialogue_game_state:
-                import config
-                config.OFFSET_X = self.dialogue_game_state['_original_offset_x']
-                config.OFFSET_Y = self.dialogue_game_state['_original_offset_y']
-                config.SCALE = self.dialogue_game_state['_original_scale']
-                print(f"✓ 座標系を元に戻しました")
-
-        # mapモードから遷移する場合、BGMを停止
-        if self.current_mode == "map" and self.map_system:
-            try:
-                self.map_system.bgm_manager.stop_bgm()
-                print("🔇 map終了: BGMを停止しました")
-            except Exception as e:
-                print(f"⚠️ 音声停止エラー: {e}")
-
-        self.current_mode = "menu"
         if not self.main_menu:
             self.main_menu = MainMenu(self.screen)
+        self.switch_to(self.main_menu, "menu")
 
     def _reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""
@@ -220,26 +272,6 @@ class GameApplication:
     
     def switch_to_map(self):
         """マップモードに切り替え"""
-        print("🗺️ マップモードに切り替え")
-
-        # dialogueモードから遷移する場合、全ての音を停止 + 座標系を元に戻す
-        if self.current_mode == "dialogue" and self.dialogue_game_state:
-            try:
-                self.dialogue_game_state['bgm_manager'].stop_bgm()
-                self.dialogue_game_state['se_manager'].stop_all_se()
-                print("🔇 dialogue終了: BGMとSEを停止しました")
-            except Exception as e:
-                print(f"⚠️ 音声停止エラー: {e}")
-
-            # 座標系を元に戻す
-            if '_original_scale' in self.dialogue_game_state:
-                import config
-                config.OFFSET_X = self.dialogue_game_state['_original_offset_x']
-                config.OFFSET_Y = self.dialogue_game_state['_original_offset_y']
-                config.SCALE = self.dialogue_game_state['_original_scale']
-                print(f"✓ 座標系を元に戻しました")
-
-        self.current_mode = "map"
         if not self.map_system:
             try:
                 show_loading("マップを読み込み中...", self.screen)
@@ -249,29 +281,11 @@ class GameApplication:
                 print(f"❌ マップシステム初期化エラー: {e}")
                 hide_loading()
                 self.switch_to_menu()
+                return
+        self.switch_to(self.map_system, "map")
 
     def switch_to_home(self):
         """家モジュールに切り替え"""
-        print("🏠 家モジュールに切り替え")
-
-        # dialogueモードから遷移する場合、全ての音を停止
-        if self.current_mode == "dialogue" and self.dialogue_game_state:
-            try:
-                self.dialogue_game_state['bgm_manager'].stop_bgm()
-                self.dialogue_game_state['se_manager'].stop_all_se()
-                print("🔇 dialogue終了: BGMとSEを停止しました")
-            except Exception as e:
-                print(f"⚠️ 音声停止エラー: {e}")
-
-        # mapモードから遷移する場合、BGMを停止
-        if self.current_mode == "map" and self.map_system:
-            try:
-                self.map_system.bgm_manager.stop_bgm()
-                print("🔇 map終了: BGMを停止しました")
-            except Exception as e:
-                print(f"⚠️ 音声停止エラー: {e}")
-
-        self.current_mode = "home"
         if not self.home_module:
             try:
                 show_loading("家を読み込み中...", self.screen)
@@ -281,106 +295,25 @@ class GameApplication:
                 print(f"❌ 家モジュール初期化エラー: {e}")
                 hide_loading()
                 self.switch_to_menu()
+                return
+        self.switch_to(self.home_module, "home")
     
     def switch_to_dialogue(self, event_file=None):
-        """会話モードに切り替え"""
-        print(f"💬 会話モードに切り替え (イベント: {event_file})")
-
-        # mapモードから遷移する場合、BGMを停止
-        if self.current_mode == "map" and self.map_system:
-            try:
-                self.map_system.bgm_manager.stop_bgm()
-                print("🔇 map終了: BGMを停止しました")
-            except Exception as e:
-                print(f"⚠️ 音声停止エラー: {e}")
-
-        self.current_mode = "dialogue"
-
-        # イベントIDを抽出（events/E001.ks -> E001）
+        """会話モードに切り替え（DialogueSubsystem 使用）"""
+        print(f'💬 会話モードに切り替え: {event_file}')
         if event_file:
-            import os
             self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
-            print(f"[EVENT] 開始イベントID: {self.current_event_id}")
-
         try:
-            # ローディング画面表示
-            show_loading("イベントを読み込み中...", self.screen)
-
-            # ★dialogue用に座標系を仮想画面モードに切り替え★
-            # scale_pos()が仮想座標をそのまま返すように設定
-            import config
-            original_offset_x = config.OFFSET_X
-            original_offset_y = config.OFFSET_Y
-            original_scale = config.SCALE
-            config.OFFSET_X = 0
-            config.OFFSET_Y = 0
-            config.SCALE = 1.0
-            print(f"✓ 仮想画面モード: OFFSET=0, SCALE=1.0")
-
-            # 会話ゲームの初期化（仮想画面を使用）
-            self.dialogue_game_state = init_dialogue_game()
-
-            # game_state['screen']を仮想画面に差し替え
-            if self.dialogue_game_state:
-                self.dialogue_game_state['screen'] = self.virtual_screen
-                # 各レンダラーのスクリーンも仮想画面に差し替え
-                if 'text_renderer' in self.dialogue_game_state:
-                    self.dialogue_game_state['text_renderer'].screen = self.virtual_screen
-                if 'choice_renderer' in self.dialogue_game_state:
-                    self.dialogue_game_state['choice_renderer'].screen = self.virtual_screen
-                if 'backlog_manager' in self.dialogue_game_state:
-                    self.dialogue_game_state['backlog_manager'].screen = self.virtual_screen
-                if 'notification_manager' in self.dialogue_game_state:
-                    self.dialogue_game_state['notification_manager'].screen = self.virtual_screen
-
-                # 元の設定を保存（他のモードで使用）
-                self.dialogue_game_state['_original_offset_x'] = original_offset_x
-                self.dialogue_game_state['_original_offset_y'] = original_offset_y
-                self.dialogue_game_state['_original_scale'] = original_scale
-
-                print(f"✓ dialogue用に仮想画面を設定: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
-            if not self.dialogue_game_state:
-                hide_loading()
-                print("❌ 会話ゲーム初期化失敗")
-                self.switch_to_menu()
-                return
-                
-            # 指定されたイベントファイルがあれば読み込み
-            if event_file:
-                from dialogue.dialogue_loader import DialogueLoader
-                from dialogue.data_normalizer import normalize_dialogue_data
-                
-                dialogue_loader = DialogueLoader()
-                raw_dialogue_data = dialogue_loader.load_dialogue_from_ks(event_file)
-                if raw_dialogue_data:
-                    dialogue_data = normalize_dialogue_data(raw_dialogue_data)
-                    if dialogue_data:
-                        self.dialogue_game_state['dialogue_data'] = dialogue_data
-                        self.dialogue_game_state['current_paragraph'] = -1
-                        # 最初の会話データを表示
-                        from dialogue.model import advance_dialogue
-                        advance_dialogue(self.dialogue_game_state)
-                        print(f"✅ イベントファイル読み込み完了: {event_file}")
-                    else:
-                        print("❌ ダイアログデータの正規化に失敗")
-                        hide_loading()
-                        self.switch_to_menu()
-                        return
-                else:
-                    print("❌ イベントファイルの読み込みに失敗")
-                    hide_loading()
-                    self.switch_to_menu()
-                    return
-            
-            # ローディング画面を隠す
+            show_loading('イベントを読み込み中...', self.screen)
+            dialogue = DialogueSubsystem(self.screen, self.virtual_screen, event_file)
             hide_loading()
-                
+            self.switch_to(dialogue, 'dialogue')
         except Exception as e:
-            print(f"❌ 会話モード初期化エラー: {e}")
+            print(f'❌ 会話モード初期化エラー: {e}')
             hide_loading()
             self.switch_to_menu()
 
-    def handle_menu_events(self, events):
+        def handle_menu_events(self, events):
         """メインメニューのイベント処理"""
         for event in events:
             if event.type == pygame.QUIT:
@@ -605,55 +538,47 @@ class GameApplication:
         pygame.display.flip()
 
     def run(self):
-        """メインゲームループ"""
+        """メインゲームループ（フェーズ4: current_subsystem による統一制御）"""
         if not self.initialize():
             return False
-        
+
         # タイトル画面表示
         if not show_title_screen(self.screen, DEBUG):
-            # タイトル画面でゲーム終了が選択された場合
-            print("🚪 タイトル画面でゲーム終了")
+            print('🚪 タイトル画面でゲーム終了')
             return True
-            
-        print("🎯 メインゲームループ開始")
-        
+
+        print('🎯 メインゲームループ開始')
+
         while self.running:
             try:
-                # イベント処理
-                if self.current_mode == "dialogue":
-                    # dialogueモードではcontroller2.pyが独自にイベントを処理
-                    self.handle_dialogue_events()
-                else:
-                    # menu/mapモードでは通常通りイベントを取得
-                    events = pygame.event.get()
-                    
-                    if self.current_mode == "menu":
-                        self.handle_menu_events(events)
-                    elif self.current_mode == "map":
-                        self.handle_map_events(events)
-                    elif self.current_mode == "home":
-                        self.handle_home_events(events)
-                
-                # 更新
-                self.update()
-                
-                # 描画
-                self.render()
-                
-                # フレームレート制限（パフォーマンス向上のため30FPSに）
+                if self.current_subsystem:
+                    # イベント処理（各サブシステムが pygame.event.get() を内部管理）
+                    result = self.current_subsystem.handle_events()
+                    if result:
+                        self._handle_transition(result)
+
+                    # 更新
+                    if self.current_subsystem:
+                        self.current_subsystem.update()
+
+                    # 描画
+                    if self.current_subsystem:
+                        self.current_subsystem.render()
+
+                pygame.display.flip()
                 self.clock.tick(30)
-                
+
             except Exception as e:
-                print(f"❌ ゲームループエラー: {e}")
+                print(f'❌ ゲームループエラー: {e}')
                 if DEBUG:
                     import traceback
                     traceback.print_exc()
                 break
-        
+
         self.cleanup()
         return True
 
-    def cleanup(self):
+        def cleanup(self):
         """終了処理"""
         print("🔄 アプリケーション終了処理中...")
         
