@@ -313,7 +313,7 @@ class GameApplication:
             hide_loading()
             self.switch_to_menu()
 
-        def handle_menu_events(self, events):
+    def handle_menu_events(self, events):
         """メインメニューのイベント処理"""
         for event in events:
             if event.type == pygame.QUIT:
@@ -578,7 +578,7 @@ class GameApplication:
         self.cleanup()
         return True
 
-        def cleanup(self):
+    def cleanup(self):
         """終了処理"""
         print("🔄 アプリケーション終了処理中...")
         
