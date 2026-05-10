@@ -253,8 +253,7 @@ class BacklogManager:
                     self.scroll_up()
                 elif event.key == pygame.K_DOWN:
                     self.scroll_down()
-                elif event.key == pygame.K_ESCAPE:
-                    self.is_showing = False
+                # ESC はバックログを閉じない（OPTION オーバーレイに委譲）
         
         elif event.type == pygame.MOUSEBUTTONDOWN and self.is_showing:
             if event.button == 4:  # マウスホイール上

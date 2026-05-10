@@ -153,14 +153,10 @@ def handle_events(game_state, screen):
                 handle_mouse_click(game_state, mouse_pos, screen)
             
         elif event.type == pygame.KEYDOWN:
-            # ESCキーの処理：バックログが開いている場合は閉じるだけ
+            # ESC は dialogue_subsystem 側で処理する（OPTION オーバーレイ）のでスキップ
             if event.key == pygame.K_ESCAPE:
-                if game_state['backlog_manager'].is_showing_backlog():
-                    game_state['backlog_manager'].toggle_backlog()
-                    print("バックログを閉じました")
-                else:
-                    return False
-                    
+                pass
+
             elif event.key == pygame.K_t:
                 # バックログが開いている時は無効化
                 if not game_state['backlog_manager'].is_showing_backlog():

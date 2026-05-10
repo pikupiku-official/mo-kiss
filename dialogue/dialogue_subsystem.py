@@ -115,30 +115,27 @@ class DialogueSubsystem(SubsystemBase):
         イベント処理（追加問題A対応 + ESC競合修正 Task3 + 段落保存 Task2c）
 
         Returns:
-            "show_option"    : ESC が押されて OPTION を開く（バックログ非表示時のみ）
+            "show_option"    : ESC が押されて OPTION を開く（バックログ表示中でも常に OPTION が優先）
             "dialogue_ended" : KS ファイルが終了した
             None             : 会話継続中
         """
         import pygame
 
-        # Task3: バックログ非表示時のみ ESC を先取りして show_option を返す
-        backlog = self.game_state.get('backlog_manager')
-        if not (backlog and backlog.is_showing_backlog()):
-            esc_pressed = False
-            other_events = []
-            for e in pygame.event.get(pygame.KEYDOWN):
-                if e.key == pygame.K_ESCAPE:
-                    esc_pressed = True
-                else:
-                    other_events.append(e)
-            # ESC以外のイベントをキューに戻す
-            for e in other_events:
-                try:
-                    pygame.event.post(e)
-                except Exception:
-                    pass
-            if esc_pressed:
-                return "show_option"
+        # ESC は常に OPTION を開く（バックログの表示状態に関わらず OPTION が優先）
+        esc_pressed = False
+        other_events = []
+        for e in pygame.event.get(pygame.KEYDOWN):
+            if e.key == pygame.K_ESCAPE:
+                esc_pressed = True
+            else:
+                other_events.append(e)
+        for e in other_events:
+            try:
+                pygame.event.post(e)
+            except Exception:
+                pass
+        if esc_pressed:
+            return "show_option"
 
         from dialogue.controller2 import handle_events as _ctrl_events
 
