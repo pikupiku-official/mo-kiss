@@ -1,4 +1,4 @@
-*start
+﻿*start
 
 ;----------------------------------------------
 ;◆メインシナリオ
@@ -13,7 +13,7 @@
 [SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
 
 
-	//ナ レ//
+	//ナレ//
 	「見慣れた中央線の車窓から流れる風景」
 	「目の前に映るのは住宅地と畑」
 	「国立で乗ってからそんな景色ばかりだ。」
@@ -54,7 +54,7 @@
 	「すっかり通いなれた国分寺駅もどこか気に入っているのかもしれない、と」
 	「それが多摩地域の良さかもしれないな」
 	
-[event_unlock events="E002,E003,E004,E005"]
+[event_control unlock="E002,E003,E004,E005"]
 
 [SE se="電車のドアが開く1.mp3" volume="0.5" frequency="2"]
 
@@ -230,7 +230,7 @@
 
 [choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
 
-[chara_move subm="T04_00_00" time="400" left="0.1" top="0.02" zoom="1.0"]
+[chara_move name="T04_00_00" time="400" left="0.1" top="0.02" zoom="1.0"]
 
 	//桃子//
 	「会話の2番目の部分です。」
@@ -238,7 +238,7 @@
 
 
 [bg_move storage="test.bg.school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move subm="T04_00_00" time="1000" left="-0.2" top="0" zoom="0.6"]
+[chara_move name="T04_00_00" time="1000" left="-0.2" top="0" zoom="0.6"]
 
 	//桃子//
 	「言葉は想像力を運ぶ電車です。」
@@ -268,10 +268,10 @@
 	「でも時折、地下から地上に顔を出してビルの谷間をくぐるとき、不意の太陽が無理矢理たてじまに変えようとするから、想像力は眉をしかめたりします。」
 	[scroll-stop]
 
-[chara_hide subh="桃子"]
+[chara_hide name="桃子"]
 
 [bg_move storage="test.bg.classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
-[chara_move subm="T08_00_00" time="600" left="0.1" top="0.1" zoom="1.7"]
+[chara_move name="T08_00_00" time="600" left="0.1" top="0.1" zoom="1.7"]
 
 	//サナコ//
 	「ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。」

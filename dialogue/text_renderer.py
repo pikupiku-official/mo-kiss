@@ -3,10 +3,47 @@ from config import *
 from .scroll_manager import ScrollManager
 from .name_manager import get_name_manager
 from .date_manager import get_current_game_date
+from .inline_markup import (
+    parse_inline_markup, has_inline_markup, wrap_markup_text,
+    PlainChar, RubySpan, BotenSpan,
+    build_display_string, total_base_chars, get_logical_char,
+)
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
 from path_utils import get_font_path
+
+RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
+RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
+
+def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int):
+    """ルビ文字列を span_width 内に両端揃えで blit する。
+    1文字のときは中央揃え。ルビ幅がスパン幅を超える場合は左詰め。"""
+    chars = list(ruby_text)
+    n = len(chars)
+    surfs = [render_fn(ch) for ch in chars]
+    total_w = sum(s.get_width() for s in surfs)
+
+    if n == 1:
+        # 1文字は中央揃え
+        rx = grid_x + (span_width - surfs[0].get_width()) // 2
+        surface.blit(surfs[0], (rx, 0))
+        return
+
+    if total_w >= span_width:
+        # ルビがスパンより広い場合は左詰め
+        rx = float(grid_x)
+        for s in surfs:
+            surface.blit(s, (int(rx), 0))
+            rx += s.get_width()
+        return
+
+    # 両端揃え: 最初と最後を端に置き、間隔を均等配分
+    gap = (span_width - total_w) / (n - 1)
+    rx = float(grid_x)
+    for s in surfs:
+        surface.blit(s, (int(rx), 0))
+        rx += s.get_width() + gap
 
 class TextRenderer:
     def __init__(self, screen, debug=False):
@@ -55,13 +92,20 @@ class TextRenderer:
 
         self.pygame_fonts = {
             "text": self.fonts["text_pygame"],
-            "name": self.fonts["name_pygame"]
+            "name": self.fonts["name_pygame"],
+            "ruby": self.fonts["ruby_pygame"],
         }
+
+        # ルビ領域の高さを事前計算
+        _base_h = self.fonts["text_pygame"].get_height()
+        self.ruby_h = int(_base_h * RUBY_FONT_RATIO) + RUBY_MARGIN_PX
         
         self.current_text = ""
         self.current_character_name = None
+        self._current_tokens = []       # parse_inline_markup 済みトークン
+        self._total_base_chars = 0      # 論理ベース文字数の上限
 
-        self.displayed_chars = 0
+        self.displayed_chars = 0        # 論理ベース文字数カウンタ
         self.last_char_time = 0
         self.char_delay = TEXT_CHAR_DELAY
         self.is_text_complete = False
@@ -93,34 +137,8 @@ class TextRenderer:
         self.name_manager = get_name_manager()
 
     def _wrap_text(self, text):
-        """テキストをn文字で自動改行する（グリッドシステム対応）"""
-        if not text:
-            return []
-        
-        # 既存の改行コードで分割
-        paragraphs = text.split('\n')
-        wrapped_lines = []
-        
-        for paragraph in paragraphs:
-            if not paragraph:
-                # 空行の場合はそのまま追加
-                wrapped_lines.append('')
-                continue
-            
-            # 指定文字数ごとに分割（グリッドシステム用に正確にn文字）
-            current_pos = 0
-            while current_pos < len(paragraph):
-                line_end = current_pos + self.max_chars_per_line
-                if line_end >= len(paragraph):
-                    # 最後の行
-                    wrapped_lines.append(paragraph[current_pos:])
-                    break
-                else:
-                    # 指定文字数で切り取り（グリッドシステムで処理）
-                    wrapped_lines.append(paragraph[current_pos:line_end])
-                    current_pos = line_end
-        
-        return wrapped_lines
+        """テキストをn文字で自動改行する（ルビ・傍点マークアップ対応）"""
+        return wrap_markup_text(text, self.max_chars_per_line)
 
     def _get_display_lines_with_scroll(self, display_text_segment):
         """表示用のテキストをn文字改行して、3行スクロール効果を適用"""
@@ -169,7 +187,9 @@ class TextRenderer:
                         # Pygameフォント（TextRenderer用）
                         fonts["name_pygame"] = pygame.font.Font(bold_font_path, name_font_size)
                         fonts["text_pygame"] = pygame.font.Font(medium_font_path, text_font_size)
-                        
+                        ruby_font_size = max(8, int(text_font_size * RUBY_FONT_RATIO))
+                        fonts["ruby_pygame"] = pygame.font.Font(medium_font_path, ruby_font_size)
+
                         if self.debug:
                             print("PyQt5とPygameのカスタムフォント読み込み成功")
                     else:
@@ -202,12 +222,14 @@ class TextRenderer:
         
     def _get_fallback_fonts(self, name_size, text_size, default_size):
         """フォールバックフォントを取得"""
+        ruby_size = max(8, int(text_size * RUBY_FONT_RATIO))
         return {
             "default": pygame.font.SysFont(None, default_size),
             "text": QFont("MS Gothic", text_size),  # PyQt5用
             "name": QFont("MS Gothic", name_size),  # PyQt5用
             "text_pygame": pygame.font.SysFont("msgothic", text_size),  # Pygame用
-            "name_pygame": pygame.font.SysFont("msgothic", name_size)   # Pygame用
+            "name_pygame": pygame.font.SysFont("msgothic", name_size),  # Pygame用
+            "ruby_pygame": pygame.font.SysFont("msgothic", ruby_size),  # ルビ・傍点用
         }
     
     def _apply_font_effects(self, text_surface, is_shadow=False):
@@ -283,49 +305,94 @@ class TextRenderer:
         return self._render_text_with_grid_system(displayed_line, color)
     
     def _render_text_with_grid_system(self, text_line, color):
-        """絶対座標グリッドシステムで文字を描画"""
+        """絶対座標グリッドシステムで文字を描画（ルビ・傍点対応）"""
         if not text_line:
             return pygame.Surface((1, 1), pygame.SRCALPHA)
-        
-        # 1文字あたりの標準幅を計算（日本語文字基準）
-        sample_char = "あ"  # 日本語の代表的な文字
-        sample_surface = self.pygame_fonts["text"].render(sample_char, True, color)
+
+        tokens = parse_inline_markup(text_line)
+
+        # グリッド幅計算
+        sample_surface = self.pygame_fonts["text"].render("あ", True, color)
         base_char_width = sample_surface.get_width()
-        
-        # フォント効果を考慮した文字幅（横引き延ばし効果込み）
-        stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.0) if FONT_EFFECTS.get("enable_stretched", False) else 1.0
-        grid_char_width = int(base_char_width * stretch_factor * TEXT_RENDERER_CONFIG["grid_char_width_margin"]) + self.char_spacing  # 文字間隔を追加
-        
-        # 行全体のサーフェスサイズを計算
-        max_chars = min(len(text_line), self.max_chars_per_line)
+        stretch_factor = (
+            FONT_EFFECTS.get("stretch_factor", 1.0)
+            if FONT_EFFECTS.get("enable_stretched", False) else 1.0
+        )
+        grid_char_width = (
+            int(base_char_width * stretch_factor * TEXT_RENDERER_CONFIG["grid_char_width_margin"])
+            + self.char_spacing
+        )
+
+        # サーフェス高さ: ruby領域 + base領域 + 余裕
+        # base text は常に ruby_h 下に描画し、blit側で ruby_h 分上にシフトする
+        base_h = self.pygame_fonts["text"].get_height()
+        line_height = base_h + self.ruby_h + 4
+
+        total_base = sum(
+            len(t.base) if isinstance(t, (RubySpan, BotenSpan)) else 1
+            for t in tokens
+        )
+        max_chars = min(total_base, self.max_chars_per_line)
         line_width = grid_char_width * max_chars
-        line_height = self.pygame_fonts["text"].get_height() * 2  # 高さも余裕を持たせる
-        
-        # 行サーフェスを作成
+
         line_surface = pygame.Surface((line_width, line_height), pygame.SRCALPHA)
-        line_surface.fill((0, 0, 0, 0))  # 透明で初期化
-        
-        # 各文字を絶対座標グリッドに配置
-        for char_index, char in enumerate(text_line):
-            if char_index >= self.max_chars_per_line:
+        line_surface.fill((0, 0, 0, 0))
+
+        char_count = 0
+
+        for token in tokens:
+            if char_count >= self.max_chars_per_line:
                 break
-                
-            # グリッド位置計算（絶対座標）
-            grid_x = char_index * grid_char_width
-            grid_y = 0
-            
-            # 個別文字をエフェクト付きで描画
-            char_surface = self._render_text_with_effects(
-                self.pygame_fonts["text"], 
-                char, 
-                color, 
-                is_name=False
-            )
-            
-            # 文字をグリッド位置に配置
-            line_surface.blit(char_surface, (grid_x, grid_y))
-        
+
+            if isinstance(token, PlainChar):
+                grid_x = char_count * grid_char_width
+                char_surface = self._render_text_with_effects(
+                    self.pygame_fonts["text"], token.char, color, is_name=False
+                )
+                # base text は ruby_h 下に配置（blitで上シフトして画面Y位置は変わらない）
+                line_surface.blit(char_surface, (grid_x, self.ruby_h))
+                char_count += 1
+
+            elif isinstance(token, RubySpan):
+                span_chars = min(len(token.base), self.max_chars_per_line - char_count)
+                span_width = grid_char_width * span_chars
+                grid_x = char_count * grid_char_width
+
+                # ベース文字
+                for i, ch in enumerate(token.base[:span_chars]):
+                    ch_surf = self._render_text_with_effects(
+                        self.pygame_fonts["text"], ch, color, is_name=False
+                    )
+                    line_surface.blit(ch_surf, (grid_x + i * grid_char_width, self.ruby_h))
+
+                # ルビ（両端揃え）
+                _blit_ruby_justified(line_surface, token.ruby,
+                    lambda ch: self.pygame_fonts["ruby"].render(ch, True, color),
+                    grid_x, span_width)
+
+                char_count += span_chars
+
+            elif isinstance(token, BotenSpan):
+                span_chars = min(len(token.base), self.max_chars_per_line - char_count)
+                grid_x = char_count * grid_char_width
+
+                for i, ch in enumerate(token.base[:span_chars]):
+                    # ベース文字
+                    ch_surf = self._render_text_with_effects(
+                        self.pygame_fonts["text"], ch, color, is_name=False
+                    )
+                    line_surface.blit(ch_surf, (grid_x + i * grid_char_width, self.ruby_h))
+
+                    # 傍点（各文字中央上、ruby_h の直上）
+                    dot_surf = self.pygame_fonts["ruby"].render("·", True, color)
+                    dot_x = (grid_x + i * grid_char_width
+                              + (grid_char_width - dot_surf.get_width()) // 2)
+                    line_surface.blit(dot_surf, (dot_x, 0))
+
+                char_count += span_chars
+
         return line_surface
+
     
     def _render_name_with_grid_system(self, name, color):
         """名前を均等配置のグリッドシステムで描画"""
@@ -497,7 +564,10 @@ class TextRenderer:
         
         self.current_text = str(substituted_text)
         self.current_character_name = str(substituted_character_name)
-        
+        # トークンをキャッシュ（文字送り・描画で共用）
+        self._current_tokens = parse_inline_markup(self.current_text)
+        self._total_base_chars = total_base_chars(self._current_tokens)
+
         # 新しいテキストが設定されたのでバックログ追加フラグをリセット
         self.backlog_added_for_current = False
         
@@ -607,11 +677,11 @@ class TextRenderer:
                     char_delay_to_use = 1
             
             if current_time - self.last_char_time >= char_delay_to_use:
-                if self.displayed_chars < len(self.current_text):
-                    # 次に表示する文字をチェック
-                    next_char = self.current_text[self.displayed_chars]
+                if self.displayed_chars < self._total_base_chars:
+                    # 論理ベース文字を1つ進める
+                    next_char = get_logical_char(self._current_tokens, self.displayed_chars)
                     self.displayed_chars += 1
-                    
+
                     # 句読点「。」の場合は追加の遅延を適用（skipモード時は遅延なし）
                     if next_char == '。' and not self.skip_mode:
                         self.punctuation_waiting = True
@@ -652,7 +722,7 @@ class TextRenderer:
 
     def skip_text(self):
         if self.current_text:
-            self.displayed_chars = len(self.current_text)
+            self.displayed_chars = self._total_base_chars
             self.is_text_complete = True
             self.text_complete_time = pygame.time.get_ticks()
             # 遅延状態をリセット
@@ -691,7 +761,8 @@ class TextRenderer:
         
         # 【重要】文字送り時の揺れ対策：完全な文字列でエフェクトを計算してからマスクで切り取る
         full_text = self.current_text  # 完全なテキスト
-        display_text_segment = full_text[:self.displayed_chars]  # 表示する部分
+        # ルビ方式A: 論理ベース文字数から表示文字列を構築
+        display_text_segment = build_display_string(self._current_tokens, self.displayed_chars)
         
         # テキストを26文字で自動改行
         all_lines = self._wrap_text(display_text_segment)
@@ -734,7 +805,8 @@ class TextRenderer:
                     text_surface = self._render_stable_text_line(single_line, text_color_to_use)
                     # 座標を整数にスナップして揺れを防止
                     pos_x = int(round(self.text_start_x))
-                    pos_y = int(round(y))
+                    # サーフェス内 base text は ruby_h 下にあるので、上にシフトして画面 Y を固定
+                    pos_y = int(round(y)) - self.ruby_h
                     self.screen.blit(text_surface, (pos_x, pos_y))
                 except Exception as e:
                     if self.debug:
@@ -766,7 +838,7 @@ class TextRenderer:
                 # 最新のブロックで文字送り中の場合、表示する部分までを切り出す
                 if self.current_text in text_block_content or text_block_content in self.current_text:
                     # 現在の表示状況に合わせて切り取り
-                    displayed_portion = self.current_text[:self.displayed_chars]
+                    displayed_portion = build_display_string(self._current_tokens, self.displayed_chars)
                     text_to_render_for_block = displayed_portion
 
             # テキストを26文字で自動改行
@@ -853,7 +925,7 @@ class TextRenderer:
                     text_surface = self._render_stable_text_line(single_line, speaker_text_color)
                     # スクロール時のテキスト座標も整数にスナップ
                     scroll_text_x = int(round(self.text_start_x))
-                    scroll_text_y = int(round(y))
+                    scroll_text_y = int(round(y)) - self.ruby_h
                     self.screen.blit(text_surface, (scroll_text_x, scroll_text_y))
                 except Exception as e:
                     if self.debug:

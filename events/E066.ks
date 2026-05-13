@@ -14,7 +14,7 @@
 [chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" blink="true" x="0.6" y="1" size="2" fade="0"]
 [fadein time="1.0"]
 //桃子//
-「ねえ、今日はミニスト寄ってかない？」
+「ねえ、{愛沼|あいぬま}は{boten:ミニスト}寄ってかない？」
 
 
 [choice option1="いいよ、行こう！" option2="ミニストって？"]

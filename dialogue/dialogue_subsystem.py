@@ -215,8 +215,12 @@ class DialogueSubsystem(SubsystemBase):
         if 'choice_renderer' in gs:
             choice_showing = gs['choice_renderer'].is_choice_showing()
 
-        if not choice_showing and 'text_renderer' in gs:
-            gs['text_renderer'].render_text_window(gs)
+        if 'text_renderer' in gs:
+            if not choice_showing:
+                gs['text_renderer'].render_text_window(gs)
+            else:
+                # 選択肢表示中はトーク文を隠し、日付時刻だけ表示
+                gs['text_renderer'].render_date()
 
         if choice_showing:
             gs['choice_renderer'].render()

@@ -88,10 +88,12 @@ class OptionOverlay:
     def render_overlay(self):
         """オーバーレイを現在のスクリーン上に描画"""
         import config
-        ox = config.OFFSET_X
-        oy = config.OFFSET_Y
+        # DialogueSubsystem.on_enter() が OFFSET_X/Y を 0 にリセットするため、
+        # 常に DISPLAY サイズから実オフセットを再計算する
         cw = config.CONTENT_WIDTH
         ch = config.CONTENT_HEIGHT
+        ox = (config.DISPLAY_WIDTH - cw) // 2
+        oy = (config.DISPLAY_HEIGHT - ch) // 2
 
         # 半透明背景
         overlay_surf = pygame.Surface((cw, ch), pygame.SRCALPHA)
@@ -119,10 +121,11 @@ class OptionOverlay:
     def _get_buttons(self):
         """ボタン定義リスト [(ラベル, Rect, アクション文字列)]"""
         import config
-        ox = config.OFFSET_X
-        oy = config.OFFSET_Y
+        # 同上: 実オフセットを再計算
         cw = config.CONTENT_WIDTH
         ch = config.CONTENT_HEIGHT
+        ox = (config.DISPLAY_WIDTH - cw) // 2
+        oy = (config.DISPLAY_HEIGHT - ch) // 2
 
         btn_w, btn_h = int(cw * 0.3), int(ch * 0.07)
         cx = ox + cw // 2 - btn_w // 2

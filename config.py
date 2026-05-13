@@ -111,18 +111,22 @@ TEXT_PUNCTUATION_DELAY = 500  # 句読点での追加遅延時間（ミリ秒）
 TEXT_PARAGRAPH_TRANSITION_DELAY = 1000  # 段落切り替え遅延時間（ミリ秒）
 
 # フォントサイズ設定（仮想解像度1440x1080基準のピクセル値）
-FONT_NAME_SIZE = 49    # 名前フォントサイズ（ピクセル）
-FONT_TEXT_SIZE = 49    # テキストフォントサイズ（ピクセル）
+FONT_NAME_SIZE = 45    # 名前フォントサイズ（ピクセル）
+FONT_TEXT_SIZE = 45    # テキストフォントサイズ（ピクセル）
 FONT_DEFAULT_SIZE = 26  # デフォルトフォントサイズ（ピクセル）
 
 # テキスト間隔調整設定
-TEXT_LINE_HEIGHT_MULTIPLIER = 1   # 行間の倍率（1.0 = デフォルト）
+TEXT_LINE_HEIGHT_MULTIPLIER = 1.1   # 行間の倍率（1.0 = デフォルト）
 TEXT_CHAR_SPACING = 2               # 文字間隔の追加ピクセル数
 
 # テキストレンダリング詳細設定
 TEXT_RENDERER_CONFIG = {
     # グリッドシステム設定
     "grid_char_width_margin": 1,      # グリッド文字幅の余白係数（基本文字幅×stretch_factor×この値＋文字間隔）
+
+    # ルビ・傍点設定
+    "ruby_font_ratio": 0.40,          # ルビフォントサイズ = 本文フォント × この値
+    "ruby_margin_px": -16,              # ルビとベース文字の隔間（px）→ 小さくするとルビが下に寄る
 
     # 名前表示の均等配置設定
     "name_spacing_mode": "auto",        # 名前表示モード: "auto"=均等配置, "normal"=通常表示

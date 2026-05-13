@@ -1,6 +1,41 @@
 import pygame
 from config import *
 from .name_manager import get_name_manager
+from .inline_markup import (
+    parse_inline_markup, wrap_markup_text, has_inline_markup,
+    PlainChar, RubySpan, BotenSpan,
+)
+
+# ルビ・傍点定数（config.py の TEXT_RENDERER_CONFIG から読み込む）
+RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
+RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
+
+def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int):
+    """ルビ文字列を span_width 内に両端揃えで blit する。
+    1文字のときは中央揃え。ルビ幅がスパン幅を超える場合は左詰め。"""
+    chars = list(ruby_text)
+    n = len(chars)
+    surfs = [render_fn(ch) for ch in chars]
+    total_w = sum(s.get_width() for s in surfs)
+
+    if n == 1:
+        rx = grid_x + (span_width - surfs[0].get_width()) // 2
+        surface.blit(surfs[0], (rx, 0))
+        return
+
+    if total_w >= span_width:
+        rx = float(grid_x)
+        for s in surfs:
+            surface.blit(s, (int(rx), 0))
+            rx += s.get_width()
+        return
+
+    gap = (span_width - total_w) / (n - 1)
+    rx = float(grid_x)
+    for s in surfs:
+        surface.blit(s, (int(rx), 0))
+        rx += s.get_width() + gap
+
 from PyQt5.QtGui import QFont, QImage, QPainter, QColor, QFontMetrics
 from PyQt5.QtCore import QSize
 
@@ -128,7 +163,13 @@ class BacklogManager:
         self.name_font_metrics = QFontMetrics(self.backlog_name_font)
         self.text_font_metrics = QFontMetrics(self.backlog_text_font)
         self.text_line_height = self.text_font_metrics.height()
-        
+
+        # ルビ・傍点用小フォント（text の RUBY_FONT_RATIO 倍サイズ）
+        ruby_point_size = max(6, int(self.text_font_size * RUBY_FONT_RATIO))
+        self.backlog_ruby_font = QFont(text_font_family, ruby_point_size)
+        self.backlog_ruby_font.setWeight(text_font_weight)
+        self.ruby_h = int(self.text_line_height * RUBY_FONT_RATIO) + RUBY_MARGIN_PX
+
         if self.debug:
             print(f"[BACKLOG] バックログ背景高さ: {self.height}px")
             print(f"[BACKLOG] フォントサイズ: {self.text_font_size}px")
@@ -146,6 +187,93 @@ class BacklogManager:
                 return self.female_name_color, self.female_text_color
         return self.default_name_color, self.default_text_color
         
+    def _apply_surface_fx(self, surf):
+        """FONT_EFFECTS（ピクセル化・横引き）を surface に適用する"""
+        if not FONT_EFFECTS:
+            return surf
+        orig_w, orig_h = surf.get_size()
+        stretch = (float(FONT_EFFECTS.get("stretch_factor", 1.0))
+                   if FONT_EFFECTS.get("enable_stretched", False) else 1.0)
+        final_w = max(1, int(round(orig_w * stretch)))
+        if FONT_EFFECTS.get("enable_pixelated", False):
+            pf = max(1.0, float(FONT_EFFECTS.get("pixelate_factor", 2)))
+            sw = max(1, int(orig_w / pf))
+            sh = max(1, int(orig_h / pf))
+            small = pygame.transform.smoothscale(surf, (sw, sh))
+            surf = pygame.transform.smoothscale(small, (final_w, orig_h))
+        elif stretch != 1.0:
+            surf = pygame.transform.smoothscale(surf, (final_w, orig_h))
+        return surf.convert_alpha()
+
+    def _render_with_fx(self, text, qfont, color):
+        """QFont 描画 + FONT_EFFECTS（影・ピクセル化・横引き）を適用して Surface を返す"""
+        text_surf = render_text_with_qfont_cached(text, qfont, color)
+        text_surf = self._apply_surface_fx(text_surf)
+        if FONT_EFFECTS and FONT_EFFECTS.get("enable_shadow", False):
+            shadow_surf = render_text_with_qfont_cached(text, qfont, (0, 0, 0))
+            shadow_surf = self._apply_surface_fx(shadow_surf)
+            offx = int(round(FONT_EFFECTS.get("shadow_offset", (6, 6))[0]))
+            offy = int(round(FONT_EFFECTS.get("shadow_offset", (6, 6))[1]))
+            tw, th = text_surf.get_size()
+            sw, sh = shadow_surf.get_size()
+            combined = pygame.Surface((max(tw, sw + offx), max(th, sh + offy)), pygame.SRCALPHA)
+            combined.blit(shadow_surf, (offx, offy))
+            combined.blit(text_surf,   (0, 0))
+            return combined.convert_alpha()
+        return text_surf
+
+    def _render_markup_line(self, text_line: str, color) -> 'pygame.Surface':
+        """ルビ・傍点マークアップ対応の1行描画（PyQt5フォント版）"""
+        if not text_line:
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+
+        tokens = parse_inline_markup(text_line)
+
+        # グリッド幅（QFontMetrics 基準）
+        from PyQt5.QtGui import QFontMetrics
+        metrics = QFontMetrics(self.backlog_text_font)
+        grid_w = metrics.horizontalAdvance("あ") + 1
+
+        base_h = self.text_line_height
+        line_height = base_h + self.ruby_h + 4
+
+        total_base = sum(
+            len(t.base) if isinstance(t, (RubySpan, BotenSpan)) else 1
+            for t in tokens
+        )
+        line_width = max(1, grid_w * total_base)
+        surf = pygame.Surface((line_width, line_height), pygame.SRCALPHA)
+        surf.fill((0, 0, 0, 0))
+
+        char_count = 0
+        for token in tokens:
+            if isinstance(token, PlainChar):
+                gx = char_count * grid_w
+                cs = self._render_with_fx(token.char, self.backlog_text_font, color)
+                surf.blit(cs, (gx, self.ruby_h))
+                char_count += 1
+            elif isinstance(token, RubySpan):
+                span_w = grid_w * len(token.base)
+                gx = char_count * grid_w
+                for i, ch in enumerate(token.base):
+                    cs = render_text_with_qfont_cached(ch, self.backlog_text_font, color)
+                    surf.blit(cs, (gx + i * grid_w, self.ruby_h))
+                _blit_ruby_justified(surf, token.ruby,
+                    lambda ch: self._render_with_fx(ch, self.backlog_ruby_font, color),
+                    gx, span_w)
+                char_count += len(token.base)
+            elif isinstance(token, BotenSpan):
+                gx = char_count * grid_w
+                for i, ch in enumerate(token.base):
+                    cs = render_text_with_qfont_cached(ch, self.backlog_text_font, color)
+                    surf.blit(cs, (gx + i * grid_w, self.ruby_h))
+                    dot = self._render_with_fx("·", self.backlog_ruby_font, color)
+                    dx = gx + i * grid_w + (grid_w - dot.get_width()) // 2
+                    surf.blit(dot, (dx, 0))
+                char_count += len(token.base)
+
+        return surf
+
     def add_entry(self, speaker, text):
         """バックログにエントリを追加"""
         if not text or text.strip() == "":
@@ -169,36 +297,8 @@ class BacklogManager:
         # デバッグ出力を削除（パフォーマンス向上）
     
     def _wrap_text(self, text, max_chars=26):
-        """テキストを26文字で改行し、句点でも改行"""
-        if not text:
-            return []
-        
-        lines = []
-        current_pos = 0
-        
-        while current_pos < len(text):
-            # 句点で改行をチェック
-            end_pos = current_pos + max_chars
-            if end_pos >= len(text):
-                # 残りのテキストが短い場合はそのまま追加
-                lines.append(text[current_pos:])
-                break
-            
-            # 現在の範囲で句点があるかチェック
-            segment = text[current_pos:end_pos]
-            period_pos = segment.find('。')
-            
-            if period_pos != -1:
-                # 句点が見つかった場合、句点の後で改行
-                actual_end = current_pos + period_pos + 1
-                lines.append(text[current_pos:actual_end])
-                current_pos = actual_end
-            else:
-                # 句点がない場合は26文字で改行
-                lines.append(text[current_pos:end_pos])
-                current_pos = end_pos
-                
-        return lines
+        """マークアップ対応折り返し"""
+        return wrap_markup_text(text, max_chars)
     
     def toggle_backlog(self):
         """バックログの表示/非表示を切り替え"""
@@ -337,8 +437,17 @@ class BacklogManager:
             text_x = self.x + self.padding + self.speaker_width + 60
             if text_line.strip():
                 try:
-                    text_surface = render_text_with_qfont_cached(text_line, self.backlog_text_font, text_color)
-                    self.screen.blit(text_surface, (text_x, current_y))
+                    if has_inline_markup(text_line):
+                        # ルビ・傍点あり: 1文字ずつトークン描画
+                        # base text はサーフェス内 ruby_h 下にあるので上シフトして Y を固定
+                        text_surface = self._render_markup_line(text_line, text_color)
+                        self.screen.blit(text_surface, (text_x, current_y - self.ruby_h))
+                    else:
+                        # 平文: QFont 一括描画 + FONT_EFFECTS 適用
+                        text_surface = self._render_with_fx(
+                            text_line, self.backlog_text_font, text_color
+                        )
+                        self.screen.blit(text_surface, (text_x, current_y))
                 except Exception as e:
                     if self.debug:
                         print(f"テキスト描画エラー: {e}, テキスト: '{text_line}'")

@@ -158,7 +158,7 @@ python event_editor.py
 
 ### アーキテクチャ
 
-- **メインスレッド**: tkinterのGUI（エディタ画面）
+- **メインスレッド**: PyQt5のGUI（エディタ画面）
 - **サブスレッド**: Pygameのプレビューウィンドウ
 - **通信**: `queue.Queue`でスレッド間通信
 

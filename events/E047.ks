@@ -1,4 +1,4 @@
-*start
+﻿*start
 
 ;----------------------------------------------
 ;◆メインシナリオ
@@ -22,7 +22,7 @@
 
 [choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
 
-[chara_move subm="桃子" time="400" left="0.1" top="0.02" zoom="3"]
+[chara_move name="桃子" time="400" left="0.1" top="0.02" zoom="3"]
 
 	//桃子//
 	「会話の2番目の部分です。」
@@ -30,7 +30,7 @@
 
 
 [bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move subm="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
+[chara_move name="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
 
 	//桃子//
 	「言葉は想像力を運ぶ電車です。」
@@ -60,10 +60,10 @@
 	「でも時折、地下から地上に顔を出してビルの谷間をくぐるとき、不意の太陽が無理矢理たてじまに変えようとするから、想像力は眉をしかめたりします。」
 	[scroll-stop]
 
-[chara_hide subh="桃子"]
+[chara_hide name="桃子"]
 
 [bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
-[chara_move subm="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
+[chara_move name="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
 
 	//サナコ//
 	「ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。」

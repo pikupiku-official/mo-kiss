@@ -13,11 +13,15 @@ def _to_virtual_mouse_pos(mouse_pos, screen, game_state):
     if screen == game_state['screen']:
         return mouse_pos
 
-    from config import CONTENT_WIDTH, CONTENT_HEIGHT, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, OFFSET_X, OFFSET_Y
+    from config import CONTENT_WIDTH, CONTENT_HEIGHT, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DISPLAY_WIDTH, DISPLAY_HEIGHT
 
     x, y = mouse_pos
-    offset_x = game_state.get('_original_offset_x', OFFSET_X)
-    offset_y = game_state.get('_original_offset_y', OFFSET_Y)
+    # DialogueSubsystem.on_enter() が OFFSET_X/Y を 0 にリセットするため
+    # 常に DISPLAY サイズから実オフセットを再計算する（option_overlay と同じ対処）
+    real_offset_x = (DISPLAY_WIDTH  - CONTENT_WIDTH)  // 2
+    real_offset_y = (DISPLAY_HEIGHT - CONTENT_HEIGHT) // 2
+    offset_x = game_state.get('_original_offset_x', real_offset_x)
+    offset_y = game_state.get('_original_offset_y', real_offset_y)
     x -= offset_x
     y -= offset_y
 
@@ -221,6 +225,21 @@ def handle_events(game_state, screen):
     
     return True
 
+def _flush_scroll_line_to_backlog(game_state):
+    """スクロールモード中の現在行をバックログに追加（advance直前に呼ぶ）"""
+    text_renderer = game_state.get('text_renderer')
+    backlog_mgr = game_state.get('backlog_manager')
+    if not (text_renderer and backlog_mgr):
+        return
+    if not text_renderer.scroll_manager.is_scroll_mode():
+        return
+    if not text_renderer.current_text:
+        return
+    backlog_mgr.add_entry(
+        text_renderer.current_character_name or None,
+        text_renderer.current_text
+    )
+
 def handle_enter_key(game_state):
     """Enterキーが押されたときの処理"""
     print(f"[ENTER] Enterキー処理開始")
@@ -257,6 +276,7 @@ def handle_enter_key(game_state):
 
     # テキスト/アニメがidleなら次の段落へ
     print(f"[ENTER] 次の段落に進む")
+    _flush_scroll_line_to_backlog(game_state)  # スクロール中の現在行をバックログに追加
     can_continue = advance_to_next_dialogue(game_state)
     if not can_continue:
         print(f"[ENTER] KSファイル終了")
@@ -450,6 +470,7 @@ def update_game(game_state):
         not game_state['backlog_manager'].is_showing_backlog() and
         not game_state['choice_renderer'].is_choice_showing()):
         # 自動的に次の対話に進む
+        _flush_scroll_line_to_backlog(game_state)  # スクロール中の現在行をバックログに追加
         success = advance_to_next_dialogue(game_state)
         # 自動進行タイマーをリセット
         game_state['text_renderer'].reset_auto_timer()

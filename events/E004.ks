@@ -1,4 +1,4 @@
-*start
+﻿*start
 
 ;----------------------------------------------
 ;◆E004 - 桃子と杏との通学路
@@ -391,8 +391,8 @@
 「はーい！」
 
 ; 桃子と杏が画面から退場
-[chara_hide subh="T03_00_00"]
-[chara_hide subh="T04_00_00"]
+[chara_hide name="T03_00_00"]
+[chara_hide name="T04_00_00"]
 
 //静//
 「それにしても久しぶりね、純一君」
@@ -574,7 +574,7 @@
 
 *end
 ; シーン終了
-[chara_hide subh="T03_00_00"]
+[chara_hide name="T03_00_00"]
 [bg_show storage="black" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [fadeout color="black" time="2.0"]
 
