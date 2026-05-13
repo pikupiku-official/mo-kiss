@@ -745,7 +745,7 @@ class DialogueLoader:
                                 # [scroll-stop]タグがある場合はスクロール停止コマンドを追加
                                 if has_scroll_stop:
                                     if self.debug:
-                                        print(f"スクロール停止コマンド追加")
+                                        print("スクロール停止コマンド追加")
                                     dialogue_data.append({
                                         'type': 'scroll_stop'
                                     })
@@ -786,7 +786,7 @@ class DialogueLoader:
                 # [scroll-stop]タグを独立して検出
                 elif "[scroll-stop]" in line:
                     if self.debug:
-                        print(f"独立したスクロール停止コマンド")
+                        print("独立したスクロール停止コマンド")
                     dialogue_data.append({
                         'type': 'scroll_stop'
                     })
@@ -921,14 +921,14 @@ class DialogueLoader:
                 # [endif]タグを検出 - 条件分岐終了
                 elif "[endif]" in line:
                     if self.debug:
-                        print(f"条件分岐終了")
+                        print("条件分岐終了")
                     dialogue_data.append({
                         'type': 'if_end'
                     })
 
             except Exception as e:
                     if self.debug:
-                        print(f"ダイアログ読み取りエラー")
+                        print(f"ダイアログ読み取りエラー: {e}")
     
         if not dialogue_data:
             if self.debug:

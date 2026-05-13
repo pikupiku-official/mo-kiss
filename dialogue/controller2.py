@@ -124,16 +124,16 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     
     # 選択肢が表示中でない場合のみ、UI以外の場所をクリックした場合にEnterキーと同じ処理を実行
     if not game_state['choice_renderer'].is_choice_showing():
-        print(f"[CLICK] 通常クリック処理（Enterキーと同様）")
+        print("[CLICK] 通常クリック処理（Enterキーと同様）")
         handle_enter_key(game_state)
     else:
-        print(f"[CLICK] 選択肢表示中のため通常クリック処理は無効")
+        print("[CLICK] 選択肢表示中のため通常クリック処理は無効")
 
 def handle_events(game_state, screen):
     """イベント処理を行う"""
     # KSファイル終了チェック
     if game_state.get('ks_finished', False):
-        print(f"[EVENTS] KSファイル終了フラグ検知")
+        print("[EVENTS] KSファイル終了フラグ検知")
         return False  # KSファイル終了を通知
     
     for event in pygame.event.get():
@@ -242,7 +242,7 @@ def _flush_scroll_line_to_backlog(game_state):
 
 def handle_enter_key(game_state):
     """Enterキーが押されたときの処理"""
-    print(f"[ENTER] Enterキー処理開始")
+    print("[ENTER] Enterキー処理開始")
     if game_state.get("use_ir"):
         fast_until = game_state.get("ir_fast_forward_until")
         if fast_until is not None and pygame.time.get_ticks() < fast_until:
@@ -250,19 +250,19 @@ def handle_enter_key(game_state):
     
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
-        print(f"[ENTER] バックログが開いているため無効")
+        print("[ENTER] バックログが開いているため無効")
         return
     
     # 選択肢が表示中の時はEnterキーを無効にする
     if game_state['choice_renderer'].is_choice_showing():
-        print(f"[ENTER] 選択肢表示中のため無効（マウスクリックで選択してください）")
+        print("[ENTER] 選択肢表示中のため無効（マウスクリックで選択してください）")
         return
         
     text_renderer = game_state['text_renderer']
     
     if text_renderer.is_displaying():
         # テキスト表示中ならスキップ
-        print(f"[ENTER] テキスト表示をスキップ")
+        print("[ENTER] テキスト表示をスキップ")
         text_renderer.skip_text()
         return
 
@@ -275,11 +275,11 @@ def handle_enter_key(game_state):
         return
 
     # テキスト/アニメがidleなら次の段落へ
-    print(f"[ENTER] 次の段落に進む")
+    print("[ENTER] 次の段落に進む")
     _flush_scroll_line_to_backlog(game_state)  # スクロール中の現在行をバックログに追加
     can_continue = advance_to_next_dialogue(game_state)
     if not can_continue:
-        print(f"[ENTER] KSファイル終了")
+        print("[ENTER] KSファイル終了")
         # KSファイル終了をgame_stateに記録
         game_state['ks_finished'] = True
 

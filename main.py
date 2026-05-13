@@ -370,7 +370,7 @@ class GameApplication:
                 
                 if current_period == "夜":
                     # 夜の場合は家に遷移
-                    print(f"[CONTINUE] 夜のため家モジュールに遷移")
+                    print("[CONTINUE] 夜のため家モジュールに遷移")
                     self.switch_to_home()
                 elif current_period in ["朝", "昼", "放課後"]:
                     # 朝・昼・放課後の場合はマップに遷移
@@ -449,7 +449,7 @@ class GameApplication:
                     
                     if was_after_school:
                         # 放課後イベント完了後は明示的に「夜」に設定
-                        print(f"[DEBUG] 放課後イベント完了 - 時間を進めます")
+                        print("[DEBUG] 放課後イベント完了 - 時間を進めます")
                         time_manager.advance_period()  # 放課後 → 夜
                         current_period_after = time_manager.get_current_period()
                         print(f"[TIME] 放課後イベント{current_event}終了 - {current_period_before} → {current_period_after}: {time_manager.get_full_time_string()}")

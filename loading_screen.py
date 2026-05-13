@@ -25,6 +25,7 @@ class LoadingScreen:
         
     def _initialize_font(self):
         """日本語対応フォントを初期化"""
+        font_dir = os.path.join(get_project_root(), "fonts")
         font_initialized = False
         
         # 第1段階: プロジェクト専用フォント (M PLUS Rounded 1c)

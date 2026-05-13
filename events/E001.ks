@@ -250,7 +250,7 @@
 [resetlaypos]
 
 [bg_show storage="test.bg.classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
-[BGM bgm="maou_bgm_piano41" volume="0.5" loop="true"]
+[BGM bgm="maou_bgm_piano41.mp3" volume="0.5" loop="true"]
 
 	//桃子//
 	「別の場面に移動しました。」

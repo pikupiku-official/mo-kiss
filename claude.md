@@ -29,13 +29,42 @@ mo-kiss/
 │   ├── text_renderer.py   # テキスト描画
 │   ├── date_manager.py    # 日付管理
 │   ├── notification_manager.py  # 通知システム
-│   └── choice_renderer.py # 選択肢描画
+│   ├── choice_renderer.py # 選択肢描画
+│   ├── background_manager.py    # 背景管理
+│   ├── backlog_manager.py       # バックログ管理
+│   ├── character_manager.py     # キャラクター管理
+│   ├── data_normalizer.py       # データ正規化
+│   ├── dialogue_loader.py       # スクリプト読み込み
+│   ├── dialogue_subsystem.py    # サブシステムクラス
+│   ├── fade_manager.py          # フェード処理
+│   ├── game_manager.py          # ゲーム状態管理
+│   ├── inline_markup.py         # インラインマークアップ（ルビ・傍点等）
+│   ├── ir_builder.py            # IR構築
+│   ├── ir_model.py              # IRモデル定義
+│   ├── model.py                 # データモデル
+│   ├── name_manager.py          # 名前管理
+│   ├── scenario_manager.py      # シナリオ管理
+│   ├── scroll_manager.py        # スクロール管理
+│   └── __init__.py
 ├── map/                   # マップシステム
-│   └── map.py
+│   ├── map.py
+│   ├── map_characters.py  # マップキャラクター
+│   ├── map_config.py      # マップ設定
+│   ├── map_events.py      # マップイベント
+│   └── __init__.py
 ├── home/                  # ホーム画面
 │   └── home.py
 ├── menu/                  # メニューシステム
-│   └── main_menu.py
+│   ├── main_menu.py
+│   ├── main_menu_config.py # メニュー設定
+│   ├── ui_components.py   # UIコンポーネント
+│   └── __init__.py
+├── bgm_manager.py         # BGM管理
+├── loading_screen.py      # ローディング画面
+├── option_overlay.py      # オプションオーバーレイ
+├── se_manager.py          # SE管理
+├── time_manager.py        # 時間管理
+├── title_subsystem.py     # タイトルサブシステム
 └── title_screen.py        # タイトル画面
 ```
 
@@ -133,7 +162,7 @@ font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
 `save_manager.py` で管理:
 - 10個のセーブスロット
 - JSON形式で保存
-- 保存場所: `saves/` ディレクトリ
+- 保存場所: `data/save/` ディレクトリ
 
 ## デバッグ
 

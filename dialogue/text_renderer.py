@@ -545,13 +545,13 @@ class TextRenderer:
         # スクロール停止コマンドの処理（唯一のスクロール停止方法）
         if text and text.startswith('_SCROLL_STOP'):
             if self.debug:
-                print(f"[SCROLL] scroll-stopコマンドを実行")
+                print("[SCROLL] scroll-stopコマンドを実行")
             self.scroll_manager.process_scroll_stop_command()
             # previous_textをクリアしてスクロール履歴をリセット
             if hasattr(self, 'previous_text'):
                 self.previous_text = None
             if self.debug:
-                print(f"[SCROLL] previous_textをクリア")
+                print("[SCROLL] previous_textをクリア")
             return
         
         if self.debug:
@@ -748,7 +748,7 @@ class TextRenderer:
             # 空テキストのログを1回だけ出力するためのフラグ管理
             if not hasattr(self, '_empty_text_logged') or not self._empty_text_logged:
                 if self.debug:
-                    print(f"[RENDER] テキストが空のため描画をスキップ")
+                    print("[RENDER] テキストが空のため描画をスキップ")
                 self._empty_text_logged = True
             return 0
         
@@ -971,7 +971,7 @@ class TextRenderer:
     def on_scene_change(self):
         """シーン変更時のスクロール状態リセットを無効化"""
         if self.debug:
-            print(f"[SCROLL] シーン変更時のスクロール状態リセットは無効化されています")
+            print("[SCROLL] シーン変更時のスクロール状態リセットは無効化されています")
         pass
 
     def set_max_chars_per_line(self, max_chars):

@@ -33,7 +33,7 @@ def start_fadeout(game_state, color="black", duration=1.0):
     
     # 既存のフェードをキャンセル
     if game_state.get('fade_state', {}).get('active'):
-        print(f"[FADE] 既存のフェードをキャンセルしてフェードアウト開始")
+        print("[FADE] 既存のフェードをキャンセルしてフェードアウト開始")
     
     game_state['fade_state'] = {
         'type': 'fadeout',
@@ -86,11 +86,11 @@ def update_fade_animation(game_state):
         # アニメーション完了
         if fade_state['type'] == 'fadeout':
             fade_state['alpha'] = 255  # 完全に不透明
-            print(f"[FADE] フェードアウト完了: alpha=255")
+            print("[FADE] フェードアウト完了: alpha=255")
         else:  # fadein
             fade_state['alpha'] = 0    # 完全に透明
             fade_state['active'] = False  # フェードイン完了で無効化
-            print(f"[FADE] フェードイン完了: alpha=0, 無効化")
+            print("[FADE] フェードイン完了: alpha=0, 無効化")
         return
 
     # アルファ値を計算
