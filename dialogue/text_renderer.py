@@ -1,5 +1,5 @@
-import pygame
-from config import *
+﻿import pygame
+from core.config import *
 from .scroll_manager import ScrollManager
 from .name_manager import get_name_manager
 from .date_manager import get_current_game_date
@@ -11,7 +11,7 @@ from .inline_markup import (
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
-from path_utils import get_font_path
+from core.path_utils import get_font_path
 
 RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
 RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
@@ -461,7 +461,7 @@ class TextRenderer:
         
         try:
             # time_manager.pyから現在のゲーム内日付を取得
-            from time_manager import get_time_manager
+            from core.time_manager import get_time_manager
             time_manager = get_time_manager()
             date_text = time_manager.get_full_time_string()
             

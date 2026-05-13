@@ -1,5 +1,5 @@
-import pygame
-from config import *
+﻿import pygame
+from core.config import *
 from .name_manager import get_name_manager
 
 class ScrollManager:

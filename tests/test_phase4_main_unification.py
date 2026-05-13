@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ4 テスト: main.py switch_to() 統一化
 
 テスト対象:
@@ -387,18 +387,18 @@ class TestPhase4Regression:
         """フェーズ1 のテストが引き続き通過する（import チェックのみ）"""
         from menu.main_menu import MainMenu
         from home.home import HomeModule
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(MainMenu, SubsystemBase)
         assert issubclass(HomeModule, SubsystemBase)
 
     def test_phase2_tests_still_pass(self):
         """フェーズ2 のテストが引き続き通過する（import チェックのみ）"""
         from map.map import FieldMap
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(FieldMap, SubsystemBase)
 
     def test_phase3_tests_still_pass(self):
         """フェーズ3 のテストが引き続き通過する（import チェックのみ）"""
         from dialogue.dialogue_subsystem import DialogueSubsystem
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(DialogueSubsystem, SubsystemBase)

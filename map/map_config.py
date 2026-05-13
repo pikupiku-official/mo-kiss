@@ -1,4 +1,4 @@
-import pygame
+﻿import pygame
 from enum import Enum
 from typing import List, Dict, Tuple
 
@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple
 pygame.init()
 
 # config.pyの画面設定を使用（4:3対応）
-from config import SCREEN_WIDTH, SCREEN_HEIGHT
+from core.config import SCREEN_WIDTH, SCREEN_HEIGHT
 
 FPS = 60
 

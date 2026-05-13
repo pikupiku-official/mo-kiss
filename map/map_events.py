@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 import csv
 import os
 import sys
@@ -159,7 +159,7 @@ class EventManager:
         print(f"イベント実行: {event.title} (ID: {event.event_id})")
 
         # config.pyの画面サイズを使用（4:3対応）
-        from config import SCREEN_WIDTH, SCREEN_HEIGHT
+        from core.config import SCREEN_WIDTH, SCREEN_HEIGHT
         original_size = (SCREEN_WIDTH, SCREEN_HEIGHT)
         
         try:

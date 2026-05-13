@@ -1,4 +1,4 @@
-from config import *
+﻿from core.config import *
 
 def normalize_dialogue_data(raw_data):
     """dialogue_loader.pyの辞書リストを正規化して統一された構造にする"""

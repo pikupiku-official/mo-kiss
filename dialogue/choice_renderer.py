@@ -1,6 +1,6 @@
-import pygame
+﻿import pygame
 import os
-from config import *
+from core.config import *
 from .name_manager import get_name_manager
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
@@ -265,7 +265,7 @@ class ChoiceRenderer:
             default_font_size = FONT_DEFAULT_SIZE
             
             # フォントファイルのパスを設定（プロジェクトルートから）
-            from path_utils import get_project_root
+            from core.path_utils import get_project_root
             project_root = get_project_root()
             font_dir = os.path.join(project_root, "fonts")
             medium_font_path = os.path.join(font_dir, "MPLUS1p-Medium.ttf")
@@ -312,7 +312,7 @@ class ChoiceRenderer:
             if self.debug:
                 print(f"ChoiceRenderer: フォント初期化エラー: {e}")
             # エラー時のフォールバック（仮想解像度基準）
-            from config import SCALE
+            from core.config import SCALE
             virtual_fallback_font_size = 47  # 1080 * 0.044 = 47.52 → 47px
             virtual_default_font_size = 29   # 1080 * 0.027 = 29.16 → 29px
             

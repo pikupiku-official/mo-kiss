@@ -1,8 +1,8 @@
-# text_renderer.py用のパッチメソッド
+﻿# text_renderer.py用のパッチメソッド
 
 def _get_current_positions(self):
     """現在の画面サイズに基づいてテキスト位置を取得"""
-    from config import get_text_positions
+    from core.config import get_text_positions
     text_positions = get_text_positions(self.screen)
     return {
         'text_start_x': text_positions["speech_1"][0],

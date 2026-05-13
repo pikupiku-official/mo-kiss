@@ -1,5 +1,5 @@
-import pygame
-from config import *
+﻿import pygame
+from core.config import *
 
 def parse_color(color_str):
     """色文字列をRGB値に変換"""

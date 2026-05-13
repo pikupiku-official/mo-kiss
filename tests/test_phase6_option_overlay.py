@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ6 テスト: OPTION オーバーレイ
 
 テスト対象:
@@ -43,7 +43,7 @@ def pygame_screen():
 
 @pytest.fixture(scope="session")
 def option(pygame_screen):
-    from option_overlay import OptionOverlay
+    from core.option_overlay import OptionOverlay
     return OptionOverlay(pygame_screen, parent_mode="map")
 
 
@@ -54,34 +54,34 @@ def option(pygame_screen):
 class TestOptionOverlayStructure:
 
     def test_module_importable(self):
-        import option_overlay  # noqa
+        import core.option_overlay as option_overlay  # noqa
 
     def test_class_exists(self):
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         assert OptionOverlay is not None
 
     def test_instantiable_map_mode(self, pygame_screen):
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         assert o is not None
 
     def test_instantiable_home_mode(self, pygame_screen):
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="home")
         assert o is not None
 
     def test_instantiable_dialogue_mode(self, pygame_screen):
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="dialogue")
         assert o is not None
 
     def test_screen_stored(self, pygame_screen):
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         assert o.screen is pygame_screen
 
     def test_parent_mode_stored(self, pygame_screen):
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="dialogue")
         assert o.parent_mode == "dialogue"
 
@@ -99,7 +99,7 @@ class TestOptionOverlayEvents:
     def test_escape_returns_resume(self, pygame_screen):
         """ESC で 'resume' を返す"""
         import pygame
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0, unicode='', scancode=0)
         result = o.handle_events([event])
@@ -107,20 +107,20 @@ class TestOptionOverlayEvents:
 
     def test_resume_action_returns_resume(self, pygame_screen):
         """resume() メソッドが 'resume' を返す"""
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         assert o.resume() == "resume"
 
     def test_go_to_menu_action(self, pygame_screen):
         """go_to_menu() が 'go_to_menu' を返す"""
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         assert o.go_to_menu() == "go_to_menu"
 
     def test_quit_event(self, pygame_screen):
         """QUIT イベントで 'quit' を返す"""
         import pygame
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         event = pygame.event.Event(pygame.QUIT)
         result = o.handle_events([event])
@@ -135,25 +135,25 @@ class TestOptionOverlaySaveVisibility:
 
     def test_save_available_in_map_mode(self, pygame_screen):
         """MAP モードではセーブボタンが有効"""
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="map")
         assert o.save_enabled is True
 
     def test_save_available_in_home_mode(self, pygame_screen):
         """HOME モードではセーブボタンが有効"""
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="home")
         assert o.save_enabled is True
 
     def test_save_disabled_in_dialogue_mode(self, pygame_screen):
         """DIALOGUE モードではセーブボタンが無効（設計書準拠）"""
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="dialogue")
         assert o.save_enabled is False
 
     def test_save_disabled_in_menu_mode(self, pygame_screen):
         """MENU モードではセーブボタンが無効"""
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         o = OptionOverlay(pygame_screen, parent_mode="menu")
         assert o.save_enabled is False
 
@@ -219,7 +219,7 @@ class TestGameApplicationOverlay:
             running=True,
         )
 
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         import pygame
         pygame.init()
         screen = pygame.display.set_mode((100, 100))
@@ -255,7 +255,7 @@ class TestOptionOverlayBGMContinuity:
 
     def test_option_does_not_call_stop_bgm_on_subsystem(self, pygame_screen):
         """OPTION 表示時に現在サブシステムの cleanup() が呼ばれない"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         cleanup_called = []
 
@@ -268,7 +268,7 @@ class TestOptionOverlayBGMContinuity:
         # show_option は switch_to() を使わないので cleanup() が呼ばれない
         current = _FakeSub(pygame_screen)
 
-        from option_overlay import OptionOverlay
+        from core.option_overlay import OptionOverlay
         # オーバーレイを生成しても current.cleanup() は呼ばれない
         _ = OptionOverlay(pygame_screen, parent_mode="map")
         assert not cleanup_called, "OPTION 表示時に cleanup() が呼ばれた"
@@ -281,7 +281,7 @@ class TestOptionOverlayBGMContinuity:
 class TestPhase6Regression:
 
     def test_phase1_still_passes(self):
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         from menu.main_menu import MainMenu
         from home.home import HomeModule
         assert issubclass(MainMenu, SubsystemBase)
@@ -289,15 +289,15 @@ class TestPhase6Regression:
 
     def test_phase2_still_passes(self):
         from map.map import FieldMap
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(FieldMap, SubsystemBase)
 
     def test_phase3_still_passes(self):
         from dialogue.dialogue_subsystem import DialogueSubsystem
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(DialogueSubsystem, SubsystemBase)
 
     def test_phase8_still_passes(self):
-        from title_subsystem import TitleSubsystem
-        from subsystem_base import SubsystemBase
+        from core.title_subsystem import TitleSubsystem
+        from core.subsystem_base import SubsystemBase
         assert issubclass(TitleSubsystem, SubsystemBase)

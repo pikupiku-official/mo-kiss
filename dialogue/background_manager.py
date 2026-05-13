@@ -1,5 +1,5 @@
-import pygame
-from config import *
+﻿import pygame
+from core.config import *
 
 # 背景画像スケーリングキャッシュ
 _bg_scaled_cache = {}

@@ -1,4 +1,4 @@
-"""
+﻿"""
 メインアプリケーション - ビジュアルノベルゲーム
 
 このファイルはアプリケーション全体の制御を行います：
@@ -17,16 +17,16 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import sys
 sys.path.append(os.path.dirname(__file__))
 
-from config import *
+from core.config import *
 from menu.main_menu import MainMenu
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
-from title_subsystem import TitleSubsystem
-from option_overlay import OptionOverlay
-from time_manager import get_time_manager
+from core.title_subsystem import TitleSubsystem
+from core.option_overlay import OptionOverlay
+from core.time_manager import get_time_manager
 from home.home import HomeModule
-from save_manager import get_save_manager
-from loading_screen import show_loading, hide_loading
+from core.save_manager import get_save_manager
+from core.loading_screen import show_loading, hide_loading
 import pygame
 
 class GameApplication:
@@ -190,7 +190,7 @@ class GameApplication:
         if result == "resume":
             self.hide_option()
         elif result == "save":
-            from save_manager import get_save_manager
+            from core.save_manager import get_save_manager
             get_save_manager().save_game("saveslot_auto")
             # TODO: スロット選択UIを開く（フェーズ7で実装）
         elif result == "load":

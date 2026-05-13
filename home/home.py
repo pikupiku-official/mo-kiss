@@ -1,4 +1,4 @@
-"""
+﻿"""
 家モジュール - プレイヤーの部屋画面
 
 家では以下の選択肢が提供される：
@@ -9,11 +9,11 @@
 import pygame
 import sys
 import os
-from time_manager import get_time_manager
-from save_manager import get_save_manager
-from loading_screen import show_loading, hide_loading
-from path_utils import get_font_path
-from subsystem_base import SubsystemBase
+from core.time_manager import get_time_manager
+from core.save_manager import get_save_manager
+from core.loading_screen import show_loading, hide_loading
+from core.path_utils import get_font_path
+from core.subsystem_base import SubsystemBase
 
 class HomeModule(SubsystemBase):
     def __init__(self, screen):
@@ -276,7 +276,7 @@ class HomeModule(SubsystemBase):
         self.screen.fill((0, 0, 0))
 
         # 4:3コンテンツ領域に背景色を塗る
-        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
         content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
         self.screen.fill(self.bg_color, content_rect)
 

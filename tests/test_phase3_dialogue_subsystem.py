@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ3 テスト: DialogueSubsystem ラッパークラス
 
 テスト対象:
@@ -71,7 +71,7 @@ class TestDialogueSubsystemStructure:
     def test_inherits_subsystembase(self):
         """DialogueSubsystem は SubsystemBase のサブクラスである"""
         from dialogue.dialogue_subsystem import DialogueSubsystem
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(DialogueSubsystem, SubsystemBase)
 
     def test_instantiable_with_screens(self, pygame_surfaces):
@@ -158,7 +158,7 @@ class TestDialogueSubsystemCoordinates:
 
     def test_on_enter_resets_offset_and_scale(self, pygame_surfaces):
         """on_enter() が config.OFFSET_X/Y=0, SCALE=1.0 に設定する"""
-        import config
+        from core import config
         from dialogue.dialogue_subsystem import DialogueSubsystem
 
         screen, virtual_screen = pygame_surfaces
@@ -177,7 +177,7 @@ class TestDialogueSubsystemCoordinates:
 
     def test_on_enter_saves_original_values(self, pygame_surfaces):
         """on_enter() が元の config 値を自身に退避する"""
-        import config
+        from core import config
         from dialogue.dialogue_subsystem import DialogueSubsystem
 
         screen, virtual_screen = pygame_surfaces
@@ -194,7 +194,7 @@ class TestDialogueSubsystemCoordinates:
 
     def test_cleanup_restores_original_values(self, pygame_surfaces):
         """cleanup() が退避した config 値を復元する"""
-        import config
+        from core import config
         from dialogue.dialogue_subsystem import DialogueSubsystem
 
         screen, virtual_screen = pygame_surfaces
@@ -223,7 +223,7 @@ class TestDialogueSubsystemCoordinates:
 
     def test_on_enter_cleanup_cycle_restores_config(self, pygame_surfaces):
         """on_enter → cleanup のサイクルで config が元の値に戻る"""
-        import config
+        from core import config
         from dialogue.dialogue_subsystem import DialogueSubsystem
 
         screen, virtual_screen = pygame_surfaces
@@ -332,7 +332,7 @@ class TestDialogueSubsystemLifecycleIntegration:
 
     def test_fieldmap_to_dialogue_lifecycle(self, pygame_surfaces):
         """FieldMap → DialogueSubsystem 切り替えで座標系が適切に変化する"""
-        import config
+        from core import config
         from dialogue.dialogue_subsystem import DialogueSubsystem
 
         screen, virtual_screen = pygame_surfaces

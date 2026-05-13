@@ -1,4 +1,4 @@
-import pygame
+﻿import pygame
 import sys
 import os
 
@@ -41,7 +41,7 @@ class EventBase:
         import platform
         
         # プロジェクトフォントの正しいパス（path_utils使用）
-        from path_utils import get_font_path
+        from core.path_utils import get_font_path
         project_font_path = get_font_path("MPLUSRounded1c-Regular.ttf")
         
         # プラットフォーム別システムフォントパス

@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ1 テスト: SubsystemBase の作成と MainMenu/HomeModule の継承
 
 テスト対象:
@@ -54,17 +54,17 @@ class TestSubsystemBaseStructure:
 
     def test_module_importable(self):
         """subsystem_base.py が import できる"""
-        import subsystem_base  # noqa: F401
+        import core.subsystem_base as subsystem_base  # noqa: F401
 
     def test_class_exists(self):
         """SubsystemBase クラスが存在する"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert SubsystemBase is not None
 
     def test_is_abstract(self):
         """SubsystemBase は ABC であり直接インスタンス化できない"""
         import pygame
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         # ダミースクリーン
         pygame.init()
@@ -75,7 +75,7 @@ class TestSubsystemBaseStructure:
 
     def test_abstract_methods_defined(self):
         """handle_events / update / render が抽象メソッドとして定義されている"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         abstract_methods = getattr(SubsystemBase, '__abstractmethods__', set())
         assert 'handle_events' in abstract_methods, "handle_events が抽象メソッドでない"
@@ -84,7 +84,7 @@ class TestSubsystemBaseStructure:
 
     def test_cleanup_has_default_impl(self):
         """cleanup() はデフォルト実装（何もしない）を持つ"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         # cleanup は abstractmethods に含まれない = デフォルト実装あり
         abstract_methods = getattr(SubsystemBase, '__abstractmethods__', set())
@@ -105,7 +105,7 @@ class TestSubsystemBaseStructure:
 
     def test_on_enter_has_default_impl(self):
         """on_enter() はデフォルト実装（何もしない）を持つ"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         abstract_methods = getattr(SubsystemBase, '__abstractmethods__', set())
         assert 'on_enter' not in abstract_methods
@@ -124,7 +124,7 @@ class TestSubsystemBaseStructure:
 
     def test_screen_stored_on_self(self):
         """コンストラクタで受け取った screen が self.screen に格納される"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         import pygame
         pygame.init()
         screen = pygame.display.set_mode((100, 100))
@@ -139,7 +139,7 @@ class TestSubsystemBaseStructure:
 
     def test_handle_events_signature(self):
         """handle_events は events (list想定) を引数に取る"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         sig = inspect.signature(SubsystemBase.handle_events)
         params = list(sig.parameters.keys())
         # self + events の2引数
@@ -148,7 +148,7 @@ class TestSubsystemBaseStructure:
 
     def test_handle_events_return_annotation(self):
         """handle_events の戻り値アノテーションが str | None である（推奨、なければ警告のみ）"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         sig = inspect.signature(SubsystemBase.handle_events)
         ret = sig.return_annotation
         # アノテーションがない場合は警告扱いでスキップ
@@ -165,7 +165,7 @@ class TestMainMenuInheritance:
 
     def test_mainmenu_inherits_subsystembase(self, pygame_screen):
         """MainMenu は SubsystemBase のサブクラスである"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         from menu.main_menu import MainMenu
 
         assert issubclass(MainMenu, SubsystemBase), \
@@ -221,7 +221,7 @@ class TestHomeModuleInheritance:
 
     def test_homemodule_inherits_subsystembase(self, pygame_screen):
         """HomeModule は SubsystemBase のサブクラスである"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         from home.home import HomeModule
 
         assert issubclass(HomeModule, SubsystemBase), \
@@ -291,7 +291,7 @@ class TestLifecycleIntegration:
 
     def test_switch_to_calls_cleanup_then_on_enter(self, pygame_screen):
         """switch_to() が cleanup() → on_enter() の順で呼ばれる"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         call_log = []
 
@@ -322,7 +322,7 @@ class TestLifecycleIntegration:
 
     def test_mainmenu_and_homemodule_lifecycle(self, pygame_screen):
         """MainMenu → HomeModule の切り替えで例外が出ない"""
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         from menu.main_menu import MainMenu
         from home.home import HomeModule
 

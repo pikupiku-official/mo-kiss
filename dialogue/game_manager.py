@@ -1,13 +1,13 @@
-import pygame
-from bgm_manager import BGMManager
-from se_manager import SEManager
+﻿import pygame
+from core.bgm_manager import BGMManager
+from core.se_manager import SEManager
 from .dialogue_loader import DialogueLoader
-from image_manager import ImageManager
+from core.image_manager import ImageManager
 from .text_renderer import TextRenderer
 from .backlog_manager import BacklogManager
 from .choice_renderer import ChoiceRenderer
 from .notification_manager import NotificationManager
-from config import *
+from core.config import *
 from .data_normalizer import normalize_dialogue_data
 from .ir_builder import build_ir_from_normalized, dump_ir_json, get_ir_dump_path
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 dialogue_subsystem.py - DialogueSubsystem ラッパークラス
 
 SubsystemBase を継承し、既存の dialogue システム（game_state 辞書 + controller2）を
@@ -18,7 +18,7 @@ SubsystemBase を継承し、既存の dialogue システム（game_state 辞書
 import os
 import pygame
 
-from subsystem_base import SubsystemBase
+from core.subsystem_base import SubsystemBase
 from dialogue.model import initialize_game as _init_game
 from dialogue.model import advance_dialogue
 
@@ -54,7 +54,7 @@ class DialogueSubsystem(SubsystemBase):
         # text_renderer 等が __init__ 時に scale_pos() で座標をベイクするため、
         # OFFSET_X=0/SCALE=1.0 の仮想画面モードで初期化する。初期化後は復元する
         # （on_enter() で改めてリセットする）。
-        import config as _cfg
+        from core import config as _cfg
         _pre_x, _pre_y, _pre_scale = _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE
         _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = 0, 0, 1.0
         try:
@@ -76,7 +76,7 @@ class DialogueSubsystem(SubsystemBase):
 
     def on_enter(self):
         """サブシステム開始時: 座標系を仮想画面モードにリセットし元値を退避"""
-        import config
+        from core import config
         self._saved_offset_x = config.OFFSET_X
         self._saved_offset_y = config.OFFSET_Y
         self._saved_scale    = config.SCALE
@@ -102,7 +102,7 @@ class DialogueSubsystem(SubsystemBase):
 
         # 座標系を復元（on_enter() が呼ばれていない場合は何もしない）
         if self._saved_offset_x is not None:
-            import config
+            from core import config
             config.OFFSET_X = self._saved_offset_x
             config.OFFSET_Y = self._saved_offset_y
             config.SCALE    = self._saved_scale
@@ -162,7 +162,7 @@ class DialogueSubsystem(SubsystemBase):
         """現在の段落インデックスを dialogue_state.json に書き込む（Task 2c）"""
         try:
             import json
-            from path_utils import get_project_root
+            from core.path_utils import get_project_root
             state_path = os.path.join(get_project_root(), "data", "current_state", "dialogue_state.json")
             state = {
                 "event_id": self.current_event_id,
@@ -192,7 +192,7 @@ class DialogueSubsystem(SubsystemBase):
         from dialogue.character_manager import draw_characters
         from dialogue.fade_manager import draw_fade_overlay
         from dialogue.controller2 import draw_input_blocked_notice
-        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
 
         gs = self.game_state
 
@@ -236,7 +236,7 @@ class DialogueSubsystem(SubsystemBase):
         # 仮想画面をフルスクリーンにスケーリングして転送
         # on_enter()でOFFSET_X=0にリセットしているが、スクリーンへの
         # blit位置は元のOFFSET（中央寄せ用）を使う必要がある。
-        # 旧main.pyは "from config import *" の初回バインド値（=元OFFSET）を
+        # 旧main.pyは "from core.config import *" の初回バインド値（=元OFFSET）を
         # 使っていたため偶然正しく動いていた。
         blit_x = self._saved_offset_x if self._saved_offset_x is not None else OFFSET_X
         blit_y = self._saved_offset_y if self._saved_offset_y is not None else OFFSET_Y

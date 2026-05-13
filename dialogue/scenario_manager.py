@@ -1,5 +1,5 @@
-import pygame
-from config import *
+﻿import pygame
+from core.config import *
 from .character_manager import (
     move_character,
     hide_character,

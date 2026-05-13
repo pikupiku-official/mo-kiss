@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ8 テスト: TitleSubsystem
 
 テスト対象:
@@ -45,24 +45,24 @@ def pygame_screen():
 class TestTitleSubsystemStructure:
 
     def test_module_importable(self):
-        import title_subsystem  # noqa
+        import core.title_subsystem as title_subsystem  # noqa
 
     def test_class_exists(self):
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         assert TitleSubsystem is not None
 
     def test_inherits_subsystembase(self):
-        from title_subsystem import TitleSubsystem
-        from subsystem_base import SubsystemBase
+        from core.title_subsystem import TitleSubsystem
+        from core.subsystem_base import SubsystemBase
         assert issubclass(TitleSubsystem, SubsystemBase)
 
     def test_instantiable(self, pygame_screen):
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         assert ts is not None
 
     def test_screen_stored(self, pygame_screen):
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         assert ts.screen is pygame_screen
 
@@ -74,7 +74,7 @@ class TestTitleSubsystemStructure:
 class TestTitleSubsystemInterface:
 
     def test_handle_events_callable(self, pygame_screen):
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         result = ts.handle_events([])
         assert result is None or isinstance(result, str)
@@ -82,7 +82,7 @@ class TestTitleSubsystemInterface:
     def test_keydown_returns_go_to_menu(self, pygame_screen):
         """任意のキー押下で 'go_to_menu' を返す"""
         import pygame
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, mod=0, unicode='', scancode=0)
         result = ts.handle_events([event])
@@ -91,7 +91,7 @@ class TestTitleSubsystemInterface:
     def test_mousebuttondown_returns_go_to_menu(self, pygame_screen):
         """マウスクリックで 'go_to_menu' を返す"""
         import pygame
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         event = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(960, 540))
         result = ts.handle_events([event])
@@ -100,7 +100,7 @@ class TestTitleSubsystemInterface:
     def test_quit_returns_quit(self, pygame_screen):
         """QUIT イベントで 'quit' を返す"""
         import pygame
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         event = pygame.event.Event(pygame.QUIT)
         result = ts.handle_events([event])
@@ -108,18 +108,18 @@ class TestTitleSubsystemInterface:
 
     def test_no_input_returns_none(self, pygame_screen):
         """入力なしで None を返す"""
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         result = ts.handle_events([])
         assert result is None
 
     def test_update_callable(self, pygame_screen):
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         ts.update()
 
     def test_render_callable(self, pygame_screen):
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         ts.render()
 
@@ -132,7 +132,7 @@ class TestTitleSubsystemBGM:
 
     def test_on_enter_plays_bgm(self, pygame_screen):
         """on_enter() が BGM 再生を試みる"""
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         with mock.patch.object(ts, '_play_bgm') as m:
             ts.on_enter()
@@ -140,7 +140,7 @@ class TestTitleSubsystemBGM:
 
     def test_cleanup_stops_bgm(self, pygame_screen):
         """cleanup() が BGM 停止を試みる"""
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         with mock.patch.object(ts, '_stop_bgm') as m:
             ts.cleanup()
@@ -148,7 +148,7 @@ class TestTitleSubsystemBGM:
 
     def test_cleanup_safe_without_on_enter(self, pygame_screen):
         """on_enter() なしで cleanup() しても例外なし"""
-        from title_subsystem import TitleSubsystem
+        from core.title_subsystem import TitleSubsystem
         ts = TitleSubsystem(pygame_screen)
         ts.cleanup()
 

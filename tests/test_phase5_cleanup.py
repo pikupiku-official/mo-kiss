@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ5 テスト: 技術的負債解消
 
 テスト対象:
@@ -22,8 +22,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 MAP_PY      = os.path.join(PROJECT_ROOT, 'map', 'map.py')
-SAVE_PY     = os.path.join(PROJECT_ROOT, 'save_manager.py')
-LOADING_PY  = os.path.join(PROJECT_ROOT, 'loading_screen.py')
+SAVE_PY     = os.path.join(PROJECT_ROOT, 'core', 'save_manager.py')
+LOADING_PY  = os.path.join(PROJECT_ROOT, 'core', 'loading_screen.py')
 CHOICE_PY   = os.path.join(PROJECT_ROOT, 'dialogue', 'choice_renderer.py')
 
 MAP_SRC     = open(MAP_PY,     encoding='utf-8').read()
@@ -117,7 +117,7 @@ class TestPathUtilsUnification:
 
     def test_save_manager_no_file_dirname(self):
         """save_manager.py の __init__ で __file__ による dirname を使っていない"""
-        # 唯一許容されるのは from path_utils import ... の行のみ
+        # 唯一許容されるのは from core.path_utils import ... の行のみ
         lines = SAVE_SRC.splitlines()
         for line in lines:
             if 'os.path.dirname' in line and '__file__' in line:

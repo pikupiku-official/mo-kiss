@@ -1,4 +1,4 @@
-from logging import DEBUG
+﻿from logging import DEBUG
 import pygame
 import sys
 import math
@@ -13,19 +13,19 @@ from enum import Enum
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, "..")
 sys.path.insert(0, project_root)
-from path_utils import get_project_root as _get_project_root
+from core.path_utils import get_project_root as _get_project_root
 
 # TimeManagerとBGMManagerをインポート
-from time_manager import get_time_manager
-from loading_screen import show_loading, hide_loading
-from bgm_manager import BGMManager
-from subsystem_base import SubsystemBase
+from core.time_manager import get_time_manager
+from core.loading_screen import show_loading, hide_loading
+from core.bgm_manager import BGMManager
+from core.subsystem_base import SubsystemBase
 
 # 初期化
 pygame.init()
 
 # config.pyから画面サイズを取得
-from config import SCREEN_WIDTH, SCREEN_HEIGHT
+from core.config import SCREEN_WIDTH, SCREEN_HEIGHT
 FPS = 60
 
 # マップタイプの定義
@@ -178,7 +178,7 @@ class FieldMap(SubsystemBase):
         import platform
         
         # プロジェクトフォントの正しいパス（path_utils使用）
-        from path_utils import get_font_path
+        from core.path_utils import get_font_path
         project_font_path = get_font_path("MPLUS1p-Regular.ttf")
         
         # プラットフォーム別システムフォントパス
@@ -799,7 +799,7 @@ class FieldMap(SubsystemBase):
     
     def draw_girl_icons(self):
         """女の子アイコンの描画（イベント表示付き、4:3コンテンツ基準）"""
-        from config import scale_pos
+        from core.config import scale_pos
 
         current_locations = self.get_current_locations()
 
@@ -908,7 +908,7 @@ class FieldMap(SubsystemBase):
     
     def draw_locations(self):
         """場所マーカーの描画（4:3コンテンツ基準）"""
-        from config import scale_pos
+        from core.config import scale_pos
 
         current_locations = self.get_current_locations()
 
@@ -965,7 +965,7 @@ class FieldMap(SubsystemBase):
     
     def draw_calendar(self):
         """カレンダーの描画 - 左上の端（4:3コンテンツ基準）"""
-        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+        from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
 
         # カレンダー位置とサイズ（仮想座標1440x1080基準）
         virtual_cal_x = 10
@@ -1088,7 +1088,7 @@ class FieldMap(SubsystemBase):
     
     def draw_ui_panel(self):
         """UIパネルの描画（4:3コンテンツ基準）"""
-        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+        from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
 
         # UIパネル位置とサイズ（仮想座標1440x1080基準）
         virtual_panel_width = 262  # 350 * 0.75 = 262.5 ≈ 262
@@ -1174,7 +1174,7 @@ class FieldMap(SubsystemBase):
     
     def handle_click(self, pos):
         """クリック処理（4:3コンテンツ基準）"""
-        from config import scale_pos
+        from core.config import scale_pos
 
         x, y = pos
         print(f"🖱️ クリック検出: ({x}, {y})")
@@ -1223,7 +1223,7 @@ class FieldMap(SubsystemBase):
         
         # 右パネルのヒロインアイコンクリック判定（4:3コンテンツ基準）
         # 描画処理と同じ座標を使用
-        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+        from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
 
         virtual_panel_width = 262  # 350 * 0.75
         virtual_panel_x = VIRTUAL_WIDTH - virtual_panel_width
@@ -1537,7 +1537,7 @@ class FieldMap(SubsystemBase):
                 background_loaded = False
                 for background_path in possible_paths:
                     if os.path.exists(background_path):
-                        from config import CONTENT_WIDTH, CONTENT_HEIGHT
+                        from core.config import CONTENT_WIDTH, CONTENT_HEIGHT
                         self.background_image = pygame.image.load(background_path)
                         # 4:3コンテンツサイズに合わせてスケール（正確な値を使用）
                         content_size = (CONTENT_WIDTH, CONTENT_HEIGHT)
@@ -1552,11 +1552,11 @@ class FieldMap(SubsystemBase):
 
             # 背景画像を4:3コンテンツ領域に描画
             if hasattr(self, 'background_image') and self.background_image:
-                from config import OFFSET_X, OFFSET_Y
+                from core.config import OFFSET_X, OFFSET_Y
                 self.screen.blit(self.background_image, (OFFSET_X, OFFSET_Y))
             else:
                 # 背景なしの場合は4:3領域のみ単色で塗る
-                from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+                from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
                 content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
                 self.screen.fill((240, 240, 240), content_rect)
             
@@ -1566,7 +1566,7 @@ class FieldMap(SubsystemBase):
             self.screen.fill((240, 240, 240))
 
         # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
-        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
         content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
         self.screen.set_clip(content_rect)
 

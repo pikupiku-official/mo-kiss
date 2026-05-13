@@ -1,5 +1,5 @@
-import pygame
-from config import *
+﻿import pygame
+from core.config import *
 from .name_manager import get_name_manager
 from .inline_markup import (
     parse_inline_markup, wrap_markup_text, has_inline_markup,
@@ -100,7 +100,7 @@ class BacklogManager:
         self.name_manager = get_name_manager()
         
         # 仮想解像度基準のピクセル値設定（1920x1080基準）
-        from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
+        from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
         
         # レイアウト設定を先に計算する必要があるため、後でフォントサイズを計算する
         

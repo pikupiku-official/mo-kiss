@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ2 テスト: AdvancedKimikissMap → FieldMap リネーム + SubsystemBase 継承
 
 テスト対象:
@@ -83,7 +83,7 @@ class TestFieldMapInheritance:
     def test_inherits_subsystembase(self):
         """FieldMap は SubsystemBase のサブクラスである"""
         from map.map import FieldMap
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
         assert issubclass(FieldMap, SubsystemBase), \
             "FieldMap が SubsystemBase を継承していない"
 
@@ -169,7 +169,7 @@ class TestFieldMapLifecycleIntegration:
     def test_switch_from_fieldmap_calls_cleanup(self, pygame_screen):
         """FieldMap から別サブシステムに切り替えると cleanup() が呼ばれる"""
         from map.map import FieldMap
-        from subsystem_base import SubsystemBase
+        from core.subsystem_base import SubsystemBase
 
         class _DummySub(SubsystemBase):
             def handle_events(self, events): return None

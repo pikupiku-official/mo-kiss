@@ -1,4 +1,4 @@
-"""
+﻿"""
 フェーズ7 テスト: セーブシステム強化
 
 テスト対象:
@@ -32,7 +32,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 MAIN_SRC    = open(os.path.join(PROJECT_ROOT, 'main.py'),          encoding='utf-8').read()
-SAVE_SRC    = open(os.path.join(PROJECT_ROOT, 'save_manager.py'),   encoding='utf-8').read()
+SAVE_SRC    = open(os.path.join(PROJECT_ROOT, 'core', 'save_manager.py'),   encoding='utf-8').read()
 DS_SRC      = open(os.path.join(PROJECT_ROOT, 'dialogue', 'dialogue_subsystem.py'), encoding='utf-8').read()
 
 
@@ -98,7 +98,7 @@ class TestThumbnail:
         sys.path.insert(0, PROJECT_ROOT)
         # save_manager を再インポート（グローバルインスタンスを汚染しない）
         import importlib
-        import save_manager as sm_mod
+        import core.save_manager as sm_mod
         importlib.reload(sm_mod)
 
         sm = sm_mod.SaveManager(project_root=str(tmp_path))

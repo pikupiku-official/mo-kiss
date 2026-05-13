@@ -1,18 +1,18 @@
-import pygame
+﻿import pygame
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos, scale_size
-from subsystem_base import SubsystemBase
+from core.config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos, scale_size
+from core.subsystem_base import SubsystemBase
 from .main_menu_config import (
     COLORS, FONT_SIZES, LAYOUT, MenuState, DEFAULT_AUDIO_SETTINGS
 )
 from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton, TextInput
-from loading_screen import show_loading, hide_loading
+from core.loading_screen import show_loading, hide_loading
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dialogue.name_manager import get_name_manager
-from save_manager import get_save_manager
+from core.save_manager import get_save_manager
 
 class MainMenu(SubsystemBase):
     def __init__(self, screen=None):
@@ -65,7 +65,7 @@ class MainMenu(SubsystemBase):
         # 第1段階: プロジェクト専用フォント
         try:
             # 絶対パスでフォントを指定（path_utils使用）
-            from path_utils import get_font_path
+            from core.path_utils import get_font_path
             project_font_path = get_font_path("MPLUS1p-Regular.ttf")
             print(f"フォントパスを試行中: {project_font_path}")
             print(f"フォントファイル存在確認: {os.path.exists(project_font_path)}")
@@ -174,7 +174,7 @@ class MainMenu(SubsystemBase):
                 }
     
     def _create_ui_components(self):
-        from config import SCALE  # SCALEをインポート
+        from core.config import SCALE  # SCALEをインポート
 
         # メインメニューボタン（全て緑色、4:3コンテンツ基準で配置）
         # 仮想座標（1440x1080基準）で位置を定義
@@ -615,7 +615,7 @@ class MainMenu(SubsystemBase):
         self.screen.fill((0, 0, 0))
 
         # 4:3コンテンツ領域に背景色を塗る
-        from config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
+        from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
         content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
         self.screen.fill(COLORS['bg_main'], content_rect)
 
@@ -623,7 +623,7 @@ class MainMenu(SubsystemBase):
         self.screen.set_clip(content_rect)
 
         # タイトル（4:3コンテンツ基準）
-        from config import VIRTUAL_WIDTH
+        from core.config import VIRTUAL_WIDTH
         title_text = self.fonts['title'].render("メインメニュー", True, COLORS['text_title'])
         title_center_x, title_center_y = scale_pos(VIRTUAL_WIDTH // 2, LAYOUT['title_y'])
         title_rect = title_text.get_rect(center=(title_center_x, title_center_y))
@@ -696,7 +696,7 @@ class MainMenu(SubsystemBase):
     
     def _draw_save_load_panel(self, title):
         """セーブ/ロード画面を描画（4:3コンテンツ基準）"""
-        from config import VIRTUAL_WIDTH
+        from core.config import VIRTUAL_WIDTH
 
         # セーブ/ロードタイトル
         title_text = self.fonts['title'].render(f"{title}画面", True, COLORS['text_title'])

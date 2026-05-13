@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 
 class DateManager:
     """ゲーム内日付管理クラス"""
@@ -161,7 +161,7 @@ def get_date_manager():
     """日付マネージャーのシングルトンインスタンスを取得"""
     global _date_manager
     if _date_manager is None:
-        from config import GAME_START_YEAR, GAME_START_MONTH, GAME_START_DAY, GAME_START_WEEKDAY
+        from core.config import GAME_START_YEAR, GAME_START_MONTH, GAME_START_DAY, GAME_START_WEEKDAY
         _date_manager = DateManager(GAME_START_YEAR, GAME_START_MONTH, GAME_START_DAY, GAME_START_WEEKDAY)
     return _date_manager
 

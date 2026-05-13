@@ -1,6 +1,6 @@
-import pygame
+﻿import pygame
 import random
-from config import *
+from core.config import *
 
 # 画像スケーリングキャッシュ
 _scaled_image_cache = {}

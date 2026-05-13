@@ -1,6 +1,6 @@
-import pygame
+﻿import pygame
 from .model import advance_dialogue
-from config import get_ui_button_positions, DEBUG, FONT_EFFECTS
+from core.config import get_ui_button_positions, DEBUG, FONT_EFFECTS
 from .character_manager import update_character_animations
 from .background_manager import update_background_animation
 from .fade_manager import update_fade_animation
@@ -13,7 +13,7 @@ def _to_virtual_mouse_pos(mouse_pos, screen, game_state):
     if screen == game_state['screen']:
         return mouse_pos
 
-    from config import CONTENT_WIDTH, CONTENT_HEIGHT, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DISPLAY_WIDTH, DISPLAY_HEIGHT
+    from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DISPLAY_WIDTH, DISPLAY_HEIGHT
 
     x, y = mouse_pos
     # DialogueSubsystem.on_enter() が OFFSET_X/Y を 0 にリセットするため
@@ -102,7 +102,7 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     if 'auto' in ui_images and ui_images['auto'] and 'auto' in button_positions:
         auto_btn = ui_images['auto']
         auto_pos = button_positions['auto']
-        from config import UI_BUTTON_SCALE
+        from core.config import UI_BUTTON_SCALE
         auto_size = (int(auto_btn.get_width() * UI_BUTTON_SCALE), int(auto_btn.get_height() * UI_BUTTON_SCALE))
         
         if is_point_in_rect(mouse_pos, auto_pos, auto_size):
@@ -114,7 +114,7 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     if 'skip' in ui_images and ui_images['skip'] and 'skip' in button_positions:
         skip_btn = ui_images['skip']
         skip_pos = button_positions['skip']
-        from config import UI_BUTTON_SCALE
+        from core.config import UI_BUTTON_SCALE
         skip_size = (int(skip_btn.get_width() * UI_BUTTON_SCALE), int(skip_btn.get_height() * UI_BUTTON_SCALE))
         
         if is_point_in_rect(mouse_pos, skip_pos, skip_size):

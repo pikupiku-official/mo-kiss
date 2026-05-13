@@ -1,4 +1,4 @@
-"""
+﻿"""
 KSファイル専用エディタ - PyQt5版（macOS対応）
 
 画面構成：
@@ -41,7 +41,7 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
 # ログファイルの設定
-log_file = os.path.join(project_root, "event_editor_mac.log")
+log_file = os.path.join(project_root, "debug/event_editor.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -70,10 +70,10 @@ from dialogue.choice_renderer import ChoiceRenderer
 from dialogue.fade_manager import draw_fade_overlay
 from dialogue.backlog_manager import BacklogManager
 from dialogue.notification_manager import NotificationManager
-from config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DEBUG, USE_IR, IR_DUMP_JSON, IR_DUMP_DIR
-from bgm_manager import BGMManager
-from se_manager import SEManager
-from image_manager import ImageManager
+from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DEBUG, USE_IR, IR_DUMP_JSON, IR_DUMP_DIR
+from core.bgm_manager import BGMManager
+from core.se_manager import SEManager
+from core.image_manager import ImageManager
 
 
 class PreviewWindow:
@@ -121,7 +121,7 @@ class PreviewWindow:
         """ゲーム状態を初期化"""
         logger.info("ゲーム状態初期化開始")
 
-        import config
+        from core import config
         config.OFFSET_X = 0
         config.OFFSET_Y = 0
         config.SCALE = 1.0
@@ -1874,7 +1874,7 @@ class EventEditorGUI(QMainWindow):
         self.update_step_highlights()
 
     def _run_step_preview(self, source_path, step_index, dialog, temp_path=None):
-        preview_script = os.path.join(project_root, "preview_dialogue.py")
+        preview_script = os.path.join(project_root, "tools", "preview_dialogue.py")
         if not os.path.exists(preview_script):
             return
 
@@ -2057,7 +2057,7 @@ class EventEditorGUI(QMainWindow):
 
             # preview_dialogue.pyを別プロセスとして起動
             import subprocess
-            preview_script = os.path.join(project_root, "preview_dialogue.py")
+            preview_script = os.path.join(project_root, "tools", "preview_dialogue.py")
 
             if not os.path.exists(preview_script):
                 QMessageBox.critical(
@@ -2172,7 +2172,7 @@ class EventEditorGUI(QMainWindow):
                     self.preview_process.wait()
 
             # 新しいプロセスを起動
-            preview_script = os.path.join(project_root, "preview_dialogue.py")
+            preview_script = os.path.join(project_root, "tools", "preview_dialogue.py")
 
             if platform.system() == 'Darwin':  # macOS
                 self.preview_process = subprocess.Popen(['python3', preview_script, self.current_file_path])

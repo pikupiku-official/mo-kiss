@@ -1,8 +1,8 @@
-import pygame
+﻿import pygame
 import time
 import os
-from config import *
-from path_utils import get_font_path
+from core.config import *
+from core.path_utils import get_font_path
 
 class NotificationManager:
     """右上エリアの通知システム"""
