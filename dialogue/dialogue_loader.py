@@ -550,14 +550,8 @@ class DialogueLoader:
                         bgm_volume = re.search(r'volume="([^"]+)"', line)
                         bgm_loop = re.search(r'loop="([^"]+)"', line)
                         if bgm_parts:
-                            # BGMファイル名をマッピング
-                            bgm_name = bgm_parts.group(1)
-                            if bgm_name == "school":
-                                current_bgm = None  # 初期BGMはなし
-                            elif bgm_name == "classroom":
-                                current_bgm = self.bgm_manager.SECOND_BGM
-                            else:
-                                current_bgm = bgm_name
+                            # BGMファイル名をそのまま使用
+                            current_bgm = bgm_parts.group(1)
                             
                             current_bgm_volume = float(bgm_volume.group(1)) if bgm_volume else DEFAULT_BGM_VOLUME
                             current_bgm_loop = bgm_loop.group(1).lower() == "true" if bgm_loop else DEFAULT_BGM_LOOP
