@@ -320,7 +320,7 @@ class ImageManager:
                     file_path = os.path.join(root, file)
                     file_name_without_ext = os.path.splitext(file)[0]
                     
-                    if "bg" in file:
+                    if root.endswith("backgrounds"):
                         # 完全なファイル名 (拡張子なし) で背景を登録
                         bg_key = file_name_without_ext
                         self.image_paths["backgrounds"][bg_key] = file_path
