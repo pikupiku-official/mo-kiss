@@ -900,13 +900,14 @@ $("pat-cancel").addEventListener("click", ()=> $("settings-modal").classList.add
 // ============================================================
 function parseStepsFromKS(text){
   const lines=text.split('\n');
-  const steps=[]; let pa=[],lsl=null,ls='';
+  const steps=[]; let pa=[],lsl=null,ls='',pendingMemo='';
   function add(sl,el,sp='',body='',stop=false,dl=null){
-    steps.push({step_index:steps.length,start_line:sl,end_line:el,speaker:sp,body,has_scroll_stop:stop,dialogue_line:dl,memo:''});
+    steps.push({step_index:steps.length,start_line:sl,end_line:el,speaker:sp,body,has_scroll_stop:stop,dialogue_line:dl,memo:pendingMemo});
+    pendingMemo='';
   }
   for(let i=0;i<lines.length;i++){
     const line=lines[i].trim();
-    if(line.startsWith(';@memo:')){if(steps.length){steps[steps.length-1].memo=line.slice(7);}continue;}
+    if(line.startsWith(';@memo:')){pendingMemo=line.slice(7);continue;}
     if(!line||line.startsWith(';'))continue;
     if(line.startsWith('//')&&line.endsWith('//')&&line.length>4){lsl=i;ls=line.slice(2,-2).trim();continue;}
     if(line.startsWith('[')&&line.endsWith(']')){
