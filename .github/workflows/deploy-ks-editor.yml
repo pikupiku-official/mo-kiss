@@ -20,15 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: FTP directory listing via curl
-        run: |
-          echo "=== / ==="
-          curl --ftp-pasv --silent "ftp://$FTP_SERVER/" --user "$FTP_USER:$FTP_PASS" --list-only 2>&1 || true
-          echo "=== /mokiss/ ==="
-          curl --ftp-pasv --silent "ftp://$FTP_SERVER/mokiss/" --user "$FTP_USER:$FTP_PASS" --list-only 2>&1 || true
-        continue-on-error: true
-
-      - name: Deploy via Python ftplib
+      - name: Deploy via Python ftplib (no PWD)
         run: |
           python3 - << 'PYEOF'
           import ftplib, os, sys
@@ -37,49 +29,59 @@ jobs:
           server = os.environ['FTP_SERVER']
           user   = os.environ['FTP_USER']
           passwd = os.environ['FTP_PASS']
-          remote = os.environ['REMOTE_DIR'].rstrip('/')
+          remote = os.environ['REMOTE_DIR'].strip('/')
 
-          def ensure_dir(ftp, path):
+          EXCLUDES = {'api_config.php', '__pycache__', '.git'}
+
+          def ftp_mkdirs(ftp, path):
+              """PWDなしでディレクトリを再帰的に作成"""
               parts = [p for p in path.split('/') if p]
-              for i, part in enumerate(parts):
-                  current = '/'.join(parts[:i+1])
+              for i in range(len(parts)):
+                  d = '/'.join(parts[:i+1])
                   try:
-                      ftp.mkd(current)
-                      print(f"  mkdir {current}")
+                      ftp.mkd(d)
                   except ftplib.error_perm as e:
-                      if '550' in str(e):
-                          pass  # already exists
-                      else:
-                          raise
+                      if '550' not in str(e) and '521' not in str(e):
+                          raise  # already exists は無視
 
-          def upload_dir(ftp, local_dir, remote_base):
-              excludes = {'api_config.php', '__pycache__'}
-              for item in sorted(Path(local_dir).rglob('*')):
-                  if any(e in item.parts for e in excludes):
+          def deploy(ftp, local_dir, remote_base):
+              local_dir = Path(local_dir)
+              for item in sorted(local_dir.rglob('*')):
+                  if any(e in item.parts for e in EXCLUDES):
                       continue
                   if item.suffix == '.pyc':
                       continue
                   rel = item.relative_to(local_dir)
                   remote_path = remote_base + '/' + '/'.join(rel.parts)
                   if item.is_dir():
-                      ensure_dir(ftp, remote_path)
+                      ftp_mkdirs(ftp, remote_path)
                   elif item.is_file():
-                      ensure_dir(ftp, str(Path(remote_path).parent))
-                      print(f"  upload {remote_path}")
+                      ftp_mkdirs(ftp, '/'.join(remote_path.split('/')[:-1]))
+                      print(f'  PUT {remote_path}')
                       with open(item, 'rb') as f:
                           ftp.storbinary(f'STOR {remote_path}', f)
 
           try:
               ftp = ftplib.FTP()
               ftp.connect(server, 21, timeout=30)
-              ftp.login(user, passwd)
+              resp = ftp.login(user, passwd)
+              print('Login:', resp.strip())
               ftp.set_pasv(True)
-              print("Connected. PWD:", ftp.pwd())
-              ensure_dir(ftp, remote)
-              upload_dir(ftp, './tools', remote)
+
+              # PWDは呼ばない（ロリポップで禁止）
+              print('=== Explore root (NLST) ===')
+              try:
+                  for f in sorted(ftp.nlst()):
+                      print(f'  {f}')
+              except Exception as e:
+                  print(f'  NLST failed: {e}')
+
+              print(f'=== Deploying to {remote}/ ===')
+              ftp_mkdirs(ftp, remote)
+              deploy(ftp, './tools', remote)
               ftp.quit()
-              print("Deploy complete!")
+              print('=== Deploy complete! ===')
           except Exception as e:
-              print("ERROR:", type(e).__name__, str(e), file=sys.stderr)
+              print(f'ERROR: {type(e).__name__}: {e}', file=sys.stderr)
               sys.exit(1)
           PYEOF
