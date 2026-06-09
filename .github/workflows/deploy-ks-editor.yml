@@ -20,41 +20,66 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
+      - name: FTP directory listing via curl
+        run: |
+          echo "=== / ==="
+          curl --ftp-pasv --silent "ftp://$FTP_SERVER/" --user "$FTP_USER:$FTP_PASS" --list-only 2>&1 || true
+          echo "=== /mokiss/ ==="
+          curl --ftp-pasv --silent "ftp://$FTP_SERVER/mokiss/" --user "$FTP_USER:$FTP_PASS" --list-only 2>&1 || true
+        continue-on-error: true
 
-      - name: Explore FTP structure (Python passive mode)
+      - name: Deploy via Python ftplib
         run: |
           python3 - << 'PYEOF'
           import ftplib, os, sys
+          from pathlib import Path
+
           server = os.environ['FTP_SERVER']
           user   = os.environ['FTP_USER']
           passwd = os.environ['FTP_PASS']
+          remote = os.environ['REMOTE_DIR'].rstrip('/')
+
+          def ensure_dir(ftp, path):
+              parts = [p for p in path.split('/') if p]
+              for i, part in enumerate(parts):
+                  current = '/'.join(parts[:i+1])
+                  try:
+                      ftp.mkd(current)
+                      print(f"  mkdir {current}")
+                  except ftplib.error_perm as e:
+                      if '550' in str(e):
+                          pass  # already exists
+                      else:
+                          raise
+
+          def upload_dir(ftp, local_dir, remote_base):
+              excludes = {'api_config.php', '__pycache__'}
+              for item in sorted(Path(local_dir).rglob('*')):
+                  if any(e in item.parts for e in excludes):
+                      continue
+                  if item.suffix == '.pyc':
+                      continue
+                  rel = item.relative_to(local_dir)
+                  remote_path = remote_base + '/' + '/'.join(rel.parts)
+                  if item.is_dir():
+                      ensure_dir(ftp, remote_path)
+                  elif item.is_file():
+                      ensure_dir(ftp, str(Path(remote_path).parent))
+                      print(f"  upload {remote_path}")
+                      with open(item, 'rb') as f:
+                          ftp.storbinary(f'STOR {remote_path}', f)
+
           try:
               ftp = ftplib.FTP()
-              ftp.connect(server, 21, timeout=15)
+              ftp.connect(server, 21, timeout=30)
               ftp.login(user, passwd)
-              ftp.set_pasv(True)          # パッシブモード必須
-              print("=== pwd ===")
-              print(ftp.pwd())
-              print("=== nlst ===")
-              for f in sorted(ftp.nlst()):
-                  print(" ", f)
+              ftp.set_pasv(True)
+              print("Connected. PWD:", ftp.pwd())
+              ensure_dir(ftp, remote)
+              upload_dir(ftp, './tools', remote)
               ftp.quit()
+              print("Deploy complete!")
           except Exception as e:
-              print("FTP ERROR:", type(e).__name__, str(e), file=sys.stderr)
+              print("ERROR:", type(e).__name__, str(e), file=sys.stderr)
               sys.exit(1)
           PYEOF
-        continue-on-error: true
-
-      - name: Deploy via FTP (mkdir + mirror)
-        run: |
-          printf '%s\n' \
-            "set ssl:verify-certificate no" \
-            "set ftp:passive-mode on" \
-            "set net:timeout 30" \
-            "set net:max-retries 3" \
-            "open -u $FTP_USER,$FTP_PASS $FTP_SERVER" \
-            "mkdir -p $REMOTE_DIR" \
-            "mirror -R --verbose --exclude=api_config.php --exclude-glob=*.pyc ./tools/ $REMOTE_DIR" \
-            "bye" | timeout 120 lftp 2>&1
