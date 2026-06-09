@@ -1,14 +1,15 @@
 name: Deploy to Lolipop /mokiss/
 
-# tools/dev/ 以下が変わった時に実行
-# デプロイ構造: tools/dev/ → /mokiss/dev/
+# tools/ 以下が変わった時に実行
+# デプロイ構造: tools/ → /mokiss/
+#   例: tools/dev/ks-editor/ → /mokiss/dev/ks-editor/
 on:
   push:
     branches:
       - main
     paths:
       - 'tools/dev/**'
-  workflow_dispatch:  # 手動実行も可能にする
+  workflow_dispatch:  # 手動実行も可能
 
 jobs:
   deploy:
@@ -35,6 +36,6 @@ jobs:
               --exclude=api_config.php \
               --exclude-glob=*.pyc \
               --exclude-glob=__pycache__ \
-              ./tools/dev/ $REMOTE_DIR;
+              ./tools/ $REMOTE_DIR;
             quit
           "
