@@ -1,12 +1,12 @@
-name: Deploy KS Editor to Lolipop
+name: Deploy dev tools to Lolipop
 
-# tools/ks-editor/ のファイルが変わった時だけ実行
+# tools/ 以下が変わった時に実行→ /mokiss/dev/ に一括デプロイ
 on:
   push:
     branches:
       - main
     paths:
-      - 'tools/ks-editor/**'
+      - 'tools/**'
 
 jobs:
   deploy:
@@ -22,9 +22,11 @@ jobs:
           username:   ${{ secrets.FTP_USERNAME }}
           password:   ${{ secrets.FTP_PASSWORD }}
           port:       21
-          local-dir:  ./tools/ks-editor/
+          local-dir:  ./tools/
           server-dir: ${{ secrets.FTP_REMOTE_DIR }}
           exclude: |
             **/.git*
             **/api_config.php
-            **/api_config.sample.php
+            **/__pycache__/**
+            **/*.pyc
+            **/debug/**
