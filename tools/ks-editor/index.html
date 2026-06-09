@@ -430,52 +430,85 @@ async function rawFetch(path) {
 }
 
 // ============================================================
-//  初期化・ファイル一覧
+//  ディレクトリブラウザ
 // ============================================================
-let allFiles = [];
+let currentDir = '';
 
-async function init() {
-  history.replaceState({page:"list"},"");
-  $("sb-file").textContent = "読み込み中…";
+async function browseDir(dirPath) {
+  currentDir = dirPath;
+  $("sb-file").textContent = (dirPath || '/') + ' 読み込み中…';
   sbMsg('<span class="spinner"></span>');
+
+  const parts = dirPath ? dirPath.split('/') : [];
+  let bc = '<span class="bc-item" data-path="" style="cursor:pointer;color:var(--blue)">ルート</span>';
+  let built = '';
+  parts.forEach(p => {
+    built += (built ? '/' : '') + p;
+    const snap = built;
+    bc += ' / <span class="bc-item" data-path="' + snap + '" style="cursor:pointer;color:var(--blue)">' + p + '</span>';
+  });
+  $("breadcrumb").innerHTML = bc;
+  $("breadcrumb").querySelectorAll('.bc-item').forEach(el => {
+    el.addEventListener('click', () => browseDir(el.dataset.path));
+  });
+
   try {
-    const files = await ghGet(DIR);  // 公開リポ: 認証不要
-    allFiles = files
-      .filter(f => f.type==="file" && f.name.endsWith(".ks"))
-      .sort((a,b) => a.name.localeCompare(b.name));
-    renderTable(allFiles);
-    $("file-count").textContent = allFiles.length+" ファイル";
-    $("sb-file").textContent = DIR+"/";
-    sbMsg("");
-  } catch(e) {
-    $("sb-file").textContent = "エラー: "+e.message;
-    sbMsg("");
+    const items = await ghGet(dirPath || '');
+    renderDirTable(items, dirPath);
+    $("sb-file").textContent = (dirPath || '') + '/';
+    sbMsg('');
+  } catch(e2) {
+    $("sb-file").textContent = 'エラー: ' + e2.message;
+    sbMsg('');
   }
 }
 
-function renderTable(files) {
+function init() {
+  history.replaceState({page:'list', dir:''}, '');
+  browseDir('');
+}
+
+function renderDirTable(items, dirPath) {
   const tbody = $("file-tbody");
-  tbody.innerHTML = "";
-  $("no-result").classList.toggle("hidden", files.length>0);
+  tbody.innerHTML = '';
+  const dirs  = items.filter(i => i.type === 'dir').sort((a,b) => a.name.localeCompare(b.name));
+  const files = items.filter(i => i.type === 'file').sort((a,b) => a.name.localeCompare(b.name));
+  $("no-result").classList.toggle('hidden', (dirs.length + files.length) > 0);
+  $("file-count").textContent = dirs.length + 'フォルダ / ' + files.length + 'ファイル';
+
+  if (dirPath) {
+    const parentPath = dirPath.includes('/') ? dirPath.slice(0, dirPath.lastIndexOf('/')) : '';
+    const tr = document.createElement('tr');
+    tr.className = 'file-row';
+    tr.innerHTML = '<td class="td-name" style="color:var(--comment)">↑ ..</td><td></td>';
+    tr.addEventListener('click', () => browseDir(parentPath));
+    tbody.appendChild(tr);
+  }
+
+  dirs.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.className = 'file-row';
+    tr.innerHTML = '<td class="td-name" style="color:var(--accent)">&#128193; ' + d.name + '/</td><td></td>';
+    tr.addEventListener('click', () => browseDir(d.path));
+    tbody.appendChild(tr);
+  });
+
   files.forEach(f => {
-    const tr = document.createElement("tr");
-    tr.className = "file-row";
-    tr.innerHTML = `<td class="td-name">${f.name}</td><td class="td-size">${fmtSize(f.size)}</td>`;
-    tr.addEventListener("click", () => openFile(f));
+    const isKS = f.name.endsWith('.ks');
+    const tr = document.createElement('tr');
+    tr.className = isKS ? 'file-row' : '';
+    tr.style.cursor = isKS ? 'pointer' : 'default';
+    const nameColor = isKS ? '' : 'color:var(--comment)';
+    tr.innerHTML = '<td class="td-name" style="' + nameColor + '">' + f.name + '</td>'
+      + '<td class="td-size">' + fmtSize(f.size) + '</td>';
+    if (isKS) tr.addEventListener('click', () => openFile(f));
     tbody.appendChild(tr);
   });
 }
 
-$("search-box").addEventListener("input", () => {
-  const q = $("search-box").value.trim().toLowerCase();
-  const filtered = q ? allFiles.filter(f=>f.name.toLowerCase().includes(q)) : allFiles;
-  renderTable(filtered);
-  $("file-count").textContent = filtered.length+"/"+allFiles.length+" ファイル";
-});
-
 $("btn-reload").addEventListener("click", () => {
   if (currentFile) openFile(currentFile, false);
-  else init();
+  else browseDir(currentDir);
 });
 
 // ============================================================
