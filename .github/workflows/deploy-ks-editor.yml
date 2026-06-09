@@ -1,12 +1,13 @@
-name: Deploy dev tools to Lolipop
+name: Deploy to Lolipop /mokiss/
 
-# tools/ 以下が変わった時に実行→ /mokiss/dev/ に一括デプロイ
+# tools/dev/ 以下が変わった時に実行
+# デプロイ構造: tools/dev/ → /mokiss/dev/
 on:
   push:
     branches:
       - main
     paths:
-      - 'tools/**'
+      - 'tools/dev/**'
 
 jobs:
   deploy:
@@ -22,11 +23,10 @@ jobs:
           username:   ${{ secrets.FTP_USERNAME }}
           password:   ${{ secrets.FTP_PASSWORD }}
           port:       21
-          local-dir:  ./tools/
+          local-dir:  ./tools/dev/
           server-dir: ${{ secrets.FTP_REMOTE_DIR }}
           exclude: |
             **/.git*
             **/api_config.php
             **/__pycache__/**
             **/*.pyc
-            **/debug/**

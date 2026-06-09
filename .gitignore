@@ -2,5 +2,6 @@
 event_editor.log
 debug/
 
-# KSエディタ: 認証情報（絶対コミット不可）
+# デプロイ認証情報（絶対コミット不可）
+tools/dev/*/api_config.php
 tools/ks-editor/api_config.php

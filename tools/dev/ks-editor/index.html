@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>mo-kiss KSエディタ</title>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:      #2b2b2b;
+  --panel:   #313335;
+  --panel2:  #3c3f41;
+  --border:  #555;
+  --text:    #bbbbbb;
+  --text2:   #e0e0e0;
+  --sel:     #214283;
+  --blue:    #3592c4;
+  --accent:  #cc7832;
+  --green:   #6a8759;
+  --comment: #808080;
+  --match-bg:#614a00;
+  --match-fg:#ffdd57;
+  --cur-bg:  #994500;
+  --cur-fg:  #ffffff;
+  --btn:     #3c3f41;
+  --bord:    #666;
+  --hover:   #4e5254;
+  --press:   #282a2c;
+  --danger:  #c75450;
+  --warn:    #e6b422;
+}
+html,body { height:100%; font-size:13px; }
+body { font-family:"Segoe UI","Meiryo UI",sans-serif; background:var(--bg); color:var(--text); -webkit-text-size-adjust:100%; }
+
+/* ===== ログイン ===== */
+#login-view { display:flex; justify-content:center; align-items:center; min-height:100vh; }
+#login-box { background:var(--panel); border:1px solid var(--border); padding:28px 24px; width:280px; }
+#login-box h2 { font-size:14px; font-weight:normal; color:var(--text2); text-align:center; margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px; }
+.flabel { font-size:11px; color:var(--comment); margin-bottom:3px; }
+#login-box input { display:block; width:100%; padding:6px 8px; margin-bottom:12px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:13px; outline:none; font-family:inherit; }
+#login-box input:focus { border-color:var(--blue); }
+#login-btn { width:100%; padding:7px; background:var(--btn); border:1px solid var(--bord); color:var(--text2); font-size:13px; cursor:pointer; font-family:inherit; }
+#login-btn:hover { background:var(--hover); }
+#login-err { color:#ff6b68; font-size:11px; text-align:center; margin-top:8px; }
+
+/* ===== 共通ボタン ===== */
+.hidden { display:none !important; }
+.mbtn { background:transparent; border:1px solid transparent; color:var(--text); font-size:12px; padding:3px 9px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.mbtn:hover  { background:var(--hover); border-color:var(--border); }
+.mbtn:active { background:var(--press); }
+.mbtn.danger { color:var(--danger); }
+.mbtn.danger:hover { background:#4a2020; border-color:var(--danger); }
+.mbtn.active { background:var(--sel); border-color:var(--blue); color:#fff; }
+.smbtn { background:var(--btn); border:1px solid var(--bord); color:var(--text); font-size:11px; padding:2px 8px; cursor:pointer; font-family:inherit; }
+.smbtn:hover { background:var(--hover); }
+.msep { width:1px; height:16px; background:var(--border); margin:0 3px; }
+
+/* ===== レイアウト ===== */
+#main-view { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* メニューバー */
+#menubar { background:var(--panel2); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:2px; padding:3px 6px; flex-shrink:0; flex-wrap:wrap; }
+#menubar h1 { font-size:12px; font-weight:normal; color:var(--comment); margin-right:6px; white-space:nowrap; }
+
+/* 検索バー */
+#find-bar { background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:4px; padding:3px 8px; flex-shrink:0; }
+#find-input { width:180px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:3px 7px; outline:none; font-family:inherit; }
+#find-input:focus { border-color:var(--blue); }
+#find-count { font-size:11px; color:var(--comment); min-width:70px; }
+
+/* コンテンツ */
+#content-area { flex:1; display:flex; overflow:hidden; min-height:0; }
+
+/* ===== 一覧 ===== */
+#list-panel { flex:1; overflow:auto; padding:8px; }
+#list-toolbar { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+#search-box { flex:1; max-width:240px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:4px 8px; outline:none; font-family:inherit; }
+#search-box:focus { border-color:var(--blue); }
+#file-count { font-size:11px; color:var(--comment); }
+#file-table { width:100%; border-collapse:collapse; }
+#file-table th { text-align:left; font-size:11px; font-weight:normal; color:var(--comment); padding:3px 8px; border-bottom:1px solid var(--border); background:var(--panel2); position:sticky; top:0; z-index:10; }
+#file-table td { padding:4px 8px; font-size:12px; border-bottom:1px solid #3a3a3a; }
+tr.file-row { cursor:pointer; }
+tr.file-row:hover td { background:var(--panel2); }
+.td-name { color:var(--text2); font-family:"Courier New",monospace; }
+.td-size { color:var(--comment); text-align:right; white-space:nowrap; }
+#no-result { color:var(--comment); padding:20px 8px; font-size:12px; }
+
+/* ===== ファイルビュー ===== */
+#file-panel { flex:1; display:flex; overflow:hidden; min-width:0; }
+
+/* アウトラインサイドバー */
+#outline-sidebar { width:160px; flex-shrink:0; border-right:1px solid var(--border); overflow:auto; background:var(--panel); }
+#outline-title { font-size:10px; color:var(--comment); padding:4px 8px; border-bottom:1px solid var(--border); background:var(--panel2); text-transform:uppercase; letter-spacing:1px; }
+.para-item { padding:4px 8px; font-size:11px; color:var(--blue); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:"Courier New",monospace; border-bottom:1px solid #3a3a3a; }
+.para-item:hover { background:var(--panel2); }
+
+/* KSコード（行番号つき） */
+#ks-wrap { flex:1; overflow:auto; background:#1e1e1e; font-family:"Courier New",monospace; min-width:0; }
+#ks-table { border-collapse:collapse; min-width:100%; }
+#ks-table td { vertical-align:top; padding:0; }
+.ln-col { background:#2b2b2b; color:#606366; font-size:12px; line-height:1.6; padding:8px 6px 8px 8px; text-align:right; user-select:none; border-right:1px solid #3a3a3a; white-space:pre; position:sticky; left:0; z-index:5; }
+.code-col { padding:8px 12px; font-size:12px; line-height:1.6; white-space:pre; color:#a9b7c6; min-width:0; }
+
+/* 編集モードtextarea */
+#edit-textarea { width:100%; min-height:100%; padding:8px 12px; font-size:12px; line-height:1.6; font-family:"Courier New",monospace; background:#1e1e1e; color:#a9b7c6; border:none; outline:none; resize:none; white-space:pre; }
+
+/* KS構文色 */
+.k-label   { color:var(--accent); font-weight:bold; }
+.k-tag     { color:var(--blue); }
+.k-comment { color:var(--comment); font-style:italic; }
+.k-dialog  { color:var(--green); }
+mark.hit   { background:var(--match-bg); color:var(--match-fg); }
+mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
+
+/* ===== Stepパネル (オーバーレイ） ===== */
+#step-panel{
+  position:fixed; left:0; right:0; bottom:0; z-index:500;
+  max-height:60vh; overflow-y:auto;
+  background:var(--panel); border-top:2px solid var(--blue);
+  display:flex; flex-direction:column;
+  box-shadow:0 -4px 20px rgba(0,0,0,.5);
+  transition:transform .2s ease;
+}
+#step-panel.sp-closed{ transform:translateY(100%); pointer-events:none; }
+#step-panel-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 12px;background:var(--panel2);border-bottom:1px solid var(--border);
+  flex-shrink:0; position:sticky; top:0;
+}
+#step-panel-title{font-size:12px;color:var(--blue);font-weight:bold;}
+.sp-body{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0; }
+.sp-field{padding:6px 10px;border-bottom:1px solid #3a3a3a;}
+.sp-label{font-size:10px;color:var(--comment);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.sp-input,.sp-textarea{
+  width:100%;background:#1e1e1e;border:1px solid var(--border);
+  color:var(--text2);font-size:13px;padding:5px 7px;outline:none;font-family:inherit;
+}
+.sp-textarea{font-family:"Courier New",monospace;resize:vertical;}
+.sp-input:focus,.sp-textarea:focus{border-color:var(--blue);}
+.sp-check{font-size:13px;color:var(--text);cursor:pointer;line-height:2;}
+.sp-check input{margin-right:6px;transform:scale(1.2);}
+#step-btns{padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;background:var(--panel2);border-top:1px solid var(--border);flex-shrink:0;}
+/* ビューモードのコード行 */
+.step-line{cursor:pointer;}
+.step-line:hover{filter:brightness(1.3);}
+/* ===== ステータスバー ===== */
+#statusbar { background:var(--panel2); border-top:1px solid var(--border); display:flex; align-items:center; gap:16px; padding:2px 10px; flex-shrink:0; font-size:11px; color:var(--comment); }
+#statusbar span { white-space:nowrap; }
+#sb-mode { color:var(--warn); font-weight:bold; }
+.spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ===== モーダル ===== */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; justify-content:center; align-items:center; z-index:1000; }
+.modal-box { background:var(--panel); border:1px solid var(--border); padding:20px; min-width:280px; max-width:90vw; }
+.modal-box h3 { font-size:13px; font-weight:normal; color:var(--text2); margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+.modal-box input { display:block; width:100%; padding:6px 8px; margin-bottom:10px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:13px; outline:none; font-family:inherit; }
+.modal-box input:focus { border-color:var(--blue); }
+.modal-row { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
+.modal-note { font-size:11px; color:var(--comment); margin-bottom:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- ログイン -->
+<div id="login-view">
+  <div id="login-box">
+    <h2>mo-kiss 開発ツール</h2>
+    <div class="flabel">パスワード</div>
+    <input type="password" id="pin-input" autocomplete="current-password">
+    <button id="login-btn">OK</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<!-- メイン -->
+<div id="main-view" class="hidden">
+
+  <!-- メニューバー -->
+  <div id="menubar">
+    <h1>mo-kiss / KSエディタ</h1>
+    <div class="msep"></div>
+    <button class="mbtn hidden" id="btn-back">← 一覧</button>
+    <button class="mbtn" id="btn-reload">再読込</button>
+    <div class="msep" id="sep-file" style="display:none"></div>
+    <button class="mbtn hidden" id="btn-edit-toggle">編集</button>
+    <button class="mbtn hidden" id="btn-save">保存</button>
+    <button class="mbtn hidden" id="btn-new">新規作成</button>
+    <button class="mbtn danger hidden" id="btn-delete">削除</button>
+    <div class="msep" id="sep-view" style="display:none"></div>
+    <button class="mbtn hidden" id="btn-copy">全コピー</button>
+    <button class="mbtn hidden" id="btn-find">検索</button>
+    <button class="mbtn hidden" id="btn-outline">アウトライン</button>
+    <button class="mbtn hidden" id="btn-step-panel">Step編集</button>
+    <button class="mbtn" id="btn-settings">設定</button>
+    <button class="mbtn" id="btn-logout" style="margin-left:auto">ログアウト</button>
+  </div>
+
+  <!-- 検索バー -->
+  <div id="find-bar" class="hidden">
+    <span style="font-size:11px;color:var(--comment);margin-right:4px">検索:</span>
+    <input type="search" id="find-input" placeholder="キーワード…">
+    <button class="smbtn" id="find-prev">▲ 前</button>
+    <button class="smbtn" id="find-next">▼ 次</button>
+    <span id="find-count"></span>
+    <button class="smbtn" id="find-close">閉じる</button>
+  </div>
+
+  <!-- コンテンツ -->
+  <div id="content-area">
+
+    <!-- 一覧パネル -->
+    <div id="list-panel">
+      <div id="list-toolbar">
+        <span id="breadcrumb" style="font-size:11px;color:var(--comment);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">/</span>
+        <span id="file-count"></span>
+        <button class="smbtn" id="btn-new2" style="margin-left:6px">＋ 新規</button>
+      </div>
+      <table id="file-table">
+        <thead><tr><th>名前</th><th>サイズ</th></tr></thead>
+        <tbody id="file-tbody"></tbody>
+      </table>
+      <div id="no-result" class="hidden">ファイルがありません</div>
+    </div>
+
+    <!-- ファイルビュー -->
+    <div id="file-panel" style="display:none">
+      <div id="outline-sidebar" class="hidden">
+        <div id="outline-title">アウトライン</div>
+        <div id="outline-list"></div>
+      </div>
+      <div id="ks-wrap">
+        <!-- 表示モード -->
+        <table id="ks-table">
+          <tr><td class="ln-col" id="line-nums"></td><td class="code-col" id="ks-code"></td></tr>
+        </table>
+        <!-- 編集モード -->
+        <textarea id="edit-textarea" class="hidden" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div><!-- /content-area -->
+
+  <!-- Step編集オーバーレイ（モードが明確なパネル）-->
+  <div id="step-panel" class="sp-closed">
+    <div id="step-panel-head">
+      <span id="step-panel-title">Step #0</span>
+      <span style="font-size:11px;color:var(--comment);margin-left:8px">タップして編集→「適用」で反映→「保存」でGitHub書込</span>
+      <button class="smbtn" id="step-close" style="margin-left:auto">閉じる</button>
+    </div>
+    <div class="sp-body">
+      <div class="sp-field">
+        <div class="sp-label">話者</div>
+        <input type="text" id="step-speaker" class="sp-input" placeholder="話者名">
+      </div>
+      <div class="sp-field" style="grid-column:span 2">
+        <div class="sp-label">本文（「」の中身）</div>
+        <textarea id="step-body" class="sp-textarea" rows="3" placeholder="セリフを入力"></textarea>
+      </div>
+      <div class="sp-field">
+        <label class="sp-check"><input type="checkbox" id="step-scroll-stop"> scroll-stopを付ける</label>
+      </div>
+      <div class="sp-field">
+        <div class="sp-label">アクション（1行1タグ）</div>
+        <textarea id="step-actions" class="sp-textarea" rows="2" placeholder="[bg_show storage=...]など"></textarea>
+      </div>
+      <div class="sp-field">
+        <div class="sp-label">メモ（KSに含まれぺエディタ内のみ）</div>
+        <input type="text" id="step-memo" class="sp-input" placeholder="備考">
+      </div>
+    </div>
+    <div id="step-btns">
+      <button class="smbtn" id="step-ins-before">前に挿入</button>
+      <button class="smbtn" id="step-ins-after">後に挿入</button>
+      <button class="smbtn danger" id="step-delete-btn">削除</button>
+      <button class="smbtn" id="step-apply" style="background:var(--blue);color:#fff;font-weight:bold">適用</button>
+      <button class="smbtn" id="step-apply-save" style="background:#2a7a2a;color:#fff;font-weight:bold">適用して保存</button>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- ステータスバー -->
+  <div id="statusbar">
+    <span id="sb-file">—</span>
+    <span id="sb-lines"></span>
+    <span id="sb-size"></span>
+    <span id="sb-mode"></span>
+    <span id="sb-msg" style="margin-left:auto"></span>
+  </div>
+
+</div>
+
+<!-- 設定モーダル -->
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>設定 — GitHub Personal Access Token</h3>
+    <div class="modal-note">
+      編集・保存・新規作成・削除には GitHub PAT が必要です。<br>
+      GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens<br>
+      権限: Contents (Read and Write)
+    </div>
+    <div class="flabel">PAT (保存はブラウザのみ、外部送信なし)</div>
+    <input type="password" id="pat-input" placeholder="github_pat_…">
+    <div class="modal-row">
+      <button class="smbtn" id="pat-clear">クリア</button>
+      <button class="smbtn" id="pat-cancel">キャンセル</button>
+      <button class="smbtn" id="pat-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新規作成モーダル -->
+<div id="new-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>新規KSファイル作成</h3>
+    <div class="flabel">ファイル名 (.ks は自動付与)</div>
+    <input type="text" id="new-name" placeholder="例: E067">
+    <div class="modal-note">events/ フォルダに作成されます</div>
+    <div class="modal-row">
+      <button class="smbtn" id="new-cancel">キャンセル</button>
+      <button class="smbtn" id="new-ok">作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div id="del-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>ファイル削除の確認</h3>
+    <div class="modal-note" id="del-msg"></div>
+    <div class="modal-row">
+      <button class="smbtn" id="del-cancel">キャンセル</button>
+      <button class="smbtn danger" id="del-ok">削除する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  設定
+// ============================================================
+const REPO     = "pikupiku-official/mo-kiss";
+const BRANCH   = "main";
+const DIR      = "events";
+const PASSWORD = "1919";  // ← 変更してください
+
+// ============================================================
+//  ユーティリティ
+// ============================================================
+const $ = id => document.getElementById(id);
+function fmtSize(n) { return n < 1024 ? n+" B" : Math.round(n/1024)+" KB"; }
+function esc(s)     { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function sbMsg(txt, ms=0) {
+  $("sb-msg").innerHTML = txt;
+  if (ms) setTimeout(()=> $("sb-msg").textContent="", ms);
+}
+// PAT は api.php 側にある
+
+// base64 ↔ UTF-8
+function toB64(str) { return btoa(unescape(encodeURIComponent(str))); }
+function fromB64(b64) {
+  try { return decodeURIComponent(escape(atob(b64.replace(/\s/g,"")))); }
+  catch { return atob(b64.replace(/\s/g,"")); }
+}
+
+// ============================================================
+//  ログイン
+// ============================================================
+function isLoggedIn() { return sessionStorage.getItem("mks_ok")==="1"; }
+
+function doLogin() {
+  if ($("pin-input").value === PASSWORD) {
+    sessionStorage.setItem("mks_ok","1");
+    $("login-view").classList.add("hidden");
+    $("main-view").classList.remove("hidden");
+    init();
+  } else {
+    $("login-err").textContent = "パスワードが違います";
+    $("pin-input").value = ""; $("pin-input").focus();
+  }
+}
+$("login-btn").addEventListener("click", doLogin);
+$("pin-input").addEventListener("keydown", e => { if(e.key==="Enter") doLogin(); });
+$("btn-logout").addEventListener("click", ()=>{ sessionStorage.removeItem("mks_ok"); location.reload(); });
+
+if (isLoggedIn()) {
+  $("login-view").classList.add("hidden");
+  $("main-view").classList.remove("hidden");
+  init();
+}
+
+// ============================================================
+//  API分岐戦略
+//  読み取り: 直接GitHub API（公開リポなので認証不要）
+//  書き込み: api.php経由（PATはapi.php内のみ）
+// ============================================================
+const RAW    = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
+const GH_API = `https://api.github.com/repos/${REPO}`;
+
+// 読み取り用: 直接GitHub API（公開リポ、認証不要）
+async function ghGet(path) {
+  const url = path.startsWith('http') ? path : `${GH_API}/contents/${path}`;
+  const r = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.message||'HTTP '+r.status); }
+  return r.json();
+}
+
+// 書き込み用: api.php経由
+async function apiCall(action, path='', opts={}) {
+  const url = 'api.php?action='+action+(path ? '&path='+encodeURIComponent(path) : '');
+  const r = await fetch(url, {
+    method: opts.method || 'GET',
+    headers: { 'Content-Type':'application/json', 'X-App-Secret': PASSWORD },
+    body: opts.body || undefined
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(()=>({}));
+    throw new Error(j.error || j.message || 'HTTP '+r.status);
+  }
+  return r.json();
+}
+
+// KSファイル内容取得
+async function rawFetch(path) {
+  const r = await fetch(RAW+path+'?_='+Date.now());
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return r.text();
+}
+
+// ============================================================
+//  ディレクトリブラウザ
+// ============================================================
+let currentDir = '';
+
+async function browseDir(dirPath) {
+  currentDir = dirPath;
+  $("sb-file").textContent = (dirPath || '/') + ' 読み込み中…';
+  sbMsg('<span class="spinner"></span>');
+
+  const parts = dirPath ? dirPath.split('/') : [];
+  let bc = '<span class="bc-item" data-path="" style="cursor:pointer;color:var(--blue)">ルート</span>';
+  let built = '';
+  parts.forEach(p => {
+    built += (built ? '/' : '') + p;
+    const snap = built;
+    bc += ' / <span class="bc-item" data-path="' + snap + '" style="cursor:pointer;color:var(--blue)">' + p + '</span>';
+  });
+  $("breadcrumb").innerHTML = bc;
+  $("breadcrumb").querySelectorAll('.bc-item').forEach(el => {
+    el.addEventListener('click', () => browseDir(el.dataset.path));
+  });
+
+  try {
+    const items = await ghGet(dirPath || '');
+    renderDirTable(items, dirPath);
+    $("sb-file").textContent = (dirPath || '') + '/';
+    sbMsg('');
+  } catch(e2) {
+    $("sb-file").textContent = 'エラー: ' + e2.message;
+    sbMsg('');
+  }
+}
+
+function init() {
+  history.replaceState({page:'list', dir:''}, '');
+  browseDir('');
+}
+
+function renderDirTable(items, dirPath) {
+  const tbody = $("file-tbody");
+  tbody.innerHTML = '';
+  const dirs  = items.filter(i => i.type === 'dir').sort((a,b) => a.name.localeCompare(b.name));
+  const files = items.filter(i => i.type === 'file').sort((a,b) => a.name.localeCompare(b.name));
+  $("no-result").classList.toggle('hidden', (dirs.length + files.length) > 0);
+  $("file-count").textContent = dirs.length + 'フォルダ / ' + files.length + 'ファイル';
+
+  if (dirPath) {
+    const parentPath = dirPath.includes('/') ? dirPath.slice(0, dirPath.lastIndexOf('/')) : '';
+    const tr = document.createElement('tr');
+    tr.className = 'file-row';
+    tr.innerHTML = '<td class="td-name" style="color:var(--comment)">↑ ..</td><td></td>';
+    tr.addEventListener('click', () => browseDir(parentPath));
+    tbody.appendChild(tr);
+  }
+
+  dirs.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.className = 'file-row';
+    tr.innerHTML = '<td class="td-name" style="color:var(--accent)">&#128193; ' + d.name + '/</td><td></td>';
+    tr.addEventListener('click', () => browseDir(d.path));
+    tbody.appendChild(tr);
+  });
+
+  // テキストファイルとして開ける拡張子
+  const TEXT_EXTS = new Set(['ks','py','md','txt','json','csv','html','css','js','php','yaml','yml','toml','ini','cfg','bat','sh','rb','ts','xml']);
+  function isText(name) { const ext = name.split('.').pop().toLowerCase(); return TEXT_EXTS.has(ext); }
+  function isKSFile(name) { return name.endsWith('.ks'); }
+
+  files.forEach(f => {
+    const editable = isText(f.name);
+    const isKS = isKSFile(f.name);
+    const tr = document.createElement('tr');
+    tr.className = editable ? 'file-row' : '';
+    tr.style.cursor = editable ? 'pointer' : 'default';
+    const nameStyle = editable ? (isKS ? 'color:var(--blue)' : '') : 'color:var(--comment)';
+    const badge = isKS ? ' <span style="font-size:10px;background:var(--border);padding:1px 5px;border-radius:3px">KS</span>' : '';
+    tr.innerHTML = '<td class="td-name" style="' + nameStyle + '">' + f.name + badge + '</td>'
+      + '<td class="td-size">' + fmtSize(f.size) + '</td>';
+    if (editable) tr.addEventListener('click', () => openFile(f));
+    tbody.appendChild(tr);
+  });
+}
+
+$("btn-reload").addEventListener("click", () => {
+  if (currentFile) openFile(currentFile, false);
+  else browseDir(currentDir);
+});
+
+// ============================================================
+//  ビュー切り替え
+// ============================================================
+let currentFile = null;
+let currentSha  = "";
+let editMode    = false;
+
+function showList(push=true) {
+  if (push) history.pushState({page:"list"},"",location.pathname);
+  $("file-panel").style.display = "none";
+  $("list-panel").style.display = "";
+  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
+  $("btn-new2").style.display = "";
+  closeFindBar();
+  exitEditMode(false);
+  currentFile = null;
+  $("sb-file").textContent = DIR+"/";
+  $("sb-lines").textContent = "";
+  $("sb-size").textContent  = "";
+  $("sb-mode").textContent  = "";
+}
+
+function showFilePanel() {
+  $("list-panel").style.display = "none";
+  $("file-panel").style.display = "flex";
+  ["btn-back","btn-edit-toggle","btn-delete","btn-copy","btn-find","btn-outline","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
+  $("sep-file").style.display = "";
+  $("sep-view").style.display = "";
+  $("btn-new2").style.display = "none";
+}
+
+$("btn-back").addEventListener("click", () => showList());
+window.addEventListener("popstate", e => {
+  const s = e.state;
+  if (!s) { showList(false); return; }
+  if (s.mode==='edit' && s.file) {
+    if(!currentFile || currentFile.path!==s.file.path) openFile(s.file, false).then(()=>enterEditMode(false));
+    else enterEditMode(false);
+  } else if (s.file) {
+    if(editMode) exitEditMode(false, false);
+    else openFile(s.file, false);
+  } else {
+    showList(false);
+  }
+});
+
+// ============================================================
+//  KS ハイライト・行番号・アウトライン
+// ============================================================
+// KS構文ハイライト
+function highlight(text) {
+  return text.split("\n").map(line => {
+    const e = esc(line), s = line.trimStart();
+    if (s.startsWith("*"))                     return `<span class="k-label">${e}</span>`;
+    if (s.startsWith("[")||s.startsWith("@"))  return `<span class="k-tag">${e}</span>`;
+    if (s.startsWith(";")||s.startsWith("//")) return `<span class="k-comment">${e}</span>`;
+    if (/[「」『』]/.test(s))                  return `<span class="k-dialog">${e}</span>`;
+    return e;
+  }).join("\n");
+}
+// 汎用テキスト（Python・マークダウン等）: 編集可能なら何でも開く
+function escapeAndHightlightGeneric(text) {
+  return text.split("\n").map(line => {
+    const e = esc(line), s = line.trimStart();
+    // Python/Shellコメント
+    if (s.startsWith('#'))   return `<span class="k-comment">${e}</span>`;
+    // 文字列リテラル
+    if (/^['"]/.test(s))     return `<span class="k-dialog">${e}</span>`;
+    // import / def / class 等
+    if (/^(import|from|def |class |async |return|if |elif |else:|for |while |with )/.test(s)) return `<span class="k-tag">${e}</span>`;
+    return e;
+  }).join("\n");
+}
+
+// KS正規化：event_editor.pyのステップ解析に準拠
+function parseSteps(text) {
+  const lines = text.split("\n");
+  const steps = [];
+  let cur = null;
+  lines.forEach((line,i) => {
+    const s = line.trim();
+    if (s.startsWith("*")) {
+      if (cur) steps.push(cur);
+      cur = { label:s, line:i };
+    } else if (s === "[scroll_stop]" || s === "@scroll_stop") {
+      if (cur) cur.hasStop = true;
+    }
+  });
+  if (cur) steps.push(cur);
+  return steps;
+}
+
+function setLineNums(count) {
+  $("line-nums").textContent = Array.from({length:count},(_,i)=>i+1).join("\n");
+}
+
+function buildOutline(text) {
+  const list = $("outline-list");
+  list.innerHTML = "";
+  const steps = parseSteps(text);
+  steps.forEach(s => {
+    const div = document.createElement("div");
+    div.className = "para-item";
+    div.textContent = s.label;
+    div.title = s.label;
+    div.addEventListener("click", () => {
+      // スクロール
+      const linesTotal = text.split("\n").length;
+      const ratio = s.line / Math.max(linesTotal-1,1);
+      const wrap = $("ks-wrap");
+      wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight);
+    });
+    list.appendChild(div);
+  });
+}
+
+// ============================================================
+//  ファイルを開く
+// ============================================================
+let currentText = "";
+
+async function openFile(f, push=true) {
+  currentFile = f;
+  exitEditMode(false);
+  if (push) history.pushState({file:f},f.name,"#"+encodeURIComponent(f.name));
+  showFilePanel();
+  $("sb-file").textContent = f.path;
+  $("sb-size").textContent = fmtSize(f.size);
+  $("sb-lines").textContent = "";
+  sbMsg('<span class="spinner"></span> 読み込み中…');
+  $("ks-code").innerHTML = "";
+  $("line-nums").textContent = "";
+
+  try {
+    // raw で取得しつつ sha も取る
+    const [text, meta] = await Promise.all([
+      rawFetch(f.path),
+      ghGet(f.path).catch(()=>null)  // SHA取得
+    ]);
+    currentText = text;
+    currentSha  = meta ? meta.sha : "";
+    const lines = text.split("\n");
+    const isKSFile = f.name.endsWith('.ks');
+    $("ks-code").innerHTML = isKSFile ? renderWithSteps(text) : escapeAndHightlightGeneric(text);
+    if (isKSFile) attachStepClicks();
+    // Step編集ボタンはKSのみ表示
+    $("btn-step-panel").classList.toggle("hidden", !isKSFile);
+    setLineNums(lines.length);
+    buildOutline(text);
+    $("sb-lines").textContent = lines.length+" 行" + (isKSFile ? '' : ' — ' + f.name.split('.').pop().toUpperCase());
+    sbMsg("");
+  } catch(e) {
+    sbMsg("エラー: "+e.message, 4000);
+  }
+}
+
+// ============================================================
+//  編集モード
+// ============================================================
+$("btn-edit-toggle").addEventListener("click", toggleEdit);
+$("btn-save").addEventListener("click", saveFile);
+
+function toggleEdit() {
+  editMode ? exitEditMode(true) : enterEditMode();
+}
+
+function enterEditMode(push=true, jumpLine=null) {
+  if(push && currentFile) history.pushState({file:currentFile,mode:'edit'},'',' #'+encodeURIComponent(currentFile.name)+':edit');
+  // Stepパネルを閉じる
+  $('step-panel').classList.add('sp-closed');
+  $('btn-step-panel').classList.remove('active');
+  editMode = true;
+  $("ks-table").classList.add("hidden");
+  $("edit-textarea").classList.remove("hidden");
+  $("edit-textarea").value = currentText;
+  $("btn-edit-toggle").textContent = "表示に戻る";
+  $("btn-edit-toggle").classList.add("active");
+  $("btn-save").classList.remove("hidden");
+  $("sb-mode").textContent = "【Raw編集中】";
+  $("edit-textarea").focus();
+  // 長押しタップした行にジャンプ
+  if(jumpLine!=null){
+    const ta=$("edit-textarea");
+    const lines=currentText.split('\n');
+    let pos=lines.slice(0,jumpLine).join('\n').length;
+    if(jumpLine>0)pos++;
+    ta.setSelectionRange(pos,pos);
+    const lh=ta.scrollHeight/Math.max(lines.length,1);
+    ta.scrollTop=Math.max(0,jumpLine*lh-ta.clientHeight/2);
+  }
+}
+
+function exitEditMode(confirm_unsaved=true, push=true) {
+  if (editMode && confirm_unsaved && $("edit-textarea").value !== currentText) {
+    if (!window.confirm("変更が保存されていません。破棄しますか？")) return;
+  }
+  if(push && currentFile) history.pushState({file:currentFile,mode:'view'},'',' #'+encodeURIComponent(currentFile.name));
+  editMode = false;
+  $("edit-textarea").classList.add("hidden");
+  $("ks-table").classList.remove("hidden");
+  $("btn-edit-toggle").textContent = "編集";
+  $("btn-edit-toggle").classList.remove("active");
+  $("btn-save").classList.add("hidden");
+  $("sb-mode").textContent = "";
+}
+
+async function saveFile() {
+  if (!currentFile) return;
+  const newText = $("edit-textarea").value;
+  const msg = `KSエディタ: ${currentFile.name} を更新`;
+  sbMsg('<span class="spinner"></span> SHA取得中…');
+  try {
+    // 保存直前に最新SHAを取得（409 Conflict防止）
+    const latestMeta = await ghGet(currentFile.path).catch(()=>null);
+    const sha = latestMeta ? latestMeta.sha : currentSha;
+    if (!sha) { sbMsg('⚠ SHA取得失敗。ファイルを再読み込みしてください', 5000); return; }
+    sbMsg('<span class="spinner"></span> 保存中…');
+    const body = { message: msg, content: toB64(newText), branch: BRANCH, sha };
+    const res = await apiCall('save', currentFile.path, {
+      method: 'PUT', body: JSON.stringify(body)
+    });
+    currentText = newText;
+    currentSha  = res.content.sha;
+    const lines = newText.split("\n");
+    $("ks-code").innerHTML = renderWithSteps(newText);
+    attachStepClicks();
+    setLineNums(lines.length);
+    buildOutline(newText);
+    $("sb-lines").textContent = lines.length+" 行";
+    exitEditMode(false);
+    sbMsg("✓ 保存完了", 3000);
+  } catch(e) {
+    sbMsg("⚠ 保存失敗: "+e.message, 5000);
+  }
+}
+
+// ============================================================
+//  新規作成
+// ============================================================
+[$("btn-new"), $("btn-new2")].forEach(b => b.addEventListener("click", ()=>{
+  $("new-name").value = "";
+  $("new-modal").classList.remove("hidden");
+  $("new-name").focus();
+}));
+$("new-cancel").addEventListener("click", ()=> $("new-modal").classList.add("hidden"));
+$("new-ok").addEventListener("click", createFile);
+$("new-name").addEventListener("keydown", e => { if(e.key==="Enter") createFile(); });
+
+async function createFile() {
+  const nameRaw = $("new-name").value.trim().replace(/\.ks$/i,"");
+  if (!nameRaw) return;
+  const name = nameRaw + ".ks";
+  const path = DIR + "/" + name;
+  const initContent = `*start\n\n;--- ${name} ---\n\n`;
+  sbMsg('<span class="spinner"></span> 作成中…');
+  $("new-modal").classList.add("hidden");
+  try {
+    await apiCall('save', path, {
+      method: 'PUT', body: JSON.stringify({ message:`KSエディタ: ${name} を新規作成`, content:toB64(initContent), branch:BRANCH })
+    });
+    sbMsg("✓ 作成完了", 3000);
+    await init();
+    const f = allFiles.find(x=>x.name===name);
+    if (f) openFile(f);
+  } catch(e) {
+    sbMsg("⚠ 作成失敗: "+e.message, 5000);
+  }
+}
+
+// ============================================================
+//  削除
+// ============================================================
+$("btn-delete").addEventListener("click", ()=>{
+  if (!currentFile) return;
+  $("del-msg").textContent = `「${currentFile.name}」を削除します。この操作は取り消せません。`;
+  $("del-modal").classList.remove("hidden");
+});
+$("del-cancel").addEventListener("click", ()=> $("del-modal").classList.add("hidden"));
+$("del-ok").addEventListener("click", deleteFile);
+
+async function deleteFile() {
+  if (!currentFile || !currentSha) return;
+  $("del-modal").classList.add("hidden");
+  sbMsg('<span class="spinner"></span> 削除中…');
+  try {
+    await apiCall('delete', currentFile.path, {
+      method: 'DELETE', body: JSON.stringify({ message:`KSエディタ: ${currentFile.name} を削除`, sha:currentSha, branch:BRANCH })
+    });
+    sbMsg("✓ 削除完了", 3000);
+    showList();
+    await init();
+  } catch(e) {
+    sbMsg("⚠ 削除失敗: "+e.message, 5000);
+  }
+}
+
+// ============================================================
+//  全コピー
+// ============================================================
+$("btn-copy").addEventListener("click", async ()=>{
+  try {
+    const txt = editMode ? $("edit-textarea").value : currentText;
+    await navigator.clipboard.writeText(txt);
+    sbMsg("✓ クリップボードにコピーしました", 2000);
+  } catch { sbMsg("⚠ コピー失敗", 2000); }
+});
+
+// ============================================================
+//  アウトライン
+// ============================================================
+$("btn-outline").addEventListener("click", ()=>{
+  $("outline-sidebar").classList.toggle("hidden");
+});
+
+// ============================================================
+//  ファイル内検索
+// ============================================================
+let findHits=[], findIdx=-1;
+
+$("btn-find").addEventListener("click", ()=>{
+  $("find-bar").classList.remove("hidden");
+  $("find-input").focus();
+});
+$("find-close").addEventListener("click", closeFindBar);
+
+function closeFindBar() {
+  $("find-bar").classList.add("hidden");
+  $("find-input").value = "";
+  $("find-count").textContent = "";
+  findHits=[]; findIdx=-1;
+  if (currentText && !editMode) { $("ks-code").innerHTML = renderWithSteps(currentText); attachStepClicks(); }
+}
+
+$("find-input").addEventListener("input", doFind);
+$("find-next").addEventListener("click", ()=>{ if(!findHits.length) return; findIdx=(findIdx+1)%findHits.length; jumpToHit(); });
+$("find-prev").addEventListener("click", ()=>{ if(!findHits.length) return; findIdx=(findIdx-1+findHits.length)%findHits.length; jumpToHit(); });
+$("find-input").addEventListener("keydown", e=>{
+  if(e.key==="Enter") e.shiftKey ? $("find-prev").click() : $("find-next").click();
+  if(e.key==="Escape") closeFindBar();
+});
+
+function doFind() {
+  const q = $("find-input").value;
+  if (!q || !currentText) {
+    if (currentText && !editMode) { $("ks-code").innerHTML = renderWithSteps(currentText); attachStepClicks(); }
+    $("find-count").textContent=""; findHits=[]; findIdx=-1; return;
+  }
+  const lq = q.toLowerCase();
+  findHits = []; let gi = 0;
+  const html = currentText.split("\n").map(line => {
+    let result="", i=0, lo=line.toLowerCase();
+    while(i<line.length){
+      const fi=lo.indexOf(lq,i);
+      if(fi===-1){ result+=esc(line.slice(i)); break; }
+      result+=esc(line.slice(i,fi));
+      result+=`<mark class="hit" data-idx="${gi}">${esc(line.slice(fi,fi+q.length))}</mark>`;
+      findHits.push(fi); gi++; i=fi+q.length;
+    }
+    return result;
+  }).join("\n");
+  $("ks-code").innerHTML = html;
+  findIdx=-1;
+  $("find-count").textContent = gi+" 件";
+  if(gi>0){ findIdx=0; jumpToHit(); }
+}
+
+function jumpToHit() {
+  document.querySelectorAll("mark.cur").forEach(m=>m.classList.remove("cur"));
+  const marks = document.querySelectorAll("mark.hit");
+  if(!marks[findIdx]) return;
+  marks[findIdx].classList.add("cur");
+  marks[findIdx].scrollIntoView({block:"center",behavior:"smooth"});
+  $("find-count").textContent = `${findIdx+1}/${findHits.length} 件`;
+}
+
+// ============================================================
+//  設定
+// ============================================================
+$("btn-settings").addEventListener("click", ()=> $("settings-modal").classList.remove("hidden"));
+$("pat-cancel").addEventListener("click", ()=> $("settings-modal").classList.add("hidden"));
+
+// ============================================================
+//  Step解析 (event_editor.py: _parse_steps_from_ks_text移植)
+// ============================================================
+function parseStepsFromKS(text){
+  const lines=text.split('\n');
+  const steps=[]; let pa=[],lsl=null,ls='';
+  function add(sl,el,sp='',body='',stop=false,dl=null){
+    steps.push({step_index:steps.length,start_line:sl,end_line:el,speaker:sp,body,has_scroll_stop:stop,dialogue_line:dl,memo:''});
+  }
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line||line.startsWith(';'))continue;
+    if(line.startsWith('//')&&line.endsWith('//')&&line.length>4){lsl=i;ls=line.slice(2,-2).trim();continue;}
+    if(line.startsWith('[')&&line.endsWith(']')){
+      const tn=(line.slice(1,-1).trim().split(/\s+/)[0]||'').toLowerCase();
+      if(['if','endif','flag_set','choice','event_control'].includes(tn)){
+        add(pa.length?Math.min(...pa,i):i,i);pa=[];
+      }else if(tn==='scroll-stop'||tn==='scroll_stop'){
+        if(steps.length){const p=steps[steps.length-1];p.end_line=Math.max(p.end_line,i);p.has_scroll_stop=true;}else add(i,i);
+      }else pa.push(i);
+      continue;
+    }
+    if(line.includes('\u300c')&&line.includes('\u300d')){
+      const stop=line.includes('[scroll-stop]')||line.includes('[scroll_stop]');
+      const si=line.indexOf('\u300c'),ei=line.lastIndexOf('\u300d');
+      const body=(si!==-1&&ei>si)?line.slice(si+1,ei):'';
+      let sl=i;
+      if(pa.length)sl=Math.min(sl,...pa);
+      if(lsl!==null)sl=Math.min(sl,lsl);
+      add(sl,i,ls,body,stop,i);pa=[];lsl=null;ls='';continue;
+    }
+  }
+  if(pa.length)add(Math.min(...pa),Math.max(...pa));
+  return steps;
+}
+
+// ============================================================
+//  Step書き戻し (event_editor.py: _build_step_update_text移植)
+// ============================================================
+function buildStepUpdateText(text,step,speaker,body,scrollStop,actions){
+  const lines=text.split('\n');
+  const sl=step.start_line,el=step.end_line;
+  if(sl<0||sl>=lines.length)return text;
+  const region=lines.slice(sl,el+1);
+  const isSp=s=>s.startsWith('//')&&s.endsWith('//')&&s.length>4;
+  const isDl=s=>s.includes('\u300c')&&s.includes('\u300d');
+  const isAct=s=>s.startsWith('[')&&s.endsWith(']');
+  const other=region.filter(l=>{const s=l.trim();if(!s)return true;return!(isAct(s)||isSp(s)||isDl(s));});
+  const nr=[...other];
+  for(const a of(actions||[])){
+    const t=a.trim();if(!t)continue;
+    const inner=t.replace(/^\[|\]$/g,'').trim();if(!inner)continue;
+    const tn=inner.split(/\s+/)[0].toLowerCase();
+    if(tn==='scroll-stop'||tn==='scroll_stop')continue;
+    nr.push(t.startsWith('[')?t:`[${t}]`);
+  }
+  if(speaker)nr.push(`//${speaker}//`);
+  if(body){let d=`\u300c${body}\u300d`;if(scrollStop)d+='[scroll-stop]';nr.push(d);}
+  return[...lines.slice(0,sl),...nr,...lines.slice(el+1)].join('\n');
+}
+
+// ============================================================
+//  Step UI
+// ============================================================
+let currentSteps=[],selectedStepIdx=-1,stepMemos={};
+
+function renderWithSteps(text){
+  const lines=text.split('\n');
+  currentSteps=parseStepsFromKS(text);
+  const lmap=new Map();
+  currentSteps.forEach(s=>{for(let i=s.start_line;i<=s.end_line;i++)lmap.set(i,s);});
+  const C=['rgba(255,248,210,.07)','rgba(220,235,255,.06)'];
+  const CM='rgba(140,210,140,.09)';
+  // 行ゴトスパン方式（ブロックラッパーはテーブルCell内で崩壊するため不使用）
+  let html='';
+  lines.forEach((line,i)=>{
+    const step=lmap.get(i);
+    if(step!=null){
+      const memo=stepMemos[step.step_index]||step.memo;
+      const bg=memo?CM:C[step.step_index%2];
+      const bl=selectedStepIdx===step.step_index?'border-left:2px solid #3592c4;':'';
+      html+=`<span class="step-line" data-step="${step.step_index}" style="display:block;background:${bg};${bl}padding-left:2px">`+highlight(line)+'</span>\n';
+    }else{
+      html+=highlight(line)+'\n';
+    }
+  });
+  return html;
+}
+
+function attachStepClicks(){
+  const isMobile = ('ontouchstart' in window);
+  let lpTimer=null, lpFired=false;
+
+  // タッチ対応（スマホ）: ダブルタップ=Raw編集、長押し=Step編集
+  if(isMobile){
+    let lastTap=0;
+    $('ks-code').addEventListener('touchstart', e=>{
+      lpFired=false;
+      const el=e.target.closest('.step-line');
+      if(el){
+        const idx=parseInt(el.dataset.step);
+        lpTimer=setTimeout(()=>{ lpFired=true; openStepEditor(idx); },600);
+      }
+    },{passive:true});
+    $('ks-code').addEventListener('touchmove', ()=>{ clearTimeout(lpTimer); lpFired=true; },{passive:true});
+    $('ks-code').addEventListener('touchend', e=>{
+      clearTimeout(lpTimer);
+      if(!lpFired && !editMode){
+        const now=Date.now();
+        if(now-lastTap < 400){
+          // ダブルタップ→Raw編集
+          const el=e.target.closest('.step-line');
+          const jumpLine=el&&parseInt(el.dataset.step)>=0
+            ?(currentSteps[parseInt(el.dataset.step)]||{}).start_line:null;
+          enterEditMode(true, jumpLine);
+        }
+        lastTap=now;
+      }
+    });
+  } else {
+    // デスクトップ: Stepラインをクリック=Step編集、それ以外=テキスト編集
+    $('ks-code').querySelectorAll('.step-line').forEach(el=>{
+      el.addEventListener('click',e=>{ openStepEditor(parseInt(el.dataset.step)); e.stopPropagation(); });
+    });
+    $('ks-code').addEventListener('click', e=>{
+      if(!e.target.closest('.step-line')) enterEditMode();
+    });
+  }
+}
+
+function openStepEditor(idx){
+  const step=currentSteps[idx];if(!step)return;
+  selectedStepIdx=idx;
+  $('step-panel-title').textContent=`Step #${idx}  L${step.start_line+1}-${step.end_line+1}`;
+  $('step-speaker').value=step.speaker||'';
+  $('step-body').value=step.body||'';
+  $('step-scroll-stop').checked=step.has_scroll_stop;
+  $('step-memo').value=stepMemos[idx]||step.memo||'';
+  const lines=currentText.split('\n');
+  const acts=[];
+  for(let i=step.start_line;i<=step.end_line;i++){
+    const s=(lines[i]||'').trim();
+    if(s.startsWith('[')&&s.endsWith(']')){
+      const tn=s.slice(1,-1).split(/\s+/)[0].toLowerCase();
+      if(tn!=='scroll-stop'&&tn!=='scroll_stop')acts.push(s);
+    }
+  }
+  $('step-actions').value=acts.join('\n');
+  $('step-panel').classList.remove('sp-closed');
+  $('btn-step-panel').classList.add('active');
+  $('ks-code').innerHTML=renderWithSteps(currentText);
+  attachStepClicks();
+  const sel=$('ks-code').querySelector('.step-line[data-step="'+idx+'"]');
+  if(sel)sel.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function closeStepPanel(){
+  $('step-panel').classList.add('sp-closed');
+  $('btn-step-panel').classList.remove('active');
+  selectedStepIdx=-1;
+  if(currentText){$('ks-code').innerHTML=renderWithSteps(currentText);attachStepClicks();}
+}
+function openStepPanel(){
+  $('step-panel').classList.remove('sp-closed');
+  $('btn-step-panel').classList.add('active');
+}
+$('step-close').addEventListener('click',closeStepPanel);
+$('btn-step-panel').addEventListener('click',()=>{
+  $('step-panel').classList.contains('sp-closed')?openStepPanel():closeStepPanel();
+});
+
+$('step-apply').addEventListener('click',()=>{
+  if(selectedStepIdx<0)return;
+  const step=currentSteps[selectedStepIdx];
+  const speaker=$('step-speaker').value,body=$('step-body').value;
+  const scrollStop=$('step-scroll-stop').checked;
+  const actions=$('step-actions').value.split('\n').filter(s=>s.trim());
+  const memo=$('step-memo').value;
+  stepMemos[selectedStepIdx]=memo;
+  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions);
+  currentSteps=parseStepsFromKS(currentText);
+  setLineNums(currentText.split('\n').length);
+  $('ks-code').innerHTML=renderWithSteps(currentText);
+  attachStepClicks();buildOutline(currentText);
+  sbMsg('\u2713 Step\u9069\u7528\u6e08 \u2014 \u300c\u9069\u7528\u3057\u3066\u4fdd\u5b58\u300d\u307e\u305f\u306f\u30e1\u30cb\u30e5\u30fc\u300c\u4fdd\u5b58\u300d\u3067GitHub\u306b\u53cd\u6620',3000);
+});
+
+// Step適用して保存
+$('step-apply-save').addEventListener('click', async ()=>{
+  if(selectedStepIdx<0)return;
+  const step=currentSteps[selectedStepIdx];
+  const speaker=$('step-speaker').value,body=$('step-body').value;
+  const scrollStop=$('step-scroll-stop').checked;
+  const actions=$('step-actions').value.split('\n').filter(s=>s.trim());
+  const memo=$('step-memo').value;
+  stepMemos[selectedStepIdx]=memo;
+  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions);
+  currentSteps=parseStepsFromKS(currentText);
+  setLineNums(currentText.split('\n').length);
+  $('ks-code').innerHTML=renderWithSteps(currentText);
+  attachStepClicks();buildOutline(currentText);
+  // そのままGitHubに保存
+  if(!currentFile)return;
+  const msg=`KSエディタ: ${currentFile.name} Step#${selectedStepIdx}を更新`;
+  sbMsg('<span class="spinner"></span> SHA取得中…');
+  try{
+    const latestMeta=await ghGet(currentFile.path).catch(()=>null);
+    const sha=latestMeta?latestMeta.sha:currentSha;
+    if(!sha){sbMsg('\u26a0 SHA\u53d6\u5f97\u5931\u6557',4000);return;}
+    sbMsg('<span class="spinner"></span> \u4fdd\u5b58\u4e2d\u2026');
+    const res=await apiCall('save',currentFile.path,{
+      method:'PUT',body:JSON.stringify({message:msg,content:toB64(currentText),branch:BRANCH,sha})
+    });
+    currentSha=res.content.sha;
+    sbMsg('\u2713 \u4fdd\u5b58\u5b8c\u4e86 ('+currentFile.name+')',3000);
+  }catch(e){
+    sbMsg('\u26a0 \u4fdd\u5b58\u5931\u6557: '+e.message,5000);
+  }
+});
+
+$('step-delete-btn').addEventListener('click',()=>{
+  if(selectedStepIdx<0)return;
+  if(!confirm('Step #'+selectedStepIdx+' \u3092\u524a\u9664\u3057\u307e\u3059\u304b\uff1f'))return;
+  const step=currentSteps[selectedStepIdx];
+  const lines=currentText.split('\n');
+  lines.splice(step.start_line,step.end_line-step.start_line+1);
+  currentText=lines.join('\n');
+  currentSteps=parseStepsFromKS(currentText);
+  setLineNums(currentText.split('\n').length);
+  $('ks-code').innerHTML=renderWithSteps(currentText);
+  attachStepClicks();buildOutline(currentText);
+  closeStepPanel();sbMsg('\u2713 Step\u524a\u9664\u6e08',3000);
+});
+
+function insertStepTemplate(before){
+  if(selectedStepIdx<0)return;
+  const step=currentSteps[selectedStepIdx];
+  const lines=currentText.split('\n');
+  const at=before?step.start_line:step.end_line+1;
+  lines.splice(at,0,'; --- new step ---','//\u8a71\u8005//','\u300c\u30bb\u30ea\u30d5\u300d','');
+  currentText=lines.join('\n');
+  currentSteps=parseStepsFromKS(currentText);
+  setLineNums(currentText.split('\n').length);
+  $('ks-code').innerHTML=renderWithSteps(currentText);
+  attachStepClicks();buildOutline(currentText);
+  sbMsg('\u2713 \u30c6\u30f3\u30d7\u30ec\u30fc\u30c8\u633f\u5165\u6e08',2000);
+}
+$('step-ins-before').addEventListener('click',()=>insertStepTemplate(true));
+$('step-ins-after').addEventListener('click',()=>insertStepTemplate(false));
+</script>
+</body>
+</html>
