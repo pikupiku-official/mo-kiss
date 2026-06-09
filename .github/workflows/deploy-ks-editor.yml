@@ -23,7 +23,7 @@ jobs:
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
-      - name: Explore FTP directory structure
+      - name: Explore FTP - list filenames only (no owner info)
         run: |
           printf '%s\n' \
             "set ssl:verify-certificate no" \
@@ -31,12 +31,10 @@ jobs:
             "set ftp:passive-mode on" \
             "set net:timeout 15" \
             "open -u $FTP_USER,$FTP_PASS $FTP_SERVER" \
-            "echo '=== pwd ==='" \
+            "echo === pwd ===" \
             "pwd" \
-            "echo '=== ls root ==='" \
-            "ls" \
-            "echo '=== ls / ==='" \
-            "ls /" \
+            "echo === ls (filenames only) ===" \
+            "cls -1" \
             "bye" | lftp 2>&1
         continue-on-error: true
 
