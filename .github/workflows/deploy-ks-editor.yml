@@ -1,5 +1,7 @@
-name: Deploy to Lolipop /mokiss/
+name: Deploy to Lolipop via SSH
 
+# tools/dev/ が変わった時に自動実行
+# デプロイ先: ~/mokiss/dev/ (SSH)
 on:
   push:
     branches:
@@ -12,51 +14,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      FTP_SERVER: ${{ secrets.FTP_SERVER }}
-      FTP_USER:   ${{ secrets.FTP_USERNAME }}
-      FTP_PASS:   ${{ secrets.FTP_PASSWORD }}
-      REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_PASS: ${{ secrets.SSH_PASS }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: FTP structure investigation
+      - name: Install sshpass + rsync
+        run: sudo apt-get install -y sshpass rsync
+
+      - name: Deploy via rsync over SSH
         run: |
-          python3 - << 'PYEOF'
-          import ftplib, os, sys
-
-          server = os.environ['FTP_SERVER']
-          user   = os.environ['FTP_USER']
-          passwd = os.environ['FTP_PASS']
-
-          ftp = ftplib.FTP()
-          ftp.connect(server, 21, timeout=15)
-          resp = ftp.login(user, passwd)
-          print('Login:', resp.strip())
-          ftp.set_pasv(True)
-
-          # 現在地のリスト（パス指定なし）
-          print('=== nlst() no arg ===')
-          try:
-              for f in sorted(ftp.nlst()):
-                  print(' ', f)
-          except Exception as e:
-              print(' error:', e)
-
-          # よくあるロリポップのパスを試す
-          candidates = ['mokiss', 'web', 'pikupikutai.pinoko.jp', 'public_html', 'www', '.']
-          for c in candidates:
-              try:
-                  listing = ftp.nlst(c)
-                  print(f'=== nlst({c}) ===')
-                  for f in listing[:10]:
-                      print(' ', f)
-              except Exception as e:
-                  print(f'nlst({c}): {type(e).__name__}: {e}')
-
-          ftp.quit()
-          PYEOF
-        continue-on-error: true
-
-      - name: Deploy (skip if explore fails)
-        run: echo "Deploy step placeholder - fix path first"
+          sshpass -p "$SSH_PASS" rsync -avz \
+            --exclude=api_config.php \
+            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            ./tools/dev/ \
+            $SSH_USER@$SSH_HOST:~/mokiss/dev/
