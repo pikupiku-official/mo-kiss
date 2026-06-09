@@ -23,7 +23,7 @@ jobs:
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
-      - name: Explore FTP structure (Python)
+      - name: Explore FTP structure (Python passive mode)
         run: |
           python3 - << 'PYEOF'
           import ftplib, os, sys
@@ -31,22 +31,23 @@ jobs:
           user   = os.environ['FTP_USER']
           passwd = os.environ['FTP_PASS']
           try:
-              ftp = ftplib.FTP(timeout=15)
-              ftp.connect(server, 21)
+              ftp = ftplib.FTP()
+              ftp.connect(server, 21, timeout=15)
               ftp.login(user, passwd)
+              ftp.set_pasv(True)          # パッシブモード必須
               print("=== pwd ===")
               print(ftp.pwd())
-              print("=== nlst (filenames) ===")
+              print("=== nlst ===")
               for f in sorted(ftp.nlst()):
-                  print(f)
+                  print(" ", f)
               ftp.quit()
           except Exception as e:
-              print("ERROR:", e, file=sys.stderr)
+              print("FTP ERROR:", type(e).__name__, str(e), file=sys.stderr)
               sys.exit(1)
           PYEOF
         continue-on-error: true
 
-      - name: Deploy via FTP
+      - name: Deploy via FTP (mkdir + mirror)
         run: |
           printf '%s\n' \
             "set ssl:verify-certificate no" \
@@ -54,5 +55,6 @@ jobs:
             "set net:timeout 30" \
             "set net:max-retries 3" \
             "open -u $FTP_USER,$FTP_PASS $FTP_SERVER" \
+            "mkdir -p $REMOTE_DIR" \
             "mirror -R --verbose --exclude=api_config.php --exclude-glob=*.pyc ./tools/ $REMOTE_DIR" \
             "bye" | timeout 120 lftp 2>&1
