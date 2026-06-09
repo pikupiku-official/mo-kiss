@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy via Python ftplib (CWD + relative STOR)
+      - name: Deploy via Python ftplib (recursive CWD)
         run: |
           python3 - << 'PYEOF'
           import ftplib, os, sys
@@ -29,63 +29,34 @@ jobs:
           server = os.environ['FTP_SERVER']
           user   = os.environ['FTP_USER']
           passwd = os.environ['FTP_PASS']
-          # mokiss/ → mokiss/dev/ にデプロイ
-          remote_base = os.environ['REMOTE_DIR'].strip('/') + '/dev'
+          # REMOTE_DIR=mokiss → deploy to mokiss/dev/
+          remote_path = os.environ['REMOTE_DIR'].strip('/') + '/dev'
 
           LOCAL_DIR = Path('./tools/dev')
           EXCLUDES  = {'api_config.php'}
 
-          def ensure_dir(ftp, remote_path):
-              """CWDでディレクトリを作成しながら移動する"""
-              parts = [p for p in remote_path.split('/') if p]
-              for part in parts:
-                  try:
-                      ftp.mkd(part)
-                  except ftplib.error_perm:
-                      pass  # already exists
-                  ftp.cwd(part)
+          def ftp_enter(ftp, dirname):
+              """ディレクトリがなければ作ってCWD"""
+              try:
+                  ftp.mkd(dirname)
+                  print(f'    mkdir {dirname}')
+              except ftplib.error_perm:
+                  pass  # already exists
+              ftp.cwd(dirname)
 
-          def deploy(ftp, local_dir, remote):
-              # remote_base まで移動
-              ftp.cwd('/')  # まずrootへ（失敗する場合あり）
-          
-          def upload_all(ftp, local_dir, remote_base):
-              """ファイルをCWD+相対パスでアップロード"""
-              # 全ファイルを (local_path, remote_path) リストに
-              files = []
-              for item in sorted(local_dir.rglob('*')):
+          def deploy_dir(ftp, local_path):
+              """カレントディレクトリにlocal_pathの中身をアップロード"""
+              for item in sorted(local_path.iterdir()):
                   if item.name in EXCLUDES:
                       continue
-                  rel = item.relative_to(local_dir)
-                  rparts = list(rel.parts)
-                  remote_dir  = remote_base + '/' + '/'.join(rparts[:-1]) if len(rparts) > 1 else remote_base
-                  remote_file = rparts[-1]
-                  if item.is_file():
-                      files.append((item, remote_dir, remote_file))
-
-              # ディレクトリを先にまとめて作成
-              dirs_needed = set()
-              for item, remote_dir, _ in files:
-                  parts = remote_dir.split('/')
-                  for i in range(len(parts)):
-                      dirs_needed.add('/'.join(parts[:i+1]))
-              for d in sorted(dirs_needed):
-                  try:
-                      ftp.mkd(d)
-                      print(f'  mkdir {d}')
-                  except ftplib.error_perm:
-                      pass  # already exists
-
-              # ファイルをCWD+STORでアップロード
-              for item, remote_dir, remote_file in files:
-                  try:
-                      ftp.cwd('/')
-                  except Exception:
-                      pass  # CWD / が失敗するサーバもある
-                  ftp.cwd(remote_dir)
-                  print(f'  PUT {remote_dir}/{remote_file}')
-                  with open(item, 'rb') as f:
-                      ftp.storbinary(f'STOR {remote_file}', f)
+                  if item.is_dir():
+                      ftp_enter(ftp, item.name)
+                      deploy_dir(ftp, item)
+                      ftp.cwd('..')
+                  elif item.is_file():
+                      print(f'  PUT {item.name}')
+                      with open(item, 'rb') as f:
+                          ftp.storbinary(f'STOR {item.name}', f)
 
           try:
               ftp = ftplib.FTP()
@@ -94,13 +65,17 @@ jobs:
               print('Login:', resp.strip())
               ftp.set_pasv(True)
 
-              print('=== Deploying to ' + remote_base + '/ ===')
-              upload_all(ftp, LOCAL_DIR, remote_base)
+              # remote_path (例: mokiss/dev) まで1階層ずつCWD
+              print(f'=== Navigating to {remote_path}/ ===')
+              for part in remote_path.split('/'):
+                  ftp_enter(ftp, part)
+
+              print('=== Uploading files ===')
+              deploy_dir(ftp, LOCAL_DIR)
               ftp.quit()
               print('=== Deploy complete! ===')
           except Exception as e:
               print(f'ERROR: {type(e).__name__}: {e}', file=sys.stderr)
-              import traceback
-              traceback.print_exc()
+              import traceback; traceback.print_exc()
               sys.exit(1)
           PYEOF
