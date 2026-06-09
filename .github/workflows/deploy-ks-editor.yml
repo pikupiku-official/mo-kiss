@@ -20,62 +20,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy via Python ftplib (recursive CWD)
+      - name: FTP structure investigation
         run: |
           python3 - << 'PYEOF'
           import ftplib, os, sys
-          from pathlib import Path
 
           server = os.environ['FTP_SERVER']
           user   = os.environ['FTP_USER']
           passwd = os.environ['FTP_PASS']
-          # REMOTE_DIR=mokiss → deploy to mokiss/dev/
-          remote_path = os.environ['REMOTE_DIR'].strip('/') + '/dev'
 
-          LOCAL_DIR = Path('./tools/dev')
-          EXCLUDES  = {'api_config.php'}
+          ftp = ftplib.FTP()
+          ftp.connect(server, 21, timeout=15)
+          resp = ftp.login(user, passwd)
+          print('Login:', resp.strip())
+          ftp.set_pasv(True)
 
-          def ftp_enter(ftp, dirname):
-              """ディレクトリがなければ作ってCWD"""
-              try:
-                  ftp.mkd(dirname)
-                  print(f'    mkdir {dirname}')
-              except ftplib.error_perm:
-                  pass  # already exists
-              ftp.cwd(dirname)
-
-          def deploy_dir(ftp, local_path):
-              """カレントディレクトリにlocal_pathの中身をアップロード"""
-              for item in sorted(local_path.iterdir()):
-                  if item.name in EXCLUDES:
-                      continue
-                  if item.is_dir():
-                      ftp_enter(ftp, item.name)
-                      deploy_dir(ftp, item)
-                      ftp.cwd('..')
-                  elif item.is_file():
-                      print(f'  PUT {item.name}')
-                      with open(item, 'rb') as f:
-                          ftp.storbinary(f'STOR {item.name}', f)
-
+          # 現在地のリスト（パス指定なし）
+          print('=== nlst() no arg ===')
           try:
-              ftp = ftplib.FTP()
-              ftp.connect(server, 21, timeout=30)
-              resp = ftp.login(user, passwd)
-              print('Login:', resp.strip())
-              ftp.set_pasv(True)
-
-              # remote_path (例: mokiss/dev) まで1階層ずつCWD
-              print(f'=== Navigating to {remote_path}/ ===')
-              for part in remote_path.split('/'):
-                  ftp_enter(ftp, part)
-
-              print('=== Uploading files ===')
-              deploy_dir(ftp, LOCAL_DIR)
-              ftp.quit()
-              print('=== Deploy complete! ===')
+              for f in sorted(ftp.nlst()):
+                  print(' ', f)
           except Exception as e:
-              print(f'ERROR: {type(e).__name__}: {e}', file=sys.stderr)
-              import traceback; traceback.print_exc()
-              sys.exit(1)
+              print(' error:', e)
+
+          # よくあるロリポップのパスを試す
+          candidates = ['mokiss', 'web', 'pikupikutai.pinoko.jp', 'public_html', 'www', '.']
+          for c in candidates:
+              try:
+                  listing = ftp.nlst(c)
+                  print(f'=== nlst({c}) ===')
+                  for f in listing[:10]:
+                      print(' ', f)
+              except Exception as e:
+                  print(f'nlst({c}): {type(e).__name__}: {e}')
+
+          ftp.quit()
           PYEOF
+        continue-on-error: true
+
+      - name: Deploy (skip if explore fails)
+        run: echo "Deploy step placeholder - fix path first"
