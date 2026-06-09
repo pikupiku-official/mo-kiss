@@ -493,15 +493,22 @@ function renderDirTable(items, dirPath) {
     tbody.appendChild(tr);
   });
 
+  // テキストファイルとして開ける拡張子
+  const TEXT_EXTS = new Set(['ks','py','md','txt','json','csv','html','css','js','php','yaml','yml','toml','ini','cfg','bat','sh','rb','ts','xml']);
+  function isText(name) { const ext = name.split('.').pop().toLowerCase(); return TEXT_EXTS.has(ext); }
+  function isKSFile(name) { return name.endsWith('.ks'); }
+
   files.forEach(f => {
-    const isKS = f.name.endsWith('.ks');
+    const editable = isText(f.name);
+    const isKS = isKSFile(f.name);
     const tr = document.createElement('tr');
-    tr.className = isKS ? 'file-row' : '';
-    tr.style.cursor = isKS ? 'pointer' : 'default';
-    const nameColor = isKS ? '' : 'color:var(--comment)';
-    tr.innerHTML = '<td class="td-name" style="' + nameColor + '">' + f.name + '</td>'
+    tr.className = editable ? 'file-row' : '';
+    tr.style.cursor = editable ? 'pointer' : 'default';
+    const nameStyle = editable ? (isKS ? 'color:var(--blue)' : '') : 'color:var(--comment)';
+    const badge = isKS ? ' <span style="font-size:10px;background:var(--border);padding:1px 5px;border-radius:3px">KS</span>' : '';
+    tr.innerHTML = '<td class="td-name" style="' + nameStyle + '">' + f.name + badge + '</td>'
       + '<td class="td-size">' + fmtSize(f.size) + '</td>';
-    if (isKS) tr.addEventListener('click', () => openFile(f));
+    if (editable) tr.addEventListener('click', () => openFile(f));
     tbody.appendChild(tr);
   });
 }
@@ -560,6 +567,7 @@ window.addEventListener("popstate", e => {
 // ============================================================
 //  KS ハイライト・行番号・アウトライン
 // ============================================================
+// KS構文ハイライト
 function highlight(text) {
   return text.split("\n").map(line => {
     const e = esc(line), s = line.trimStart();
@@ -567,6 +575,19 @@ function highlight(text) {
     if (s.startsWith("[")||s.startsWith("@"))  return `<span class="k-tag">${e}</span>`;
     if (s.startsWith(";")||s.startsWith("//")) return `<span class="k-comment">${e}</span>`;
     if (/[「」『』]/.test(s))                  return `<span class="k-dialog">${e}</span>`;
+    return e;
+  }).join("\n");
+}
+// 汎用テキスト（Python・マークダウン等）: 編集可能なら何でも開く
+function escapeAndHightlightGeneric(text) {
+  return text.split("\n").map(line => {
+    const e = esc(line), s = line.trimStart();
+    // Python/Shellコメント
+    if (s.startsWith('#'))   return `<span class="k-comment">${e}</span>`;
+    // 文字列リテラル
+    if (/^['"]/.test(s))     return `<span class="k-dialog">${e}</span>`;
+    // import / def / class 等
+    if (/^(import|from|def |class |async |return|if |elif |else:|for |while |with )/.test(s)) return `<span class="k-tag">${e}</span>`;
     return e;
   }).join("\n");
 }
@@ -639,11 +660,14 @@ async function openFile(f, push=true) {
     currentText = text;
     currentSha  = meta ? meta.sha : "";
     const lines = text.split("\n");
-    $("ks-code").innerHTML = renderWithSteps(text);
-    attachStepClicks();
+    const isKSFile = f.name.endsWith('.ks');
+    $("ks-code").innerHTML = isKSFile ? renderWithSteps(text) : escapeAndHightlightGeneric(text);
+    if (isKSFile) attachStepClicks();
+    // Step編集ボタンはKSのみ表示
+    $("btn-step-panel").classList.toggle("hidden", !isKSFile);
     setLineNums(lines.length);
     buildOutline(text);
-    $("sb-lines").textContent = lines.length+" 行";
+    $("sb-lines").textContent = lines.length+" 行" + (isKSFile ? '' : ' — ' + f.name.split('.').pop().toUpperCase());
     sbMsg("");
   } catch(e) {
     sbMsg("エラー: "+e.message, 4000);
