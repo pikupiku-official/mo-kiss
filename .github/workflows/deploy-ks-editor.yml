@@ -1,7 +1,5 @@
 name: Deploy to Lolipop via SSH
 
-# tools/dev/ が変わった時に自動実行
-# デプロイ先: ~/mokiss/dev/ (SSH)
 on:
   push:
     branches:
@@ -25,20 +23,47 @@ jobs:
       - name: Install sshpass + rsync
         run: sudo apt-get install -y sshpass rsync
 
-      - name: Create remote directory
+      - name: Find correct web path via SSH
         run: |
           sshpass -p "$SSH_PASS" ssh \
             -p $SSH_PORT \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             $SSH_USER@$SSH_HOST \
-            "mkdir -p ~/mokiss/dev/ks-editor"
+            "echo '=== home ===' && pwd && echo '=== ls ~/ ===' && ls ~/ && echo '=== find mokiss ===' && find ~/ -maxdepth 3 -name 'wp-config.php' 2>/dev/null | head -5"
+        continue-on-error: true
 
-      - name: Deploy via rsync over SSH
+      - name: Create remote directory and deploy
         run: |
+          # mokiss の実際のパスを検出して使う
+          WEB_PATH=$(sshpass -p "$SSH_PASS" ssh \
+            -p $SSH_PORT \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            $SSH_USER@$SSH_HOST \
+            "find ~/ -maxdepth 3 -name 'wp-config.php' 2>/dev/null | grep mokiss | head -1 | xargs dirname" 2>/dev/null)
+
+          echo "Detected mokiss path: $WEB_PATH"
+
+          if [ -z "$WEB_PATH" ]; then
+            echo "WARNING: Could not detect path, using default ~/pikupikutai.pinoko.jp/mokiss"
+            WEB_PATH="$HOME/pikupikutai.pinoko.jp/mokiss"
+          fi
+
+          DEPLOY_TO="${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
+
+          echo "Deploying to: $DEPLOY_TO"
+
+          sshpass -p "$SSH_PASS" ssh \
+            -p $SSH_PORT \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            $SSH_USER@$SSH_HOST \
+            "mkdir -p ${WEB_PATH}/dev/ks-editor"
+
           sshpass -p "$SSH_PASS" rsync -avz \
             --ignore-times \
             --exclude=api_config.php \
             -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             ./tools/dev/ \
-            $SSH_USER@$SSH_HOST:~/mokiss/dev/
+            ${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/
