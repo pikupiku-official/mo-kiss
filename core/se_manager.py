@@ -59,15 +59,16 @@ class SEManager:
                     if i < int(frequency) - 1:  # 最後以外は待機
                         time.sleep(sound.get_length())
             
-            # バックグラウンドで連続再生
+            # バックグラウンドで連続再生（複数回はブロック追跡不可）
             if int(frequency) > 1:
                 threading.Thread(target=play_sequential, daemon=True).start()
+                channel = None
             else:
-                sound.play()
+                channel = sound.play()
             
             if self.debug:
                 print(f"SEを再生: {filename} (volume={volume}, frequency={frequency})")
-            return True
+            return channel
             
         except Exception as e:
             if self.debug:

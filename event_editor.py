@@ -1,10 +1,10 @@
 ﻿"""
-KSファイル専用エディタ - PyQt5版（macOS対応）
+KSファイル専用エディタ - PyQt5版(macOS対応)
 
-画面構成：
-- 左側：ファイルリストとテキストエディタ
-- 右側：使用方法とヘルプ情報
-- ツールバー：保存、編集支援機能
+画面構成:
+- 左側:ファイルリストとテキストエディタ
+- 右側:使用方法とヘルプ情報
+- ツールバー:保存、編集支援機能
 
 注意: macOSでは技術的制限によりPygameプレビュー機能は利用できません。
       編集後は main.py でゲーム本体を起動してプレビュー確認してください。
@@ -77,7 +77,7 @@ from core.image_manager import ImageManager
 
 
 class PreviewWindow:
-    """Pygameプレビューウィンドウ（別スレッドで実行）"""
+    """Pygameプレビューウィンドウ(別スレッドで実行)"""
 
     def __init__(self, command_queue, status_queue):
         self.command_queue = command_queue
@@ -105,7 +105,7 @@ class PreviewWindow:
                 (self.window_width, self.window_height),
                 pygame.RESIZABLE
             )
-            pygame.display.set_caption("KSファイル プレビュー（リサイズ可能）")
+            pygame.display.set_caption("KSファイル プレビュー(リサイズ可能)")
 
             self.virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
             self.clock = pygame.time.Clock()
@@ -492,7 +492,9 @@ class StepEditorDialog(QDialog):
         "bgm": [("bgm", ""), ("volume", "0.5"), ("loop", "true")],
         "bgmstop": [("time", "1.0")],
         "bgmstart": [("time", "1.0")],
-        "se": [("se", ""), ("volume", "0.5"), ("frequency", "1")],
+        "se": [("se", ""), ("volume", "0.5"), ("frequency", "1"), ("block", "false")],
+        "sestop": [],
+        "sewait": [],
         "fadeout": [("color", "black"), ("time", "1.0")],
         "fadein": [("time", "1.0")],
         "choice": [("option1", ""), ("option2", "")],
@@ -551,6 +553,12 @@ class StepEditorDialog(QDialog):
             ("name", "name", "text"),
             ("fade", "fade", "text"),
         ],
+        "se": [
+            ("se", "se", "text"),
+            ("volume", "volume", "text"),
+            ("frequency", "frequency", "text"),
+            ("block", "block", "bool"),
+        ],
     }
     BROWSE_KEYS = {
         "storage": "backgrounds",
@@ -606,6 +614,11 @@ class StepEditorDialog(QDialog):
         self.scroll_checkbox = QCheckBox("scroll-stop")
         self.scroll_checkbox.setChecked(bool(self.step.get("has_scroll_stop")))
         dialogue_layout.addRow(self.scroll_checkbox)
+
+        self.memo_input = QLineEdit()
+        self.memo_input.setText(self.step.get("memo", ""))
+        self.memo_input.setPlaceholderText("このstepへの備考を入力...")
+        dialogue_layout.addRow("備考 (メモ)", self.memo_input)
 
         dialogue_group.setLayout(dialogue_layout)
         left_splitter.addWidget(dialogue_group)
@@ -718,6 +731,10 @@ class StepEditorDialog(QDialog):
             if text:
                 actions.append(text)
         return actions
+
+    def get_memo(self):
+        """備考を取得"""
+        return self.memo_input.text().strip()
 
     def _add_action(self):
         tag = self.tag_combo.currentText().strip() or "bg"
@@ -1028,6 +1045,44 @@ class StepEditorDialog(QDialog):
             self._set_custom_values(self._merge_with_template(tag, params))
             self.params_table.hide()
 
+class KSTextEditor(QTextEdit):
+    """カスタムショートカットを持つKSファイルテキストエディタ"""
+
+    def keyPressEvent(self, event):
+        # Ctrl+/
+        if event.key() == Qt.Key_Slash and event.modifiers() == Qt.ControlModifier:
+            cursor = self.textCursor()
+            block_text = cursor.block().text()
+            pos_in_block = cursor.positionInBlock()
+            text_before_cursor = block_text[:pos_in_block]
+
+            if text_before_cursor.endswith("」"):
+                # 」の後: 次の行にタブ+////挿入、カーソルを//と//の間に
+                cursor.insertText("\n\t////")
+                cursor.movePosition(cursor.Left, cursor.MoveAnchor, 2)
+            else:
+                # それ以外: その場にタブ+////挿入、カーソルを//と//の間に
+                cursor.insertText("\t////")
+                cursor.movePosition(cursor.Left, cursor.MoveAnchor, 2)
+
+            self.setTextCursor(cursor)
+            return
+
+        # Enter (//またはの後): 次の行にタブ+「」挿入、カーソルを「と」の間に
+        if event.key() == Qt.Key_Return and event.modifiers() == Qt.NoModifier:
+            cursor = self.textCursor()
+            block_text = cursor.block().text()
+            pos_in_block = cursor.positionInBlock()
+            text_before_cursor = block_text[:pos_in_block]
+            if text_before_cursor.endswith("//") or text_before_cursor.endswith("」"):
+                cursor.insertText("\n\t「」")
+                cursor.movePosition(cursor.Left, cursor.MoveAnchor, 1)
+                self.setTextCursor(cursor)
+                return
+
+        super().keyPressEvent(event)
+
+
 class EventEditorGUI(QMainWindow):
     """PyQt5ベースのKSファイルエディタ"""
 
@@ -1040,16 +1095,20 @@ class EventEditorGUI(QMainWindow):
         # 現在編集中のファイル
         self.current_file = None
         self.current_file_path = None
+        # stepメモ {step_index: memo_text}
+        self.step_memos = {}
+        # メモ変更フラグ（テキスト変更は document().isModified() で追跡）
+        self.memos_modified = False
 
-        # プレビューウィンドウ用のキュー（未使用だがPreviewWindowクラスとの互換性のため残す）
+        # プレビューウィンドウ用のキュー(未使用だがPreviewWindowクラスとの互換性のため残す)
         self.command_queue = queue.Queue()
         self.status_queue = queue.Queue()
 
-        # プレビュースレッド（未使用だがPreviewWindowクラスとの互換性のため残す）
+        # プレビュースレッド(未使用だがPreviewWindowクラスとの互換性のため残す)
         self.preview_thread = None
         self.preview_running = False
 
-        # プレビュープロセス管理（別プロセス方式用 - macOS専用）
+        # プレビュープロセス管理(別プロセス方式用 - macOS専用)
         self.preview_process = None
 
         # eventsフォルダのパス
@@ -1080,6 +1139,11 @@ class EventEditorGUI(QMainWindow):
         self.step_highlight_timer = QTimer()
         self.step_highlight_timer.setSingleShot(True)
         self.step_highlight_timer.timeout.connect(self.update_step_highlights)
+
+        # 自動保存タイマー (60秒)
+        self.autosave_timer = QTimer(self)
+        self.autosave_timer.timeout.connect(self._autosave)
+        self.autosave_timer.start(60 * 1000)
 
         # ファイルリストを読み込み
         self.load_file_list()
@@ -1139,6 +1203,18 @@ class EventEditorGUI(QMainWindow):
 
         toolbar.addSeparator()
 
+        speaker_action = QAction("//話者名// (F2)", self)
+        speaker_action.setShortcut("F2")
+        speaker_action.triggered.connect(self._insert_speaker_template)
+        toolbar.addAction(speaker_action)
+
+        dialogue_action = QAction("「」挿入 (F3)", self)
+        dialogue_action.setShortcut("F3")
+        dialogue_action.triggered.connect(self._insert_dialogue_template)
+        toolbar.addAction(dialogue_action)
+
+        toolbar.addSeparator()
+
         self.current_paragraph_label = QLabel("現在: -")
         self.current_paragraph_label.setStyleSheet("color: blue;")
         toolbar.addWidget(self.current_paragraph_label)
@@ -1189,7 +1265,7 @@ class EventEditorGUI(QMainWindow):
 
         editor_group = QGroupBox("KSファイル編集")
         editor_layout = QVBoxLayout()
-        self.text_editor = QTextEdit()
+        self.text_editor = KSTextEditor()
         self.text_editor.setFont(QFont("Consolas", 11))
         self.text_editor.setAcceptRichText(False)
         self.text_editor.textChanged.connect(self.schedule_step_highlights)
@@ -1240,7 +1316,7 @@ class EventEditorGUI(QMainWindow):
         reply = QMessageBox.question(
             self,
             "確認",
-            f"{ks_filename} を削除しますか？\nKSファイルとevents.csvの行を削除します。",
+            f"{ks_filename} を削除しますか?\nKSファイルとevents.csvの行を削除します。",
             QMessageBox.Yes | QMessageBox.No
         )
         if reply != QMessageBox.Yes:
@@ -1441,10 +1517,65 @@ class EventEditorGUI(QMainWindow):
                 self.on_file_select(item)
                 break
 
+    def _has_unsaved_changes(self):
+        """未保存の変更があるか判定"""
+        return self.text_editor.document().isModified() or self.memos_modified
+
+    def _restore_file_list_selection(self):
+        """ファイルリストの選択を現在ファイルに戻す"""
+        if not self.current_file:
+            return
+        for i in range(self.file_listbox.count()):
+            if self.file_listbox.item(i).text() == self.current_file:
+                self.file_listbox.blockSignals(True)
+                self.file_listbox.setCurrentRow(i)
+                self.file_listbox.blockSignals(False)
+                break
+
+    def _autosave(self):
+        """自動保存（60秒ごと、変更ありのみ）"""
+        if not self.current_file_path:
+            return
+        if not self._has_unsaved_changes():
+            return
+        try:
+            display_text = self.text_editor.toPlainText()
+            content = self._inject_memos_into_text(display_text)
+            with open(self.current_file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self.text_editor.document().setModified(False)
+            self.memos_modified = False
+            self.status_label.setText(f"自動保存: {self.current_file}")
+            self.status_label.setStyleSheet("color: gray;")
+            print(f"[自動保存] {self.current_file_path}")
+        except Exception as e:
+            print(f"[自動保存エラー] {e}")
+
     def on_file_select(self, item):
         """ファイルが選択された時の処理"""
         filename = item.text()
         filepath = os.path.join(self.events_dir, filename)
+
+        # 同じファイルの再選択はスキップ
+        if filepath == self.current_file_path:
+            return
+
+        # 未保存チェック
+        if self._has_unsaved_changes() and self.current_file_path:
+            reply = QMessageBox.question(
+                self,
+                "未保存の変更",
+                f"{self.current_file} に未保存の変更があります。\n保存しますか？",
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+            )
+            if reply == QMessageBox.Save:
+                self.save_file()
+            elif reply == QMessageBox.Cancel:
+                # リストの選択を元に戻す
+                self._restore_file_list_selection()
+                return
+            # Discard はそのままロードへ
+
         self.load_file(filepath)
         event_id = os.path.splitext(filename)[0]
         self.load_event_metadata(event_id)
@@ -1453,9 +1584,13 @@ class EventEditorGUI(QMainWindow):
         """ファイルを読み込んでエディタに表示"""
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
+                raw_content = f.read()
 
-            self.text_editor.setPlainText(content)
+            # ;@memo:行を除去した表示用テキストをセット
+            display_content = self._load_step_memos(raw_content)
+            self.text_editor.setPlainText(display_content)
+            self.text_editor.document().setModified(False)
+            self.memos_modified = False
             self.current_file = os.path.basename(filepath)
             self.current_file_path = filepath
 
@@ -1519,10 +1654,15 @@ class EventEditorGUI(QMainWindow):
 
         text = self.text_editor.toPlainText()
         steps = self._parse_steps_from_ks_text(text)
+        # メモをステップにオーバーレイ
+        for step in steps:
+            idx = step["step_index"]
+            step["memo"] = self.step_memos.get(idx, "")
         self.current_steps = steps
 
         selections = []
         colors = [QColor(255, 248, 220), QColor(235, 245, 255)]
+        memo_color = QColor(180, 230, 180)
 
         for idx, step in enumerate(steps):
             start_line = step["start_line"]
@@ -1542,7 +1682,10 @@ class EventEditorGUI(QMainWindow):
             cursor.setPosition(end_block.position() + end_block.length(), QTextCursor.KeepAnchor)
 
             fmt = QTextCharFormat()
-            fmt.setBackground(colors[idx % 2])
+            if step.get("memo"):
+                fmt.setBackground(memo_color)
+            else:
+                fmt.setBackground(colors[idx % 2])
 
             selection = QTextEdit.ExtraSelection()
             selection.cursor = cursor
@@ -1558,7 +1701,6 @@ class EventEditorGUI(QMainWindow):
         pending_action_lines = []
         last_speaker_line = None
         last_speaker = ""
-
         def add_step(start_line, end_line, speaker="", body="", has_scroll_stop=False, dialogue_line=None):
             step_index = len(steps)
             steps.append(
@@ -1570,6 +1712,7 @@ class EventEditorGUI(QMainWindow):
                     "body": body,
                     "has_scroll_stop": has_scroll_stop,
                     "dialogue_line": dialogue_line,
+                    "memo": "",
                 }
             )
 
@@ -1623,7 +1766,6 @@ class EventEditorGUI(QMainWindow):
                     start_line = min(start_line, min(pending_action_lines))
                 if last_speaker_line is not None:
                     start_line = min(start_line, last_speaker_line)
-
                 add_step(
                     start_line,
                     i,
@@ -1728,8 +1870,9 @@ class EventEditorGUI(QMainWindow):
             self._generate_step_preview(step_index, dialog)
         if dialog.exec_() == QDialog.Accepted:
             speaker, body, scroll_stop = dialog.get_dialogue_values()
+            memo = dialog.get_memo()
             actions = dialog.get_actions()
-            self._apply_step_update(step, speaker, body, scroll_stop, actions)
+            self._apply_step_update(step, speaker, body, scroll_stop, actions, memo)
             if step_index is not None:
                 self._generate_step_preview(step_index, dialog)
 
@@ -1782,7 +1925,7 @@ class EventEditorGUI(QMainWindow):
         self.text_editor.blockSignals(False)
         self.update_step_highlights()
 
-    def _build_step_update_text(self, original_text, step, speaker, body, scroll_stop, actions, warn_scroll_stop=True):
+    def _build_step_update_text(self, original_text, step, speaker, body, scroll_stop, actions, warn_scroll_stop=True, memo=""):
         if not step:
             return original_text
 
@@ -1843,8 +1986,75 @@ class EventEditorGUI(QMainWindow):
         new_lines = lines[:start_line] + new_region + lines[end_line + 1 :]
         return "\n".join(new_lines)
 
-    def _apply_step_update(self, step, speaker, body, scroll_stop, actions):
-        """step?????????????????"""
+    # ------------------------------------------------------------------ #
+    # デュアルバッファメモ管理
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _extract_memos_from_raw(raw_text):
+        """生テキストから;@memo:行を除去した表示用テキストと
+        {display_line_index: memo_text} のマップを返す"""
+        lines = raw_text.splitlines(keepends=True)
+        display_lines = []
+        pending_memo = None
+        memo_by_display_line = {}
+        for line in lines:
+            if line.strip().startswith(";@memo:"):
+                pending_memo = line.strip()[7:].strip()
+            else:
+                if pending_memo is not None:
+                    memo_by_display_line[len(display_lines)] = pending_memo
+                    pending_memo = None
+                display_lines.append(line)
+        return "".join(display_lines), memo_by_display_line
+
+    def _load_step_memos(self, raw_text):
+        """生テキストから;@memo:行を抽出しself.step_memosを賭新、
+        エディタ表示用テキストを返す"""
+        display_text, memo_by_display_line = self._extract_memos_from_raw(raw_text)
+        if not memo_by_display_line:
+            self.step_memos = {}
+            return display_text
+        steps = self._parse_steps_from_ks_text(display_text)
+        memos = {}
+        for display_line, memo_text in memo_by_display_line.items():
+            matched = False
+            for step in steps:
+                if step["start_line"] == display_line:
+                    memos[step["step_index"]] = memo_text
+                    matched = True
+                    break
+            if not matched:
+                for step in steps:
+                    if step["start_line"] <= display_line <= step["end_line"]:
+                        memos[step["step_index"]] = memo_text
+                        break
+        self.step_memos = memos
+        return display_text
+
+    def _inject_memos_into_text(self, display_text):
+        """表示用テキストにself.step_memosの;@memo:行を注入して
+        KS保存用テキストを返す"""
+        if not self.step_memos:
+            return display_text
+        steps = self._parse_steps_from_ks_text(display_text)
+        insertions = {}
+        for step in steps:
+            idx = step["step_index"]
+            if idx in self.step_memos and self.step_memos[idx]:
+                insertions[step["start_line"]] = self.step_memos[idx]
+        if not insertions:
+            return display_text
+        lines = display_text.splitlines(keepends=True)
+        result = []
+        for i, line in enumerate(lines):
+            if i in insertions:
+                result.append(f";@memo: {insertions[i]}\n")
+            result.append(line)
+        return "".join(result)
+
+    def _apply_step_update(self, step, speaker, body, scroll_stop, actions, memo=""):
+        """stepを更新してエディタに反映"""
         new_text = self._build_step_update_text(
             self.text_editor.toPlainText(),
             step,
@@ -1871,6 +2081,15 @@ class EventEditorGUI(QMainWindow):
         cursor.setPosition(new_pos, QTextCursor.KeepAnchor)
         self.text_editor.setTextCursor(cursor)
         self.text_editor.blockSignals(False)
+        # メモをメモリに保存（ディスクには保存時に注入される）
+        step_index = step["step_index"]
+        old_memo = self.step_memos.get(step_index, "")
+        if memo:
+            self.step_memos[step_index] = memo
+        else:
+            self.step_memos.pop(step_index, None)
+        if memo != old_memo:
+            self.memos_modified = True
         self.update_step_highlights()
 
     def _run_step_preview(self, source_path, step_index, dialog, temp_path=None):
@@ -1937,6 +2156,7 @@ class EventEditorGUI(QMainWindow):
         if not self.current_file_path:
             return
         speaker, body, scroll_stop = dialog.get_dialogue_values()
+        memo = dialog.get_memo()
         actions = dialog.get_actions()
         temp_text = self._build_step_update_text(
             self.text_editor.toPlainText(),
@@ -1946,6 +2166,7 @@ class EventEditorGUI(QMainWindow):
             scroll_stop,
             actions,
             warn_scroll_stop=False,
+            memo=memo,
         )
         out_dir = os.path.join(project_root, "debug", "step_previews")
         os.makedirs(out_dir, exist_ok=True)
@@ -1984,6 +2205,29 @@ class EventEditorGUI(QMainWindow):
                 actions.append(tag)
         return actions
 
+    def _insert_speaker_template(self):
+        """//名前//を行頭に挿入し「名前」部分を選択状態にする"""
+        if not self.text_editor.hasFocus():
+            self.text_editor.setFocus()
+        cursor = self.text_editor.textCursor()
+        cursor.movePosition(QTextCursor.StartOfLine)
+        insert_pos = cursor.position()
+        cursor.insertText("//名前//\n")
+        # 「名前」部分を選択
+        cursor.setPosition(insert_pos + 2)
+        cursor.setPosition(insert_pos + 4, QTextCursor.KeepAnchor)
+        self.text_editor.setTextCursor(cursor)
+
+    def _insert_dialogue_template(self):
+        """「」をカーソル位置に挿入し内側にカーソルを置く"""
+        if not self.text_editor.hasFocus():
+            self.text_editor.setFocus()
+        cursor = self.text_editor.textCursor()
+        pos = cursor.position()
+        cursor.insertText("「」")
+        cursor.setPosition(pos + 1)
+        self.text_editor.setTextCursor(cursor)
+
     def save_file(self):
         """現在のファイルを保存"""
         if not self.current_file_path:
@@ -1991,7 +2235,9 @@ class EventEditorGUI(QMainWindow):
             return
 
         try:
-            content = self.text_editor.toPlainText()
+            display_text = self.text_editor.toPlainText()
+            # ;@memo:行を注入してから保存
+            content = self._inject_memos_into_text(display_text)
 
             with open(self.current_file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
@@ -2000,6 +2246,8 @@ class EventEditorGUI(QMainWindow):
             if self.event_fields:
                 self.save_event_metadata()
 
+            self.text_editor.document().setModified(False)
+            self.memos_modified = False
             self.status_label.setText(f"保存完了: {self.current_file}")
             self.status_label.setStyleSheet("color: green;")
             print(f"ファイル保存: {self.current_file_path}")
@@ -2011,8 +2259,8 @@ class EventEditorGUI(QMainWindow):
             print(f"ファイル保存エラー: {e}")
 
     def start_preview(self):
-        """ダイアログプレビューを別プロセスとして起動（macOS専用）"""
-        logger.info("start_preview呼び出し（preview_dialogue.py起動）")
+        """ダイアログプレビューを別プロセスとして起動(macOS専用)"""
+        logger.info("start_preview呼び出し(preview_dialogue.py起動)")
         try:
             if not self.current_file_path:
                 QMessageBox.warning(self, "警告", "ファイルが選択されていません")
@@ -2023,7 +2271,7 @@ class EventEditorGUI(QMainWindow):
                 reply = QMessageBox.question(
                     self,
                     "プレビュー起動",
-                    "既にプレビューが起動中です。\n再起動しますか？",
+                    "既にプレビューが起動中です。\n再起動しますか?",
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
@@ -2044,7 +2292,7 @@ class EventEditorGUI(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "プレビュー",
-                f"{self.current_file} を保存してからプレビューしますか？\n\n"
+                f"{self.current_file} を保存してからプレビューしますか?\n\n"
                 "※ macOSではエディタ内プレビューは利用できないため、\n"
                 "別ウィンドウでプレビューを起動します。",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
@@ -2096,7 +2344,7 @@ class EventEditorGUI(QMainWindow):
             QMessageBox.critical(self, "エラー", f"プレビュー起動に失敗しました:\n{e}")
 
     def stop_preview(self):
-        """プレビューウィンドウを停止（macOS専用 - プロセスを終了）"""
+        """プレビューウィンドウを停止(macOS専用 - プロセスを終了)"""
         logger.info("stop_preview呼び出し")
         try:
             if not self.preview_process:
@@ -2139,7 +2387,7 @@ class EventEditorGUI(QMainWindow):
             QMessageBox.critical(self, "エラー", f"プレビュー停止に失敗しました:\n{e}")
 
     def reload_preview(self):
-        """プレビューをリロード（macOS専用 - プロセスを再起動）"""
+        """プレビューをリロード(macOS専用 - プロセスを再起動)"""
         logger.info("reload_preview呼び出し")
         try:
             if not self.current_file_path:
@@ -2150,7 +2398,7 @@ class EventEditorGUI(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "リロード",
-                f"{self.current_file} を保存してからリロードしますか？",
+                f"{self.current_file} を保存してからリロードしますか?",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             )
 
@@ -2219,7 +2467,7 @@ class EventEditorGUI(QMainWindow):
             pass
 
     def handle_status(self, status_type, status_value):
-        """ステータスを処理（メインスレッドで実行）"""
+        """ステータスを処理(メインスレッドで実行)"""
         if status_type == "initialized":
             self.status_label.setText("プレビュー初期化完了")
             self.status_label.setStyleSheet("color: green;")
@@ -2239,7 +2487,7 @@ class EventEditorGUI(QMainWindow):
             self.preview_running = False
 
     def closeEvent(self, event):
-        """ウィンドウが閉じられる時の処理（macOS専用 - プロセスをクリーンアップ）"""
+        """ウィンドウが閉じられる時の処理(macOS専用 - プロセスをクリーンアップ)"""
         logger.info("アプリケーション終了処理開始")
 
         # プレビュープロセスが実行中なら終了

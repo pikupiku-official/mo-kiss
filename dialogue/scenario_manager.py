@@ -391,7 +391,21 @@ def _ir_handle_se_play(game_state, params):
         return
     volume = _to_float(params.get("volume"), 0.5)
     frequency = _to_int(params.get("frequency"), 1)
-    se_manager.play_se(filename, volume, frequency)
+    block = params.get("block", False)
+    channel = se_manager.play_se(filename, volume, frequency)
+
+    if block and channel is not None:
+        import pygame as _pg
+        active_anims = game_state.setdefault("ir_active_anims", [])
+        # SE再生時間から30秒をタイムアウト上限とし、channel.get_busy()で完了検知
+        timeout = _pg.time.get_ticks() + 30_000
+        active_anims.append({
+            "type": "se_block",
+            "on_advance": "block",
+            "se_channel": channel,
+            "end_time": timeout,
+        })
+        game_state["ir_anim_pending"] = True
 
 def _ir_handle_bgm_pause(game_state, params):
     bgm_manager = game_state.get("bgm_manager")

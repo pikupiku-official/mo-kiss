@@ -348,7 +348,20 @@ def _update_ir_active_anims(game_state):
         game_state["ir_fast_forward_active"] = False
         return
     now = pygame.time.get_ticks()
-    active_anims[:] = [anim for anim in active_anims if anim.get("end_time", 0) > now]
+
+    def _anim_still_active(anim):
+        # SEブロック: channelが再生中かつタイムアウト内のみ生存
+        if anim.get("type") == "se_block":
+            ch = anim.get("se_channel")
+            if ch is None:
+                return False
+            if anim.get("end_time", 0) <= now:
+                return False  # タイムアウト
+            return ch.get_busy()
+        # 通常の時間ベースアニメ
+        return anim.get("end_time", 0) > now
+
+    active_anims[:] = [anim for anim in active_anims if _anim_still_active(anim)]
     if active_anims:
         game_state["ir_anim_pending"] = True
         game_state["ir_anim_end_time"] = max(anim.get("end_time", 0) for anim in active_anims)

@@ -318,9 +318,10 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         filename = parts[3] if len(parts) > 3 else ""
         volume = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
         frequency = _to_int(parts[5], 1) if len(parts) > 5 else 1
+        block = parts[6].lower() == "true" if len(parts) > 6 else False
         return make_action(
             action="se_play",
-            params={"file": filename, "volume": volume, "frequency": frequency},
+            params={"file": filename, "volume": volume, "frequency": frequency, "block": block},
         )
 
     return None

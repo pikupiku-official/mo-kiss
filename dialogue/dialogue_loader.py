@@ -575,16 +575,19 @@ class DialogueLoader:
                         se_parts = re.search(r'se="([^"]+)"', line)
                         se_volume = re.search(r'volume="([^"]+)"', line)
                         se_frequency = re.search(r'frequency="([^"]+)"', line)
+                        se_block = re.search(r'block="([^"]+)"', line)
                         if se_parts:
                             se_name = se_parts.group(1)
                             se_vol = float(se_volume.group(1)) if se_volume else 0.5
                             se_freq = int(se_frequency.group(1)) if se_frequency else 1
+                            se_blk = se_block.group(1).lower() == "true" if se_block else False
                             
                             dialogue_data.append({
                                 'type': 'se',
                                 'file': se_name,
                                 'volume': se_vol,
-                                'frequency': se_freq
+                                'frequency': se_freq,
+                                'block': se_blk,
                             })
                                 
                     except Exception as e:

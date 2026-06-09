@@ -121,7 +121,8 @@ def normalize_dialogue_data(raw_data):
                 
         elif entry_type == 'se':
             # SE再生コマンドを正規化形式で追加
-            se_command = f"_SE_PLAY_{entry['file']}_{entry['volume']}_{entry['frequency']}"
+            se_block_flag = "true" if entry.get('block', False) else "false"
+            se_command = f"_SE_PLAY_{entry['file']}_{entry['volume']}_{entry['frequency']}_{se_block_flag}"
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
                 se_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
