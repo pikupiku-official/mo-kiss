@@ -35,23 +35,29 @@ jobs:
 
       - name: Create remote directory and deploy
         run: |
-          # mokiss の実際のパスを検出して使う
+          # mokiss の実際のパスを検出して使う（xargs -r: 空入力時は実行しない）
           WEB_PATH=$(sshpass -p "$SSH_PASS" ssh \
             -p $SSH_PORT \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             $SSH_USER@$SSH_HOST \
-            "find ~/ -maxdepth 3 -name 'wp-config.php' 2>/dev/null | grep mokiss | head -1 | xargs dirname" 2>/dev/null)
+            'find $HOME -maxdepth 4 -name "wp-config.php" 2>/dev/null | grep mokiss | head -1 | xargs -r dirname')
 
           echo "Detected mokiss path: $WEB_PATH"
 
           if [ -z "$WEB_PATH" ]; then
-            echo "WARNING: Could not detect path, using default ~/pikupikutai.pinoko.jp/mokiss"
-            WEB_PATH="$HOME/pikupikutai.pinoko.jp/mokiss"
+            # リモートの $HOME を取得してフォールバック（ローカルの $HOME は使わない）
+            REMOTE_HOME=$(sshpass -p "$SSH_PASS" ssh \
+              -p $SSH_PORT \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              $SSH_USER@$SSH_HOST \
+              'echo $HOME')
+            echo "WARNING: Could not detect path, fallback with remote HOME=$REMOTE_HOME"
+            WEB_PATH="$REMOTE_HOME/pikupikutai.pinoko.jp/mokiss"
           fi
 
           DEPLOY_TO="${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
-
           echo "Deploying to: $DEPLOY_TO"
 
           sshpass -p "$SSH_PASS" ssh \
@@ -66,4 +72,4 @@ jobs:
             --exclude=api_config.php \
             -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             ./tools/dev/ \
-            ${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/
+            "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
