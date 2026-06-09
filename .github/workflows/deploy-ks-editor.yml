@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'tools/dev/**'
+      - '.github/workflows/deploy-ks-editor.yml'
   workflow_dispatch:
 
 jobs:
