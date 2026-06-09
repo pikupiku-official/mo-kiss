@@ -464,8 +464,8 @@ async function browseDir(dirPath) {
 }
 
 function init() {
-  history.replaceState({page:'list', dir:''}, '');
-  browseDir('');
+  history.replaceState({page:'list', dir:'events'}, '');
+  browseDir('events');  // デフォルトはevents/から開始
 }
 
 function renderDirTable(items, dirPath) {
