@@ -1,15 +1,14 @@
 name: Deploy to Lolipop /mokiss/
 
-# tools/ 以下が変わった時に実行
 # デプロイ構造: tools/ → /mokiss/
-#   例: tools/dev/ks-editor/ → /mokiss/dev/ks-editor/
+#   tools/dev/ks-editor/ → /mokiss/dev/ks-editor/
 on:
   push:
     branches:
       - main
     paths:
       - 'tools/dev/**'
-  workflow_dispatch:  # 手動実行も可能
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -27,20 +26,20 @@ jobs:
         run: sudo apt-get install -y lftp
 
       - name: Test FTP connection
-        run: |
-          lftp -e "set ssl:verify-certificate no; set ftp:passive-mode on; open -u $FTP_USER,$FTP_PASS $FTP_SERVER; pwd; ls $REMOTE_DIR; bye" 2>&1
+        run: lftp -e "set ssl:verify-certificate no; set ftp:passive-mode on; open -u $FTP_USER,$FTP_PASS $FTP_SERVER; pwd; ls; bye" 2>&1
         continue-on-error: true
 
-      - name: Deploy via FTP (lftp)
+      - name: Deploy via FTP
         run: |
-          cat > /tmp/deploy.lftp << LFTP_EOF
-          set ssl:verify-certificate no
-          set ftp:passive-mode on
-          set net:timeout 30
-          set net:max-retries 3
-          open -u $FTP_USER,$FTP_PASS $FTP_SERVER
-          mirror -R --verbose --exclude=api_config.php --exclude-glob=*.pyc ./tools/ $REMOTE_DIR
-          bye
-          LFTP_EOF
+          printf '%s\n' \
+            "set ssl:verify-certificate no" \
+            "set ftp:passive-mode on" \
+            "set net:timeout 30" \
+            "set net:max-retries 3" \
+            "open -u $FTP_USER,$FTP_PASS $FTP_SERVER" \
+            "mirror -R --verbose --exclude=api_config.php --exclude-glob=*.pyc ./tools/ $REMOTE_DIR" \
+            "bye" > /tmp/deploy.lftp
+          echo "--- lftp script ---"
           cat /tmp/deploy.lftp
+          echo "--- running lftp ---"
           lftp -f /tmp/deploy.lftp
