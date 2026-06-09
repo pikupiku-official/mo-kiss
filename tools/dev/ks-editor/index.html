@@ -906,6 +906,7 @@ function parseStepsFromKS(text){
   }
   for(let i=0;i<lines.length;i++){
     const line=lines[i].trim();
+    if(line.startsWith(';@memo:')){if(steps.length){steps[steps.length-1].memo=line.slice(7);}continue;}
     if(!line||line.startsWith(';'))continue;
     if(line.startsWith('//')&&line.endsWith('//')&&line.length>4){lsl=i;ls=line.slice(2,-2).trim();continue;}
     if(line.startsWith('[')&&line.endsWith(']')){
@@ -934,7 +935,7 @@ function parseStepsFromKS(text){
 // ============================================================
 //  Step書き戻し (event_editor.py: _build_step_update_text移植)
 // ============================================================
-function buildStepUpdateText(text,step,speaker,body,scrollStop,actions){
+function buildStepUpdateText(text,step,speaker,body,scrollStop,actions,memo){
   const lines=text.split('\n');
   const sl=step.start_line,el=step.end_line;
   if(sl<0||sl>=lines.length)return text;
@@ -942,7 +943,8 @@ function buildStepUpdateText(text,step,speaker,body,scrollStop,actions){
   const isSp=s=>s.startsWith('//')&&s.endsWith('//')&&s.length>4;
   const isDl=s=>s.includes('\u300c')&&s.includes('\u300d');
   const isAct=s=>s.startsWith('[')&&s.endsWith(']');
-  const other=region.filter(l=>{const s=l.trim();if(!s)return true;return!(isAct(s)||isSp(s)||isDl(s));});
+  const isMemo=s=>s.startsWith(';@memo:');
+  const other=region.filter(l=>{const s=l.trim();if(!s)return true;return!(isAct(s)||isSp(s)||isDl(s)||isMemo(s));});
   const nr=[...other];
   for(const a of(actions||[])){
     const t=a.trim();if(!t)continue;
@@ -951,6 +953,7 @@ function buildStepUpdateText(text,step,speaker,body,scrollStop,actions){
     if(tn==='scroll-stop'||tn==='scroll_stop')continue;
     nr.push(t.startsWith('[')?t:`[${t}]`);
   }
+  if(memo)nr.push(`;@memo:${memo}`);
   if(speaker)nr.push(`//${speaker}//`);
   if(body){let d=`\u300c${body}\u300d`;if(scrollStop)d+='[scroll-stop]';nr.push(d);}
   return[...lines.slice(0,sl),...nr,...lines.slice(el+1)].join('\n');
@@ -1077,7 +1080,7 @@ $('step-apply').addEventListener('click',()=>{
   const actions=$('step-actions').value.split('\n').filter(s=>s.trim());
   const memo=$('step-memo').value;
   stepMemos[selectedStepIdx]=memo;
-  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions);
+  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions,memo);
   currentSteps=parseStepsFromKS(currentText);
   setLineNums(currentText.split('\n').length);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
@@ -1094,7 +1097,7 @@ $('step-apply-save').addEventListener('click', async ()=>{
   const actions=$('step-actions').value.split('\n').filter(s=>s.trim());
   const memo=$('step-memo').value;
   stepMemos[selectedStepIdx]=memo;
-  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions);
+  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions,memo);
   currentSteps=parseStepsFromKS(currentText);
   setLineNums(currentText.split('\n').length);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
