@@ -37,6 +37,7 @@ jobs:
       - name: Deploy via rsync over SSH
         run: |
           sshpass -p "$SSH_PASS" rsync -avz \
+            --ignore-times \
             --exclude=api_config.php \
             -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             ./tools/dev/ \
