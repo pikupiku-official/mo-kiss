@@ -16,17 +16,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server:     ${{ secrets.FTP_SERVER }}
-          username:   ${{ secrets.FTP_USERNAME }}
-          password:   ${{ secrets.FTP_PASSWORD }}
-          port:       21
-          local-dir:  ./tools/dev/
-          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
-          exclude: |
-            **/.git*
-            **/api_config.php
-            **/__pycache__/**
-            **/*.pyc
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+
+      - name: Deploy via FTP (lftp)
+        env:
+          FTP_SERVER:   ${{ secrets.FTP_SERVER }}
+          FTP_USER:     ${{ secrets.FTP_USERNAME }}
+          FTP_PASS:     ${{ secrets.FTP_PASSWORD }}
+          REMOTE_DIR:   ${{ secrets.FTP_REMOTE_DIR }}
+        run: |
+          lftp -e "
+            set ssl:verify-certificate no;
+            set ftp:passive-mode on;
+            open -u $FTP_USER,$FTP_PASS $FTP_SERVER;
+            mirror -R --delete --verbose \
+              --exclude=api_config.php \
+              --exclude-glob=*.pyc \
+              --exclude-glob=__pycache__ \
+              ./tools/dev/ $REMOTE_DIR;
+            quit
+          "
