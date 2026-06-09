@@ -25,6 +25,15 @@ jobs:
       - name: Install sshpass + rsync
         run: sudo apt-get install -y sshpass rsync
 
+      - name: Create remote directory
+        run: |
+          sshpass -p "$SSH_PASS" ssh \
+            -p $SSH_PORT \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            $SSH_USER@$SSH_HOST \
+            "mkdir -p ~/mokiss/dev/ks-editor"
+
       - name: Deploy via rsync over SSH
         run: |
           sshpass -p "$SSH_PASS" rsync -avz \
