@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy via Python ftplib (no PWD)
+      - name: Deploy via Python ftplib
         run: |
           python3 - << 'PYEOF'
           import ftplib, os, sys
@@ -29,37 +29,39 @@ jobs:
           server = os.environ['FTP_SERVER']
           user   = os.environ['FTP_USER']
           passwd = os.environ['FTP_PASS']
-          remote = os.environ['REMOTE_DIR'].strip('/')
+          # REMOTE_DIR = mokiss/ → deploy先は mokiss/dev/
+          remote_base = os.environ['REMOTE_DIR'].strip('/') + '/dev'
 
-          EXCLUDES = {'api_config.php', '__pycache__', '.git'}
+          # デプロイ対象は tools/dev/ のみ
+          # (tools/__init__.py 等は含まない)
+          LOCAL_DIR = Path('./tools/dev')
+          EXCLUDES  = {'api_config.php'}
 
           def ftp_mkdirs(ftp, path):
-              """PWDなしでディレクトリを再帰的に作成"""
               parts = [p for p in path.split('/') if p]
               for i in range(len(parts)):
                   d = '/'.join(parts[:i+1])
                   try:
                       ftp.mkd(d)
-                  except ftplib.error_perm as e:
-                      if '550' not in str(e) and '521' not in str(e):
-                          raise  # already exists は無視
+                      print(f'  mkdir {d}')
+                  except ftplib.error_perm:
+                      pass  # already exists
 
-          def deploy(ftp, local_dir, remote_base):
-              local_dir = Path(local_dir)
+          def deploy(ftp, local_dir, remote):
               for item in sorted(local_dir.rglob('*')):
-                  if any(e in item.parts for e in EXCLUDES):
+                  if item.name in EXCLUDES:
                       continue
-                  if item.suffix == '.pyc':
-                      continue
-                  rel = item.relative_to(local_dir)
-                  remote_path = remote_base + '/' + '/'.join(rel.parts)
+                  rel  = item.relative_to(local_dir)
+                  rp   = remote + '/' + '/'.join(rel.parts)
                   if item.is_dir():
-                      ftp_mkdirs(ftp, remote_path)
+                      ftp_mkdirs(ftp, rp)
                   elif item.is_file():
-                      ftp_mkdirs(ftp, '/'.join(remote_path.split('/')[:-1]))
-                      print(f'  PUT {remote_path}')
+                      parent = '/'.join(rp.split('/')[:-1])
+                      if parent:
+                          ftp_mkdirs(ftp, parent)
+                      print(f'  PUT {rp}')
                       with open(item, 'rb') as f:
-                          ftp.storbinary(f'STOR {remote_path}', f)
+                          ftp.storbinary(f'STOR {rp}', f)
 
           try:
               ftp = ftplib.FTP()
@@ -68,17 +70,9 @@ jobs:
               print('Login:', resp.strip())
               ftp.set_pasv(True)
 
-              # PWDは呼ばない（ロリポップで禁止）
-              print('=== Explore root (NLST) ===')
-              try:
-                  for f in sorted(ftp.nlst()):
-                      print(f'  {f}')
-              except Exception as e:
-                  print(f'  NLST failed: {e}')
-
-              print(f'=== Deploying to {remote}/ ===')
-              ftp_mkdirs(ftp, remote)
-              deploy(ftp, './tools', remote)
+              print('=== Deploying to ' + remote_base + '/ ===')
+              ftp_mkdirs(ftp, remote_base)
+              deploy(ftp, LOCAL_DIR, remote_base)
               ftp.quit()
               print('=== Deploy complete! ===')
           except Exception as e:
