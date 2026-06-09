@@ -14,6 +14,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USER:   ${{ secrets.FTP_USERNAME }}
+      FTP_PASS:   ${{ secrets.FTP_PASSWORD }}
+      REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,21 +26,21 @@ jobs:
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
-      - name: Deploy via FTP (lftp)
-        env:
-          FTP_SERVER:   ${{ secrets.FTP_SERVER }}
-          FTP_USER:     ${{ secrets.FTP_USERNAME }}
-          FTP_PASS:     ${{ secrets.FTP_PASSWORD }}
-          REMOTE_DIR:   ${{ secrets.FTP_REMOTE_DIR }}
+      - name: Test FTP connection
         run: |
-          lftp -e "
-            set ssl:verify-certificate no;
-            set ftp:passive-mode on;
-            open -u $FTP_USER,$FTP_PASS $FTP_SERVER;
-            mirror -R --delete --verbose \
-              --exclude=api_config.php \
-              --exclude-glob=*.pyc \
-              --exclude-glob=__pycache__ \
-              ./tools/ $REMOTE_DIR;
-            quit
-          "
+          lftp -e "set ssl:verify-certificate no; set ftp:passive-mode on; open -u $FTP_USER,$FTP_PASS $FTP_SERVER; pwd; ls $REMOTE_DIR; bye" 2>&1
+        continue-on-error: true
+
+      - name: Deploy via FTP (lftp)
+        run: |
+          cat > /tmp/deploy.lftp << LFTP_EOF
+          set ssl:verify-certificate no
+          set ftp:passive-mode on
+          set net:timeout 30
+          set net:max-retries 3
+          open -u $FTP_USER,$FTP_PASS $FTP_SERVER
+          mirror -R --verbose --exclude=api_config.php --exclude-glob=*.pyc ./tools/ $REMOTE_DIR
+          bye
+          LFTP_EOF
+          cat /tmp/deploy.lftp
+          lftp -f /tmp/deploy.lftp
