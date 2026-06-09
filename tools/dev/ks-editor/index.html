@@ -99,8 +99,10 @@ tr.file-row:hover td { background:var(--panel2); }
 #ks-wrap { flex:1; overflow:auto; background:#1e1e1e; font-family:"Courier New",monospace; min-width:0; }
 #ks-table { border-collapse:collapse; min-width:100%; }
 #ks-table td { vertical-align:top; padding:0; }
-.ln-col { background:#2b2b2b; color:#606366; font-size:12px; line-height:1.6; padding:8px 6px 8px 8px; text-align:right; user-select:none; border-right:1px solid #3a3a3a; white-space:pre; position:sticky; left:0; z-index:5; }
-.code-col { padding:8px 12px; font-size:12px; line-height:1.6; white-space:pre-wrap; word-break:break-all; color:#a9b7c6; min-width:0; }
+.ln-col { background:#2b2b2b; color:#606366; font-size:12px; line-height:1.6; padding:1px 6px 1px 8px; text-align:right; user-select:none; border-right:1px solid #3a3a3a; white-space:nowrap; position:sticky; left:0; z-index:5; vertical-align:top; }
+.code-col { padding:1px 12px; font-size:12px; line-height:1.6; white-space:pre-wrap; word-break:break-all; color:#a9b7c6; min-width:0; }
+#ks-tbody tr:first-child td { padding-top:8px; }
+#ks-tbody tr:last-child td  { padding-bottom:8px; }
 
 /* 編集モードtextarea */
 #edit-textarea { width:100%; min-height:100%; padding:8px 12px; font-size:12px; line-height:1.6; font-family:"Courier New",monospace; background:#1e1e1e; color:#a9b7c6; border:none; outline:none; resize:none; white-space:pre; }
@@ -233,7 +235,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
       <div id="ks-wrap">
         <!-- 表示モード -->
         <table id="ks-table">
-          <tr><td class="ln-col" id="line-nums"></td><td class="code-col" id="ks-code"></td></tr>
+          <tbody id="ks-tbody"></tbody>
         </table>
         <!-- 編集モード -->
         <textarea id="edit-textarea" class="hidden" spellcheck="false"></textarea>
@@ -567,29 +569,28 @@ window.addEventListener("popstate", e => {
 // ============================================================
 //  KS ハイライト・行番号・アウトライン
 // ============================================================
-// KS構文ハイライト
-function highlight(text) {
-  return text.split("\n").map(line => {
-    const e = esc(line), s = line.trimStart();
-    if (s.startsWith("*"))                     return `<span class="k-label">${e}</span>`;
-    if (s.startsWith("[")||s.startsWith("@"))  return `<span class="k-tag">${e}</span>`;
-    if (s.startsWith(";")||s.startsWith("//")) return `<span class="k-comment">${e}</span>`;
-    if (/[「」『』]/.test(s))                  return `<span class="k-dialog">${e}</span>`;
-    return e;
-  }).join("\n");
+// KS構文ハイライト（1行用）
+function highlight(line) {
+  const e = esc(line), s = line.trimStart();
+  if (s.startsWith("*"))                     return `<span class="k-label">${e}</span>`;
+  if (s.startsWith("[")||s.startsWith("@"))  return `<span class="k-tag">${e}</span>`;
+  if (s.startsWith(";")||s.startsWith("//")) return `<span class="k-comment">${e}</span>`;
+  if (/[「」『』]/.test(s))                  return `<span class="k-dialog">${e}</span>`;
+  return e;
 }
-// 汎用テキスト（Python・マークダウン等）: 編集可能なら何でも開く
-function escapeAndHightlightGeneric(text) {
-  return text.split("\n").map(line => {
-    const e = esc(line), s = line.trimStart();
-    // Python/Shellコメント
-    if (s.startsWith('#'))   return `<span class="k-comment">${e}</span>`;
-    // 文字列リテラル
-    if (/^['"]/.test(s))     return `<span class="k-dialog">${e}</span>`;
-    // import / def / class 等
-    if (/^(import|from|def |class |async |return|if |elif |else:|for |while |with )/.test(s)) return `<span class="k-tag">${e}</span>`;
-    return e;
-  }).join("\n");
+// 汎用テキスト（1行用）
+function highlightGeneric(line) {
+  const e = esc(line), s = line.trimStart();
+  if (s.startsWith('#'))   return `<span class="k-comment">${e}</span>`;
+  if (/^['"]/.test(s))     return `<span class="k-dialog">${e}</span>`;
+  if (/^(import|from|def |class |async |return|if |elif |else:|for |while |with )/.test(s)) return `<span class="k-tag">${e}</span>`;
+  return e;
+}
+// 汎用テキスト per-row <tr>生成
+function renderGeneric(text) {
+  return text.split('\n').map((line,i)=>
+    `<tr><td class="ln-col">${i+1}</td><td class="code-col">${highlightGeneric(line)}</td></tr>`
+  ).join('\n');
 }
 
 // KS正規化：event_editor.pyのステップ解析に準拠
@@ -610,9 +611,7 @@ function parseSteps(text) {
   return steps;
 }
 
-function setLineNums(count) {
-  $("line-nums").textContent = Array.from({length:count},(_,i)=>i+1).join("\n");
-}
+// setLineNums() は廃止: 行番号は renderWithSteps/renderGeneric が各<tr>に直接出力する
 
 function buildOutline(text) {
   const list = $("outline-list");
@@ -648,8 +647,7 @@ async function openFile(f, push=true) {
   $("sb-size").textContent = fmtSize(f.size);
   $("sb-lines").textContent = "";
   sbMsg('<span class="spinner"></span> 読み込み中…');
-  $("ks-code").innerHTML = "";
-  $("line-nums").textContent = "";
+  $("ks-tbody").innerHTML = "";
 
   try {
     // raw で取得しつつ sha も取る
@@ -661,11 +659,10 @@ async function openFile(f, push=true) {
     currentSha  = meta ? meta.sha : "";
     const lines = text.split("\n");
     const isKSFile = f.name.endsWith('.ks');
-    $("ks-code").innerHTML = isKSFile ? renderWithSteps(text) : escapeAndHightlightGeneric(text);
+    $("ks-tbody").innerHTML = isKSFile ? renderWithSteps(text) : renderGeneric(text);
     if (isKSFile) attachStepClicks();
     // Step編集ボタンはKSのみ表示
     $("btn-step-panel").classList.toggle("hidden", !isKSFile);
-    setLineNums(lines.length);
     buildOutline(text);
     $("sb-lines").textContent = lines.length+" 行" + (isKSFile ? '' : ' — ' + f.name.split('.').pop().toUpperCase());
     sbMsg("");
@@ -742,9 +739,8 @@ async function saveFile() {
     currentText = newText;
     currentSha  = res.content.sha;
     const lines = newText.split("\n");
-    $("ks-code").innerHTML = renderWithSteps(newText);
+    $("ks-tbody").innerHTML = renderWithSteps(newText);
     attachStepClicks();
-    setLineNums(lines.length);
     buildOutline(newText);
     $("sb-lines").textContent = lines.length+" 行";
     exitEditMode(false);
@@ -848,7 +844,7 @@ function closeFindBar() {
   $("find-input").value = "";
   $("find-count").textContent = "";
   findHits=[]; findIdx=-1;
-  if (currentText && !editMode) { $("ks-code").innerHTML = renderWithSteps(currentText); attachStepClicks(); }
+  if (currentText && !editMode) { $("ks-tbody").innerHTML = renderWithSteps(currentText); attachStepClicks(); }
 }
 
 $("find-input").addEventListener("input", doFind);
@@ -862,12 +858,12 @@ $("find-input").addEventListener("keydown", e=>{
 function doFind() {
   const q = $("find-input").value;
   if (!q || !currentText) {
-    if (currentText && !editMode) { $("ks-code").innerHTML = renderWithSteps(currentText); attachStepClicks(); }
+    if (currentText && !editMode) { $("ks-tbody").innerHTML = renderWithSteps(currentText); attachStepClicks(); }
     $("find-count").textContent=""; findHits=[]; findIdx=-1; return;
   }
   const lq = q.toLowerCase();
   findHits = []; let gi = 0;
-  const html = currentText.split("\n").map(line => {
+  const html = currentText.split("\n").map((line,lineIdx) => {
     let result="", i=0, lo=line.toLowerCase();
     while(i<line.length){
       const fi=lo.indexOf(lq,i);
@@ -876,9 +872,9 @@ function doFind() {
       result+=`<mark class="hit" data-idx="${gi}">${esc(line.slice(fi,fi+q.length))}</mark>`;
       findHits.push(fi); gi++; i=fi+q.length;
     }
-    return result;
+    return `<tr><td class="ln-col">${lineIdx+1}</td><td class="code-col">${result}</td></tr>`;
   }).join("\n");
-  $("ks-code").innerHTML = html;
+  $("ks-tbody").innerHTML = html;
   findIdx=-1;
   $("find-count").textContent = gi+" 件";
   if(gi>0){ findIdx=0; jumpToHit(); }
@@ -972,18 +968,21 @@ function renderWithSteps(text){
   currentSteps.forEach(s=>{for(let i=s.start_line;i<=s.end_line;i++)lmap.set(i,s);});
   const C=['rgba(255,248,210,.07)','rgba(220,235,255,.06)'];
   const CM='rgba(140,210,140,.09)';
-  // 行ゴトスパン方式（ブロックラッパーはテーブルCell内で崩壊するため不使用）
   let html='';
   lines.forEach((line,i)=>{
     const step=lmap.get(i);
+    let rowStyle='', rowAttrs='';
     if(step!=null){
       const memo=stepMemos[step.step_index]||step.memo;
       const bg=memo?CM:C[step.step_index%2];
       const bl=selectedStepIdx===step.step_index?'border-left:2px solid #3592c4;':'';
-      html+=`<span class="step-line" data-step="${step.step_index}" style="display:block;background:${bg};${bl}padding-left:2px">`+highlight(line)+'</span>\n';
-    }else{
-      html+=highlight(line)+'\n';
+      rowStyle=`background:${bg};${bl}`;
+      rowAttrs=` class="step-line" data-step="${step.step_index}"`;
     }
+    html+=`<tr${rowAttrs} style="${rowStyle}">`;
+    html+=`<td class="ln-col">${i+1}</td>`;
+    html+=`<td class="code-col">${highlight(line)}</td>`;
+    html+='</tr>\n';
   });
   return html;
 }
@@ -995,7 +994,7 @@ function attachStepClicks(){
   // タッチ対応（スマホ）: ダブルタップ=Raw編集、長押し=Step編集
   if(isMobile){
     let lastTap=0;
-    $('ks-code').addEventListener('touchstart', e=>{
+    $('ks-tbody').addEventListener('touchstart', e=>{
       lpFired=false;
       const el=e.target.closest('.step-line');
       if(el){
@@ -1003,8 +1002,8 @@ function attachStepClicks(){
         lpTimer=setTimeout(()=>{ lpFired=true; openStepEditor(idx); },600);
       }
     },{passive:true});
-    $('ks-code').addEventListener('touchmove', ()=>{ clearTimeout(lpTimer); lpFired=true; },{passive:true});
-    $('ks-code').addEventListener('touchend', e=>{
+    $('ks-tbody').addEventListener('touchmove', ()=>{ clearTimeout(lpTimer); lpFired=true; },{passive:true});
+    $('ks-tbody').addEventListener('touchend', e=>{
       clearTimeout(lpTimer);
       if(!lpFired && !editMode){
         const now=Date.now();
@@ -1020,10 +1019,10 @@ function attachStepClicks(){
     });
   } else {
     // デスクトップ: Stepラインをクリック=Step編集、それ以外=テキスト編集
-    $('ks-code').querySelectorAll('.step-line').forEach(el=>{
+    $('ks-tbody').querySelectorAll('.step-line').forEach(el=>{
       el.addEventListener('click',e=>{ openStepEditor(parseInt(el.dataset.step)); e.stopPropagation(); });
     });
-    $('ks-code').addEventListener('click', e=>{
+    $('ks-tbody').addEventListener('click', e=>{
       if(!e.target.closest('.step-line')) enterEditMode();
     });
   }
@@ -1049,9 +1048,9 @@ function openStepEditor(idx){
   $('step-actions').value=acts.join('\n');
   $('step-panel').classList.remove('sp-closed');
   $('btn-step-panel').classList.add('active');
-  $('ks-code').innerHTML=renderWithSteps(currentText);
+  $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();
-  const sel=$('ks-code').querySelector('.step-line[data-step="'+idx+'"]');
+  const sel=$('ks-tbody').querySelector('.step-line[data-step="'+idx+'"]');
   if(sel)sel.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 
@@ -1059,7 +1058,7 @@ function closeStepPanel(){
   $('step-panel').classList.add('sp-closed');
   $('btn-step-panel').classList.remove('active');
   selectedStepIdx=-1;
-  if(currentText){$('ks-code').innerHTML=renderWithSteps(currentText);attachStepClicks();}
+  if(currentText){$('ks-tbody').innerHTML=renderWithSteps(currentText);attachStepClicks();}
 }
 function openStepPanel(){
   $('step-panel').classList.remove('sp-closed');
@@ -1081,7 +1080,7 @@ $('step-apply').addEventListener('click',()=>{
   currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions);
   currentSteps=parseStepsFromKS(currentText);
   setLineNums(currentText.split('\n').length);
-  $('ks-code').innerHTML=renderWithSteps(currentText);
+  $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   sbMsg('\u2713 Step\u9069\u7528\u6e08 \u2014 \u300c\u9069\u7528\u3057\u3066\u4fdd\u5b58\u300d\u307e\u305f\u306f\u30e1\u30cb\u30e5\u30fc\u300c\u4fdd\u5b58\u300d\u3067GitHub\u306b\u53cd\u6620',3000);
 });
@@ -1098,7 +1097,7 @@ $('step-apply-save').addEventListener('click', async ()=>{
   currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions);
   currentSteps=parseStepsFromKS(currentText);
   setLineNums(currentText.split('\n').length);
-  $('ks-code').innerHTML=renderWithSteps(currentText);
+  $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   // そのままGitHubに保存
   if(!currentFile)return;
@@ -1128,7 +1127,7 @@ $('step-delete-btn').addEventListener('click',()=>{
   currentText=lines.join('\n');
   currentSteps=parseStepsFromKS(currentText);
   setLineNums(currentText.split('\n').length);
-  $('ks-code').innerHTML=renderWithSteps(currentText);
+  $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   closeStepPanel();sbMsg('\u2713 Step\u524a\u9664\u6e08',3000);
 });
@@ -1142,7 +1141,7 @@ function insertStepTemplate(before){
   currentText=lines.join('\n');
   currentSteps=parseStepsFromKS(currentText);
   setLineNums(currentText.split('\n').length);
-  $('ks-code').innerHTML=renderWithSteps(currentText);
+  $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   sbMsg('\u2713 \u30c6\u30f3\u30d7\u30ec\u30fc\u30c8\u633f\u5165\u6e08',2000);
 }
