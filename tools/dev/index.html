@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="Shift_JIS">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>mo-kiss 開発ツール置き場</title>
+<style>
+  body {
+    background-color: #000033;
+    color: #cccccc;
+    font-family: "MS ゴシック", "Osaka-Mono", monospace;
+    font-size: 13px;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1 {
+    color: #ffff00;
+    font-size: 20px;
+    text-align: center;
+    border: 2px solid #ffff00;
+    padding: 8px;
+    background-color: #000066;
+    letter-spacing: 4px;
+  }
+
+  h2 {
+    color: #00ffcc;
+    font-size: 14px;
+    border-left: 4px solid #00ffcc;
+    padding-left: 8px;
+    margin-top: 24px;
+  }
+
+  a {
+    color: #ff99ff;
+    text-decoration: none;
+  }
+  a:hover {
+    color: #ffffff;
+    text-decoration: underline;
+  }
+  a:visited {
+    color: #cc66cc;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 700px;
+    margin: 12px auto;
+  }
+
+  th {
+    background-color: #003366;
+    color: #00ccff;
+    border: 1px solid #336699;
+    padding: 6px 12px;
+    text-align: left;
+  }
+
+  td {
+    border: 1px solid #336699;
+    padding: 6px 12px;
+    vertical-align: top;
+  }
+
+  tr:hover td {
+    background-color: #001133;
+  }
+
+  .status-ok {
+    color: #00ff00;
+  }
+  .status-wip {
+    color: #ffaa00;
+  }
+
+  .marquee-wrap {
+    background-color: #003300;
+    border: 1px solid #00ff00;
+    padding: 4px;
+    margin: 16px auto;
+    max-width: 700px;
+    font-size: 12px;
+    color: #00ff00;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .marquee-inner {
+    display: inline-block;
+    animation: scroll-left 20s linear infinite;
+  }
+
+  @keyframes scroll-left {
+    0%   { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    color: #666688;
+    font-size: 11px;
+    border-top: 1px solid #333366;
+    padding-top: 12px;
+  }
+
+  .under-construction {
+    text-align: center;
+    color: #ff6600;
+    font-size: 12px;
+    margin: 8px 0;
+  }
+
+  .section-block {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px dashed #336699;
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>★ mo-kiss 開発ツール置き場 ★</h1>
+
+<div class="marquee-wrap">
+  <span class="marquee-inner">
+    ようこそ mo-kiss 開発者エリアへ ☆ mo-kiss は1999年を舞台にしたビジュアルノベルです ☆ ここは開発ツール専用ページです ☆ Welcome to the mo-kiss dev zone ☆
+  </span>
+</div>
+
+<div class="section-block">
+
+  <h2>🔧 ツール一覧</h2>
+
+  <table>
+    <tr>
+      <th>ツール名</th>
+      <th>説明</th>
+      <th>状態</th>
+    </tr>
+    <tr>
+      <td><a href="ks-editor/">📝 KS Editor</a></td>
+      <td>ドキドキスクリプト Ver2 のイベントスクリプトを<br>ブラウザ上で編集・プレビューするツール</td>
+      <td class="status-ok">● 稼働中</td>
+    </tr>
+    <tr>
+      <td><span style="color:#555577;">🗂️ イベント管理</span></td>
+      <td>events.csv をベースにしたイベント進捗確認ビュー</td>
+      <td class="status-wip">○ 計画中</td>
+    </tr>
+    <tr>
+      <td><span style="color:#555577;">🎨 キャラクター確認</span></td>
+      <td>立ち絵・表情セットのプレビュー</td>
+      <td class="status-wip">○ 計画中</td>
+    </tr>
+    <tr>
+      <td><span style="color:#555577;">🗺️ マップビューア</span></td>
+      <td>フィールドマップのレイアウト確認</td>
+      <td class="status-wip">○ 計画中</td>
+    </tr>
+  </table>
+
+  <hr>
+
+  <h2>📋 このエリアについて</h2>
+  <p>
+    <code>mokiss.jp/dev/</code> は mo-kiss 制作チーム向けの開発ツール置き場です。<br>
+    外部公開はしていますが、主に制作スタッフ向けのページです。<br>
+    本編ゲームは <a href="/">mokiss.jp</a> からどうぞ。
+  </p>
+
+  <div class="under-construction">
+    ⚠ このページは工事中の項目を含みます ⚠
+  </div>
+
+  <hr>
+
+  <h2>🔗 リンク</h2>
+  <ul>
+    <li><a href="/">← mokiss.jp トップへ</a></li>
+    <li><a href="https://github.com/pikupiku-official/mo-kiss" target="_blank">GitHub リポジトリ</a></li>
+    <li><a href="ks-editor/">KS Editor を開く →</a></li>
+  </ul>
+
+</div>
+
+<div class="footer">
+  mo-kiss dev tools &nbsp;|&nbsp; Last updated: 2026<br>
+  <br>
+  <span style="color:#444466;">このページはテキストエディタで手書きされています</span>
+</div>
+
+</body>
+</html>
