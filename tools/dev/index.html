@@ -6,42 +6,46 @@
 <title>mo-kiss 開発ツール置き場</title>
 <style>
   body {
-    background-color: #000080;
-    color: #eeeecc;
-    font-family: "MS ゴシック", "Osaka-Mono", monospace;
+    background-color: #c0c0c0;
+    color: #000000;
+    font-family: "MS UI Gothic", "MS ゴシック", "MS PGothic", "Osaka", monospace;
     font-size: 13px;
     margin: 0;
     padding: 20px;
   }
 
   h1 {
-    color: #ffff00;
+    color: #ffffff;
     font-size: 20px;
     text-align: center;
-    border: 2px solid #ffff00;
+    border: 2px solid #ffffff;
     padding: 8px;
-    background-color: #000044;
+    background-color: #000080;
     letter-spacing: 4px;
   }
 
   h2 {
-    color: #99ccff;
+    color: #000080;
     font-size: 14px;
-    border-left: 4px solid #99ccff;
+    border-left: 4px solid #000080;
     padding-left: 8px;
     margin-top: 24px;
   }
 
   a {
-    color: #ffcc00;
+    color: #0000ee;
     text-decoration: none;
   }
   a:hover {
-    color: #ffff99;
+    color: #ff0000;
     text-decoration: underline;
   }
   a:visited {
-    color: #cc9900;
+    color: #551a8b;
+  }
+  .tool-link {
+    color: #0000ee;
+    text-decoration: underline;
   }
 
   table {
@@ -49,41 +53,44 @@
     width: 100%;
     max-width: 700px;
     margin: 12px auto;
+    background-color: #f0f0f0;
+    border: 1px solid #808080;
   }
 
   th {
     background-color: #000080;
-    color: #ffffcc;
-    border: 1px solid #666699;
+    color: #ffffff;
+    border: 1px solid #808080;
     padding: 6px 12px;
     text-align: left;
   }
 
   td {
-    border: 1px solid #666699;
+    border: 1px solid #808080;
     padding: 6px 12px;
     vertical-align: top;
+    background-color: #f0f0f0;
   }
 
   tr:hover td {
-    background-color: #000044;
+    background-color: #d8d8d8;
   }
 
   .status-ok {
-    color: #99ff99;
+    color: #008000;
   }
   .status-wip {
-    color: #ffcc00;
+    color: #a52a2a;
   }
 
   .marquee-wrap {
-    background-color: #003300;
-    border: 1px solid #99ff99;
+    background-color: #f0f0f0;
+    border: 1px solid #808080;
     padding: 4px;
     margin: 16px auto;
     max-width: 700px;
     font-size: 12px;
-    color: #ccff99;
+    color: #ff0000;
     overflow: hidden;
     white-space: nowrap;
   }
@@ -101,15 +108,15 @@
   .footer {
     text-align: center;
     margin-top: 40px;
-    color: #cccccc;
+    color: #000000;
     font-size: 11px;
-    border-top: 1px solid #666666;
+    border-top: 1px solid #808080;
     padding-top: 12px;
   }
 
   .under-construction {
     text-align: center;
-    color: #ffcc00;
+    color: #a52a2a;
     font-size: 12px;
     margin: 8px 0;
   }
@@ -117,11 +124,14 @@
   .section-block {
     max-width: 700px;
     margin: 0 auto;
+    background-color: #e0e0e0;
+    border: 2px solid #808080;
+    padding: 12px;
   }
 
   hr {
     border: none;
-    border-top: 1px dashed #666699;
+    border-top: 1px dashed #808080;
     margin: 20px 0;
   }
 </style>
@@ -147,7 +157,7 @@
       <th>状態</th>
     </tr>
     <tr>
-      <td><a href="ks-editor/">KS Editor</a></td>
+      <td><a class="tool-link" href="ks-editor/">KS Editor</a></td>
       <td>ドキドキスクリプト Ver2 のイベントスクリプトを<br>ブラウザ上で編集・プレビューするツール</td>
       <td class="status-ok">● 稼働中</td>
     </tr>
