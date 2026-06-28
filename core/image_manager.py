@@ -1,5 +1,6 @@
 ﻿import pygame
 import os
+import re
 import warnings
 import asyncio
 import threading
@@ -7,6 +8,37 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from .config import get_textbox_position, get_ui_button_positions
 from .path_utils import get_project_root
+
+# キャラクターディレクトリのパターン: 01MMK, 02SNK 等
+_CHAR_DIR_RE = re.compile(r'^\d{2}[A-Z]{3}$')
+
+
+def _classify_stem(stem: str):
+    """ファイル名ステムからカテゴリを返す。
+    ネーミング規則: [CHAR]_[TYPE][N]...
+    戻り値: カテゴリ文字列 or None
+    """
+    # CGF/CGE/CGA を _CG より先に判定
+    if '_CGF' in stem:
+        if '_BRO' in stem: return 'cg_brow'
+        if '_EYE' in stem: return 'cg_eye'
+        if '_MOU' in stem: return 'cg_mouth'
+        if '_CHE' in stem: return 'cg_cheek'
+        return 'cg_brow'
+    if '_CGE' in stem: return 'cg_effect'
+    if '_CGA' in stem: return 'cg_accessory'
+    if '_CG'  in stem: return 'cg'
+    if '_T'   in stem: return 'torso'
+    if '_F'   in stem:
+        if '_BRO' in stem: return 'brow'
+        if '_EYE' in stem: return 'eye'
+        if '_MOU' in stem: return 'mouth'
+        if '_CHE' in stem: return 'cheek'
+    # _E数字 (エフェクト): _EYEと区別するため数字必須
+    if re.search(r'_E\d', stem): return 'effect'
+    # _A数字 (装飾): _ARMと区別
+    if re.search(r'_A\d', stem): return 'accessory'
+    return None
 
 class ImageManager:
     def __init__(self, debug=False, cache_size=50):
@@ -62,9 +94,9 @@ class ImageManager:
             return requested_size
             
         # ファイルパスから画像タイプを判定して推奨サイズを返す
-        if "characters" in filepath or "char" in filepath:
+        if "torso" in filepath or "char" in filepath:
             return self.default_sizes['character']
-        elif "eyes" in filepath or "mouths" in filepath or "brows" in filepath or "cheeks" in filepath:
+        elif "eye" in filepath or "mouth" in filepath or "brow" in filepath or "cheek" in filepath:
             return self.default_sizes['face_part']
         elif "bg" in filepath:
             return self.default_sizes['background']
@@ -293,68 +325,94 @@ class ImageManager:
         )
 
     def scan_image_paths(self, screen_width, screen_height):
-        """画像パスをスキャンして保存（実際の読み込みは遅延）"""
+        """画像パスをスキャンして保存（実際の読み込みは遅延）
+
+        ディレクトリ構成:
+          images/BG/          ← 背景 (BG_XXX_DAY.WEBP 等)
+          images/01MMK/ 等  ← キャラクター (ファイル名プレフィックスで分類)
+          images/UI/          ← UIパーツ (ui.text-box.png 等)
+          images/ICON/        ← アイコン
+        """
         self.image_paths = {
-            "backgrounds": {},
-            "characters": {},
-            "eyes": {},
-            "mouths": {},
-            "brows": {},
-            "cheeks": {},
-            "ui": {}
+            "bg":           {},
+            "torso":        {},
+            "brow":         {},
+            "eye":          {},
+            "mouth":        {},
+            "cheek":        {},
+            "effect":       {},
+            "accessory":    {},
+            "cg":           {},
+            "cg_brow":      {},
+            "cg_eye":       {},
+            "cg_mouth":     {},
+            "cg_cheek":     {},
+            "cg_effect":    {},
+            "cg_accessory": {},
+            "ui":           {},
+            "icon":         {},
         }
-        
-        # 背景サイズを設定
+
         self.default_sizes['background'] = (screen_width, screen_height)
 
-        # imagesディレクトリ内のすべてのファイルをスキャン
         project_root = get_project_root()
         images_dir = os.path.join(project_root, "images")
-        
+
         if self.debug:
             print(f"画像パススキャン開始: {images_dir}")
-            
+
         for root, dirs, files in os.walk(images_dir):
+            dir_name = os.path.basename(root)
             for file in files:
-                if file.endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                    file_path = os.path.join(root, file)
-                    file_name_without_ext = os.path.splitext(file)[0]
-                    
-                    if root.endswith("backgrounds"):
-                        # 完全なファイル名 (拡張子なし) で背景を登録
-                        bg_key = file_name_without_ext
-                        self.image_paths["backgrounds"][bg_key] = file_path
-                        
+                if not file.upper().endswith(('.PNG', '.JPG', '.JPEG', '.WEBP')):
+                    continue
+                file_path = os.path.join(root, file)
+                stem = os.path.splitext(file)[0]
+
+                if dir_name == 'BG':
+                    self.image_paths['bg'][stem] = file_path
+                    if self.debug:
+                        print(f"背景登録: {stem}")
+
+                elif _CHAR_DIR_RE.match(dir_name):
+                    category = _classify_stem(stem)
+                    if category and category in self.image_paths:
+                        self.image_paths[category][stem] = file_path
                         if self.debug:
-                            print(f"背景画像登録: {bg_key} -> {file_path}")
-                    elif "char" in file or root.endswith("characters") or root.endswith("桃子"):
-                        self.image_paths["characters"][file_name_without_ext] = file_path
-                    elif "eye" in file or root.endswith("eyes"):
-                        self.image_paths["eyes"][file_name_without_ext] = file_path
-                    elif "mouth" in file or root.endswith("mouths"):
-                        self.image_paths["mouths"][file_name_without_ext] = file_path
-                    elif "brow" in file or root.endswith("brows"):
-                        self.image_paths["brows"][file_name_without_ext] = file_path
-                    elif "cheek" in file or root.endswith("cheeks"):
-                        self.image_paths["cheeks"][file_name_without_ext] = file_path
-                    elif "ui" in file:
-                        ui_name = file.split('.')[1] if len(file.split('.')) >= 3 else file.split('.')[0]
-                        self.image_paths["ui"][ui_name] = file_path
-        
+                            print(f"{category}登録: {stem}")
+
+                elif dir_name == 'UI':
+                    parts = stem.split('.')
+                    ui_key = parts[1] if len(parts) >= 3 else parts[0]
+                    self.image_paths['ui'][ui_key] = file_path
+
+                elif dir_name == 'ICON':
+                    self.image_paths['icon'][stem] = file_path
+
         if self.debug:
-            total_images = sum(len(paths) for paths in self.image_paths.values())
-            print(f"画像パススキャン完了: {total_images}個の画像ファイルを発見")
+            total_images = sum(len(v) for v in self.image_paths.values())
+            print(f"画像パススキャン完了: {total_images}個")
     
     def load_essential_images(self, screen_width, screen_height):
         """必要最小限の画像のみを事前ロード"""
         images = {
-            "backgrounds": {},
-            "characters": {},
-            "eyes": {},
-            "mouths": {},
-            "brows": {},
-            "cheeks": {},
-            "ui": {}
+            "bg":           {},
+            "torso":        {},
+            "brow":         {},
+            "eye":          {},
+            "mouth":        {},
+            "cheek":        {},
+            "effect":       {},
+            "accessory":    {},
+            "cg":           {},
+            "cg_brow":      {},
+            "cg_eye":       {},
+            "cg_mouth":     {},
+            "cg_cheek":     {},
+            "cg_effect":    {},
+            "cg_accessory": {},
+            "ui":           {},
+            "icon":         {},
         }
         
         # UIの重要な画像のみ事前ロード
@@ -453,14 +511,14 @@ class ImageManager:
             print(f"キャラクター事前ロード開始: {character_name}")
         
         # キャラクターメイン画像をロード
-        char_img = self.get_image("characters", character_name)
+        char_img = self.get_image("torso", character_name)
         if char_img and self.debug:
             print(f"キャラクター画像ロード完了: {character_name} ({char_img.get_width()}x{char_img.get_height()})")
         
         # 顔パーツをロード
         if face_parts:
             for part_type, part_name in face_parts.items():
-                if part_name and part_type in ["eyes", "mouths", "brows", "cheeks"]:
+                if part_name and part_type in ["eye", "mouth", "brow", "cheek"]:
                     part_img = self.get_image(part_type, part_name)
                     if part_img and self.debug:
                         print(f"顔パーツロード完了: {part_type}/{part_name}")
@@ -474,13 +532,13 @@ class ImageManager:
         tasks = []
         
         # キャラクターメイン画像をロード
-        if "characters" in self.image_paths and character_name in self.image_paths["characters"]:
-            tasks.append(self.get_image_async("characters", character_name))
+        if "torso" in self.image_paths and character_name in self.image_paths["torso"]:
+            tasks.append(self.get_image_async("torso", character_name))
         
         # 顔パーツをロード
         if face_parts:
             for part_type, part_names in face_parts.items():
-                if part_type in ["eyes", "mouths", "brows", "cheeks"]:
+                if part_type in ["eye", "mouth", "brow", "cheek"]:
                     if isinstance(part_names, list):
                         for part_name in part_names:
                             if part_name:
@@ -515,21 +573,21 @@ class ImageManager:
                         if char_name and isinstance(char_name, str) and not char_name.startswith("_"):  # コマンドではない名前
                             if char_name not in character_usage:
                                 character_usage[char_name] = {
-                                    "eyes": set(),
-                                    "mouths": set(), 
-                                    "brows": set(),
-                                    "cheeks": set()
+                                    "eye": set(),
+                                    "mouth": set(), 
+                                    "brow": set(),
+                                    "cheek": set()
                                 }
                             
                             # 顔パーツ情報を追加（安全にチェック）
                             if len(entry) > 2 and entry[2] and isinstance(entry[2], str):  # eye
-                                character_usage[char_name]["eyes"].add(entry[2])
+                                character_usage[char_name]["eye"].add(entry[2])
                             if len(entry) > 3 and entry[3] and isinstance(entry[3], str):  # mouth
-                                character_usage[char_name]["mouths"].add(entry[3])
+                                character_usage[char_name]["mouth"].add(entry[3])
                             if len(entry) > 4 and entry[4] and isinstance(entry[4], str):  # brow
-                                character_usage[char_name]["brows"].add(entry[4])
+                                character_usage[char_name]["brow"].add(entry[4])
                             if len(entry) > 5 and entry[5] and isinstance(entry[5], str):  # cheek
-                                character_usage[char_name]["cheeks"].add(entry[5])
+                                character_usage[char_name]["cheek"].add(entry[5])
                 except Exception as e:
                     if self.debug:
                         print(f"エントリ処理エラー（スキップ）: {e}, entry: {entry}")
@@ -580,3 +638,4 @@ class ImageManager:
         
         if self.debug:
             print("ImageManager: リソースクリーンアップ完了")
+

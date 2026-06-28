@@ -57,13 +57,7 @@ def normalize_dialogue_data(raw_data):
             # 後方互換性: torsoがない場合はnameをフォールバック
             torso_id = entry.get('torso', char_name)
 
-            # 旧形式との互換性のため、桃子フォルダ用の名前変換を適用
-            if torso_id == "桃子":
-                torso_id = "T04_00_00"
-            elif torso_id == "サナコ":
-                torso_id = "T08_01_00"
-
-            # current_charは画像ロード用にtorso_idを保持（character_manager.pyとの互換性維持）
+            # current_charは画像ロード用にtorso_idを保持
             current_char = torso_id
 
             # 顔パーツはファイル名をそのまま使用
@@ -134,12 +128,7 @@ def normalize_dialogue_data(raw_data):
             # セリフデータを正規化形式で追加（スクロール情報も含む）
             scroll_continue = entry.get('scroll_continue', False)
             dialogue_char = entry['character']
-            # 桃子フォルダ用の名前変換（キャラクター管理用）
             converted_char = dialogue_char
-            if dialogue_char == "桃子":
-                converted_char = "T04_00_00"
-            elif dialogue_char == "サナコ":
-                converted_char = "T08_01_00"
             
             # 対話時の顔パーツもファイル名をそのまま使用
             dialogue_eye = entry['eye']

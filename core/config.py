@@ -74,7 +74,7 @@ CHARA_TRANSITION_DEFAULT_MS = 500
 
 # タイトル画面設定
 SHOW_TITLE_SCREEN = True            # タイトル画面を表示するかどうか（デバッグ時はFalseに）
-TITLE_IMAGE_PATH = "images/title.png"  # タイトル背景画像のパス
+TITLE_IMAGE_PATH = "images/UI/title.png"  # タイトル背景画像のパス
 TITLE_TEXT = "PRESS ANY KEY"        # タイトル画面のテキスト
 TITLE_TEXT_COLOR = (255, 255, 255)  # タイトルテキストの色
 TITLE_TEXT_Y_OFFSET = 100           # 画面中央からのY軸オフセット（下向き正数）
@@ -215,8 +215,13 @@ def get_next_blink_interval():
     """次の瞬きまでの間隔をランダムに決定"""
     return random.uniform(BLINK_MIN_INTERVAL, BLINK_MAX_INTERVAL)
 
-# CHARACTER_IMAGE_MAPを削除（ファイル名直接使用）
-# デフォルト用のマッピングは不要
+# キャラクター表示名 → キャラクターコード辞書
+# スクリプト内の //桃子// 等をファイル検索用コードに変換する
+CHAR_CODE = {
+    "桃子": "MMK",
+    "沙那子": "SNK",
+    "増田": "MST",
+}
 
 # キャラクターの性別データを読み込む
 CHARACTER_GENDERS = {}

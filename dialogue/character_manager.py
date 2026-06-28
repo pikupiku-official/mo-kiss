@@ -84,7 +84,7 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
         # 胴体IDを取得（新形式）後方互換性のためchar_nameをフォールバック
         torso_id = game_state.get('character_torso', {}).get(character_name, character_name)
         image_manager = game_state['image_manager']
-        char_img = image_manager.get_image("characters", torso_id)
+        char_img = image_manager.get_image("torso", torso_id)
         
         if char_img:
             char_width = char_img.get_width()
@@ -271,7 +271,7 @@ def start_blink_animation(game_state, character_name):
                 for suffix in sequence:
                     test_eye_type = f"{eye_base}_{suffix}"
                     # image_pathsに存在するか確認
-                    if 'eyes' not in image_manager.image_paths or test_eye_type not in image_manager.image_paths['eyes']:
+                    if 'eyes' not in image_manager.image_paths or test_eye_type not in image_manager.image_paths['eye']:
                         print(f"[BLINK] {character_name}: まばたき画像が存在しません: {test_eye_type} - まばたき無効化")
                         all_images_exist = False
                         break
@@ -410,7 +410,7 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     image_manager = game_state['image_manager']
 
     torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
-    char_img = image_manager.get_image("characters", torso_id)
+    char_img = image_manager.get_image("torso", torso_id)
     if not char_img:
         return
 
@@ -442,19 +442,19 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
                 from_id = fade.get('from')
                 to_id = fade.get('to')
                 if from_id:
-                    from_img = image_manager.get_image(part_type + "s", from_id)
+                    from_img = image_manager.get_image(part_type, from_id)
                     if from_img:
                         from_img = get_scaled_image(from_img, zoom_scale)
                         draw_part_image(from_img, int(255 * (1.0 - progress)))
                 if to_id:
-                    to_img = image_manager.get_image(part_type + "s", to_id)
+                    to_img = image_manager.get_image(part_type, to_id)
                     if to_img:
                         to_img = get_scaled_image(to_img, zoom_scale)
                         draw_part_image(to_img, int(255 * progress))
                 return
 
         if part_id:
-            part_img = image_manager.get_image(part_type + "s", part_id)
+            part_img = image_manager.get_image(part_type, part_id)
             if part_img:
                 part_img = get_scaled_image(part_img, zoom_scale)
                 draw_part_image(part_img)
@@ -486,7 +486,7 @@ def draw_characters(game_state):
         current_time = pygame.time.get_ticks()
         torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
 
-        char_img = image_manager.get_image("characters", torso_id)
+        char_img = image_manager.get_image("torso", torso_id)
         if not char_img:
             if DEBUG:
                 print(f"??: ????????'{char_name}' ????????")
@@ -496,7 +496,7 @@ def draw_characters(game_state):
         zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
 
         def draw_torso_image(torso_key, alpha=255):
-            torso_img = image_manager.get_image("characters", torso_key)
+            torso_img = image_manager.get_image("torso", torso_key)
             if not torso_img:
                 return None
             base_scale = VIRTUAL_HEIGHT / torso_img.get_height()
@@ -546,4 +546,5 @@ def draw_characters(game_state):
                 fade_map=fade_map,
                 current_time=current_time,
             )
+
 

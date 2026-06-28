@@ -403,7 +403,7 @@ class FieldMap(SubsystemBase):
         print("📁 load_character_images メソッド実行中...")
         # 現在のファイルからの相対パスを確実に計算
         project_root = _get_project_root()
-        icon_dir = os.path.join(project_root, "images", "icons")
+        icon_dir = os.path.join(project_root, "images", "ICON")
         icon_size = 35  # アイコンサイズ（通常時）
         
         print(f"プロジェクトルート: {project_root}")
