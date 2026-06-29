@@ -306,6 +306,29 @@
     return state;
   }
 
+  function findStepForSourceLine(parsed, sourceLine) {
+    const steps = parsed && Array.isArray(parsed.steps) ? parsed.steps : [];
+    if (!steps.length) return 0;
+    const line = Math.max(0, number(sourceLine, 0));
+    const exact = steps.findIndex((step) => step.sourceLine === line);
+    if (exact >= 0) return exact;
+    const containing = steps
+      .map((step, index) => ({ step, index }))
+      .filter(({ step }) => step.startLine <= line && line <= step.sourceLine)
+      .sort((a, b) => (a.step.sourceLine - a.step.startLine) - (b.step.sourceLine - b.step.startLine));
+    if (containing.length) return containing[0].index;
+    let best = 0;
+    let distance = Infinity;
+    steps.forEach((step, index) => {
+      const nextDistance = Math.abs(step.sourceLine - line);
+      if (nextDistance < distance) {
+        best = index;
+        distance = nextDistance;
+      }
+    });
+    return best;
+  }
+
   function classifyStem(stem) {
     if (stem.includes("_CGF")) {
       if (stem.includes("_BRO")) return "brow";
@@ -821,6 +844,7 @@
     parseTag,
     parseScenario,
     buildState,
+    findStepForSourceLine,
     applyAction,
     classifyStem,
     AssetIndex,

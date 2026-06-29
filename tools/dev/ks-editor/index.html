@@ -408,7 +408,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   </div>
 </div>
 
-<script src="preview_engine.js?v=20260629-bg-text-fix"></script>
+<script src="preview_engine.js?v=20260629-scene-map-fix"></script>
 <script>
 // ============================================================
 //  設定
@@ -1233,13 +1233,7 @@ const charaRenderer = new KSPreview.CanvasRenderer($('chara-canvas'),previewAsse
 let previewScenario=null,previewStep=0,previewDrawToken=0;
 
 function sourceLineToPreviewStep(line){
-  if(!previewScenario||!previewScenario.steps.length)return 0;
-  let best=0,bestDistance=Infinity;
-  previewScenario.steps.forEach((step,index)=>{
-    const distance=Math.abs(step.sourceLine-line);
-    if(distance<bestDistance){bestDistance=distance;best=index;}
-  });
-  return best;
+  return KSPreview.findStepForSourceLine(previewScenario,line);
 }
 
 async function drawPreview(){
@@ -1275,10 +1269,13 @@ function openPreviewAtLine(line=0){
   drawPreview();
 }
 
-$('btn-preview').addEventListener('click',()=>openPreviewAtLine(selectedStepIdx>=0?(currentSteps[selectedStepIdx]||{}).start_line||0:0));
+$('btn-preview').addEventListener('click',()=>{
+  const step=selectedStepIdx>=0?currentSteps[selectedStepIdx]:null;
+  openPreviewAtLine(step?(step.dialogue_line??step.start_line):0);
+});
 $('step-preview').addEventListener('click',()=>{
   const step=currentSteps[selectedStepIdx];
-  openPreviewAtLine(step?step.start_line:0);
+  openPreviewAtLine(step?(step.dialogue_line??step.start_line):0);
 });
 $('preview-close').addEventListener('click',()=>$('preview-modal').classList.add('hidden'));
 $('preview-first').addEventListener('click',()=>{previewStep=0;drawPreview();});

@@ -1567,9 +1567,9 @@ class EventEditorGUI(QMainWindow):
         self.step_highlight_timer.timeout.connect(self.update_step_highlights)
 
         # 自動保存タイマー (60秒)
-        self.autosave_timer = QTimer(self)
-        self.autosave_timer.timeout.connect(self._autosave)
-        self.autosave_timer.start(60 * 1000)
+        self.realtime_save_timer = QTimer(self)
+        self.realtime_save_timer.setSingleShot(True)
+        self.realtime_save_timer.timeout.connect(self._autosave)
 
         # ImageManagerを初期化（立ち絵プレビュー用）
         try:
@@ -1704,6 +1704,7 @@ class EventEditorGUI(QMainWindow):
         self.text_editor.setFont(QFont("Consolas", 11))
         self.text_editor.setAcceptRichText(False)
         self.text_editor.textChanged.connect(self.schedule_step_highlights)
+        self.text_editor.textChanged.connect(self._schedule_realtime_save)
         self.text_editor.setContextMenuPolicy(Qt.CustomContextMenu)
         self.text_editor.customContextMenuRequested.connect(self.show_step_context_menu)
         editor_layout.addWidget(self.text_editor)
@@ -1967,8 +1968,13 @@ class EventEditorGUI(QMainWindow):
                 self.file_listbox.blockSignals(False)
                 break
 
+    def _schedule_realtime_save(self):
+        """変更検知ごとに1秒デバウンスして自動保存"""
+        if self.current_file_path:
+            self.realtime_save_timer.start(1000)
+
     def _autosave(self):
-        """自動保存（60秒ごと、変更ありのみ）"""
+        """自動保存（変更検知から1秒後）"""
         if not self.current_file_path:
             return
         if not self._has_unsaved_changes():

@@ -106,6 +106,32 @@ test('scroll text keeps the latest blocks until scroll-stop', () => {
   assert.deepEqual(preview.buildState(parsed, 3).textBlocks.map((block) => block.body), ['四行目']);
 });
 
+test('scene jump maps an action-range start to the following dialogue step', () => {
+  const parsed = preview.parseScenario(`「前の背景」
+[bg_show storage="test.bg.9901"]
+//ナレ//
+「新しい背景」`);
+  assert.equal(parsed.steps[1].startLine, 1);
+  assert.equal(preview.findStepForSourceLine(parsed, 1), 1);
+  assert.equal(preview.findStepForSourceLine(parsed, parsed.steps[1].sourceLine), 1);
+  assert.equal(preview.buildState(parsed, preview.findStepForSourceLine(parsed, 1)).background.storage, 'test.bg.9901');
+});
+
+test('every real KS background switch selects the step carrying that background', () => {
+  const root = path.join(__dirname, '..', 'events');
+  for (const file of fs.readdirSync(root).filter((name) => name.endsWith('.ks'))) {
+    const parsed = preview.parseScenario(fs.readFileSync(path.join(root, file), 'utf8'));
+    parsed.steps.forEach((step, index) => {
+      const backgrounds = step.actions.filter((action) => ['bg', 'bg_show', 'background'].includes(action.type));
+      if (!backgrounds.length) return;
+      const mapped = preview.findStepForSourceLine(parsed, step.startLine);
+      assert.equal(mapped, index, `${file}: line ${step.startLine + 1} mapped to the wrong scene`);
+      const expected = backgrounds.at(-1).params.storage || backgrounds.at(-1).params.value;
+      assert.equal(preview.buildState(parsed, mapped).background.storage, expected, `${file}: wrong background at scene jump`);
+    });
+  }
+});
+
 test('classifyStem follows ImageManager naming rules', () => {
   assert.equal(preview.classifyStem('MMK_T01_ARM00_CLO00'), 'torso');
   assert.equal(preview.classifyStem('MMK_F01_EYE02_00'), 'eye');
