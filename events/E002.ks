@@ -115,7 +115,7 @@
 	//増田//
 　　　　「ごめん！それがさ、マエケンに呼ばれちった！」
 　　　　「飯は各自済ませるという事で、じゃ！」
-[chara_out name="増田"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
+[chara_hide name="増田"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
 
 [SE 走る足音（遠ざかる・小さくなっていく）]
 
