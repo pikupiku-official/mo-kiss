@@ -419,7 +419,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   </div>
 </div>
 
-<script src="preview_engine.js?v=20260629-save-confirm"></script>
+<script src="preview_engine.js?v=20260629-save-conflict"></script>
 <script>
 // ============================================================
 //  設定
@@ -480,12 +480,14 @@ if (isLoggedIn()) {
 //  読み取り: 直接GitHub API（公開リポなので認証不要）
 //  書き込み: api.php経由（PATはapi.php内のみ）
 // ============================================================
-const RAW    = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
 const GH_API = `https://api.github.com/repos/${REPO}`;
 
 // 読み取り用: 直接GitHub API（公開リポ、認証不要）
 async function ghGet(path) {
-  const url = path.startsWith('http') ? path : `${GH_API}/contents/${path}`;
+  const baseUrl = path.startsWith('http')
+    ? path
+    : `${GH_API}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
+  const url = baseUrl+(`${baseUrl.includes('?')?'&':'?'}_=${Date.now()}`);
   const r = await fetch(url, {
     headers: { Accept: 'application/vnd.github+json' },
     cache: 'no-store'
@@ -500,20 +502,17 @@ async function apiCall(action, path='', opts={}) {
   const r = await fetch(url, {
     method: opts.method || 'GET',
     headers: { 'Content-Type':'application/json', 'X-App-Secret': PASSWORD },
-    body: opts.body || undefined
+    body: opts.body || undefined,
+    cache: 'no-store'
   });
   if (!r.ok) {
     const j = await r.json().catch(()=>({}));
-    throw new Error(j.error || j.message || 'HTTP '+r.status);
+    const error=new Error(j.error || j.message || 'HTTP '+r.status);
+    error.status=r.status;
+    error.payload=j;
+    throw error;
   }
   return r.json();
-}
-
-// KSファイル内容取得
-async function rawFetch(path) {
-  const r = await fetch(RAW+path+'?_='+Date.now());
-  if (!r.ok) throw new Error('HTTP '+r.status);
-  return r.text();
 }
 
 // ============================================================
@@ -750,11 +749,11 @@ async function openFile(f, push=true) {
   $("ks-tbody").innerHTML = "";
 
   try {
-    // raw で取得しつつ sha も取る
-    const [text, meta] = await Promise.all([
-      rawFetch(f.path),
-      ghGet(f.path).catch(()=>null)  // SHA取得
-    ]);
+    // 本文とSHAは同じGitHub Contentsレスポンスから取得する。
+    // raw CDNとAPIを並列取得すると、更新直後に世代がずれて競合の原因になる。
+    const meta = await ghGet(f.path);
+    if(!meta||Array.isArray(meta)||!meta.content||!meta.sha)throw new Error('GitHubから本文とSHAを取得できません');
+    const text = fromB64(meta.content);
     currentText = text;
     lastSavedText = text;
     currentSha  = meta ? meta.sha : "";
@@ -1212,17 +1211,34 @@ async function saveStepChangesToGitHub(message){
   sbMsg('<span class="spinner"></span> SHA取得中…');
   try{
     const expectedText=currentText;
-    const latestMeta=await ghGet(currentFile.path).catch(()=>null);
-    const sha=latestMeta?latestMeta.sha:currentSha;
-    if(!sha){sbMsg('⚠ SHA取得失敗。再読み込みしてください',4000);return false;}
+    const baseText=lastSavedText;
+    let latestMeta=await apiCall('get',currentFile.path);
+    if(!latestMeta||!latestMeta.sha||!latestMeta.content)throw new Error('GitHubから最新SHAを取得できません');
+    if(fromB64(latestMeta.content)!==baseText){
+      throw new Error('競合: GitHub側が別の保存で更新されています。ページを再読み込みしてから編集してください（この画面の変更は未保存のまま保持されています）');
+    }
     sbMsg('<span class="spinner"></span> GitHubへ保存中…');
-    const res=await apiCall('save',currentFile.path,{
-      method:'PUT',body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha})
-    });
+    let res;
+    try{
+      res=await apiCall('save',currentFile.path,{
+        method:'PUT',body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha:latestMeta.sha})
+      });
+    }catch(error){
+      if(error.status!==409)throw error;
+      // GETとPUTの隙間でコミットが進んだ場合だけ再取得する。
+      // 元本文が変わっていれば上書きせず、変わっていなければ最新SHAで一度だけ再試行する。
+      latestMeta=await apiCall('get',currentFile.path);
+      if(!latestMeta||!latestMeta.sha||!latestMeta.content||fromB64(latestMeta.content)!==baseText){
+        throw new Error('競合: 保存中にGitHub側が更新されました。ページを再読み込みして編集内容を確認してください（この画面の変更は未保存のまま保持されています）');
+      }
+      res=await apiCall('save',currentFile.path,{
+        method:'PUT',body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha:latestMeta.sha})
+      });
+    }
     sbMsg('<span class="spinner"></span> GitHub上の保存内容を再確認中…');
     let verified=null;
     for(let attempt=0;attempt<3;attempt++){
-      verified=await ghGet(currentFile.path).catch(()=>null);
+      verified=await apiCall('get',currentFile.path).catch(()=>null);
       if(verified&&verified.sha===res.content.sha&&verified.content&&fromB64(verified.content)===expectedText)break;
       await new Promise(resolve=>setTimeout(resolve,500));
     }
