@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'tools/dev/**'
+      - '.github/workflows/deploy-ks-editor.yml'
   workflow_dispatch:
 
 jobs:
@@ -35,6 +36,8 @@ jobs:
 
       - name: Create remote directory and deploy
         run: |
+          printf '%s\n' "$GITHUB_SHA" > ./tools/dev/ks-editor/deploy-version.txt
+
           # mokiss の実際のパスを検出して使う（xargs -r: 空入力時は実行しない）
           WEB_PATH=$(sshpass -p "$SSH_PASS" ssh \
             -p $SSH_PORT \
@@ -73,3 +76,30 @@ jobs:
             -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             ./tools/dev/ \
             "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
+
+          REMOTE_SHA=$(sshpass -p "$SSH_PASS" ssh \
+            -p $SSH_PORT \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            $SSH_USER@$SSH_HOST \
+            "cat ${WEB_PATH}/dev/ks-editor/deploy-version.txt")
+
+          if [ "$REMOTE_SHA" != "$GITHUB_SHA" ]; then
+            echo "Remote deploy verification failed: expected $GITHUB_SHA, got $REMOTE_SHA"
+            exit 1
+          fi
+
+      - name: Verify public deployment
+        run: |
+          for attempt in 1 2 3 4 5; do
+            PUBLIC_SHA=$(curl -fsS "https://mokiss.jp/dev/ks-editor/deploy-version.txt?sha=${GITHUB_SHA}&attempt=${attempt}" || true)
+            if [ "$PUBLIC_SHA" = "$GITHUB_SHA" ]; then
+              echo "Public deployment verified: $PUBLIC_SHA"
+              exit 0
+            fi
+            echo "Attempt ${attempt}: expected $GITHUB_SHA, got ${PUBLIC_SHA:-<empty>}"
+            sleep 3
+          done
+
+          echo "Public deployment verification failed"
+          exit 1

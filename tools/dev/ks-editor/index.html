@@ -486,7 +486,10 @@ const GH_API = `https://api.github.com/repos/${REPO}`;
 // 読み取り用: 直接GitHub API（公開リポ、認証不要）
 async function ghGet(path) {
   const url = path.startsWith('http') ? path : `${GH_API}/contents/${path}`;
-  const r = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+  const r = await fetch(url, {
+    headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store'
+  });
   if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.message||'HTTP '+r.status); }
   return r.json();
 }

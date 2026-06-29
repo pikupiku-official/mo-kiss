@@ -45,6 +45,7 @@ test('Step editor exposes and verifies a real GitHub save path', () => {
   assert.match(html, /GitHub mainへ保存/);
   assert.match(html, /verified\.sha===res\.content\.sha/);
   assert.match(html, /fromB64\(verified\.content\)===expectedText/);
+  assert.match(html, /cache:\s*'no-store'/);
   assert.doesNotMatch(html, /\bsetLineNums\s*\(/);
 });
 
