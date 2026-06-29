@@ -39,6 +39,15 @@ test('preview uses the same UI image dimensions and font files as pygame', () =>
   }
 });
 
+test('Step editor exposes and verifies a real GitHub save path', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'tools', 'dev', 'ks-editor', 'index.html'), 'utf8');
+  assert.match(html, /id="step-save-github"/);
+  assert.match(html, /GitHub mainへ保存/);
+  assert.match(html, /verified\.sha===res\.content\.sha/);
+  assert.match(html, /fromB64\(verified\.content\)===expectedText/);
+  assert.doesNotMatch(html, /\bsetLineNums\s*\(/);
+});
+
 test('parseTag handles quoted values, full-width spaces, and tag aliases', () => {
   const tag = preview.parseTag('[chara_show name="桃子"　torso="MMK_T01_ARM00_CLO00" x="0.5"]');
   assert.equal(tag.type, 'chara_show');

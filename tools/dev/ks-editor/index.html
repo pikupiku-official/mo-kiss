@@ -143,7 +143,12 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
 .sp-input:focus,.sp-textarea:focus{border-color:var(--blue);}
 .sp-check{font-size:13px;color:var(--text);cursor:pointer;line-height:2;}
 .sp-check input{margin-right:6px;transform:scale(1.2);}
-#step-btns{padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;background:var(--panel2);border-top:1px solid var(--border);flex-shrink:0;}
+#step-btns{padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--panel2);border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;z-index:3;box-shadow:0 -3px 10px rgba(0,0,0,.35);}
+#step-save-state{font-size:11px;color:var(--comment);margin-left:auto;white-space:nowrap;}
+#step-save-state.unsaved{color:#ffd866;font-weight:bold;}
+#step-save-github{background:#287a36;color:#fff;font-weight:bold;border-color:#45a958;}
+#step-save-github.saved{background:#3c3f41;color:#9ca3a8;border-color:#666;}
+#step-save-github.busy{opacity:.65;pointer-events:none;}
 /* ビューモードのコード行 */
 .step-line{cursor:pointer;}
 .step-line:hover{filter:brightness(1.3);}
@@ -192,6 +197,10 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   .chara-box { width:100vw; max-height:100dvh; height:100dvh; grid-template-columns:1fr; grid-template-rows:minmax(220px,42vh) 1fr; border:0; }
   .chara-stage canvas { max-height:42vh; }
   .chara-form { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+  #step-panel{max-height:88dvh;}
+  #step-btns .smbtn{min-height:42px;padding:8px 10px;}
+  #step-save-state{order:20;width:100%;margin-left:0;text-align:right;}
+  #step-save-github{order:21;flex:1 1 100%;font-size:14px;min-height:48px !important;}
 }
 </style>
 </head>
@@ -280,7 +289,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   <div id="step-panel" class="sp-closed">
     <div id="step-panel-head">
       <span id="step-panel-title">Step #0</span>
-      <span style="font-size:11px;color:var(--comment);margin-left:8px">タップして編集→「適用」で反映→「保存」でGitHub書込</span>
+      <span style="font-size:11px;color:var(--comment);margin-left:8px">緑の「GitHub mainへ保存」でコミット・再取得確認まで実行</span>
       <button class="smbtn" id="step-close" style="margin-left:auto">閉じる</button>
     </div>
     <div class="sp-body">
@@ -310,8 +319,10 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
       <button class="smbtn danger" id="step-delete-btn">削除</button>
       <button class="smbtn" id="step-preview">▶ このStepをプレビュー</button>
       <button class="smbtn" id="step-chara-preview">🎨 立ち絵プレビュー</button>
-      <button class="smbtn" id="step-apply" style="background:var(--blue);color:#fff;font-weight:bold">適用</button>
-      <button class="smbtn" id="step-apply-save" style="background:#2a7a2a;color:#fff;font-weight:bold">適用して保存</button>
+      <button class="smbtn" id="step-apply" style="background:var(--blue);color:#fff;font-weight:bold">KSへ反映（未保存）</button>
+      <button class="smbtn" id="step-apply-save" style="background:#2a7a2a;color:#fff;font-weight:bold">GitHub mainへ保存</button>
+      <span id="step-save-state">✓ GitHub保存済み</span>
+      <button class="smbtn saved" id="step-save-github">✓ GitHub保存済み</button>
     </div>
   </div>
 
@@ -408,7 +419,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   </div>
 </div>
 
-<script src="preview_engine.js?v=20260629-scene-map-fix"></script>
+<script src="preview_engine.js?v=20260629-save-confirm"></script>
 <script>
 // ============================================================
 //  設定
@@ -682,7 +693,7 @@ function parseSteps(text) {
   return steps;
 }
 
-// setLineNums() は廃止: 行番号は renderWithSteps/renderGeneric が各<tr>に直接出力する
+// 行番号更新関数は廃止: renderWithSteps/renderGeneric が各<tr>に直接出力する
 
 function buildOutline(text) {
   const list = $("outline-list");
@@ -708,6 +719,21 @@ function buildOutline(text) {
 //  ファイルを開く
 // ============================================================
 let currentText = "";
+let lastSavedText = "";
+let lastConfirmedSha = "";
+let stepSaveBusy = false;
+
+function updateStepSaveState(){
+  const dirty=!!currentFile&&currentText!==lastSavedText;
+  const state=$('step-save-state'),button=$('step-save-github');
+  if(!state||!button)return dirty;
+  const sha=lastConfirmedSha?` (${lastConfirmedSha.slice(0,7)})`:'';
+  state.textContent=dirty?'● GitHub main未保存の変更あり':`✓ GitHub main保存済み${sha}`;
+  state.classList.toggle('unsaved',dirty);
+  button.textContent=dirty?'GitHub mainへ保存（未保存あり）':`✓ GitHub main保存済み${sha}`;
+  button.classList.toggle('saved',!dirty);
+  return dirty;
+}
 
 async function openFile(f, push=true) {
   currentFile = f;
@@ -727,7 +753,10 @@ async function openFile(f, push=true) {
       ghGet(f.path).catch(()=>null)  // SHA取得
     ]);
     currentText = text;
+    lastSavedText = text;
     currentSha  = meta ? meta.sha : "";
+    lastConfirmedSha = currentSha;
+    updateStepSaveState();
     const lines = text.split("\n");
     const isKSFile = f.name.endsWith('.ks');
     $("ks-tbody").innerHTML = isKSFile ? renderWithSteps(text) : renderGeneric(text);
@@ -809,7 +838,10 @@ async function saveFile() {
       method: 'PUT', body: JSON.stringify(body)
     });
     currentText = newText;
+    lastSavedText = newText;
     currentSha  = res.content.sha;
+    lastConfirmedSha = currentSha;
+    updateStepSaveState();
     const lines = newText.split("\n");
     $("ks-tbody").innerHTML = renderWithSteps(newText);
     attachStepClicks();
@@ -1124,6 +1156,7 @@ function openStepEditor(idx){
   $('step-actions').value=acts.join('\n');
   $('step-panel').classList.remove('sp-closed');
   $('btn-step-panel').classList.add('active');
+  updateStepSaveState();
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();
   const sel=$('ks-tbody').querySelector('.step-line[data-step="'+idx+'"]');
@@ -1145,8 +1178,8 @@ $('btn-step-panel').addEventListener('click',()=>{
   $('step-panel').classList.contains('sp-closed')?openStepPanel():closeStepPanel();
 });
 
-$('step-apply').addEventListener('click',()=>{
-  if(selectedStepIdx<0)return;
+function applyStepEditorChanges(){
+  if(selectedStepIdx<0)return false;
   const step=currentSteps[selectedStepIdx];
   const speaker=$('step-speaker').value,body=$('step-body').value;
   const scrollStop=$('step-scroll-stop').checked;
@@ -1155,43 +1188,70 @@ $('step-apply').addEventListener('click',()=>{
   stepMemos[selectedStepIdx]=memo;
   currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions,memo);
   currentSteps=parseStepsFromKS(currentText);
-  setLineNums(currentText.split('\n').length);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
-  sbMsg('\u2713 Step\u9069\u7528\u6e08 \u2014 \u300c\u9069\u7528\u3057\u3066\u4fdd\u5b58\u300d\u307e\u305f\u306f\u30e1\u30cb\u30e5\u30fc\u300c\u4fdd\u5b58\u300d\u3067GitHub\u306b\u53cd\u6620',3000);
-});
+  updateStepSaveState();
+  sbMsg('✓ KSへ反映済み（GitHubには未保存）',4000);
+  return true;
+}
 
-// Step適用して保存
-$('step-apply-save').addEventListener('click', async ()=>{
-  if(selectedStepIdx<0)return;
-  const step=currentSteps[selectedStepIdx];
-  const speaker=$('step-speaker').value,body=$('step-body').value;
-  const scrollStop=$('step-scroll-stop').checked;
-  const actions=$('step-actions').value.split('\n').filter(s=>s.trim());
-  const memo=$('step-memo').value;
-  stepMemos[selectedStepIdx]=memo;
-  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions,memo);
-  currentSteps=parseStepsFromKS(currentText);
-  setLineNums(currentText.split('\n').length);
-  $('ks-tbody').innerHTML=renderWithSteps(currentText);
-  attachStepClicks();buildOutline(currentText);
-  // そのままGitHubに保存
+async function saveStepChangesToGitHub(message){
   if(!currentFile)return;
-  const msg=`KSエディタ: ${currentFile.name} Step#${selectedStepIdx}を更新`;
+  if(stepSaveBusy)return;
+  if(!updateStepSaveState()){
+    sbMsg('✓ GitHub保存済み — 新しい変更はありません',2500);
+    return true;
+  }
+  stepSaveBusy=true;
+  $('step-save-github').classList.add('busy');
+  $('step-save-github').disabled=true;
+  $('step-apply-save').disabled=true;
   sbMsg('<span class="spinner"></span> SHA取得中…');
   try{
+    const expectedText=currentText;
     const latestMeta=await ghGet(currentFile.path).catch(()=>null);
     const sha=latestMeta?latestMeta.sha:currentSha;
-    if(!sha){sbMsg('\u26a0 SHA\u53d6\u5f97\u5931\u6557',4000);return;}
-    sbMsg('<span class="spinner"></span> \u4fdd\u5b58\u4e2d\u2026');
+    if(!sha){sbMsg('⚠ SHA取得失敗。再読み込みしてください',4000);return false;}
+    sbMsg('<span class="spinner"></span> GitHubへ保存中…');
     const res=await apiCall('save',currentFile.path,{
-      method:'PUT',body:JSON.stringify({message:msg,content:toB64(currentText),branch:BRANCH,sha})
+      method:'PUT',body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha})
     });
-    currentSha=res.content.sha;
-    sbMsg('\u2713 \u4fdd\u5b58\u5b8c\u4e86 ('+currentFile.name+')',3000);
+    sbMsg('<span class="spinner"></span> GitHub上の保存内容を再確認中…');
+    let verified=null;
+    for(let attempt=0;attempt<3;attempt++){
+      verified=await ghGet(currentFile.path).catch(()=>null);
+      if(verified&&verified.sha===res.content.sha&&verified.content&&fromB64(verified.content)===expectedText)break;
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    if(!verified||verified.sha!==res.content.sha||!verified.content||fromB64(verified.content)!==expectedText){
+      throw new Error('GitHub再取得時に保存内容またはSHAが一致しません');
+    }
+    currentSha=verified.sha;
+    lastConfirmedSha=verified.sha;
+    lastSavedText=expectedText;
+    updateStepSaveState();
+    sbMsg(`✓ GitHub mainへ保存・再取得確認済み SHA ${verified.sha.slice(0,7)}`,6000);
+    return true;
   }catch(e){
-    sbMsg('\u26a0 \u4fdd\u5b58\u5931\u6557: '+e.message,5000);
+    sbMsg('⚠ GitHub保存失敗: '+e.message,6000);
+    return false;
+  }finally{
+    stepSaveBusy=false;
+    $('step-save-github').classList.remove('busy');
+    $('step-save-github').disabled=false;
+    $('step-apply-save').disabled=false;
   }
+}
+
+$('step-apply').addEventListener('click',applyStepEditorChanges);
+$('step-save-github').addEventListener('click',()=>{
+  const index=selectedStepIdx>=0?selectedStepIdx:'編集';
+  saveStepChangesToGitHub(`KSエディタ: ${currentFile.name} Step#${index}を保存`);
+});
+$('step-apply-save').addEventListener('click',async()=>{
+  const index=selectedStepIdx;
+  if(!applyStepEditorChanges())return;
+  await saveStepChangesToGitHub(`KSエディタ: ${currentFile.name} Step#${index}を更新`);
 });
 
 $('step-delete-btn').addEventListener('click',()=>{
@@ -1202,10 +1262,10 @@ $('step-delete-btn').addEventListener('click',()=>{
   lines.splice(step.start_line,step.end_line-step.start_line+1);
   currentText=lines.join('\n');
   currentSteps=parseStepsFromKS(currentText);
-  setLineNums(currentText.split('\n').length);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
-  closeStepPanel();sbMsg('\u2713 Step\u524a\u9664\u6e08',3000);
+  updateStepSaveState();
+  closeStepPanel();sbMsg('✓ Step削除済み（GitHubには未保存）',4000);
 });
 
 function insertStepTemplate(before){
@@ -1216,10 +1276,10 @@ function insertStepTemplate(before){
   lines.splice(at,0,'; --- new step ---','//\u8a71\u8005//','\u300c\u30bb\u30ea\u30d5\u300d','');
   currentText=lines.join('\n');
   currentSteps=parseStepsFromKS(currentText);
-  setLineNums(currentText.split('\n').length);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
-  sbMsg('\u2713 \u30c6\u30f3\u30d7\u30ec\u30fc\u30c8\u633f\u5165\u6e08',2000);
+  updateStepSaveState();
+  sbMsg('✓ テンプレート挿入済み（GitHubには未保存）',4000);
 }
 $('step-ins-before').addEventListener('click',()=>insertStepTemplate(true));
 $('step-ins-after').addEventListener('click',()=>insertStepTemplate(false));
