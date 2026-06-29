@@ -47,7 +47,7 @@
 	「え、どんなやつだっけ？覚えてないや」
 
 
-[chara_shift name="桃子" torso="MMK_T01_ARM10_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU05_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" x="0.5" y="1.05" size="2.5"]
+[chara_shift name="桃子" eye="MMK_F00_EYE00_01" x="0.5" y="1.05" size="2.5"]
 //桃子//
 「強がり！ほんとだって！パイナップルソフトくださーい。」
 	//{苗字}//
