@@ -1,7 +1,40 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const preview = require('../tools/dev/ks-editor/preview_engine.js');
+
+test('render constants stay aligned with core/config.py', () => {
+  assert.deepEqual({ width: preview.VIRTUAL_WIDTH, height: preview.VIRTUAL_HEIGHT }, { width: 1440, height: 1080 });
+  assert.deepEqual(
+    {
+      textX: preview.RENDER_CONFIG.textStartX,
+      textY: preview.RENDER_CONFIG.textStartY,
+      nameX: preview.RENDER_CONFIG.nameStartX,
+      nameY: preview.RENDER_CONFIG.nameStartY,
+      chars: preview.RENDER_CONFIG.maxCharsPerLine,
+      lines: preview.RENDER_CONFIG.maxDisplayLines,
+      font: preview.RENDER_CONFIG.fontSize,
+      box: [preview.RENDER_CONFIG.textBoxX, preview.RENDER_CONFIG.textBoxY, preview.RENDER_CONFIG.textBoxWidth, preview.RENDER_CONFIG.textBoxHeight],
+    },
+    { textX: 298, textY: 798, nameX: 95, nameY: 798, chars: 20, lines: 3, font: 45, box: [50, 742, 1340, 288] },
+  );
+});
+
+test('preview uses the same UI image dimensions and font files as pygame', () => {
+  const root = path.join(__dirname, '..');
+  function pngSize(file) {
+    const bytes = fs.readFileSync(file);
+    return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
+  }
+  assert.deepEqual(pngSize(path.join(root, 'images', 'UI', 'ui.text-box.png')), [1340, 288]);
+  assert.deepEqual(pngSize(path.join(root, 'images', 'UI', 'ui.auto.png')), [100, 28]);
+  assert.deepEqual(pngSize(path.join(root, 'images', 'UI', 'ui.skip.png')), [83, 28]);
+  for (const font of ['MPLUS1p-Medium.ttf', 'MPLUS1p-Bold.ttf', 'MPLUS1p-Regular.ttf']) {
+    assert.ok(fs.statSync(path.join(root, 'fonts', font)).size > 1_000_000);
+  }
+});
 
 test('parseTag handles quoted values, full-width spaces, and tag aliases', () => {
   const tag = preview.parseTag('[chara_show name="桃子"　torso="MMK_T01_ARM00_CLO00" x="0.5"]');
@@ -44,6 +77,30 @@ test('buildState replays background and character state up to selected step', ()
   assert.equal(second.characters['桃子'].size, 0.8);
   assert.equal(second.characters['桃子'].mouth, 'MMK_F00_MOU01_00');
   assert.equal(second.text.body, '二行目');
+});
+
+test('background positioning matches background_manager virtual offsets', () => {
+  const parsed = preview.parseScenario(`[bg_show storage="school" bg_x="1" bg_y="0" bg_zoom="2"]
+「背景」
+[bg_move left="-0.1" top="0.1" bg_zoom="2"]
+「移動後」`);
+  const first = preview.buildState(parsed, 0);
+  assert.equal(first.background.offsetX, 720);
+  assert.equal(first.background.offsetY, -540);
+  const second = preview.buildState(parsed, 1);
+  assert.equal(second.background.offsetX, 576);
+  assert.equal(second.background.offsetY, -432);
+});
+
+test('scroll text keeps the latest blocks until scroll-stop', () => {
+  const parsed = preview.parseScenario(`//桃子//
+「一行目」
+「二行目」
+「三行目」[scroll-stop]
+「四行目」`);
+  assert.equal(preview.buildState(parsed, 1).textBlocks.length, 2);
+  assert.deepEqual(preview.buildState(parsed, 2).textBlocks.map((block) => block.body), ['一行目', '二行目', '三行目']);
+  assert.deepEqual(preview.buildState(parsed, 3).textBlocks.map((block) => block.body), ['四行目']);
 });
 
 test('classifyStem follows ImageManager naming rules', () => {

@@ -10,6 +10,32 @@
   const LAYER_ORDER = ["torso", "brow", "cheek", "eye", "mouth", "effect", "accessory"];
   const FACE_PARTS = new Set(["brow", "cheek", "eye", "mouth"]);
   const CHAR_CODES = { "桃子": "MMK", "沙那子": "SNK", "サナコ": "SNK", "増田": "MST" };
+  const FEMALE_CHARACTERS = new Set(["桃子", "サナコ", "沙那子", "烏丸神無", "桔梗美鈴", "宮月深依里", "伊織紅"]);
+  const RENDER_CONFIG = Object.freeze({
+    textStartX: 298,
+    textStartY: 798,
+    nameStartX: 95,
+    nameStartY: 798,
+    fontSize: 45,
+    dateFontSize: 43,
+    maxCharsPerLine: 20,
+    maxDisplayLines: 3,
+    charSpacing: 2,
+    glyphHeight: 54,
+    lineHeight: 59,
+    rubyFontSize: 18,
+    rubyHeight: 5,
+    stretchFactor: 1.05,
+    pixelateFactor: 2,
+    shadowOffsetX: 6,
+    shadowOffsetY: 6,
+    textColor: "rgb(255,255,255)",
+    femaleTextColor: "rgb(255,200,255)",
+    textBoxX: 50,
+    textBoxY: 742,
+    textBoxWidth: 1340,
+    textBoxHeight: 288,
+  });
 
   function number(value, fallback) {
     const parsed = Number.parseFloat(value);
@@ -47,6 +73,7 @@
     let speaker = "";
     let pendingActions = [];
     let pendingStart = null;
+    let hasDialogueSinceStop = false;
 
     const emit = (line, body, actions, extra = {}) => {
       steps.push({
@@ -57,6 +84,7 @@
         body: body || "",
         actions: actions || [],
         scrollStop: !!extra.scrollStop,
+        scroll: !!extra.scroll,
         memo: extra.memo || "",
       });
       pendingStart = null;
@@ -84,8 +112,9 @@
         const inlineTags = [...trimmed.matchAll(/\[[^\]]+\]/g)].map((m) => parseTag(m[0])).filter(Boolean);
         const scrollStop = inlineTags.some((tag) => tag.type === "scroll_stop");
         const actions = pendingActions.concat(inlineTags.filter((tag) => tag.type !== "scroll_stop"));
-        emit(index, dialogueMatch[1], actions, { scrollStop });
+        emit(index, dialogueMatch[1], actions, { scrollStop, scroll: hasDialogueSinceStop && !scrollStop });
         pendingActions = [];
+        hasDialogueSinceStop = !scrollStop;
         continue;
       }
 
@@ -95,6 +124,7 @@
         if (tag.type === "scroll_stop") {
           if (steps.length) steps[steps.length - 1].scrollStop = true;
           else pendingActions.push(tag);
+          hasDialogueSinceStop = false;
           continue;
         }
         if (pendingStart == null) pendingStart = index;
@@ -115,6 +145,9 @@
       background: null,
       characters: {},
       text: { speaker: "", body: "" },
+      textBlocks: [],
+      previousText: null,
+      scrollMode: false,
       choices: [],
       fade: { color: "black", opacity: 0 },
       audio: { bgm: "", se: "" },
@@ -131,21 +164,37 @@
       return;
     }
     if (type === "bg" || type === "bg_show" || type === "background") {
+      const zoom = Math.max(0.5, Math.min(3, number(p.bg_zoom ?? p.zoom, 1)));
+      const x = Math.max(0, Math.min(1, number(p.bg_x ?? p.x, 0.5)));
+      const y = Math.max(0, Math.min(1, number(p.bg_y ?? p.y, 0.5)));
+      const maxOffsetX = zoom >= 1 ? VIRTUAL_WIDTH * (zoom - 1) / 2 : VIRTUAL_WIDTH * (1 - zoom) / 4;
+      const maxOffsetY = zoom >= 1 ? VIRTUAL_HEIGHT * (zoom - 1) / 2 : VIRTUAL_HEIGHT * (1 - zoom) / 4;
       state.background = {
         storage: p.storage || p.value || "",
-        x: number(p.bg_x ?? p.x, 0.5),
-        y: number(p.bg_y ?? p.y, 0.5),
-        zoom: number(p.bg_zoom ?? p.zoom, 1),
+        x,
+        y,
+        offsetX: (x - 0.5) * maxOffsetX * 2,
+        offsetY: (y - 0.5) * maxOffsetY * 2,
+        zoom,
       };
       return;
     }
     if (type === "bg_move") {
-      const old = state.background || { storage: "", x: 0.5, y: 0.5, zoom: 1 };
+      const old = state.background || { storage: "", x: 0.5, y: 0.5, offsetX: 0, offsetY: 0, zoom: 1 };
+      const zoom = Math.max(0.5, Math.min(3, number(p.bg_zoom ?? p.zoom, old.zoom)));
+      const left = Math.max(-0.3, Math.min(0.3, number(p.bg_left ?? p.left, 0)));
+      const top = Math.max(-0.3, Math.min(0.3, number(p.bg_top ?? p.top, 0)));
+      const maxMoveX = zoom >= 1 ? VIRTUAL_WIDTH * (zoom - 1) / 2 : VIRTUAL_WIDTH * (1 - zoom) / 4;
+      const maxMoveY = zoom >= 1 ? VIRTUAL_HEIGHT * (zoom - 1) / 2 : VIRTUAL_HEIGHT * (1 - zoom) / 4;
+      const maxFinalX = zoom >= 1 ? VIRTUAL_WIDTH * (zoom - 1) / 2 : VIRTUAL_WIDTH * (1 - zoom) / 4;
+      const maxFinalY = zoom >= 1 ? VIRTUAL_HEIGHT * (zoom - 1) / 2 : VIRTUAL_HEIGHT * (1 - zoom) / 4;
       state.background = {
         storage: p.storage || old.storage,
-        x: old.x + number(p.bg_left ?? p.left, 0),
-        y: old.y + number(p.bg_top ?? p.top, 0),
-        zoom: number(p.bg_zoom ?? p.zoom, old.zoom),
+        x: old.x,
+        y: old.y,
+        offsetX: Math.max(-maxFinalX, Math.min(maxFinalX, (old.offsetX || 0) + left * maxMoveX * 2)),
+        offsetY: Math.max(-maxFinalY, Math.min(maxFinalY, (old.offsetY || 0) + top * maxMoveY * 2)),
+        zoom,
       };
       return;
     }
@@ -231,9 +280,27 @@
     const last = Math.min(Math.max(number(stepIndex, 0), 0), Math.max(parsed.steps.length - 1, 0));
     for (let index = 0; index <= last && index < parsed.steps.length; index += 1) {
       const step = parsed.steps[index];
+      if (index > 0 && parsed.steps[index - 1].scrollStop) {
+        state.scrollMode = false;
+        state.textBlocks = [];
+        state.previousText = null;
+      }
       state.choices = [];
       for (const action of step.actions) applyAction(state, action);
-      if (step.body) state.text = { speaker: step.speaker || "", body: step.body };
+      if (step.body) {
+        const block = { speaker: step.speaker || "", body: step.body };
+        if (state.scrollMode) {
+          state.textBlocks.push(block);
+        } else if (step.scroll && state.previousText) {
+          state.textBlocks = [state.previousText, block];
+          state.scrollMode = true;
+        } else {
+          state.textBlocks = [block];
+        }
+        if (state.textBlocks.length > 3) state.textBlocks = state.textBlocks.slice(-3);
+        state.previousText = block;
+        state.text = block;
+      }
     }
     state.stepIndex = last;
     return state;
@@ -266,9 +333,11 @@
       this.rawBase = options.rawBase || `https://raw.githubusercontent.com/${this.repo}/${this.branch}/`;
       this.fetch = options.fetch || (typeof fetch !== "undefined" ? fetch.bind(globalThis) : null);
       this.backgrounds = null;
+      this.ui = null;
       this.charDirs = null;
       this.characters = new Map();
       this.images = new Map();
+      this.timeTextPromise = null;
     }
 
     async list(path) {
@@ -291,6 +360,43 @@
         }));
       }
       return this.backgrounds;
+    }
+
+    async loadUI() {
+      if (!this.ui) {
+        const items = await this.list("images/UI");
+        this.ui = items.filter((item) => item.type === "file").map((item) => ({
+          name: item.name,
+          stem: item.name.replace(/\.[^.]+$/, ""),
+          url: item.download_url || `${this.rawBase}${item.path}`,
+        }));
+      }
+      return this.ui;
+    }
+
+    async resolveUI(key) {
+      const items = await this.loadUI();
+      const wanted = String(key || "").toLowerCase();
+      return items.find((item) => item.stem.toLowerCase() === wanted)
+        || items.find((item) => item.stem.toLowerCase() === `ui.${wanted}`)
+        || null;
+    }
+
+    fontUrl(fileName) {
+      return `${this.rawBase}fonts/${encodeURIComponent(fileName)}`;
+    }
+
+    async loadTimeText() {
+      if (!this.timeTextPromise) {
+        this.timeTextPromise = (async () => {
+          const response = await this.fetch(`${this.rawBase}data/current_state/time_state.json`);
+          if (!response.ok) throw new Error(`time state HTTP ${response.status}`);
+          const value = await response.json();
+          const weekdays = ["月", "火", "水", "木", "金", "土", "日"];
+          return `${value.year || 1999}年${value.month || 5}月${value.day || 31}日(${weekdays[value.weekday || 0]}) ${value.period || "朝"}`;
+        })().catch(() => "1999年5月31日(月) 朝");
+      }
+      return this.timeTextPromise;
     }
 
     async loadCharDirs() {
@@ -384,22 +490,57 @@
       this.assets = assets;
       this.canvas.width = VIRTUAL_WIDTH;
       this.canvas.height = VIRTUAL_HEIGHT;
+      this.fontReady = null;
+      this.glyphCache = new Map();
+      this.tintedTextBox = null;
+    }
+
+    createCanvas(width, height) {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.ceil(width));
+      canvas.height = Math.max(1, Math.ceil(height));
+      return canvas;
+    }
+
+    async ready() {
+      if (this.fontReady) return this.fontReady;
+      this.fontReady = (async () => {
+        if (typeof FontFace === "undefined" || typeof document === "undefined") return;
+        const definitions = [
+          ["MokissText", "MPLUS1p-Medium.ttf", "500"],
+          ["MokissName", "MPLUS1p-Bold.ttf", "700"],
+          ["MokissDate", "MPLUS1p-Regular.ttf", "400"],
+        ];
+        for (const [family, file, weight] of definitions) {
+          const face = new FontFace(family, `url("${this.assets.fontUrl(file)}")`, { weight });
+          await face.load();
+          document.fonts.add(face);
+        }
+        await document.fonts.ready;
+      })().catch((error) => {
+        console.warn("プレビューフォントの読み込みに失敗しました", error);
+      });
+      return this.fontReady;
     }
 
     async draw(state) {
+      await this.ready();
       const ctx = this.ctx;
       ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-      ctx.fillStyle = "#141428";
+      ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
       await this.drawBackground(state.background);
       for (const character of Object.values(state.characters)) await this.drawCharacter(character);
-      this.drawText(state.text, state.choices);
       if (state.fade.opacity) {
         ctx.globalAlpha = state.fade.opacity;
         ctx.fillStyle = state.fade.color || "black";
         ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
         ctx.globalAlpha = 1;
       }
+      await this.drawUI();
+      if (state.choices && state.choices.length) this.drawChoices(state.choices);
+      else this.drawDialogue(state.textBlocks && state.textBlocks.length ? state.textBlocks : [state.text]);
+      this.drawDate(state.timeText || await this.assets.loadTimeText());
     }
 
     async drawBackground(background) {
@@ -407,11 +548,16 @@
       const item = await this.assets.resolveBackground(background.storage);
       if (!item) return;
       const image = await this.assets.image(item.url);
-      const cover = Math.max(VIRTUAL_WIDTH / image.width, VIRTUAL_HEIGHT / image.height) * background.zoom;
-      const width = image.width * cover;
-      const height = image.height * cover;
-      const x = VIRTUAL_WIDTH * background.x - width / 2;
-      const y = VIRTUAL_HEIGHT * background.y - height / 2;
+      const zoom = number(background.zoom, 1);
+      const width = VIRTUAL_WIDTH * zoom;
+      const height = VIRTUAL_HEIGHT * zoom;
+      if (zoom < 1) {
+        this.ctx.fillStyle = "rgb(20,20,40)";
+        this.ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      }
+      const x = VIRTUAL_WIDTH / 2 - width / 2 + number(background.offsetX, 0);
+      const y = VIRTUAL_HEIGHT / 2 - height / 2 + number(background.offsetY, 0);
+      // ImageManager は背景を先に画面サイズへ変形してからズームする。
       this.ctx.drawImage(image, x, y, width, height);
     }
 
@@ -437,42 +583,222 @@
       }
     }
 
-    drawText(text, choices) {
-      const ctx = this.ctx;
-      if ((!text || !text.body) && !(choices && choices.length)) return;
-      const x = 50;
-      const y = 742;
-      const width = 1340;
-      const height = 288;
-      ctx.fillStyle = "rgba(18, 43, 70, .88)";
-      ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = "rgba(130, 185, 230, .7)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, width, height);
-      ctx.fillStyle = "#fff";
-      ctx.font = '45px "Yu Gothic", "Meiryo", sans-serif';
-      if (text && text.speaker) ctx.fillText(text.speaker, 92, 814);
-      const body = choices && choices.length ? choices.map((value, index) => `${index + 1}. ${value}`).join("　") : text.body;
-      this.wrapText(body, 294, 814, 1040, 62, 3);
+    async drawUI() {
+      const [textBoxItem, autoItem, skipItem] = await Promise.all([
+        this.assets.resolveUI("text-box"),
+        this.assets.resolveUI("auto"),
+        this.assets.resolveUI("skip"),
+      ]);
+      if (textBoxItem) {
+        const image = await this.assets.image(textBoxItem.url);
+        if (!this.tintedTextBox) {
+          const tint = this.createCanvas(RENDER_CONFIG.textBoxWidth, RENDER_CONFIG.textBoxHeight);
+          const tctx = tint.getContext("2d");
+          tctx.drawImage(image, 0, 0, tint.width, tint.height);
+          tctx.globalCompositeOperation = "multiply";
+          tctx.fillStyle = "rgb(40,83,120)";
+          tctx.fillRect(0, 0, tint.width, tint.height);
+          tctx.globalCompositeOperation = "destination-in";
+          tctx.drawImage(image, 0, 0, tint.width, tint.height);
+          tctx.globalCompositeOperation = "source-over";
+          this.tintedTextBox = tint;
+        }
+        this.ctx.drawImage(this.tintedTextBox, RENDER_CONFIG.textBoxX, RENDER_CONFIG.textBoxY);
+      }
+      if (autoItem) {
+        const image = await this.assets.image(autoItem.url);
+        this.ctx.drawImage(image, 1162, 750, 99, 27);
+      }
+      if (skipItem) {
+        const image = await this.assets.image(skipItem.url);
+        this.ctx.drawImage(image, 1284, 750, 81, 27);
+      }
     }
 
-    wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
-      const ctx = this.ctx;
-      let line = "";
-      let row = 0;
-      for (const char of String(text || "")) {
-        const candidate = line + char;
-        if (ctx.measureText(candidate).width > maxWidth && line) {
-          ctx.fillText(line, x, y + row * lineHeight);
-          row += 1;
-          if (row >= maxLines) return;
-          line = char;
-        } else line = candidate;
+    font(family, size, weight) {
+      return `${weight || 500} ${size}px "${family}", "M PLUS 1p", sans-serif`;
+    }
+
+    gridWidth(family = "MokissText", weight = 500) {
+      this.ctx.font = this.font(family, RENDER_CONFIG.fontSize, weight);
+      return Math.floor(this.ctx.measureText("あ").width * RENDER_CONFIG.stretchFactor) + RENDER_CONFIG.charSpacing;
+    }
+
+    renderGlyph(char, color, family = "MokissText", size = RENDER_CONFIG.fontSize, weight = 500) {
+      const key = `${char}|${color}|${family}|${size}|${weight}`;
+      if (this.glyphCache.has(key)) return this.glyphCache.get(key);
+      const probe = this.createCanvas(size * 2, RENDER_CONFIG.glyphHeight);
+      const pctx = probe.getContext("2d");
+      pctx.font = this.font(family, size, weight);
+      pctx.textBaseline = "top";
+      const width = Math.max(1, Math.ceil(pctx.measureText(char).width + 3));
+      const height = size === RENDER_CONFIG.fontSize ? RENDER_CONFIG.glyphHeight : Math.ceil(size * 1.2);
+      probe.width = width;
+      probe.height = height;
+      pctx.font = this.font(family, size, weight);
+      pctx.textBaseline = "top";
+      pctx.fillStyle = color;
+      pctx.fillText(char, 0, 0);
+
+      const small = this.createCanvas(Math.max(1, Math.floor(width / RENDER_CONFIG.pixelateFactor)), Math.max(1, Math.floor(height / RENDER_CONFIG.pixelateFactor)));
+      const sctx = small.getContext("2d");
+      sctx.imageSmoothingEnabled = true;
+      sctx.drawImage(probe, 0, 0, small.width, small.height);
+      const output = this.createCanvas(Math.round(width * RENDER_CONFIG.stretchFactor), height);
+      const octx = output.getContext("2d");
+      octx.imageSmoothingEnabled = true;
+      octx.drawImage(small, 0, 0, output.width, output.height);
+      this.glyphCache.set(key, output);
+      return output;
+    }
+
+    drawEffectGlyph(char, x, y, color, family = "MokissText", size = RENDER_CONFIG.fontSize, weight = 500) {
+      const shadow = this.renderGlyph(char, "rgb(0,0,0)", family, size, weight);
+      const glyph = this.renderGlyph(char, color, family, size, weight);
+      this.ctx.drawImage(shadow, x + RENDER_CONFIG.shadowOffsetX, y + RENDER_CONFIG.shadowOffsetY);
+      this.ctx.drawImage(glyph, x, y);
+    }
+
+    parseMarkup(text) {
+      const tokens = [];
+      const pattern = /\{([^}|]+)\|([^}]+)\}|\{boten:([^}]+)\}/g;
+      let last = 0;
+      let match;
+      while ((match = pattern.exec(String(text || "")))) {
+        for (const char of text.slice(last, match.index)) tokens.push({ type: "plain", char, length: 1 });
+        if (match[1] != null) tokens.push({ type: "ruby", base: match[1], ruby: match[2], length: [...match[1]].length });
+        else tokens.push({ type: "boten", base: match[3], length: [...match[3]].length });
+        last = pattern.lastIndex;
       }
-      if (line && row < maxLines) ctx.fillText(line, x, y + row * lineHeight);
+      for (const char of String(text || "").slice(last)) tokens.push({ type: "plain", char, length: 1 });
+      return tokens;
+    }
+
+    wrapMarkup(text) {
+      const result = [];
+      for (const paragraph of String(text || "").split("\n")) {
+        if (!paragraph) { result.push([]); continue; }
+        const tokens = this.parseMarkup(paragraph);
+        let line = [];
+        let count = 0;
+        for (const token of tokens) {
+          if (count + token.length > RENDER_CONFIG.maxCharsPerLine && line.length) {
+            result.push(line);
+            line = [];
+            count = 0;
+          }
+          line.push(token);
+          count += token.length;
+        }
+        if (line.length) result.push(line);
+      }
+      return result;
+    }
+
+    drawRuby(text, x, y, spanWidth, color) {
+      const chars = [...String(text || "")];
+      if (!chars.length) return;
+      this.ctx.font = this.font("MokissText", RENDER_CONFIG.rubyFontSize, 500);
+      this.ctx.textBaseline = "top";
+      this.ctx.fillStyle = color;
+      const widths = chars.map((char) => this.ctx.measureText(char).width);
+      const total = widths.reduce((sum, value) => sum + value, 0);
+      if (chars.length === 1) {
+        this.ctx.fillText(chars[0], x + (spanWidth - widths[0]) / 2, y);
+        return;
+      }
+      const gap = total >= spanWidth ? 0 : (spanWidth - total) / (chars.length - 1);
+      let cursor = x;
+      chars.forEach((char, index) => {
+        this.ctx.fillText(char, cursor, y);
+        cursor += widths[index] + gap;
+      });
+    }
+
+    drawTokenLine(tokens, x, y, color) {
+      const grid = this.gridWidth();
+      let count = 0;
+      for (const token of tokens) {
+        if (count >= RENDER_CONFIG.maxCharsPerLine) break;
+        if (token.type === "plain") {
+          this.drawEffectGlyph(token.char, x + count * grid, y, color);
+          count += 1;
+          continue;
+        }
+        const chars = [...token.base].slice(0, RENDER_CONFIG.maxCharsPerLine - count);
+        chars.forEach((char, index) => this.drawEffectGlyph(char, x + (count + index) * grid, y, color));
+        if (token.type === "ruby") {
+          this.drawRuby(token.ruby, x + count * grid, y - RENDER_CONFIG.rubyHeight, grid * chars.length, color);
+        } else {
+          chars.forEach((char, index) => this.drawRuby("·", x + (count + index) * grid, y - RENDER_CONFIG.rubyHeight, grid, color));
+        }
+        count += chars.length;
+      }
+    }
+
+    textColor(speaker) {
+      return FEMALE_CHARACTERS.has(String(speaker || "")) ? RENDER_CONFIG.femaleTextColor : RENDER_CONFIG.textColor;
+    }
+
+    drawName(name, y, color) {
+      if (!name) return;
+      const chars = [...String(name)];
+      const display = chars.length === 1 ? ["　", chars[0], "　"] : chars.length === 2 ? [chars[0], "　", chars[1]] : chars;
+      const grid = this.gridWidth("MokissName", 700);
+      display.forEach((char, index) => this.drawEffectGlyph(char, RENDER_CONFIG.nameStartX + index * grid, y, color, "MokissName", RENDER_CONFIG.fontSize, 700));
+    }
+
+    drawDialogue(blocks) {
+      const lines = [];
+      for (const block of blocks || []) {
+        if (!block || !block.body) continue;
+        const wrapped = this.wrapMarkup(block.body);
+        wrapped.forEach((tokens, index) => lines.push({ tokens, speaker: block.speaker || "", first: index === 0 }));
+      }
+      const visible = lines.slice(-RENDER_CONFIG.maxDisplayLines);
+      let previousSpeaker = null;
+      visible.forEach((line, index) => {
+        const y = RENDER_CONFIG.textStartY + index * RENDER_CONFIG.lineHeight;
+        const color = this.textColor(line.speaker);
+        if (line.speaker && (index === 0 || line.speaker !== previousSpeaker)) this.drawName(line.speaker, y, color);
+        this.drawTokenLine(line.tokens, RENDER_CONFIG.textStartX, y, color);
+        previousSpeaker = line.speaker || previousSpeaker;
+      });
+    }
+
+    choiceLayout(count) {
+      if (count <= 3) return [1, [count]];
+      if (count <= 6) return [2, [Math.ceil(count / 2), Math.floor(count / 2)]];
+      return [3, [Math.ceil(count / 3), Math.ceil((count - Math.ceil(count / 3)) / 2), Math.floor(count / 3)]];
+    }
+
+    drawChoices(choices) {
+      const values = choices.slice(0, 9);
+      const layout = this.choiceLayout(values.length);
+      let consumed = 0;
+      layout[1].forEach((rows, column) => {
+        for (let row = 0; row < rows; row += 1) {
+          const value = values[consumed++];
+          const lines = this.wrapMarkup(value);
+          const height = Math.max(1, lines.length) * RENDER_CONFIG.lineHeight;
+          const x = 95 + column * (337 + 37);
+          const y = 798 + row * height;
+          lines.forEach((tokens, lineIndex) => this.drawTokenLine(tokens, x, y + lineIndex * RENDER_CONFIG.lineHeight, RENDER_CONFIG.textColor));
+        }
+      });
+    }
+
+    drawDate(text) {
+      this.ctx.font = this.font("MokissDate", RENDER_CONFIG.dateFontSize, 400);
+      this.ctx.textBaseline = "top";
+      this.ctx.fillStyle = "rgb(0,0,0)";
+      this.ctx.fillText(text, 22 + RENDER_CONFIG.shadowOffsetX, 30 + RENDER_CONFIG.shadowOffsetY);
+      this.ctx.fillStyle = "rgb(255,255,255)";
+      this.ctx.fillText(text, 22, 30);
     }
 
     async drawComposite(fields, code) {
+      await this.ready();
       const character = { name: "", x: 0.5, y: 0.5, size: 0.92, ...fields };
       if (!this.assets.codeFor(character) && code) character.torso = character.torso || `${code}_`;
       this.ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
@@ -487,6 +813,7 @@
     VIRTUAL_HEIGHT,
     LAYER_ORDER,
     CHAR_CODES,
+    RENDER_CONFIG,
     parseTag,
     parseScenario,
     buildState,
