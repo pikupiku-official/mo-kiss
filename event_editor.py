@@ -33,8 +33,8 @@ from PyQt5.QtWidgets import (
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
     QFileDialog
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QRect, QPoint
+from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter
 
 # プロジェクトルートをパスに追加
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -435,6 +435,361 @@ class PreviewSignal(QObject):
     preview_ready = pyqtSignal(object, str, bool, str)
 
 
+# ---------------------------------------------------------------------------
+# 立ち絵合成プレビュー — CharaPreviewCanvas / CharaCompositePreviewDialog
+# ---------------------------------------------------------------------------
+
+class CharaPreviewCanvas(QWidget):
+    """ズーム・パン可能な立ち絵合成プレビューキャンバス"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._image = None
+        self._scale = 1.0
+        self._offset_x = 0
+        self._offset_y = 0
+        self._drag_start = None
+        self.setMinimumSize(300, 400)
+        self.setStyleSheet("background: #1e1e1e;")
+        self.setMouseTracking(True)
+
+    def set_image(self, qimage, reset_view=False):
+        """画像を設定。reset_view=True の時だけズーム・パンをリセット。"""
+        first_load = self._image is None and qimage is not None
+        self._image = qimage
+        if (first_load or reset_view) and qimage and not qimage.isNull():
+            w_ratio = self.width() / max(qimage.width(), 1)
+            h_ratio = self.height() / max(qimage.height(), 1)
+            self._scale = min(w_ratio, h_ratio) * 0.9
+            self._offset_x = 0
+            self._offset_y = 0
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(30, 30, 30))
+        if not self._image or self._image.isNull():
+            painter.setPen(QColor(120, 120, 120))
+            painter.drawText(self.rect(), Qt.AlignCenter, "画像なし / ファイルIDを入力してください")
+            return
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        w = int(self._image.width() * self._scale)
+        h = int(self._image.height() * self._scale)
+        x = (self.width() - w) // 2 + self._offset_x
+        y = (self.height() - h) // 2 + self._offset_y
+        painter.drawImage(QRect(x, y, w, h), self._image)
+
+    def wheelEvent(self, event):
+        factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
+        self._scale = max(0.02, min(10.0, self._scale * factor))
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_start = (event.x() - self._offset_x, event.y() - self._offset_y)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_start:
+            self._offset_x = event.x() - self._drag_start[0]
+            self._offset_y = event.y() - self._drag_start[1]
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        self._drag_start = None
+
+    def resizeEvent(self, event):
+        if self._image and not self._image.isNull():
+            w_ratio = self.width() / max(self._image.width(), 1)
+            h_ratio = self.height() / max(self._image.height(), 1)
+            self._scale = min(w_ratio, h_ratio) * 0.9
+        super().resizeEvent(event)
+
+
+class CharaCompositePreviewDialog(QDialog):
+    """立ち絵合成プレビュー・パーツ選択ダイアログ
+
+    chara_show / chara_shift 編集時に開く。
+    左: レイヤー合成プレビュー（ズーム・パン対応）
+    右: コンボボックスによるパーツ選択（リアルタイムプレビュー）
+         - トルソー選択時に顔パーツ(brow/eye/mouth/cheek)をFXX番号でフィルタ
+         - 不一致パーツは⚠️付き黄色ハイライト
+    """
+
+    # 描画レイヤー順（下から上）
+    LAYER_ORDER = ['torso', 'brow', 'cheek', 'eye', 'mouth', 'effect', 'accessory']
+    PART_LABELS = {
+        'torso':     '体 (T)',
+        'brow':      '眉 (BRO)',
+        'cheek':     '頬 (CHE)',
+        'eye':       '目 (EYE)',
+        'mouth':     '口 (MOU)',
+        'effect':    'エフェクト (E)',
+        'accessory': '装飾 (A)',
+    }
+    # トルソー番号に依存する顔パーツ (FXX番号フィルタ)
+    FACE_PARTS = {'brow', 'cheek', 'eye', 'mouth'}
+    # effect/accessory もトルソー番号連動（E0x / A0x）
+    TORSO_LINKED_PARTS = {'brow', 'cheek', 'eye', 'mouth', 'effect', 'accessory'}
+
+    def __init__(self, parent, image_manager, initial_fields,
+                 char_name, is_shift=False, prev_fields=None):
+        super().__init__(parent)
+        self._image_manager = image_manager
+        self._fields = {p: initial_fields.get(p, '') for p in self.LAYER_ORDER}
+        self._char_name = char_name
+        self._is_shift = is_shift
+        self._prev_fields = {p: (prev_fields or {}).get(p, '') for p in self.LAYER_ORDER}
+
+        self.setWindowTitle(f"立ち絵プレビュー: {char_name}")
+        self.resize(1200, 780)
+        self._build_ui()
+        self._update_preview()
+
+    # ------------------------------------------------------------------
+    # ヘルパー
+    # ------------------------------------------------------------------
+
+    def _get_face_num(self, torso_stem):
+        """トルソーのステムから対応するFXX番号を返す。例: MMK_T01_... → '01'"""
+        m = re.search(r'_T(\d+)', torso_stem)
+        return m.group(1) if m else None
+
+    def _get_char_options(self, part):
+        """パーツカテゴリから、このキャラのステム一覧を返す（全件）"""
+        from core.config import CHAR_CODE
+        code = CHAR_CODE.get(self._char_name, '')
+        paths = self._image_manager.image_paths.get(part, {})
+        if code:
+            return sorted(k for k in paths if k.startswith(code + '_'))
+        return sorted(paths.keys())
+
+    def _get_filtered_options(self, part):
+        """トルソー番号でフィルタした選択肢を返す。
+        FACE_PARTS: _F{num}_ フィルタ
+        effect:     _E{num}_ フィルタ
+        accessory:  _A{num}_ フィルタ
+        マッチなければ全件返却。
+        """
+        all_opts = self._get_char_options(part)
+        torso = self._fields.get('torso', '')
+        face_num = self._get_face_num(torso) if torso else None
+        if face_num is None or part not in self.TORSO_LINKED_PARTS:
+            return all_opts
+        if part in self.FACE_PARTS:
+            pattern = f'_F{face_num}_'
+        elif part == 'effect':
+            pattern = f'_E{face_num}_'
+        elif part == 'accessory':
+            pattern = f'_A{face_num}_'
+        else:
+            return all_opts
+        filtered = [k for k in all_opts if pattern in k]
+        return filtered if filtered else all_opts
+
+    def _combo_style_for(self, part, current_text):
+        """コンボのスタイルシートを決定する"""
+        # ⚠️ 不一致（トルソー番号とパーツ番号不一致）
+        if part in self.TORSO_LINKED_PARTS and current_text.strip():
+            torso = self._fields.get('torso', '')
+            face_num = self._get_face_num(torso) if torso else None
+            if face_num:
+                if part in self.FACE_PARTS:
+                    pattern = f'_F{face_num}_'
+                elif part == 'effect':
+                    pattern = f'_E{face_num}_'
+                elif part == 'accessory':
+                    pattern = f'_A{face_num}_'
+                else:
+                    pattern = None
+                if pattern and pattern not in current_text:
+                    return 'mismatch'
+        # chara_shift: 変更あり
+        if self._is_shift and current_text.strip() != self._prev_fields.get(part, ''):
+            return 'changed'
+        return 'normal'
+
+    def _apply_combo_style(self, combo, label_widget, style_key, part):
+        if style_key == 'mismatch':
+            combo.setStyleSheet("QComboBox { background: #4a3a00; border: 1px solid #ffcc00; }")
+            label_widget.setText('⚠️ ' + self.PART_LABELS[part])
+        elif style_key == 'changed':
+            combo.setStyleSheet("QComboBox { background: #2a4a2a; }")
+            label_widget.setText(self.PART_LABELS[part])
+        else:
+            combo.setStyleSheet("")
+            label_widget.setText(self.PART_LABELS[part])
+
+    # ------------------------------------------------------------------
+    # UI構築
+    # ------------------------------------------------------------------
+
+    def _build_ui(self):
+        main_layout = QHBoxLayout(self)
+        splitter = QSplitter(Qt.Horizontal)
+
+        # --- 左: プレビューキャンバス ---
+        self.canvas = CharaPreviewCanvas()
+        splitter.addWidget(self.canvas)
+
+        # --- 右: パーツ選択パネル ---
+        right = QWidget()
+        right_layout = QVBoxLayout(right)
+
+        parts_group = QGroupBox("パーツ選択")
+        parts_form = QFormLayout(parts_group)
+
+        self._combos = {}
+        self._label_widgets = {}
+
+        for part in self.LAYER_ORDER:
+            current_val = self._fields[part]
+
+            # コンボボックス（編集可能 = キーボード検索も可）
+            combo = QComboBox()
+            combo.setEditable(True)
+            combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            combo.addItem('')  # 空選択
+
+            opts = (self._get_filtered_options(part)
+                    if part in self.TORSO_LINKED_PARTS
+                    else self._get_char_options(part))
+            combo.addItems(opts)
+
+            # 現在値をセット
+            idx = combo.findText(current_val)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            elif current_val:
+                combo.setCurrentText(current_val)
+
+            combo.currentTextChanged.connect(
+                lambda text, p=part: self._on_field_changed(p, text))
+            self._combos[part] = combo
+
+            # ラベル（スタイル変更でアイコンを出す）
+            label = QLabel(self.PART_LABELS[part])
+            self._label_widgets[part] = label
+
+            style_key = self._combo_style_for(part, current_val)
+            self._apply_combo_style(combo, label, style_key, part)
+
+            parts_form.addRow(label, combo)
+
+        right_layout.addWidget(parts_group)
+
+        # chara_shift: 差分のみ適用オプション
+        self._diff_only = None
+        if self._is_shift:
+            self._diff_only = QCheckBox('変更パーツのみをタグに適用（差分自動検出）')
+            self._diff_only.setChecked(True)
+            right_layout.addWidget(self._diff_only)
+
+        # ボタン行
+        btn_layout = QHBoxLayout()
+        apply_btn = QPushButton('✅ スクリプトに適用')
+        apply_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton('キャンセル')
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(cancel_btn)
+        right_layout.addLayout(btn_layout)
+        right_layout.addStretch()
+
+        splitter.addWidget(right)
+        splitter.setSizes([750, 450])
+        main_layout.addWidget(splitter)
+
+    # ------------------------------------------------------------------
+    # イベントハンドラ
+    # ------------------------------------------------------------------
+
+    def _on_field_changed(self, part, text):
+        self._fields[part] = text.strip()
+
+        combo = self._combos[part]
+        label = self._label_widgets[part]
+        style_key = self._combo_style_for(part, text)
+        self._apply_combo_style(combo, label, style_key, part)
+
+        # トルソー変更 → 顔パーツをFXX番号でフィルタし直す
+        if part == 'torso':
+            self._refresh_face_combos()
+
+        self._update_preview()
+
+    def _refresh_face_combos(self):
+        """トルソー変更後、顔パーツのコンボを再フィルタ。
+        現在値がリストにない場合は⚠️ハイライト。
+        """
+        for part in self.TORSO_LINKED_PARTS:
+            combo = self._combos[part]
+            label = self._label_widgets[part]
+            current = combo.currentText()
+
+            new_opts = self._get_filtered_options(part)
+
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem('')
+            combo.addItems(new_opts)
+
+            idx = combo.findText(current)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            elif current.strip():
+                combo.setCurrentText(current)  # リストにないが保持
+
+            combo.blockSignals(False)
+
+            # スタイル再適用（不一致チェック含む）
+            style_key = self._combo_style_for(part, current)
+            self._apply_combo_style(combo, label, style_key, part)
+
+    # ------------------------------------------------------------------
+    # プレビュー合成
+    # ------------------------------------------------------------------
+
+    def _update_preview(self):
+        result = None
+        for part in self.LAYER_ORDER:
+            file_id = self._fields.get(part, '').strip()
+            if not file_id:
+                continue
+            paths = self._image_manager.image_paths.get(part, {})
+            path = paths.get(file_id)
+            if not path or not os.path.exists(path):
+                continue
+            img = QImage(path)
+            if img.isNull():
+                continue
+            img = img.convertToFormat(QImage.Format_ARGB32)
+            if result is None:
+                result = QImage(img.size(), QImage.Format_ARGB32)
+                result.fill(0)
+            painter = QPainter(result)
+            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            painter.drawImage(0, 0, img)
+            painter.end()
+        self.canvas.set_image(result)
+
+    # ------------------------------------------------------------------
+    # 結果取得
+    # ------------------------------------------------------------------
+
+    def get_result_fields(self):
+        """スクリプトに適用するフィールド辞書を返す。
+        chara_shift 且つ差分のみモードの場合は変更パーツのみ。
+        """
+        if self._diff_only and self._diff_only.isChecked():
+            return {
+                p: v for p, v in self._fields.items()
+                if v.strip() != self._prev_fields.get(p, '').strip()
+            }
+        return dict(self._fields)
+
+
+# ---------------------------------------------------------------------------
+
 class StepEditorDialog(QDialog):
     """step編集用ダイアログ"""
 
@@ -469,6 +824,8 @@ class StepEditorDialog(QDialog):
             ("mouth", ""),
             ("brow", ""),
             ("cheek", ""),
+            ("effect", ""),
+            ("accessory", ""),
             ("blink", "true"),
             ("x", "0.5"),
             ("y", "0.5"),
@@ -482,6 +839,8 @@ class StepEditorDialog(QDialog):
             ("mouth", ""),
             ("brow", ""),
             ("cheek", ""),
+            ("effect", ""),
+            ("accessory", ""),
             ("x", ""),
             ("y", ""),
             ("size", ""),
@@ -524,6 +883,8 @@ class StepEditorDialog(QDialog):
             ("mouth", "mouth", "text"),
             ("brow", "brow", "text"),
             ("cheek", "cheek", "text"),
+            ("effect", "effect", "text"),
+            ("accessory", "accessory", "text"),
             ("blink", "blink", "bool"),
             ("x", "x", "text"),
             ("y", "y", "text"),
@@ -537,6 +898,8 @@ class StepEditorDialog(QDialog):
             ("mouth", "mouth", "text"),
             ("brow", "brow", "text"),
             ("cheek", "cheek", "text"),
+            ("effect", "effect", "text"),
+            ("accessory", "accessory", "text"),
             ("x", "x", "text"),
             ("y", "y", "text"),
             ("size", "size", "text"),
@@ -560,19 +923,25 @@ class StepEditorDialog(QDialog):
             ("block", "block", "bool"),
         ],
     }
+    # storage → BGディレクトリ、キャラクターパーツ → キャラクターディレクトリ (01MMK 等) 内
     BROWSE_KEYS = {
-        "storage": "backgrounds",
-        "torso": "characters",
-        "eye": "eyes",
-        "mouth": "mouths",
-        "brow": "brows",
-        "cheek": "cheeks",
+        "storage":   "BG",
+        "torso":     "char",
+        "eye":       "char",
+        "mouth":     "char",
+        "brow":      "char",
+        "cheek":     "char",
+        "effect":    "char",
+        "accessory": "char",
     }
 
-    def __init__(self, parent, step, actions=None):
+    def __init__(self, parent, step, actions=None, all_steps=None, step_index=None, image_manager=None):
         super().__init__(parent)
         self.step = step or {}
         self.actions = actions or []
+        self._all_steps = all_steps or []
+        self._step_index = step_index
+        self._image_manager = image_manager
 
         self.setWindowTitle("step編集")
         self.resize(1100, 700)
@@ -923,6 +1292,59 @@ class StepEditorDialog(QDialog):
         self.custom_editor_widget.adjustSize()
         self.custom_editor_widget.updateGeometry()
 
+    def _find_prev_char_fields(self, char_name):
+        """同名のキャラの直前 chara_show / chara_shift のパーツフィールドを返す"""
+        if self._step_index is None or not self._all_steps:
+            return {}
+        # 現在の step_index より前のステップを逆向きに檢索
+        for step in reversed(self._all_steps):
+            si = step.get('step_index', -1)
+            if si >= self._step_index:
+                continue
+            for action in step.get('_actions_cache', []):
+                tag = action.get('tag', '')
+                if tag not in ('chara_show', 'chara_shift'):
+                    continue
+                params = dict(action.get('params', []))
+                if params.get('name') == char_name:
+                    return params
+        return {}
+
+    def _open_chara_preview(self, is_shift):
+        """立ち絵合成プレビューダイアログを開く"""
+        image_manager = self._image_manager
+        if not image_manager:
+            QMessageBox.warning(self, 'エラー',
+                '画像マネージャーが初期化されていません。'
+                'エディタでファイルを開いてから実行してください。')
+            return
+
+        # 現在のフィールド値を収集
+        current = {k: (f.currentText() if isinstance(f, QComboBox) else f.text().strip())
+                   for k, f in self.custom_fields.items()}
+        char_name = current.get('name', '')
+        prev_fields = self._find_prev_char_fields(char_name) if is_shift else {}
+
+        dlg = CharaCompositePreviewDialog(
+            self, image_manager, current,
+            char_name=char_name, is_shift=is_shift, prev_fields=prev_fields
+        )
+        if dlg.exec_() == QDialog.Accepted:
+            result = dlg.get_result_fields()
+            for part, val in result.items():
+                if part in self.custom_fields:
+                    field = self.custom_fields[part]
+                    if isinstance(field, QLineEdit):
+                        field.setText(val)
+                    elif isinstance(field, QComboBox):
+                        idx = field.findText(val)
+                        if idx >= 0:
+                            field.setCurrentIndex(idx)
+                        else:
+                            field.setCurrentText(val)
+            # custom_fields の値を actions_list に書き戻す
+            self._apply_action_editor()
+
     def _build_custom_editor(self, tag):
         self._clear_custom_editor()
         schema = self.CUSTOM_EDITORS.get(tag)
@@ -951,6 +1373,13 @@ class StepEditorDialog(QDialog):
             else:
                 self.custom_editor_layout.addRow(label, field)
 
+        # chara_show / chara_shift: 立ち絵プレビューボタンを追加
+        if tag in ('chara_show', 'chara_shift'):
+            is_shift = (tag == 'chara_shift')
+            preview_btn = QPushButton('🎨 立ち絵プレビュー & パーツ選択')
+            preview_btn.clicked.connect(lambda: self._open_chara_preview(is_shift))
+            self.custom_editor_layout.addRow('', preview_btn)
+
         self.custom_editor_widget.show()
         self.advanced_toggle.show()
         self.params_table.setVisible(self.advanced_toggle.isChecked())
@@ -978,6 +1407,8 @@ class StepEditorDialog(QDialog):
         return params
 
     def _browse_for_asset(self, key):
+        from core.config import CHAR_CODE
+
         subdir = self.BROWSE_KEYS.get(key)
         if not subdir:
             return
@@ -986,25 +1417,20 @@ class StepEditorDialog(QDialog):
         start_dir = base_dir
 
         if key == "storage":
-            candidate = os.path.join(base_dir, subdir)
+            # 背景: images/BG/ を開く
+            candidate = os.path.join(base_dir, "BG")
             if os.path.isdir(candidate):
                 start_dir = candidate
         else:
+            # キャラクターパーツ: nameフィールドの表示名からコードを引いてディレクトリを特定
             name_field = self.custom_fields.get("name")
             name_value = name_field.text().strip() if name_field else ""
-            if name_value:
-                candidate = os.path.join(base_dir, name_value, subdir)
-                if os.path.isdir(candidate):
-                    start_dir = candidate
-            if start_dir == base_dir:
-                candidate = os.path.join(base_dir, subdir)
-                if os.path.isdir(candidate):
-                    start_dir = candidate
-                else:
-                    for root, dirs, _files in os.walk(base_dir):
-                        if os.path.basename(root) == subdir:
-                            start_dir = root
-                            break
+            char_code = CHAR_CODE.get(name_value, "")
+            if char_code and os.path.isdir(base_dir):
+                for d in os.listdir(base_dir):
+                    if d.endswith(char_code) and os.path.isdir(os.path.join(base_dir, d)):
+                        start_dir = os.path.join(base_dir, d)
+                        break
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -1144,6 +1570,15 @@ class EventEditorGUI(QMainWindow):
         self.autosave_timer = QTimer(self)
         self.autosave_timer.timeout.connect(self._autosave)
         self.autosave_timer.start(60 * 1000)
+
+        # ImageManagerを初期化（立ち絵プレビュー用）
+        try:
+            self.image_manager = ImageManager(DEBUG)
+            self.image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+            logger.info("ImageManager初期化完了")
+        except Exception as e:
+            logger.warning(f"ImageManager初期化失敗: {e}")
+            self.image_manager = None
 
         # ファイルリストを読み込み
         self.load_file_list()
@@ -1863,9 +2298,20 @@ class EventEditorGUI(QMainWindow):
 
     def open_step_editor(self, step):
         """step編集ダイアログを開く"""
-        actions = self._extract_actions_from_step(step)
-        dialog = StepEditorDialog(self, step, actions=actions)
-        step_index = step.get("step_index")
+        try:
+            actions = self._extract_actions_from_step(step)
+            step_index = step.get("step_index")
+            im = getattr(self, 'image_manager', None)
+            dialog = StepEditorDialog(
+                self, step, actions=actions,
+                all_steps=self.current_steps, step_index=step_index,
+                image_manager=im
+            )
+        except Exception as e:
+            import traceback
+            QMessageBox.critical(self, 'stepエディタエラー',
+                f'エラーが発生しました：\n{e}\n\n{traceback.format_exc()}')
+            return
         if step_index is not None:
             self._generate_step_preview(step_index, dialog)
         if dialog.exec_() == QDialog.Accepted:

@@ -9,9 +9,10 @@
 
 
 	
+; --- new step ---
 [bg_show storage="test.bg.TEUgate"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="subete_no_hajimari.mp3" volume="0.2" loop="true"]
-[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" blink="true" x="0.6" y="1" size="2" fade="0"]
+[chara_show name="桃子" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU08_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE01_00" blink="true" x="0.6" y="1" size="2" fade="0"]
 [fadein time="1.0"]
 //桃子//
 「ねえ、{愛沼|あいぬま}は{boten:ミニスト}寄ってかない？」
@@ -270,7 +271,4 @@
 	//　　　//
 	「そのまま桃子と国立まで帰った。」
 	「今度は、僕がコンビニに入ろう。」
-
-
-
 

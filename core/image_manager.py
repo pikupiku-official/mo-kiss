@@ -382,8 +382,10 @@ class ImageManager:
                             print(f"{category}登録: {stem}")
 
                 elif dir_name == 'UI':
+                    # ui.text-box.png → stem = 'ui.text-box' → key = 'text-box'
+                    # title.png       → stem = 'title'        → key = 'title'
                     parts = stem.split('.')
-                    ui_key = parts[1] if len(parts) >= 3 else parts[0]
+                    ui_key = parts[1] if len(parts) >= 2 else parts[0]
                     self.image_paths['ui'][ui_key] = file_path
 
                 elif dir_name == 'ICON':

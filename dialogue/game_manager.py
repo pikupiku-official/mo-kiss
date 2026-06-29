@@ -118,8 +118,8 @@ def initialize_game(dialogue_file="events/E001.ks"):
         except Exception as e:
             print(f"IR JSON dump failed: {e}")
 
-    if "characters" in image_manager.image_paths and image_manager.image_paths["characters"]:
-        first_char_key = list(image_manager.image_paths["characters"].keys())[0]
+    if "torso" in image_manager.image_paths and image_manager.image_paths["torso"]:
+        first_char_key = list(image_manager.image_paths["torso"].keys())[0]
         print(f"キャラクター画像確認: {first_char_key} (元サイズで表示)")
     else:
         print("警告: キャラクター画像が見つかりません。")
@@ -487,3 +487,4 @@ def get_default_normalized_dialogue():
         [None, "桃子", "eye1", "mouth1", "brow1", 
          "デフォルトのテキストです。", None, 0.1, True, "桃子", False]
     ]
+

@@ -335,28 +335,28 @@ def _parse_chara_new(text: str) -> Optional[Dict[str, Any]]:
     torso_id = None
     char_name = None
     try:
-        if len(parts) >= 12:
-            torso_id = f"{parts[3]}_{parts[4]}_{parts[5]}"
-            char_name = parts[11]
-            x = _to_float(parts[6], 0.5)
-            y = _to_float(parts[7], 0.5)
-            size = _to_float(parts[8], 1.0)
-            blink = parts[9].lower() != "false"
-            fade = _to_float(parts[10], 0.1)
-        elif len(parts) >= 10:
-            torso_id = f"{parts[3]}_{parts[4]}_{parts[5]}"
-            char_name = torso_id
-            x = _to_float(parts[6], 0.5)
-            y = _to_float(parts[7], 0.5)
-            size = _to_float(parts[8], 1.0)
-            blink = parts[9].lower() != "false"
-            fade = 0.1
+        # フォーマット: _CHARA_NEW_{torso_id}_{x}_{y}_{size}_{blink}_{fade}_{char_name}
+        # torso_idは複数の_を含む場合がある（例: MMK_T00_ARM00_CLO00）ため、
+        # 末尾6フィールド（char_name/fade/blink/size/y/x）を固定、
+        # 残り（parts[3:-6]）をtorso_idとする。
+        if len(parts) >= 10:
+            # char_nameとfadeあり（現行形式）
+            char_name  = parts[-1]
+            fade       = _to_float(parts[-2], 0.1)
+            blink      = parts[-3].lower() != "false"
+            size       = _to_float(parts[-4], 1.0)
+            y          = _to_float(parts[-5], 0.5)
+            x          = _to_float(parts[-6], 0.5)
+            torso_id   = "_".join(parts[3:-6])
+            if not torso_id:
+                torso_id = char_name
         else:
+            # 最小形式（torso=char_nameの古形式）
             torso_id = parts[3]
             char_name = torso_id
-            x = _to_float(parts[4], 0.5)
-            y = _to_float(parts[5], 0.5)
-            size = _to_float(parts[6], 1.0)
+            x    = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
+            y    = _to_float(parts[5], 0.5) if len(parts) > 5 else 0.5
+            size = _to_float(parts[6], 1.0) if len(parts) > 6 else 1.0
             blink = parts[7].lower() != "false" if len(parts) > 7 else True
             fade = 0.1
     except (ValueError, IndexError):

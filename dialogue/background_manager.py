@@ -176,7 +176,7 @@ def draw_background(game_state):
     # 頻繁に呼ばれるのでログ出力しない
 
     # 遅延ロードで背景画像を取得
-    bg_image = image_manager.get_image("backgrounds", bg_name)
+    bg_image = image_manager.get_image("bg", bg_name)
 
     if bg_image:
         pass  # 背景画像取得成功（ログ出力しない）

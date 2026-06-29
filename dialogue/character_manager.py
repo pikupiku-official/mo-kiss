@@ -241,14 +241,15 @@ def start_blink_animation(game_state, character_name):
         print(f"[BLINK] {character_name}: 目の種類が設定されていません - スキップ")
         return
     
-    # 目の種類を解析（例: F04_Ea00_00 -> 00）
+    # 目の種類を解析
+    # 新命名形式: MMK_F00_EYE00_00 → eye_base='MMK_F00_EYE00', eye_number='00'
     if '_' in base_eye_type:
         parts = base_eye_type.split('_')
         print(f"[BLINK] {character_name}: 目の種類解析 - 分割結果: {parts}")
-        if len(parts) >= 3:
-            eye_base = '_'.join(parts[:2])  # F04_Ea00
-            eye_number = parts[2]  # 00
-            
+        if len(parts) >= 2:
+            eye_number = parts[-1]   # 末尾のフレーム番号 (00/01/02)
+            eye_base = '_'.join(parts[:-1])  # 末尾以外すべて
+
             print(f"[BLINK] {character_name}: eye_base='{eye_base}', eye_number='{eye_number}'")
 
             # まばたきシーケンスを決定
@@ -270,8 +271,8 @@ def start_blink_animation(game_state, character_name):
                 all_images_exist = True
                 for suffix in sequence:
                     test_eye_type = f"{eye_base}_{suffix}"
-                    # image_pathsに存在するか確認
-                    if 'eyes' not in image_manager.image_paths or test_eye_type not in image_manager.image_paths['eye']:
+                    # image_pathsに存在するか確認（'eyes'タイポ修正済み）
+                    if 'eye' not in image_manager.image_paths or test_eye_type not in image_manager.image_paths['eye']:
                         print(f"[BLINK] {character_name}: まばたき画像が存在しません: {test_eye_type} - まばたき無効化")
                         all_images_exist = False
                         break

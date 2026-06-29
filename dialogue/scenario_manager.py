@@ -244,7 +244,7 @@ def _ir_handle_character_show(game_state, target, params):
     image_manager = game_state.get("image_manager")
     if not image_manager:
         return
-    char_img = image_manager.get_image("characters", torso_id)
+    char_img = image_manager.get_image("torso", torso_id)
     if not char_img:
         return
 
@@ -292,10 +292,10 @@ def _ir_handle_character_show(game_state, target, params):
 
     try:
         image_manager.preload_character_set(target, {
-            "eyes": [params.get("eye")] if params.get("eye") else [],
-            "mouths": [params.get("mouth")] if params.get("mouth") else [],
-            "brows": [params.get("brow")] if params.get("brow") else [],
-            "cheeks": [params.get("cheek")] if params.get("cheek") else [],
+            "eye": [params.get("eye")] if params.get("eye") else [],
+            "mouth": [params.get("mouth")] if params.get("mouth") else [],
+            "brow": [params.get("brow")] if params.get("brow") else [],
+            "cheek": [params.get("cheek")] if params.get("cheek") else [],
         })
     except Exception:
         pass
@@ -320,7 +320,7 @@ def _ir_handle_character_shift(game_state, target, params):
 
     torso_id = params.get("torso")
     image_manager = game_state.get("image_manager")
-    if torso_id and image_manager and not image_manager.get_image("characters", torso_id):
+    if torso_id and image_manager and not image_manager.get_image("torso", torso_id):
         torso_id = None
     if torso_id:
         if "character_torso" not in game_state:
@@ -530,47 +530,35 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         print(f"キャラクター登場コマンド解析: dialogue_text='{dialogue_text}'")
         print(f"分割結果: {parts}")
 
-    if len(parts) >= 6:  # _CHARA_NEW,キャラクター名,x,y,size,blink
-        # 新形式: _CHARA_NEW_T04_00_00_x_y_size_blink_fade_論理名
-        if len(parts) >= 12:
-            torso_id = f"{parts[3]}_{parts[4]}_{parts[5]}"  # 胴体パーツID（画像用）
-            char_name = parts[11]  # キャラクター論理名（管理用）
-            x_index = 6
-            y_index = 7
-            size_index = 8
-            blink_index = 9
-            # fade_index = 10  # 今後使用予定
-        # 旧形式: _CHARA_NEW_T04_00_00_x_y_size_blink (論理名なし)
-        elif len(parts) >= 10:
-            torso_id = f"{parts[3]}_{parts[4]}_{parts[5]}"
-            char_name = torso_id  # 後方互換性: 論理名=胴体ID
-            x_index = 6
-            y_index = 7
-            size_index = 8
-            blink_index = 9
-        # さらに古い形式: _CHARA_NEW_名前_x_y_size_blink
-        else:
-            torso_id = parts[3]
-            char_name = parts[3]
-            x_index = 4
-            y_index = 5
-            size_index = 6
-            blink_index = 7
-
+    # フォーマット: _CHARA_NEW_{torso_id}_{x}_{y}_{size}_{blink}_{fade}_{char_name}
+    # torso_idは複数の_を含む場合がある（例: MMK_T00_ARM00_CLO00）ため、
+    # 末尾6フィールドを固定し、parts[3:-6]をtorso_idとする。
+    if len(parts) >= 10:
+        char_name = parts[-1]
+        blink_str = parts[-3]
         try:
-            show_x = float(parts[x_index])
-            show_y = float(parts[y_index])
-            size = float(parts[size_index]) if len(parts) > size_index else 1.0
-            blink_enabled = parts[blink_index].lower() == 'true' if len(parts) > blink_index else True
+            show_x        = float(parts[-6])
+            show_y        = float(parts[-5])
+            size          = float(parts[-4])
+            blink_enabled = blink_str.lower() == 'true'
         except (ValueError, IndexError):
-            show_x = 0.5
-            show_y = 0.5
-            size = 1.0
-            blink_enabled = True
+            show_x = 0.5; show_y = 0.5; size = 1.0; blink_enabled = True
+        torso_id = "_".join(parts[3:-6]) or char_name
+    elif len(parts) >= 6:
+        # 最小形式（古形式）
+        torso_id = parts[3]
+        char_name = parts[3]
+        try:
+            show_x        = float(parts[4]) if len(parts) > 4 else 0.5
+            show_y        = float(parts[5]) if len(parts) > 5 else 0.5
+            size          = float(parts[6]) if len(parts) > 6 else 1.0
+            blink_enabled = parts[7].lower() == 'true' if len(parts) > 7 else True
+        except (ValueError, IndexError):
+            show_x = 0.5; show_y = 0.5; size = 1.0; blink_enabled = True
 
         # まず画像の存在を確認（遅延ロード対応）- torso_idを使用
         image_manager = game_state['image_manager']
-        char_img = image_manager.get_image("characters", torso_id)
+        char_img = image_manager.get_image("torso", torso_id)
         if not char_img:
             if DEBUG:
                 print(f"警告: キャラクター画像 '{char_name}' が見つかりません")
@@ -657,10 +645,10 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
             # 表情パーツも事前ロード
             try:
                 image_manager.preload_character_set(char_name, {
-                    'eyes': [expressions['eye']] if expressions['eye'] else [],
-                    'mouths': [expressions['mouth']] if expressions['mouth'] else [],
-                    'brows': [expressions['brow']] if expressions['brow'] else [],
-                    'cheeks': [expressions['cheek']] if expressions['cheek'] else []
+                    'eye': [expressions['eye']] if expressions['eye'] else [],
+                    'mouth': [expressions['mouth']] if expressions['mouth'] else [],
+                    'brow': [expressions['brow']] if expressions['brow'] else [],
+                    'cheek': [expressions['cheek']] if expressions['cheek'] else []
                 })
             except Exception as e:
                 if DEBUG:
@@ -1138,3 +1126,4 @@ def _handle_event_unlock(game_state, command_data):
     
     # 次の段落に進む
     return advance_dialogue(game_state)
+
