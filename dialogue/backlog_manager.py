@@ -175,11 +175,14 @@ class BacklogManager:
             print(f"[BACKLOG] フォントサイズ: {self.text_font_size}px")
             print(f"[BACKLOG] 行の高さ: {self.text_line_height}px")
         
-    def get_character_colors(self, char_name):
+    def get_character_colors(self, char_name, force_female=False):
         """キャラクター名に基づいて色を決定する（text_rendererと同じ）"""
         # 選択肢の場合は専用色を使用
         if char_name == "選択":
             return self.choice_color, self.choice_color
+
+        if force_female:
+            return self.female_name_color, self.female_text_color
         
         if char_name and char_name in CHARACTER_GENDERS:
             gender = CHARACTER_GENDERS.get(char_name)
@@ -274,7 +277,7 @@ class BacklogManager:
 
         return surf
 
-    def add_entry(self, speaker, text):
+    def add_entry(self, speaker, text, force_female=False):
         """バックログにエントリを追加"""
         if not text or text.strip() == "":
             return
@@ -284,14 +287,16 @@ class BacklogManager:
         substituted_text = self.name_manager.substitute_variables(text) if text else text
             
         # 重複チェック（最後のエントリと同じ場合はスキップ）
-        if (self.entries and 
-            self.entries[-1]["speaker"] == substituted_speaker and 
-            self.entries[-1]["text"] == substituted_text):
+        if (self.entries and
+            self.entries[-1]["speaker"] == substituted_speaker and
+            self.entries[-1]["text"] == substituted_text and
+            bool(self.entries[-1].get("force_female")) == bool(force_female)):
             return
             
         self.entries.append({
             "speaker": substituted_speaker or "名無し",
-            "text": substituted_text
+            "text": substituted_text,
+            "force_female": bool(force_female),
         })
         
         # デバッグ出力を削除（パフォーマンス向上）
@@ -384,6 +389,7 @@ class BacklogManager:
         # 全ての行を作成（話者名とテキスト行を統合）
         all_lines = []
         previous_speaker = None
+        previous_force_female = None
         
         for entry in self.entries:
             speaker = entry["speaker"]
@@ -391,7 +397,10 @@ class BacklogManager:
             text_lines = self._wrap_text(text, 26)
             
             # 話者が変更された場合のみ話者名を表示
-            show_speaker = (speaker != previous_speaker)
+            force_female = bool(entry.get("force_female", False))
+            show_speaker = (
+                speaker != previous_speaker or force_female != previous_force_female
+            )
             
             # 各エントリの行情報を作成
             for i, line in enumerate(text_lines):
@@ -403,6 +412,7 @@ class BacklogManager:
                 })
             
             previous_speaker = speaker
+            previous_force_female = force_female
         
         # スクロール位置に基づいて表示する行を決定（最大11行）
         max_lines = self._get_visible_lines()
@@ -422,7 +432,9 @@ class BacklogManager:
             entry = line_info["entry"]
             
             # キャラクター名から色を決定
-            name_color, text_color = self.get_character_colors(entry["speaker"])
+            name_color, text_color = self.get_character_colors(
+                entry["speaker"], entry.get("force_female", False)
+            )
             
             # 話者名を描画（最初の行のみ）
             if speaker and speaker.strip():

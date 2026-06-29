@@ -120,6 +120,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             speaker=speaker or "",
             body=text_or_cmd or "",
             scroll=bool(entry[11]) if len(entry) > 11 else False,
+            force_female=bool(entry[12]) if len(entry) > 12 else False,
         )
         shift_action = _action_for_expression(entry, last_expressions)
         combined_actions = list(pending_actions)

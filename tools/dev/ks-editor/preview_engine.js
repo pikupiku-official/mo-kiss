@@ -85,6 +85,7 @@
         actions: actions || [],
         scrollStop: !!extra.scrollStop,
         scroll: !!extra.scroll,
+        forceFemale: !!extra.forceFemale,
         memo: extra.memo || "",
       });
       pendingStart = null;
@@ -111,8 +112,13 @@
       if (dialogueMatch) {
         const inlineTags = [...trimmed.matchAll(/\[[^\]]+\]/g)].map((m) => parseTag(m[0])).filter(Boolean);
         const scrollStop = inlineTags.some((tag) => tag.type === "scroll_stop");
-        const actions = pendingActions.concat(inlineTags.filter((tag) => tag.type !== "scroll_stop"));
-        emit(index, dialogueMatch[1], actions, { scrollStop, scroll: hasDialogueSinceStop && !scrollStop });
+        const forceFemale = inlineTags.some((tag) => tag.type === "female");
+        const actions = pendingActions.concat(inlineTags.filter((tag) => !["scroll_stop", "female"].includes(tag.type)));
+        emit(index, dialogueMatch[1], actions, {
+          scrollStop,
+          scroll: hasDialogueSinceStop && !scrollStop,
+          forceFemale,
+        });
         pendingActions = [];
         hasDialogueSinceStop = !scrollStop;
         continue;
@@ -288,7 +294,11 @@
       state.choices = [];
       for (const action of step.actions) applyAction(state, action);
       if (step.body) {
-        const block = { speaker: step.speaker || "", body: step.body };
+        const block = {
+          speaker: step.speaker || "",
+          body: step.body,
+          forceFemale: !!step.forceFemale,
+        };
         if (state.scrollMode) {
           state.textBlocks.push(block);
         } else if (step.scroll && state.previousText) {
@@ -763,8 +773,8 @@
       }
     }
 
-    textColor(speaker) {
-      return FEMALE_CHARACTERS.has(String(speaker || "")) ? RENDER_CONFIG.femaleTextColor : RENDER_CONFIG.textColor;
+    textColor(speaker, forceFemale = false) {
+      return forceFemale || FEMALE_CHARACTERS.has(String(speaker || "")) ? RENDER_CONFIG.femaleTextColor : RENDER_CONFIG.textColor;
     }
 
     drawName(name, y, color) {
@@ -780,16 +790,23 @@
       for (const block of blocks || []) {
         if (!block || !block.body) continue;
         const wrapped = this.wrapMarkup(block.body);
-        wrapped.forEach((tokens, index) => lines.push({ tokens, speaker: block.speaker || "", first: index === 0 }));
+        wrapped.forEach((tokens, index) => lines.push({
+          tokens,
+          speaker: block.speaker || "",
+          forceFemale: !!block.forceFemale,
+          first: index === 0,
+        }));
       }
       const visible = lines.slice(-RENDER_CONFIG.maxDisplayLines);
       let previousSpeaker = null;
+      let previousForceFemale = null;
       visible.forEach((line, index) => {
         const y = RENDER_CONFIG.textStartY + index * RENDER_CONFIG.lineHeight;
-        const color = this.textColor(line.speaker);
-        if (line.speaker && (index === 0 || line.speaker !== previousSpeaker)) this.drawName(line.speaker, y, color);
+        const color = this.textColor(line.speaker, line.forceFemale);
+        if (line.speaker && (index === 0 || line.speaker !== previousSpeaker || line.forceFemale !== previousForceFemale)) this.drawName(line.speaker, y, color);
         this.drawTokenLine(line.tokens, RENDER_CONFIG.textStartX, y, color);
         previousSpeaker = line.speaker || previousSpeaker;
+        previousForceFemale = line.forceFemale;
       });
     }
 

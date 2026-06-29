@@ -140,7 +140,8 @@ def normalize_dialogue_data(raw_data):
             normalized_data.append([
                 entry['background'], converted_char, dialogue_eye, dialogue_mouth, dialogue_brow, dialogue_cheek,
                 entry['text'], entry['bgm'], entry['bgm_volume'], entry['bgm_loop'], dialogue_char,  # 話者表示は元の名前を使用
-                scroll_continue  # スクロール継続フラグ
+                scroll_continue,  # スクロール継続フラグ
+                bool(entry.get('force_female', False))  # 行単位の女性色指定
             ])
                 
         elif entry_type == 'move':

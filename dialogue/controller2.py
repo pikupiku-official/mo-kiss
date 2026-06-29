@@ -237,7 +237,8 @@ def _flush_scroll_line_to_backlog(game_state):
         return
     backlog_mgr.add_entry(
         text_renderer.current_character_name or None,
-        text_renderer.current_text
+        text_renderer.current_text,
+        getattr(text_renderer, 'current_force_female', False),
     )
 
 def handle_enter_key(game_state):

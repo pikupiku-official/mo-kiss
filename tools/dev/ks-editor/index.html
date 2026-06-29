@@ -305,6 +305,9 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
         <label class="sp-check"><input type="checkbox" id="step-scroll-stop"> scroll-stopを付ける</label>
       </div>
       <div class="sp-field">
+        <label class="sp-check"><input type="checkbox" id="step-female"> female（話者名とセリフを桃色）</label>
+      </div>
+      <div class="sp-field">
         <div class="sp-label">アクション（1行1タグ）</div>
         <textarea id="step-actions" class="sp-textarea" rows="2" placeholder="[bg_show storage=...]など"></textarea>
       </div>
@@ -1007,8 +1010,8 @@ $("pat-cancel").addEventListener("click", ()=> $("settings-modal").classList.add
 function parseStepsFromKS(text){
   const lines=text.split('\n');
   const steps=[]; let pa=[],lsl=null,ls='',pendingMemo='';
-  function add(sl,el,sp='',body='',stop=false,dl=null){
-    steps.push({step_index:steps.length,start_line:sl,end_line:el,speaker:sp,body,has_scroll_stop:stop,dialogue_line:dl,memo:pendingMemo});
+  function add(sl,el,sp='',body='',stop=false,dl=null,forceFemale=false){
+    steps.push({step_index:steps.length,start_line:sl,end_line:el,speaker:sp,body,has_scroll_stop:stop,force_female:forceFemale,dialogue_line:dl,memo:pendingMemo});
     pendingMemo='';
   }
   for(let i=0;i<lines.length;i++){
@@ -1027,12 +1030,13 @@ function parseStepsFromKS(text){
     }
     if(line.includes('\u300c')&&line.includes('\u300d')){
       const stop=line.includes('[scroll-stop]')||line.includes('[scroll_stop]');
+      const forceFemale=line.includes('[female]');
       const si=line.indexOf('\u300c'),ei=line.lastIndexOf('\u300d');
       const body=(si!==-1&&ei>si)?line.slice(si+1,ei):'';
       let sl=i;
       if(pa.length)sl=Math.min(sl,...pa);
       if(lsl!==null)sl=Math.min(sl,lsl);
-      add(sl,i,ls,body,stop,i);pa=[];lsl=null;ls='';continue;
+      add(sl,i,ls,body,stop,i,forceFemale);pa=[];lsl=null;ls='';continue;
     }
   }
   if(pa.length)add(Math.min(...pa),Math.max(...pa));
@@ -1042,7 +1046,7 @@ function parseStepsFromKS(text){
 // ============================================================
 //  Step書き戻し (event_editor.py: _build_step_update_text移植)
 // ============================================================
-function buildStepUpdateText(text,step,speaker,body,scrollStop,actions,memo){
+function buildStepUpdateText(text,step,speaker,body,scrollStop,forceFemale,actions,memo){
   const lines=text.split('\n');
   const sl=step.start_line,el=step.end_line;
   if(sl<0||sl>=lines.length)return text;
@@ -1062,7 +1066,7 @@ function buildStepUpdateText(text,step,speaker,body,scrollStop,actions,memo){
   }
   if(memo)nr.push(`;@memo:${memo}`);
   if(speaker)nr.push(`//${speaker}//`);
-  if(body){let d=`\u300c${body}\u300d`;if(scrollStop)d+='[scroll-stop]';nr.push(d);}
+  if(body){let d=`\u300c${body}\u300d`;if(forceFemale)d+='[female]';if(scrollStop)d+='[scroll-stop]';nr.push(d);}
   return[...lines.slice(0,sl),...nr,...lines.slice(el+1)].join('\n');
 }
 
@@ -1145,6 +1149,7 @@ function openStepEditor(idx){
   $('step-speaker').value=step.speaker||'';
   $('step-body').value=step.body||'';
   $('step-scroll-stop').checked=step.has_scroll_stop;
+  $('step-female').checked=!!step.force_female;
   $('step-memo').value=stepMemos[idx]||step.memo||'';
   const lines=currentText.split('\n');
   const acts=[];
@@ -1185,10 +1190,11 @@ function applyStepEditorChanges(){
   const step=currentSteps[selectedStepIdx];
   const speaker=$('step-speaker').value,body=$('step-body').value;
   const scrollStop=$('step-scroll-stop').checked;
+  const forceFemale=$('step-female').checked;
   const actions=$('step-actions').value.split('\n').filter(s=>s.trim());
   const memo=$('step-memo').value;
   stepMemos[selectedStepIdx]=memo;
-  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,actions,memo);
+  currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,forceFemale,actions,memo);
   currentSteps=parseStepsFromKS(currentText);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);

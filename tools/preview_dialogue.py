@@ -204,6 +204,7 @@ def preview_step_image(ks_file_path, step_index, out_path):
                     should_scroll=should_scroll,
                     background=None,
                     active_characters=active_characters,
+                    force_female=bool(text.get("force_female", False)),
                 )
             elif idx == target_index and text_renderer:
                 active_characters = game_state.get("active_characters", [])

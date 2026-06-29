@@ -102,6 +102,7 @@ class TextRenderer:
         
         self.current_text = ""
         self.current_character_name = None
+        self.current_force_female = False
         self._current_tokens = []       # parse_inline_markup 済みトークン
         self._total_base_chars = 0      # 論理ベース文字数の上限
 
@@ -538,7 +539,15 @@ class TextRenderer:
         if self.debug:
             print("[DELAY] スクロール終了フラグを設定")
 
-    def set_dialogue(self, text, character_name=None, should_scroll=False, background=None, active_characters=None):
+    def set_dialogue(
+        self,
+        text,
+        character_name=None,
+        should_scroll=False,
+        background=None,
+        active_characters=None,
+        force_female=False,
+    ):
         if self.debug:
             print(f"[TEXT] set_dialogue呼び出し: テキスト='{text[:50] if text else None}...', 話者='{character_name}'")
         
@@ -564,6 +573,7 @@ class TextRenderer:
         
         self.current_text = str(substituted_text)
         self.current_character_name = str(substituted_character_name)
+        self.current_force_female = bool(force_female)
         # トークンをキャッシュ（文字送り・描画で共用）
         self._current_tokens = parse_inline_markup(self.current_text)
         self._total_base_chars = total_base_chars(self._current_tokens)
@@ -585,13 +595,15 @@ class TextRenderer:
                 print(f"[SCROLL] スクロールモード中 - 無条件で継続: {character_name}")
             
             # テキストをスクロールに追加（修正点：話者情報も渡す）
-            self.scroll_manager.add_text_to_scroll(text, character_name)
+            self.scroll_manager.add_text_to_scroll(text, character_name, force_female)
             self.displayed_chars = 0
             self.last_char_time = pygame.time.get_ticks()
             self.is_text_complete = False
             self.reset_auto_timer()
             self.last_speaker = character_name
+            self.last_force_female = bool(force_female)
             self.previous_text = text
+            self.previous_force_female = bool(force_female)
             # スクロールモード中はバックログ追加しないため、フラグは True に設定
             self.backlog_added_for_current = True
             return
@@ -610,25 +622,33 @@ class TextRenderer:
                 # 重複防止：前のテキストが既にバックログに単独で存在する場合は削除
                 if (self.backlog_manager and self.backlog_manager.entries and
                     self.backlog_manager.entries[-1]["speaker"] == self.last_speaker and
-                    self.backlog_manager.entries[-1]["text"] == self.previous_text):
+                    self.backlog_manager.entries[-1]["text"] == self.previous_text and
+                    bool(self.backlog_manager.entries[-1].get("force_female")) ==
+                    bool(getattr(self, 'previous_force_female', False))):
                     removed_entry = self.backlog_manager.entries.pop()
                     if self.debug:
                         print(f"[BACKLOG] スクロール開始時に重複エントリを削除: {removed_entry['speaker']} - {removed_entry['text'][:30]}...")
 
                 # 前のテキストでスクロール開始（前の話者で）
-                self.scroll_manager.start_scroll_mode(self.last_speaker, self.previous_text)
+                self.scroll_manager.start_scroll_mode(
+                    self.last_speaker,
+                    self.previous_text,
+                    getattr(self, 'previous_force_female', False),
+                )
                 # 現在のテキストを追加（現在の話者で）
-                self.scroll_manager.add_text_to_scroll(text, character_name)
+                self.scroll_manager.add_text_to_scroll(text, character_name, force_female)
             else:
                 # 前のテキストがない場合のみ新しくスクロール開始
-                self.scroll_manager.start_scroll_mode(character_name, text)
+                self.scroll_manager.start_scroll_mode(character_name, text, force_female)
             
             self.displayed_chars = 0
             self.last_char_time = pygame.time.get_ticks()
             self.is_text_complete = False
             self.reset_auto_timer()
             self.last_speaker = character_name
+            self.last_force_female = bool(force_female)
             self.previous_text = text
+            self.previous_force_female = bool(force_female)
             # スクロールモード開始時はバックログ追加しないため、フラグは True に設定
             self.backlog_added_for_current = True
             return
@@ -641,7 +661,9 @@ class TextRenderer:
         self.is_text_complete = False
         self.reset_auto_timer()
         self.last_speaker = character_name
+        self.last_force_female = bool(force_female)
         self.previous_text = text
+        self.previous_force_female = bool(force_female)
         # 通常表示ではskip_text()でバックログ追加するため、フラグは False のまま
     
     def update(self):
@@ -734,7 +756,9 @@ class TextRenderer:
                 not self.scroll_manager.is_scroll_mode()):
                 # 通常モードの場合のみ（スクロール中は scroll_manager が終了時に処理）
                 char_name = self.current_character_name if self.current_character_name else None
-                self.backlog_manager.add_entry(char_name, self.current_text)
+                self.backlog_manager.add_entry(
+                    char_name, self.current_text, self.current_force_female
+                )
                 self.backlog_added_for_current = True  # バックログに追加済みフラグを設定
                 if self.debug:
                     print(f"[BACKLOG] スキップ時にテキストをバックログに追加: {char_name} - {self.current_text[:30]}...")
@@ -779,8 +803,8 @@ class TextRenderer:
                 print(f"[SCROLL] 単一テキストの3行スクロール適用: {len(all_lines)}行 -> 最新{self.max_display_lines}行表示")
 
         # 話者名と本文に適用する色を決定
-        text_color_to_use = self.text_color
-        if self.current_character_name:
+        text_color_to_use = self.text_color_female if self.current_force_female else self.text_color
+        if self.current_character_name and not self.current_force_female:
             gender = CHARACTER_GENDERS.get(self.current_character_name)
             if gender == 'female':
                 text_color_to_use = self.text_color_female
@@ -854,6 +878,8 @@ class TextRenderer:
                 should_show_speaker = (block_is_first and line_index == 0)
                 line_speaker_mapping.append({
                     'speaker': block_speaker,
+                    'force_female': speakers_info['force_female'][block_index]
+                        if block_index < len(speakers_info['force_female']) else False,
                     'show_speaker': should_show_speaker
                 })
         
@@ -868,6 +894,7 @@ class TextRenderer:
         
         # 話者名表示判定：他の話者を挟んだ場合は再表示する
         previous_speaker = None
+        previous_force_female = None
         for i, mapping in enumerate(speaker_mapping_to_draw):
             speaker = mapping['speaker']
             
@@ -876,9 +903,11 @@ class TextRenderer:
                 continue
             
             # 最初の行または前の話者と異なる場合は表示
-            if i == 0 or speaker != previous_speaker:
+            force_female = bool(mapping.get('force_female', False))
+            if i == 0 or speaker != previous_speaker or force_female != previous_force_female:
                 mapping['show_speaker'] = True
                 previous_speaker = speaker
+                previous_force_female = force_female
             else:
                 # 同じ話者の連続する行では名前を非表示
                 mapping['show_speaker'] = False
@@ -898,7 +927,9 @@ class TextRenderer:
                     speaker_name_to_show = mapping['speaker']
                 
                 # この行の話者に基づいて色を決定（重要な修正点）
-                if mapping['speaker']:
+                if mapping.get('force_female'):
+                    speaker_text_color = self.text_color_female
+                elif mapping['speaker']:
                     gender = CHARACTER_GENDERS.get(mapping['speaker'])
                     if gender == 'female':
                         speaker_text_color = self.text_color_female

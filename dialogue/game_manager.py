@@ -447,11 +447,12 @@ def process_dialogue_entry(game_state, entry):
         
         # テキストレンダラーに対話を設定
         game_state['text_renderer'].set_dialogue(
-            dialogue_text, 
-            character_name, 
-            should_scroll, 
-            background, 
-            active_characters
+            dialogue_text,
+            character_name,
+            should_scroll,
+            background,
+            active_characters,
+            force_female=bool(entry[12]) if len(entry) > 12 else False,
         )
         
         if DEBUG:

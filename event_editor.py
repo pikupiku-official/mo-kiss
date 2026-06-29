@@ -984,6 +984,10 @@ class StepEditorDialog(QDialog):
         self.scroll_checkbox.setChecked(bool(self.step.get("has_scroll_stop")))
         dialogue_layout.addRow(self.scroll_checkbox)
 
+        self.female_checkbox = QCheckBox("female（話者名とセリフを桃色）")
+        self.female_checkbox.setChecked(bool(self.step.get("force_female")))
+        dialogue_layout.addRow(self.female_checkbox)
+
         self.memo_input = QLineEdit()
         self.memo_input.setText(self.step.get("memo", ""))
         self.memo_input.setPlaceholderText("このstepへの備考を入力...")
@@ -1090,7 +1094,8 @@ class StepEditorDialog(QDialog):
         speaker = self.speaker_input.text().strip()
         body = self.body_input.text().replace("\n", " ").replace("\r", " ").strip()
         scroll_stop = self.scroll_checkbox.isChecked()
-        return speaker, body, scroll_stop
+        force_female = self.female_checkbox.isChecked()
+        return speaker, body, scroll_stop, force_female
 
     def get_actions(self):
         """アクション一覧を取得"""
@@ -2142,7 +2147,15 @@ class EventEditorGUI(QMainWindow):
         pending_action_lines = []
         last_speaker_line = None
         last_speaker = ""
-        def add_step(start_line, end_line, speaker="", body="", has_scroll_stop=False, dialogue_line=None):
+        def add_step(
+            start_line,
+            end_line,
+            speaker="",
+            body="",
+            has_scroll_stop=False,
+            dialogue_line=None,
+            force_female=False,
+        ):
             step_index = len(steps)
             steps.append(
                 {
@@ -2152,6 +2165,7 @@ class EventEditorGUI(QMainWindow):
                     "speaker": speaker,
                     "body": body,
                     "has_scroll_stop": has_scroll_stop,
+                    "force_female": force_female,
                     "dialogue_line": dialogue_line,
                     "memo": "",
                 }
@@ -2197,6 +2211,7 @@ class EventEditorGUI(QMainWindow):
             if "「" in line and "」" in line:
                 body = ""
                 has_scroll_stop = "[scroll-stop]" in line
+                force_female = "[female]" in line
                 start_idx = line.find("「")
                 end_idx = line.rfind("」")
                 if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
@@ -2214,6 +2229,7 @@ class EventEditorGUI(QMainWindow):
                     body=body,
                     has_scroll_stop=has_scroll_stop,
                     dialogue_line=i,
+                    force_female=force_female,
                 )
                 pending_action_lines = []
                 last_speaker_line = None
@@ -2321,10 +2337,12 @@ class EventEditorGUI(QMainWindow):
         if step_index is not None:
             self._generate_step_preview(step_index, dialog)
         if dialog.exec_() == QDialog.Accepted:
-            speaker, body, scroll_stop = dialog.get_dialogue_values()
+            speaker, body, scroll_stop, force_female = dialog.get_dialogue_values()
             memo = dialog.get_memo()
             actions = dialog.get_actions()
-            self._apply_step_update(step, speaker, body, scroll_stop, actions, memo)
+            self._apply_step_update(
+                step, speaker, body, scroll_stop, force_female, actions, memo
+            )
             if step_index is not None:
                 self._generate_step_preview(step_index, dialog)
 
@@ -2377,7 +2395,18 @@ class EventEditorGUI(QMainWindow):
         self.text_editor.blockSignals(False)
         self.update_step_highlights()
 
-    def _build_step_update_text(self, original_text, step, speaker, body, scroll_stop, actions, warn_scroll_stop=True, memo=""):
+    def _build_step_update_text(
+        self,
+        original_text,
+        step,
+        speaker,
+        body,
+        scroll_stop,
+        force_female,
+        actions,
+        warn_scroll_stop=True,
+        memo="",
+    ):
         if not step:
             return original_text
 
@@ -2429,6 +2458,8 @@ class EventEditorGUI(QMainWindow):
 
         if body:
             line_text = f"「{body}」"
+            if force_female:
+                line_text += "[female]"
             if scroll_stop:
                 line_text += "[scroll-stop]"
             new_region.append(line_text)
@@ -2505,7 +2536,9 @@ class EventEditorGUI(QMainWindow):
             result.append(line)
         return "".join(result)
 
-    def _apply_step_update(self, step, speaker, body, scroll_stop, actions, memo=""):
+    def _apply_step_update(
+        self, step, speaker, body, scroll_stop, force_female, actions, memo=""
+    ):
         """stepを更新してエディタに反映"""
         new_text = self._build_step_update_text(
             self.text_editor.toPlainText(),
@@ -2513,6 +2546,7 @@ class EventEditorGUI(QMainWindow):
             speaker,
             body,
             scroll_stop,
+            force_female,
             actions,
             warn_scroll_stop=True,
         )
@@ -2607,7 +2641,7 @@ class EventEditorGUI(QMainWindow):
             return
         if not self.current_file_path:
             return
-        speaker, body, scroll_stop = dialog.get_dialogue_values()
+        speaker, body, scroll_stop, force_female = dialog.get_dialogue_values()
         memo = dialog.get_memo()
         actions = dialog.get_actions()
         temp_text = self._build_step_update_text(
@@ -2616,6 +2650,7 @@ class EventEditorGUI(QMainWindow):
             speaker,
             body,
             scroll_stop,
+            force_female,
             actions,
             warn_scroll_stop=False,
             memo=memo,

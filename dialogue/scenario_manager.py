@@ -170,6 +170,7 @@ def advance_dialogue_ir(game_state):
                 should_scroll=should_scroll,
                 background=None,
                 active_characters=active_characters,
+                force_female=bool(text.get("force_female", False)),
             )
         return True
 
@@ -819,7 +820,8 @@ def _handle_dialogue_text(game_state, current_dialogue):
         display_name,
         should_scroll=should_scroll,
         background=current_dialogue[0],
-        active_characters=active_characters
+        active_characters=active_characters,
+        force_female=bool(current_dialogue[12]) if len(current_dialogue) > 12 else False,
     )
 
     # 話し手の表情を更新（空でない場合のみ）

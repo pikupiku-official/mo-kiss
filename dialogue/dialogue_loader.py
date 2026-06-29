@@ -677,6 +677,8 @@ class DialogueLoader:
 
                         # [scroll-stop]タグがあるかチェック
                         has_scroll_stop = '[scroll-stop]' in line
+                        # 話者辞書に関係なく、このセリフ行だけ女性色にする。
+                        force_female = '[female]' in line
                         
                         for dialogue_text in dialogue_matches:
                             dialogue_text = dialogue_text.strip()
@@ -736,6 +738,7 @@ class DialogueLoader:
                                     'bgm_volume': current_bgm_volume,
                                     'bgm_loop': current_bgm_loop,
                                     'scroll_continue': scroll_continue,
+                                    'force_female': force_female,
                                     'line_count': line_count
                                 })
 
@@ -950,6 +953,7 @@ class DialogueLoader:
                     speaker=entry.get("character", ""),
                     body=entry.get("text", ""),
                     scroll=bool(entry.get("scroll_continue", False)),
+                    force_female=bool(entry.get("force_female", False)),
                 )
                 steps.append(make_step(step_id=step_id, text=text))
                 continue

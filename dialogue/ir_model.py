@@ -8,8 +8,16 @@ ON_ADVANCE_INTERRUPT = "interrupt"
 ON_ADVANCE_CONTINUE = "continue"
 
 
-def make_text(speaker: str, body: str, scroll: bool = False) -> Dict[str, Any]:
-    return {"speaker": speaker, "body": body, "scroll": scroll}
+def make_text(
+    speaker: str,
+    body: str,
+    scroll: bool = False,
+    force_female: bool = False,
+) -> Dict[str, Any]:
+    data = {"speaker": speaker, "body": body, "scroll": scroll}
+    if force_female:
+        data["force_female"] = True
+    return data
 
 
 def make_animation(
