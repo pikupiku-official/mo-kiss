@@ -16,9 +16,12 @@ test('render constants stay aligned with core/config.py', () => {
       chars: preview.RENDER_CONFIG.maxCharsPerLine,
       lines: preview.RENDER_CONFIG.maxDisplayLines,
       font: preview.RENDER_CONFIG.fontSize,
+      glyphHeight: preview.RENDER_CONFIG.glyphHeight,
+      lineHeight: preview.RENDER_CONFIG.lineHeight,
+      rubyHeight: preview.RENDER_CONFIG.rubyHeight,
       box: [preview.RENDER_CONFIG.textBoxX, preview.RENDER_CONFIG.textBoxY, preview.RENDER_CONFIG.textBoxWidth, preview.RENDER_CONFIG.textBoxHeight],
     },
-    { textX: 298, textY: 798, nameX: 95, nameY: 798, chars: 20, lines: 3, font: 45, box: [50, 742, 1340, 288] },
+    { textX: 298, textY: 798, nameX: 95, nameY: 798, chars: 20, lines: 3, font: 45, glyphHeight: 63, lineHeight: 69, rubyHeight: 9, box: [50, 742, 1340, 288] },
   );
 });
 
@@ -121,4 +124,15 @@ test('AssetIndex filters face parts by the selected torso number', async () => {
   ]);
   const options = await assets.partOptions('MMK', 'eye', 'MMK_T01_ARM00_CLO00');
   assert.deepEqual(options.map((item) => item.stem), ['MMK_F01_EYE00_00', 'MMK_F01_EYE01_00']);
+});
+
+test('AssetIndex preserves dotted background IDs instead of stripping their numeric suffix', async () => {
+  const assets = new preview.AssetIndex({ fetch: async () => { throw new Error('not used'); } });
+  assets.backgrounds = [
+    { stem: 'test.bg.9873', url: 'first' },
+    { stem: 'test.bg.9901', url: 'second' },
+    { stem: 'test.bg.DSCN3314', url: 'third' },
+  ];
+  assert.equal((await assets.resolveBackground('test.bg.9901')).url, 'second');
+  assert.equal((await assets.resolveBackground('test.bg.DSCN3314.jpg')).url, 'third');
 });

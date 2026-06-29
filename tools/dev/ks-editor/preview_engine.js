@@ -21,10 +21,10 @@
     maxCharsPerLine: 20,
     maxDisplayLines: 3,
     charSpacing: 2,
-    glyphHeight: 54,
-    lineHeight: 59,
+    glyphHeight: 63,
+    lineHeight: 69,
     rubyFontSize: 18,
-    rubyHeight: 5,
+    rubyHeight: 9,
     stretchFactor: 1.05,
     pixelateFactor: 2,
     shadowOffsetX: 6,
@@ -434,8 +434,12 @@
     async resolveBackground(storage) {
       if (!storage) return null;
       const items = await this.loadBackgrounds();
-      const wanted = storage.toLowerCase().replace(/\.[^.]+$/, "");
-      return items.find((item) => item.stem.toLowerCase() === wanted)
+      const raw = storage.toLowerCase().trim();
+      // KSの背景ID自体にドットを含む（例: test.bg.9901）。
+      // 画像拡張子だけを除き、数値末尾を拡張子と誤認しない。
+      const wanted = raw.replace(/\.(?:png|jpe?g|webp)$/i, "");
+      return items.find((item) => item.stem.toLowerCase() === raw)
+        || items.find((item) => item.stem.toLowerCase() === wanted)
         || items.find((item) => item.stem.toLowerCase().endsWith(`.${wanted}`))
         || items.find((item) => item.stem.toLowerCase().includes(wanted))
         || null;
