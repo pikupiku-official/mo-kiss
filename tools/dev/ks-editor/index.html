@@ -162,6 +162,37 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
 .modal-box input:focus { border-color:var(--blue); }
 .modal-row { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
 .modal-note { font-size:11px; color:var(--comment); margin-bottom:8px; line-height:1.5; }
+
+/* ===== ゲームプレビュー ===== */
+.preview-modal { padding:10px; }
+.preview-box { width:min(1180px,96vw); max-height:96vh; padding:0; display:flex; flex-direction:column; }
+.preview-head { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--panel2); border-bottom:1px solid var(--border); }
+.preview-title { color:var(--blue); font-size:12px; font-weight:bold; }
+.preview-stage { background:#111; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; touch-action:pan-y; }
+.preview-stage canvas { display:block; width:100%; height:auto; max-height:calc(96vh - 90px); aspect-ratio:4/3; object-fit:contain; }
+.preview-controls { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:7px 10px; background:var(--panel2); border-top:1px solid var(--border); }
+#preview-range { flex:1; min-width:140px; accent-color:var(--blue); }
+#preview-status { font-size:11px; color:var(--comment); min-width:110px; text-align:center; }
+.chara-box { width:min(1120px,96vw); max-height:96vh; padding:0; display:grid; grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr); overflow:hidden; }
+.chara-stage { background:#1e1e1e; display:flex; align-items:center; min-height:0; }
+.chara-stage canvas { width:100%; height:auto; max-height:96vh; aspect-ratio:4/3; object-fit:contain; }
+.chara-form { padding:12px; overflow:auto; background:var(--panel); }
+.chara-form h3 { margin-bottom:10px; }
+.chara-field { margin-bottom:7px; }
+.chara-field label { display:block; color:var(--comment); font-size:10px; margin-bottom:2px; }
+.chara-field input,.chara-field select { width:100%; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); padding:5px; font-size:12px; }
+.chara-field.mismatch select { border-color:#ffcc00; background:#4a3a00; }
+.chara-field.changed select { border-color:#6a8759; background:#263d26; }
+.chara-actions { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
+@media (max-width:700px) {
+  .preview-modal { padding:0; align-items:stretch; }
+  .preview-box { width:100vw; max-height:100dvh; height:100dvh; border:0; }
+  .preview-stage { flex:1; }
+  .preview-stage canvas { max-height:none; }
+  .chara-box { width:100vw; max-height:100dvh; height:100dvh; grid-template-columns:1fr; grid-template-rows:minmax(220px,42vh) 1fr; border:0; }
+  .chara-stage canvas { max-height:42vh; }
+  .chara-form { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+}
 </style>
 </head>
 <body>
@@ -196,6 +227,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <button class="mbtn hidden" id="btn-find">検索</button>
     <button class="mbtn hidden" id="btn-outline">アウトライン</button>
     <button class="mbtn hidden" id="btn-step-panel">Step編集</button>
+    <button class="mbtn hidden" id="btn-preview">▶ プレビュー</button>
     <button class="mbtn" id="btn-settings">設定</button>
     <button class="mbtn" id="btn-logout" style="margin-left:auto">ログアウト</button>
   </div>
@@ -268,7 +300,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
         <textarea id="step-actions" class="sp-textarea" rows="2" placeholder="[bg_show storage=...]など"></textarea>
       </div>
       <div class="sp-field">
-        <div class="sp-label">メモ（KSに含まれぺエディタ内のみ）</div>
+        <div class="sp-label">メモ（KSに含まれ、エディタ内で表示）</div>
         <input type="text" id="step-memo" class="sp-input" placeholder="備考">
       </div>
     </div>
@@ -276,11 +308,11 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
       <button class="smbtn" id="step-ins-before">前に挿入</button>
       <button class="smbtn" id="step-ins-after">後に挿入</button>
       <button class="smbtn danger" id="step-delete-btn">削除</button>
+      <button class="smbtn" id="step-preview">▶ このStepをプレビュー</button>
+      <button class="smbtn" id="step-chara-preview">🎨 立ち絵プレビュー</button>
       <button class="smbtn" id="step-apply" style="background:var(--blue);color:#fff;font-weight:bold">適用</button>
       <button class="smbtn" id="step-apply-save" style="background:#2a7a2a;color:#fff;font-weight:bold">適用して保存</button>
     </div>
-  </div>
-
   </div>
 
   <!-- ステータスバー -->
@@ -339,6 +371,44 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   </div>
 </div>
 
+<!-- ゲームプレビュー -->
+<div id="preview-modal" class="modal-overlay preview-modal hidden">
+  <div class="modal-box preview-box">
+    <div class="preview-head">
+      <span class="preview-title">ゲームプレビュー（ブラウザ描画）</span>
+      <span id="preview-assets" style="font-size:10px;color:var(--comment)"></span>
+      <button class="smbtn" id="preview-close" style="margin-left:auto">閉じる</button>
+    </div>
+    <div class="preview-stage"><canvas id="preview-canvas" width="1440" height="1080"></canvas></div>
+    <div class="preview-controls">
+      <button class="smbtn" id="preview-first">|◀</button>
+      <button class="smbtn" id="preview-prev">◀ 前</button>
+      <input type="range" id="preview-range" min="0" max="0" value="0">
+      <span id="preview-status">Step 0 / 0</span>
+      <button class="smbtn" id="preview-next">次 ▶</button>
+      <button class="smbtn" id="preview-last">▶|</button>
+    </div>
+  </div>
+</div>
+
+<!-- 立ち絵合成・パーツ選択 -->
+<div id="chara-modal" class="modal-overlay hidden">
+  <div class="modal-box chara-box">
+    <div class="chara-stage"><canvas id="chara-canvas" width="1440" height="1080"></canvas></div>
+    <div class="chara-form">
+      <h3 id="chara-title">立ち絵プレビュー</h3>
+      <div class="chara-field"><label>キャラクター名</label><input id="chara-name" type="text"></div>
+      <div id="chara-part-fields"></div>
+      <div id="chara-help" class="modal-note">トルソーを変更すると対応するF/E/A番号で候補を絞ります。</div>
+      <div class="chara-actions">
+        <button class="smbtn" id="chara-cancel">キャンセル</button>
+        <button class="smbtn" id="chara-apply" style="background:var(--blue);color:#fff">アクションへ適用</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="preview_engine.js"></script>
 <script>
 // ============================================================
 //  設定
@@ -532,7 +602,7 @@ function showList(push=true) {
   if (push) history.pushState({page:"list"},"",location.pathname);
   $("file-panel").style.display = "none";
   $("list-panel").style.display = "";
-  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
+  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-step-panel","btn-preview","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
   $("btn-new2").style.display = "";
   closeFindBar();
   exitEditMode(false);
@@ -664,6 +734,7 @@ async function openFile(f, push=true) {
     if (isKSFile) attachStepClicks();
     // Step編集ボタンはKSのみ表示
     $("btn-step-panel").classList.toggle("hidden", !isKSFile);
+    $("btn-preview").classList.toggle("hidden", !isKSFile);
     buildOutline(text);
     $("sb-lines").textContent = lines.length+" 行" + (isKSFile ? '' : ' — ' + f.name.split('.').pop().toUpperCase());
     sbMsg("");
@@ -1152,6 +1223,179 @@ function insertStepTemplate(before){
 }
 $('step-ins-before').addEventListener('click',()=>insertStepTemplate(true));
 $('step-ins-after').addEventListener('click',()=>insertStepTemplate(false));
+
+// ============================================================
+//  ブラウザ版ゲームプレビュー
+// ============================================================
+const previewAssets = new KSPreview.AssetIndex({repo:REPO,branch:BRANCH});
+const previewRenderer = new KSPreview.CanvasRenderer($('preview-canvas'),previewAssets);
+const charaRenderer = new KSPreview.CanvasRenderer($('chara-canvas'),previewAssets);
+let previewScenario=null,previewStep=0,previewDrawToken=0;
+
+function sourceLineToPreviewStep(line){
+  if(!previewScenario||!previewScenario.steps.length)return 0;
+  let best=0,bestDistance=Infinity;
+  previewScenario.steps.forEach((step,index)=>{
+    const distance=Math.abs(step.sourceLine-line);
+    if(distance<bestDistance){bestDistance=distance;best=index;}
+  });
+  return best;
+}
+
+async function drawPreview(){
+  if(!previewScenario||!previewScenario.steps.length){
+    $('preview-status').textContent='プレビュー対象なし';return;
+  }
+  previewStep=Math.max(0,Math.min(previewStep,previewScenario.steps.length-1));
+  $('preview-range').value=previewStep;
+  const step=previewScenario.steps[previewStep];
+  $('preview-status').textContent=`Step ${previewStep+1} / ${previewScenario.steps.length}  L${step.sourceLine+1}`;
+  $('preview-assets').textContent='画像読み込み中…';
+  const token=++previewDrawToken;
+  try{
+    const state=KSPreview.buildState(previewScenario,previewStep);
+    await previewRenderer.draw(state);
+    if(token===previewDrawToken)$('preview-assets').textContent=state.warnings.length?state.warnings.join(' / '):'';
+  }catch(error){
+    if(token===previewDrawToken){
+      $('preview-assets').textContent='一部画像を表示できません';
+      console.error(error);
+    }
+  }
+}
+
+function openPreviewAtLine(line=0){
+  if(!currentFile||!currentFile.name.endsWith('.ks'))return;
+  if(editMode)currentText=$('edit-textarea').value;
+  previewScenario=KSPreview.parseScenario(currentText);
+  if(!previewScenario.steps.length){sbMsg('⚠ プレビュー可能なStepがありません',3000);return;}
+  previewStep=sourceLineToPreviewStep(line);
+  $('preview-range').max=previewScenario.steps.length-1;
+  $('preview-modal').classList.remove('hidden');
+  drawPreview();
+}
+
+$('btn-preview').addEventListener('click',()=>openPreviewAtLine(selectedStepIdx>=0?(currentSteps[selectedStepIdx]||{}).start_line||0:0));
+$('step-preview').addEventListener('click',()=>{
+  const step=currentSteps[selectedStepIdx];
+  openPreviewAtLine(step?step.start_line:0);
+});
+$('preview-close').addEventListener('click',()=>$('preview-modal').classList.add('hidden'));
+$('preview-first').addEventListener('click',()=>{previewStep=0;drawPreview();});
+$('preview-last').addEventListener('click',()=>{previewStep=Math.max(0,previewScenario.steps.length-1);drawPreview();});
+$('preview-prev').addEventListener('click',()=>{previewStep-=1;drawPreview();});
+$('preview-next').addEventListener('click',()=>{previewStep+=1;drawPreview();});
+$('preview-range').addEventListener('input',()=>{previewStep=parseInt($('preview-range').value);drawPreview();});
+$('preview-canvas').addEventListener('click',()=>{previewStep+=1;drawPreview();});
+
+// ============================================================
+//  立ち絵合成プレビュー・パーツ選択
+// ============================================================
+const PART_LABELS={torso:'体 (T)',brow:'眉 (BRO)',cheek:'頬 (CHE)',eye:'目 (EYE)',mouth:'口 (MOU)',effect:'エフェクト (E)',accessory:'装飾 (A)'};
+let charaActionLine=-1,charaAction=null,charaCode='',charaAllItems=[],charaBaseFields={};
+
+function serializeTag(action){
+  const params=Object.entries(action.params||{}).filter(([,value])=>value!==''&&value!=null)
+    .map(([key,value])=>`${key}="${String(value).replace(/"/g,'&quot;')}"`).join(' ');
+  return `[${action.type}${params?' '+params:''}]`;
+}
+
+function charaFields(){
+  const result={};
+  KSPreview.LAYER_ORDER.forEach(part=>{const el=$('chara-'+part);result[part]=el?el.value:'';});
+  return result;
+}
+
+function torsoToken(torso,part){
+  const num=(torso||'').match(/_T(\d+)/)?.[1];
+  if(!num||part==='torso')return '';
+  return ['brow','cheek','eye','mouth'].includes(part)?`_F${num}_`:part==='effect'?`_E${num}_`:`_A${num}_`;
+}
+
+function populatePartSelect(part,keep){
+  const select=$('chara-'+part);if(!select)return;
+  const token=torsoToken($('chara-torso')?.value||'',part);
+  let items=charaAllItems.filter(item=>item.part===part);
+  const filtered=token?items.filter(item=>item.stem.includes(token)):items;
+  if(filtered.length)items=filtered;
+  select.innerHTML='<option value=""></option>'+items.map(item=>`<option value="${esc(item.stem)}">${esc(item.stem)}</option>`).join('');
+  select.value=keep||'';
+  const field=select.closest('.chara-field');
+  field.classList.remove('mismatch','changed');
+  if(keep&&!items.some(item=>item.stem===keep)){
+    const option=document.createElement('option');option.value=keep;option.textContent='⚠ '+keep;select.appendChild(option);select.value=keep;
+    field.classList.add('mismatch');
+  }else if(charaAction&&charaAction.type==='chara_shift'&&keep!==(charaBaseFields[part]||''))field.classList.add('changed');
+}
+
+async function updateCharaPreview(){
+  $('chara-help').textContent='画像読み込み中…';
+  try{
+    await charaRenderer.drawComposite({...charaFields(),name:$('chara-name').value},charaCode);
+    $('chara-help').textContent='トルソーを変更すると対応するF/E/A番号で候補を絞ります。';
+  }catch(error){$('chara-help').textContent='一部画像を表示できません: '+error.message;console.error(error);}
+}
+
+async function openCharaPreview(){
+  const lines=$('step-actions').value.split('\n');
+  charaActionLine=lines.findIndex(line=>{
+    const tag=KSPreview.parseTag(line);return tag&&['chara_show','chara_shift'].includes(tag.type);
+  });
+  if(charaActionLine<0){sbMsg('⚠ Step内に chara_show / chara_shift がありません',3000);return;}
+  charaAction=KSPreview.parseTag(lines[charaActionLine]);
+  charaBaseFields={};
+  if(charaAction.type==='chara_shift'){
+    const parsed=KSPreview.parseScenario(currentText);
+    const editorStep=currentSteps[selectedStepIdx];
+    const actionLine=editorStep?editorStep.start_line:0;
+    let scenarioIndex=0;
+    parsed.steps.forEach((step,index)=>{if(step.sourceLine<=actionLine||step.startLine<=actionLine)scenarioIndex=index;});
+    const before=scenarioIndex>0?KSPreview.buildState(parsed,scenarioIndex-1):{characters:{}};
+    const target=charaAction.params.name||Object.keys(before.characters)[0];
+    const previous=before.characters[target]||{};
+    KSPreview.LAYER_ORDER.forEach(part=>charaBaseFields[part]=previous[part]||'');
+  }
+  const fields={};KSPreview.LAYER_ORDER.forEach(part=>fields[part]=charaAction.params[part]||charaBaseFields[part]||'');
+  const character={...fields,name:charaAction.params.name||''};
+  charaCode=previewAssets.codeFor(character);
+  if(!charaCode){sbMsg('⚠ キャラクター名またはパーツIDからキャラコードを判定できません',4000);return;}
+  $('chara-name').value=character.name;
+  $('chara-title').textContent=`立ち絵プレビュー: ${character.name||charaCode} / ${charaAction.type}`;
+  $('chara-part-fields').innerHTML=KSPreview.LAYER_ORDER.map(part=>`<div class="chara-field"><label>${PART_LABELS[part]}</label><select id="chara-${part}"></select></div>`).join('');
+  $('chara-help').textContent='パーツ一覧を取得中…';
+  $('chara-modal').classList.remove('hidden');
+  try{
+    charaAllItems=await previewAssets.loadCharacter(charaCode);
+    KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,fields[part]));
+    $('chara-torso').addEventListener('change',()=>{
+      const current=charaFields();
+      KSPreview.LAYER_ORDER.filter(part=>part!=='torso').forEach(part=>populatePartSelect(part,current[part]));
+      updateCharaPreview();
+    });
+    KSPreview.LAYER_ORDER.filter(part=>part!=='torso').forEach(part=>$('chara-'+part).addEventListener('change',updateCharaPreview));
+    $('chara-name').addEventListener('input',updateCharaPreview,{once:true});
+    updateCharaPreview();
+  }catch(error){$('chara-help').textContent='パーツ一覧取得失敗: '+error.message;}
+}
+
+$('step-chara-preview').addEventListener('click',openCharaPreview);
+$('chara-cancel').addEventListener('click',()=>$('chara-modal').classList.add('hidden'));
+$('chara-apply').addEventListener('click',()=>{
+  if(!charaAction||charaActionLine<0)return;
+  charaAction.params.name=$('chara-name').value.trim();
+  const selected=charaFields();
+  if(charaAction.type==='chara_shift'){
+    KSPreview.LAYER_ORDER.forEach(part=>{
+      if(selected[part]!==charaBaseFields[part])charaAction.params[part]=selected[part];
+      else delete charaAction.params[part];
+    });
+  }else Object.assign(charaAction.params,selected);
+  const lines=$('step-actions').value.split('\n');
+  lines[charaActionLine]=serializeTag(charaAction);
+  $('step-actions').value=lines.join('\n');
+  $('chara-modal').classList.add('hidden');
+  sbMsg('✓ 立ち絵パーツをアクション欄へ反映',2500);
+});
 </script>
 </body>
 </html>
