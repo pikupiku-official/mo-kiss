@@ -533,7 +533,8 @@
       "text": {
         "speaker": "？？",
         "body": "おはよう！",
-        "scroll": true
+        "scroll": true,
+        "force_female": true
       },
       "actions": [
         {

@@ -411,7 +411,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <div class="chara-stage"><canvas id="chara-canvas" width="1440" height="1080"></canvas></div>
     <div class="chara-form">
       <h3 id="chara-title">立ち絵プレビュー</h3>
-      <div class="chara-field"><label>キャラクター名</label><input id="chara-name" type="text"></div>
+      <div class="chara-field"><label>キャラクター名</label><input id="chara-name" type="text" list="chara-name-options" placeholder="先に入力または候補から選択"><datalist id="chara-name-options"></datalist></div>
       <div id="chara-part-fields"></div>
       <div id="chara-help" class="modal-note">トルソーを変更すると対応するF/E/A番号で候補を絞ります。</div>
       <div class="chara-actions">
@@ -1374,7 +1374,23 @@ $('preview-canvas').addEventListener('click',()=>{previewStep+=1;drawPreview();}
 //  立ち絵合成プレビュー・パーツ選択
 // ============================================================
 const PART_LABELS={torso:'体 (T)',brow:'眉 (BRO)',cheek:'頬 (CHE)',eye:'目 (EYE)',mouth:'口 (MOU)',effect:'エフェクト (E)',accessory:'装飾 (A)'};
-let charaActionLine=-1,charaAction=null,charaCode='',charaAllItems=[],charaBaseFields={};
+let charaActionLine=-1,charaAction=null,charaCode='',charaAllItems=[],charaBaseFields={},charaNameCandidates=[],charaLoadToken=0,charaPreviewContext=null,charaActionLayerOverrides={};
+
+function makePreviewState(){
+  return {
+    background:null,
+    characters:{},
+    text:{speaker:'',body:''},
+    textBlocks:[],
+    previousText:null,
+    scrollMode:false,
+    choices:[],
+    fade:{color:'black',opacity:0},
+    audio:{bgm:'',se:''},
+    labels:[],
+    warnings:[],
+  };
+}
 
 function serializeTag(action){
   const params=Object.entries(action.params||{}).filter(([,value])=>value!==''&&value!=null)
@@ -1386,6 +1402,97 @@ function charaFields(){
   const result={};
   KSPreview.LAYER_ORDER.forEach(part=>{const el=$('chara-'+part);result[part]=el?el.value:'';});
   return result;
+}
+
+function syncCharaApplyEnabled(){
+  $('chara-apply').disabled=!$('chara-name').value.trim();
+}
+
+function updateCharaNameOptions(candidates){
+  charaNameCandidates=[...new Set((candidates||[]).filter(Boolean))];
+  $('chara-name-options').innerHTML=charaNameCandidates.map(name=>`<option value="${esc(name)}"></option>`).join('');
+}
+
+function currentStepActionLines(){
+  return $('step-actions').value.split('\n');
+}
+
+function currentStepActionCursorLine(){
+  const textarea=$('step-actions');
+  const caret=Math.max(0,textarea.selectionStart||0);
+  return textarea.value.slice(0,caret).split('\n').length-1;
+}
+
+function findCharaActionContext(lines){
+  const candidates=[];
+  lines.forEach((line,index)=>{
+    const tag=KSPreview.parseTag(line);
+    if(tag&&['chara_show','chara_shift'].includes(tag.type))candidates.push({lineIndex:index,tag});
+  });
+  if(!candidates.length)return null;
+  const cursorLine=currentStepActionCursorLine();
+  return candidates.find(item=>item.lineIndex===cursorLine)
+    || [...candidates].reverse().find(item=>item.lineIndex<cursorLine)
+    || candidates.find(item=>item.tag.type==='chara_shift')
+    || candidates[0];
+}
+
+function buildStepEditorPreviewText(){
+  if(selectedStepIdx<0)return currentText;
+  return buildStepUpdateText(
+    currentText,
+    currentSteps[selectedStepIdx],
+    $('step-speaker').value,
+    $('step-body').value,
+    $('step-scroll-stop').checked,
+    $('step-female').checked,
+    currentStepActionLines().filter(line=>line.trim()),
+    $('step-memo').value,
+  );
+}
+
+function collectCharaPreviewContext(actionLineIndex, actionTag, lines){
+  const tempText=buildStepEditorPreviewText();
+  const knownNames=Object.keys(KSPreview.CHAR_CODES||{});
+  let statesByName={};
+  let lastName='';
+  const addKnown=name=>{if(name&&!knownNames.includes(name))knownNames.push(name);};
+  tempText.split('\n').forEach(line=>{
+    const tag=KSPreview.parseTag(line);
+    const name=tag&&tag.params&&typeof tag.params.name==='string'?tag.params.name.trim():'';
+    if(name)addKnown(name);
+  });
+  for(let i=0;i<actionLineIndex;i++){
+    const tag=KSPreview.parseTag(lines[i]);
+    if(!tag)continue;
+    const name=tag.params&&typeof tag.params.name==='string'?tag.params.name.trim():'';
+    if(name){
+      addKnown(name);
+      if(tag.type.startsWith('chara_'))lastName=name;
+    }
+    if(['chara_show','chara_shift','chara_move','chara_hide'].includes(tag.type)){
+      const state=makePreviewState();
+      state.characters={...statesByName};
+      KSPreview.applyAction(state,tag);
+      statesByName={...state.characters};
+    }
+  }
+  const activeNames=Object.keys(statesByName);
+  activeNames.forEach(addKnown);
+  const restricted=['chara_shift','chara_move','chara_hide'].includes(actionTag.type);
+  const explicitName=(actionTag.params.name||'').trim();
+  const defaultName=explicitName||(restricted?(activeNames[0]||lastName||''):'');
+  const candidates=restricted?[...activeNames]:[...knownNames];
+  if(defaultName&&!candidates.includes(defaultName))candidates.unshift(defaultName);
+  return {statesByName,defaultName,candidates,restricted,lastName};
+}
+
+function resolveCharaBaseFields(context, actionTag, selectedName=''){
+  const target=(selectedName||actionTag.params.name||context.defaultName||Object.keys(context.statesByName)[0]||'').trim();
+  const previous=target?(context.statesByName[target]||{}):{};
+  const fields={};
+  KSPreview.LAYER_ORDER.forEach(part=>fields[part]=previous[part]||'');
+  return {fields,target};
 }
 
 function torsoToken(torso,part){
@@ -1418,50 +1525,87 @@ async function updateCharaPreview(){
   }catch(error){$('chara-help').textContent='一部画像を表示できません: '+error.message;console.error(error);}
 }
 
-async function openCharaPreview(){
-  const lines=$('step-actions').value.split('\n');
-  charaActionLine=lines.findIndex(line=>{
-    const tag=KSPreview.parseTag(line);return tag&&['chara_show','chara_shift'].includes(tag.type);
+async function refreshCharaAssetOptions(){
+  if(!charaAction)return;
+  syncCharaApplyEnabled();
+  const selectedName=$('chara-name').value.trim();
+  const base=resolveCharaBaseFields(charaPreviewContext||{statesByName:{}},charaAction,selectedName).fields;
+  charaBaseFields=base;
+  const selected={...base};
+  KSPreview.LAYER_ORDER.forEach(part=>{
+    if(charaActionLayerOverrides[part])selected[part]=charaActionLayerOverrides[part];
   });
-  if(charaActionLine<0){sbMsg('⚠ Step内に chara_show / chara_shift がありません',3000);return;}
-  charaAction=KSPreview.parseTag(lines[charaActionLine]);
-  charaBaseFields={};
-  if(charaAction.type==='chara_shift'){
-    const parsed=KSPreview.parseScenario(currentText);
-    const editorStep=currentSteps[selectedStepIdx];
-    const actionLine=editorStep?editorStep.start_line:0;
-    let scenarioIndex=0;
-    parsed.steps.forEach((step,index)=>{if(step.sourceLine<=actionLine||step.startLine<=actionLine)scenarioIndex=index;});
-    const before=scenarioIndex>0?KSPreview.buildState(parsed,scenarioIndex-1):{characters:{}};
-    const target=charaAction.params.name||Object.keys(before.characters)[0];
-    const previous=before.characters[target]||{};
-    KSPreview.LAYER_ORDER.forEach(part=>charaBaseFields[part]=previous[part]||'');
+  KSPreview.LAYER_ORDER.forEach(part=>{
+    const el=$('chara-'+part);
+    if(el)el.value=selected[part]||'';
+  });
+  const character={...selected,name:$('chara-name').value.trim()};
+  charaCode=previewAssets.codeFor(character)||'';
+  $('chara-title').textContent=`立ち絵プレビュー: ${character.name||'未選択'} / ${charaAction.type}`;
+  if(!character.name){
+    charaAllItems=[];
+    KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,selected[part]||''));
+    $('chara-help').textContent='先にキャラクター名を入力または候補から選択してください。';
+    return;
   }
-  const fields={};KSPreview.LAYER_ORDER.forEach(part=>fields[part]=charaAction.params[part]||charaBaseFields[part]||'');
-  const character={...fields,name:charaAction.params.name||''};
-  charaCode=previewAssets.codeFor(character);
-  if(!charaCode){sbMsg('⚠ キャラクター名またはパーツIDからキャラコードを判定できません',4000);return;}
-  $('chara-name').value=character.name;
-  $('chara-title').textContent=`立ち絵プレビュー: ${character.name||charaCode} / ${charaAction.type}`;
-  $('chara-part-fields').innerHTML=KSPreview.LAYER_ORDER.map(part=>`<div class="chara-field"><label>${PART_LABELS[part]}</label><select id="chara-${part}"></select></div>`).join('');
+  if(!charaCode){
+    charaAllItems=[];
+    KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,selected[part]||''));
+    $('chara-help').textContent='キャラクター名からパーツ候補を特定できません。';
+    return;
+  }
+  const token=++charaLoadToken;
   $('chara-help').textContent='パーツ一覧を取得中…';
-  $('chara-modal').classList.remove('hidden');
   try{
-    charaAllItems=await previewAssets.loadCharacter(charaCode);
-    KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,fields[part]));
-    $('chara-torso').addEventListener('change',()=>{
-      const current=charaFields();
-      KSPreview.LAYER_ORDER.filter(part=>part!=='torso').forEach(part=>populatePartSelect(part,current[part]));
-      updateCharaPreview();
-    });
-    KSPreview.LAYER_ORDER.filter(part=>part!=='torso').forEach(part=>$('chara-'+part).addEventListener('change',updateCharaPreview));
-    $('chara-name').addEventListener('input',updateCharaPreview,{once:true});
+    const items=await previewAssets.loadCharacter(charaCode);
+    if(token!==charaLoadToken)return;
+    charaAllItems=items;
+    KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,selected[part]||''));
     updateCharaPreview();
-  }catch(error){$('chara-help').textContent='パーツ一覧取得失敗: '+error.message;}
+  }catch(error){
+    if(token!==charaLoadToken)return;
+    charaAllItems=[];
+    $('chara-help').textContent='パーツ一覧取得失敗: '+error.message;
+  }
+}
+
+async function openCharaPreview(){
+  const lines=currentStepActionLines();
+  const context=findCharaActionContext(lines);
+  if(!context){sbMsg('⚠ Step内に chara_show / chara_shift がありません',3000);return;}
+  charaActionLine=context.lineIndex;
+  charaAction=context.tag;
+  charaBaseFields={};
+  charaPreviewContext=collectCharaPreviewContext(charaActionLine,charaAction,lines);
+  updateCharaNameOptions(charaPreviewContext.candidates);
+  let fallbackName=(charaAction.params.name||charaPreviewContext.defaultName||'').trim();
+  const resolved=resolveCharaBaseFields(charaPreviewContext,charaAction,fallbackName);
+  charaBaseFields=resolved.fields;
+  fallbackName=fallbackName||resolved.target||'';
+  charaActionLayerOverrides={};
+  KSPreview.LAYER_ORDER.forEach(part=>{charaActionLayerOverrides[part]=charaAction.params[part]||'';});
+  const fields={...charaBaseFields};
+  KSPreview.LAYER_ORDER.forEach(part=>{if(charaActionLayerOverrides[part])fields[part]=charaActionLayerOverrides[part];});
+  const character={...fields,name:fallbackName};
+  $('chara-name').value=character.name;
+  $('chara-title').textContent=`立ち絵プレビュー: ${character.name||'未選択'} / ${charaAction.type}`;
+  $('chara-part-fields').innerHTML=KSPreview.LAYER_ORDER.map(part=>`<div class="chara-field"><label>${PART_LABELS[part]}</label><select id="chara-${part}"></select></div>`).join('');
+  $('chara-modal').classList.remove('hidden');
+  charaAllItems=[];
+  KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,fields[part]));
+  $('chara-torso').addEventListener('change',()=>{
+    const current=charaFields();
+    KSPreview.LAYER_ORDER.filter(part=>part!=='torso').forEach(part=>populatePartSelect(part,current[part]));
+    updateCharaPreview();
+  });
+  KSPreview.LAYER_ORDER.filter(part=>part!=='torso').forEach(part=>$('chara-'+part).addEventListener('change',updateCharaPreview));
+  syncCharaApplyEnabled();
+  await refreshCharaAssetOptions();
 }
 
 $('step-chara-preview').addEventListener('click',openCharaPreview);
 $('chara-cancel').addEventListener('click',()=>$('chara-modal').classList.add('hidden'));
+$('chara-name').addEventListener('input',refreshCharaAssetOptions);
 $('chara-apply').addEventListener('click',()=>{
   if(!charaAction||charaActionLine<0)return;
   charaAction.params.name=$('chara-name').value.trim();

@@ -532,15 +532,32 @@ class CharaCompositePreviewDialog(QDialog):
     TORSO_LINKED_PARTS = {'brow', 'cheek', 'eye', 'mouth', 'effect', 'accessory'}
 
     def __init__(self, parent, image_manager, initial_fields,
-                 char_name, is_shift=False, prev_fields=None):
+                 char_name, is_shift=False, prev_fields=None,
+                 char_name_options=None, require_name=False,
+                 state_by_name=None, action_overrides=None):
         super().__init__(parent)
         self._image_manager = image_manager
         self._fields = {p: initial_fields.get(p, '') for p in self.LAYER_ORDER}
-        self._char_name = char_name
+        self._char_name = (char_name or '').strip()
         self._is_shift = is_shift
         self._prev_fields = {p: (prev_fields or {}).get(p, '') for p in self.LAYER_ORDER}
+        self._char_name_options = list(dict.fromkeys(
+            name for name in (char_name_options or []) if name and str(name).strip()
+        ))
+        self._require_name = require_name
+        self._state_by_name = {
+            (name or '').strip(): {part: fields.get(part, '') for part in self.LAYER_ORDER}
+            for name, fields in (state_by_name or {}).items()
+            if (name or '').strip()
+        }
+        self._action_overrides = {
+            part: (action_overrides or {}).get(part, '')
+            for part in self.LAYER_ORDER
+        }
+        self._apply_btn = None
+        self._name_combo = None
 
-        self.setWindowTitle(f"立ち絵プレビュー: {char_name}")
+        self.setWindowTitle(f"立ち絵プレビュー: {self._char_name or '未選択'}")
         self.resize(1200, 780)
         self._build_ui()
         self._update_preview()
@@ -557,11 +574,28 @@ class CharaCompositePreviewDialog(QDialog):
     def _get_char_options(self, part):
         """パーツカテゴリから、このキャラのステム一覧を返す（全件）"""
         from core.config import CHAR_CODE
+        if self._require_name and not self._char_name:
+            return []
         code = CHAR_CODE.get(self._char_name, '')
         paths = self._image_manager.image_paths.get(part, {})
         if code:
             return sorted(k for k in paths if k.startswith(code + '_'))
         return sorted(paths.keys())
+
+    def _sync_apply_enabled(self):
+        if self._apply_btn:
+            self._apply_btn.setEnabled(bool(self._char_name.strip()))
+
+    def _compose_fields_for_name(self, char_name):
+        base_fields = {
+            part: self._state_by_name.get((char_name or '').strip(), {}).get(part, '')
+            for part in self.LAYER_ORDER
+        }
+        merged = dict(base_fields)
+        for part, value in self._action_overrides.items():
+            if str(value).strip():
+                merged[part] = value
+        return base_fields, merged
 
     def _get_filtered_options(self, part):
         """トルソー番号でフィルタした選択肢を返す。
@@ -641,6 +675,16 @@ class CharaCompositePreviewDialog(QDialog):
         self._combos = {}
         self._label_widgets = {}
 
+        self._name_combo = QComboBox()
+        self._name_combo.setEditable(True)
+        self._name_combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self._name_combo.addItems(self._char_name_options)
+        self._name_combo.setCurrentText(self._char_name)
+        if self._name_combo.lineEdit():
+            self._name_combo.lineEdit().setPlaceholderText("先にキャラクター名を入力または選択")
+        self._name_combo.currentTextChanged.connect(self._on_name_changed)
+        parts_form.addRow("name", self._name_combo)
+
         for part in self.LAYER_ORDER:
             current_val = self._fields[part]
 
@@ -686,11 +730,11 @@ class CharaCompositePreviewDialog(QDialog):
 
         # ボタン行
         btn_layout = QHBoxLayout()
-        apply_btn = QPushButton('✅ スクリプトに適用')
-        apply_btn.clicked.connect(self.accept)
+        self._apply_btn = QPushButton('✅ スクリプトに適用')
+        self._apply_btn.clicked.connect(self.accept)
         cancel_btn = QPushButton('キャンセル')
         cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(apply_btn)
+        btn_layout.addWidget(self._apply_btn)
         btn_layout.addWidget(cancel_btn)
         right_layout.addLayout(btn_layout)
         right_layout.addStretch()
@@ -698,10 +742,18 @@ class CharaCompositePreviewDialog(QDialog):
         splitter.addWidget(right)
         splitter.setSizes([750, 450])
         main_layout.addWidget(splitter)
+        self._sync_apply_enabled()
 
     # ------------------------------------------------------------------
     # イベントハンドラ
     # ------------------------------------------------------------------
+
+    def _on_name_changed(self, text):
+        self._char_name = text.strip()
+        self._prev_fields, self._fields = self._compose_fields_for_name(self._char_name)
+        self.setWindowTitle(f"立ち絵プレビュー: {self._char_name or '未選択'}")
+        self._refresh_all_combos()
+        self._sync_apply_enabled()
 
     def _on_field_changed(self, part, text):
         self._fields[part] = text.strip()
@@ -715,6 +767,28 @@ class CharaCompositePreviewDialog(QDialog):
         if part == 'torso':
             self._refresh_face_combos()
 
+        self._update_preview()
+
+    def _refresh_all_combos(self):
+        for part in self.LAYER_ORDER:
+            combo = self._combos[part]
+            label = self._label_widgets[part]
+            current = combo.currentText()
+            opts = (self._get_filtered_options(part)
+                    if part in self.TORSO_LINKED_PARTS
+                    else self._get_char_options(part))
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem('')
+            combo.addItems(opts)
+            idx = combo.findText(current)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            elif current.strip():
+                combo.setCurrentText(current)
+            combo.blockSignals(False)
+            style_key = self._combo_style_for(part, current)
+            self._apply_combo_style(combo, label, style_key, part)
         self._update_preview()
 
     def _refresh_face_combos(self):
@@ -780,18 +854,27 @@ class CharaCompositePreviewDialog(QDialog):
         """スクリプトに適用するフィールド辞書を返す。
         chara_shift 且つ差分のみモードの場合は変更パーツのみ。
         """
+        result_name = self._char_name.strip()
         if self._diff_only and self._diff_only.isChecked():
-            return {
+            result = {
                 p: v for p, v in self._fields.items()
                 if v.strip() != self._prev_fields.get(p, '').strip()
             }
-        return dict(self._fields)
+            if result_name:
+                result['name'] = result_name
+            return result
+        result = dict(self._fields)
+        if result_name:
+            result['name'] = result_name
+        return result
 
 
 # ---------------------------------------------------------------------------
 
 class StepEditorDialog(QDialog):
     """step編集用ダイアログ"""
+
+    CHARA_PREVIEW_PARTS = tuple(CharaCompositePreviewDialog.LAYER_ORDER)
 
     TAG_NAMES = [
         "bg",
@@ -1297,23 +1380,96 @@ class StepEditorDialog(QDialog):
         self.custom_editor_widget.adjustSize()
         self.custom_editor_widget.updateGeometry()
 
-    def _find_prev_char_fields(self, char_name):
-        """同名のキャラの直前 chara_show / chara_shift のパーツフィールドを返す"""
-        if self._step_index is None or not self._all_steps:
-            return {}
-        # 現在の step_index より前のステップを逆向きに檢索
-        for step in reversed(self._all_steps):
-            si = step.get('step_index', -1)
-            if si >= self._step_index:
-                continue
-            for action in step.get('_actions_cache', []):
-                tag = action.get('tag', '')
-                if tag not in ('chara_show', 'chara_shift'):
+    def _empty_chara_preview_state(self):
+        return {part: "" for part in self.CHARA_PREVIEW_PARTS}
+
+    def _apply_chara_preview_action(self, states_by_name, tag, params):
+        char_name = params.get("name", "").strip()
+        if not char_name:
+            return states_by_name
+        next_states = {
+            name: dict(fields) for name, fields in states_by_name.items()
+        }
+        if tag == "chara_hide":
+            next_states.pop(char_name, None)
+            return next_states
+        if tag == "chara_show":
+            next_states[char_name] = self._empty_chara_preview_state()
+        if tag in ("chara_show", "chara_shift"):
+            current_state = next_states.get(char_name, self._empty_chara_preview_state())
+            merged = dict(current_state)
+            for part in self.CHARA_PREVIEW_PARTS:
+                if part in params:
+                    merged[part] = params.get(part, "")
+            next_states[char_name] = merged
+        return next_states
+
+    def _iter_prior_chara_actions(self):
+        if self._step_index is not None and self._all_steps:
+            for step in self._all_steps:
+                si = step.get("step_index", -1)
+                if si >= self._step_index:
                     continue
-                params = dict(action.get('params', []))
-                if params.get('name') == char_name:
-                    return params
-        return {}
+                for action in step.get("_actions_cache", []):
+                    yield action.get("tag", ""), dict(action.get("params", []))
+
+        current_row = self.actions_list.currentRow()
+        if current_row > 0:
+            for row in range(current_row):
+                item = self.actions_list.item(row)
+                if not item:
+                    continue
+                tag, params = self._parse_action(item.text())
+                yield tag, dict(params)
+
+    def _resolve_chara_preview_name_context(self, current_tag, explicit_name=""):
+        from core.config import CHAR_CODE
+
+        known_names = list(CHAR_CODE.keys())
+        states_by_name = {}
+        last_name = ""
+
+        def add_known(name):
+            if name and name not in known_names:
+                known_names.append(name)
+
+        for tag, params in self._iter_prior_chara_actions():
+            name = params.get("name", "").strip()
+            if not name:
+                continue
+            add_known(name)
+            states_by_name = self._apply_chara_preview_action(states_by_name, tag, params)
+            last_name = name
+
+        active_names = list(states_by_name.keys())
+
+        explicit_name = (explicit_name or "").strip()
+        restricted = current_tag in ("chara_shift", "chara_move", "chara_hide")
+        default_name = explicit_name
+        if not default_name and restricted:
+            default_name = active_names[0] if active_names else last_name
+
+        candidates = list(active_names) if restricted else list(known_names)
+        if default_name and default_name not in candidates:
+            candidates.insert(0, default_name)
+        if explicit_name and explicit_name not in candidates:
+            candidates.insert(0, explicit_name)
+
+        return {
+            "candidates": candidates,
+            "default_name": default_name,
+            "active_names": active_names,
+            "last_name": last_name,
+            "states_by_name": states_by_name,
+        }
+
+    def _find_prev_char_fields(self, char_name):
+        """現在選択中アクション直前の表示状態を返す"""
+        context = self._resolve_chara_preview_name_context(
+            self.tag_combo.currentText().strip(),
+            char_name,
+        )
+        return dict(context.get("states_by_name", {}).get(char_name, {}))
 
     def _open_chara_preview(self, is_shift):
         """立ち絵合成プレビューダイアログを開く"""
@@ -1327,12 +1483,26 @@ class StepEditorDialog(QDialog):
         # 現在のフィールド値を収集
         current = {k: (f.currentText() if isinstance(f, QComboBox) else f.text().strip())
                    for k, f in self.custom_fields.items()}
-        char_name = current.get('name', '')
-        prev_fields = self._find_prev_char_fields(char_name) if is_shift else {}
+        current_tag = self.tag_combo.currentText().strip() or ("chara_shift" if is_shift else "chara_show")
+        name_context = self._resolve_chara_preview_name_context(current_tag, current.get('name', ''))
+        char_name = name_context["default_name"] or current.get('name', '').strip()
+        prev_fields = dict(name_context.get("states_by_name", {}).get(char_name, {}))
+        action_overrides = {
+            part: current.get(part, "").strip()
+            for part in self.CHARA_PREVIEW_PARTS
+        }
+        initial_fields = dict(prev_fields)
+        for part, value in action_overrides.items():
+            if value:
+                initial_fields[part] = value
 
         dlg = CharaCompositePreviewDialog(
-            self, image_manager, current,
-            char_name=char_name, is_shift=is_shift, prev_fields=prev_fields
+            self, image_manager, initial_fields,
+            char_name=char_name, is_shift=is_shift, prev_fields=prev_fields,
+            char_name_options=name_context["candidates"],
+            require_name=not bool(current.get("name", "").strip()),
+            state_by_name=name_context.get("states_by_name", {}),
+            action_overrides=action_overrides,
         )
         if dlg.exec_() == QDialog.Accepted:
             result = dlg.get_result_fields()

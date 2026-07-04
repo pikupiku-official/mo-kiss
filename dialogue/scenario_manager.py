@@ -231,6 +231,18 @@ def _ir_handle_choice(game_state, params):
     if choice_renderer:
         choice_renderer.show_choices(options)
 
+def _ir_compute_character_placement(char_img, show_x, show_y, size):
+    char_width = char_img.get_width()
+    char_height = char_img.get_height()
+    char_base_scale = VIRTUAL_HEIGHT / char_height
+    virtual_width = char_width * char_base_scale * size
+    virtual_height = char_height * char_base_scale * size
+    virtual_center_x = VIRTUAL_WIDTH * show_x
+    virtual_center_y = VIRTUAL_HEIGHT * show_y
+    virtual_pos_x = int(virtual_center_x - virtual_width // 2)
+    virtual_pos_y = int(virtual_center_y - virtual_height // 2)
+    return scale_pos(virtual_pos_x, virtual_pos_y)
+
 def _ir_handle_character_show(game_state, target, params):
     if not target:
         return
@@ -259,17 +271,7 @@ def _ir_handle_character_show(game_state, target, params):
     is_new_character = target not in game_state.get("active_characters", [])
     if is_new_character:
         game_state["active_characters"].append(target)
-
-        char_width = char_img.get_width()
-        char_height = char_img.get_height()
-        char_base_scale = VIRTUAL_HEIGHT / char_height
-        virtual_width = char_width * char_base_scale * size
-        virtual_height = char_height * char_base_scale * size
-        virtual_center_x = VIRTUAL_WIDTH * show_x
-        virtual_center_y = VIRTUAL_HEIGHT * show_y
-        virtual_pos_x = int(virtual_center_x - virtual_width // 2)
-        virtual_pos_y = int(virtual_center_y - virtual_height // 2)
-        pos_x, pos_y = scale_pos(virtual_pos_x, virtual_pos_y)
+        pos_x, pos_y = _ir_compute_character_placement(char_img, show_x, show_y, size)
 
         game_state["character_pos"][target] = [pos_x, pos_y]
         game_state["character_zoom"][target] = size
@@ -327,6 +329,28 @@ def _ir_handle_character_shift(game_state, target, params):
         if "character_torso" not in game_state:
             game_state["character_torso"] = {}
         game_state["character_torso"][target] = torso_id
+    current_torso = game_state.get("character_torso", {}).get(target, target)
+    placement_img = image_manager.get_image("torso", current_torso) if image_manager else None
+    if placement_img:
+        has_position_update = "x" in params or "y" in params or "size" in params
+        if has_position_update:
+            current_zoom = _to_float(game_state.get("character_zoom", {}).get(target), 1.0)
+            current_pos = game_state.get("character_pos", {}).get(target)
+            if current_pos:
+                base_scale = VIRTUAL_HEIGHT / placement_img.get_height()
+                current_width = placement_img.get_width() * base_scale * current_zoom
+                current_height = placement_img.get_height() * base_scale * current_zoom
+                current_center_x = current_pos[0] + current_width / 2
+                current_center_y = current_pos[1] + current_height / 2
+                show_x = _to_float(params.get("x"), current_center_x / SCALE / VIRTUAL_WIDTH)
+                show_y = _to_float(params.get("y"), current_center_y / SCALE / VIRTUAL_HEIGHT)
+            else:
+                show_x = _to_float(params.get("x"), 0.5)
+                show_y = _to_float(params.get("y"), 0.5)
+            size = _to_float(params.get("size"), current_zoom)
+            pos_x, pos_y = _ir_compute_character_placement(placement_img, show_x, show_y, size)
+            game_state["character_pos"][target] = [pos_x, pos_y]
+            game_state["character_zoom"][target] = size
     _ir_update_expressions(game_state, target, params)
 
     if fade_ms > 0:
