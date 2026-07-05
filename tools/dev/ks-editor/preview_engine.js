@@ -397,8 +397,17 @@
 
     async loadUI() {
       if (!this.ui) {
-        const items = await this.list("images/UI");
-        this.ui = items.filter((item) => item.type === "file").map((item) => ({
+        const directories = ["images/UI", "images/legacy"];
+        const collected = [];
+        for (const directory of directories) {
+          try {
+            const items = await this.list(directory);
+            collected.push(...items);
+          } catch (error) {
+            // Legacy UI assets are optional.
+          }
+        }
+        this.ui = collected.filter((item) => item.type === "file").map((item) => ({
           name: item.name,
           stem: item.name.replace(/\.[^.]+$/, ""),
           url: item.download_url || `${this.rawBase}${item.path}`,

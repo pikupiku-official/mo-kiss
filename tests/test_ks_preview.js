@@ -27,13 +27,22 @@ test('render constants stay aligned with core/config.py', () => {
 
 test('preview uses the same UI image dimensions and font files as pygame', () => {
   const root = path.join(__dirname, '..');
+  function findAsset(...segments) {
+    const candidates = [
+      path.join(root, 'images', 'UI', ...segments),
+      path.join(root, 'images', 'legacy', ...segments),
+    ];
+    const existing = candidates.find((file) => fs.existsSync(file));
+    assert.ok(existing, `missing asset: ${segments.join('/')}`);
+    return existing;
+  }
   function pngSize(file) {
     const bytes = fs.readFileSync(file);
     return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
   }
-  assert.deepEqual(pngSize(path.join(root, 'images', 'UI', 'ui.text-box.png')), [1340, 288]);
-  assert.deepEqual(pngSize(path.join(root, 'images', 'UI', 'ui.auto.png')), [100, 28]);
-  assert.deepEqual(pngSize(path.join(root, 'images', 'UI', 'ui.skip.png')), [83, 28]);
+  assert.deepEqual(pngSize(findAsset('ui.text-box.png')), [1340, 288]);
+  assert.deepEqual(pngSize(findAsset('ui.auto.png')), [100, 28]);
+  assert.deepEqual(pngSize(findAsset('ui.skip.png')), [83, 28]);
   for (const font of ['MPLUS1p-Medium.ttf', 'MPLUS1p-Bold.ttf', 'MPLUS1p-Regular.ttf']) {
     assert.ok(fs.statSync(path.join(root, 'fonts', font)).size > 1_000_000);
   }

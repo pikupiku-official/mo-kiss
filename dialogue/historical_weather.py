@@ -3,10 +3,10 @@ import os
 
 
 PERIOD_TO_HOUR = {
-    "朝": "09",
+    "朝": "08",
     "昼": "12",
     "放課後": "15",
-    "夜": "21",
+    "夜": "19",
 }
 
 
@@ -51,10 +51,10 @@ class HistoricalWeather:
         if temp in (None, "", "///"):
             temp = entry.get("fuchu_daily_mean")
             if temp not in (None, ""):
-                return f"史実 {weather} {temp}℃"
-            return f"史実 {weather}".strip()
+                return f"{weather} {temp}℃"
+            return f"{weather}".strip()
 
-        return f"史実 {weather} {temp}℃".strip()
+        return f"{weather} {temp}℃".strip()
 
 
 _historical_weather = None

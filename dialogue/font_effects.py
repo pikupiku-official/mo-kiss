@@ -31,24 +31,35 @@ def apply_font_effects(text_surface):
 
 
 def render_text_with_effects(font, text, color):
+    """Render text with the same black outline style as dialogue body text."""
     text_surface = apply_font_effects(font.render(text, True, color))
 
-    if FONT_EFFECTS.get("enable_shadow", False):
-        shadow_surface = apply_font_effects(font.render(text, True, (0, 0, 0)))
-        offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
-        offx, offy = int(round(offx)), int(round(offy))
+    if not FONT_EFFECTS.get("enable_shadow", False):
+        return text_surface
 
-        tw, th = text_surface.get_size()
-        sw, sh = shadow_surface.get_size()
-        final_w = max(tw, sw + offx)
-        final_h = max(th, sh + offy)
+    outline_surface = apply_font_effects(font.render(text, True, (0, 0, 0)))
+    shadow_offset = FONT_EFFECTS.get("shadow_offset", (6, 6))
+    outline_width = max(
+        2,
+        min(3, int(round(max(abs(shadow_offset[0]), abs(shadow_offset[1]))) // 2)),
+    )
 
-        final_surface = pygame.Surface((final_w, final_h), pygame.SRCALPHA)
-        final_surface.blit(shadow_surface, (offx, offy))
-        final_surface.blit(text_surface, (0, 0))
-        return final_surface.convert_alpha()
+    tw, th = text_surface.get_size()
+    ow, oh = outline_surface.get_size()
+    padding = outline_width
+    final_surface = pygame.Surface(
+        (max(tw, ow) + padding * 2, max(th, oh) + padding * 2),
+        pygame.SRCALPHA,
+    )
 
-    return text_surface
+    for dx in range(-outline_width, outline_width + 1):
+        for dy in range(-outline_width, outline_width + 1):
+            if dx == 0 and dy == 0:
+                continue
+            final_surface.blit(outline_surface, (padding + dx, padding + dy))
+
+    final_surface.blit(text_surface, (padding, padding))
+    return final_surface.convert_alpha()
 
 
 def get_grid_char_width(font, color, char_spacing):

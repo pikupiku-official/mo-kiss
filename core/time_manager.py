@@ -106,15 +106,39 @@ class TimeManager:
     def is_night(self):
         """夜かどうか判定"""
         return self.current_period == "夜"
+
+    def _to_zenkaku(self, value):
+        """半角数字と括弧を全角に変換する"""
+        table = str.maketrans({
+            "0": "０",
+            "1": "１",
+            "2": "２",
+            "3": "３",
+            "4": "４",
+            "5": "５",
+            "6": "６",
+            "7": "７",
+            "8": "８",
+            "9": "９",
+            "(": "（",
+            ")": "）",
+        })
+        return str(value).translate(table)
     
     def get_date_string(self):
         """日付文字列を取得"""
         weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
-        return f"{self.current_year}年{self.current_month}月{self.current_day}日({weekday_names[self.current_weekday]})"
+        era_year = self.current_year - 1988
+        era_year_text = self._to_zenkaku(era_year)
+        year_text = self._to_zenkaku(self.current_year)
+        month_text = self._to_zenkaku(self.current_month)
+        day_text = self._to_zenkaku(self.current_day)
+        weekday_text = weekday_names[self.current_weekday]
+        return f"平成{era_year_text}年（{year_text}年）{month_text}月{day_text}日（{weekday_text}）"
     
     def get_full_time_string(self):
         """完全な時間文字列を取得"""
-        return f"{self.get_date_string()} {self.current_period}"
+        return f"{self.get_date_string()}{self.current_period}"
     
     def get_time_state(self):
         """時間状態を辞書で取得"""

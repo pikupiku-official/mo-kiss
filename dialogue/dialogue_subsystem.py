@@ -205,10 +205,10 @@ class DialogueSubsystem(SubsystemBase):
         draw_fade_overlay(gs)
 
         # UI エレメント（テキストボックス等）
-        if 'image_manager' in gs and 'images' in gs:
-            gs['image_manager'].draw_ui_elements(
-                self.virtual_screen, gs['images'], gs.get('show_text', True)
-            )
+        # if 'image_manager' in gs and 'images' in gs:
+        #     gs['image_manager'].draw_ui_elements(
+        #         self.virtual_screen, gs['images'], gs.get('show_text', True)
+        #     )
 
         # 選択肢 / テキスト
         choice_showing = False

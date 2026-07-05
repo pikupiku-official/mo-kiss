@@ -87,14 +87,14 @@ class TextRenderer:
             self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
         self.date_color = DATE_TEXT_COLOR
         self.date_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y)
-        self.weather_font_size = max(20, int(self.date_font_size * 0.82))
+        self.weather_font_size = WEATHER_FONT_SIZE
         try:
             weather_font_path = get_font_path("MPLUS1p-Medium.ttf")
             self.weather_font = pygame.font.Font(weather_font_path, self.weather_font_size)
         except Exception:
             self.weather_font = pygame.font.SysFont("msgothic", self.weather_font_size)
-        self.weather_color = DATE_TEXT_COLOR
-        self.weather_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y + DATE_FONT_SIZE)
+        self.weather_color = WEATHER_TEXT_COLOR
+        self.weather_position = scale_pos(WEATHER_DISPLAY_X, WEATHER_DISPLAY_Y)
         self.historical_weather = get_historical_weather()
 
         # n文字での自動改行を設定
@@ -311,32 +311,7 @@ class TextRenderer:
 
     
     def _render_text_with_effects(self, font, text, color, is_name=False):
-        if not is_name:
-            return self._render_outline_surface(font, text, color)
-
-        text_surface = font.render(text, True, color)
-        text_surface = self._apply_font_effects(text_surface, is_shadow=False)
-
-        if FONT_EFFECTS.get("enable_shadow", False):
-            shadow_color = (0, 0, 0)
-            shadow_surface = font.render(text, True, shadow_color)
-            shadow_surface = self._apply_font_effects(shadow_surface, is_shadow=True)
-
-            offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
-            offx, offy = int(round(offx)), int(round(offy))  # ← 揺れ防止
-
-            tw, th = text_surface.get_size()
-            sw, sh = shadow_surface.get_size()
-            final_w = max(tw, sw + offx)
-            final_h = max(th, sh + offy)
-
-            final_surface = pygame.Surface((final_w, final_h), pygame.SRCALPHA)
-            # blit位置も整数スナップ
-            final_surface.blit(shadow_surface, (offx, offy))
-            final_surface.blit(text_surface, (0, 0))
-            return final_surface.convert_alpha()
-
-        return text_surface
+        return self._render_outline_surface(font, text, color)
 
     def _render_stable_text_line(self, displayed_line, color):
         """文字送り時の揺れを防ぐ安定した行描画（絶対座標グリッドシステム）"""

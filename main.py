@@ -17,6 +17,11 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import sys
 sys.path.append(os.path.dirname(__file__))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from core.config import *
 from menu.main_menu import MainMenu
 from map.map import FieldMap
