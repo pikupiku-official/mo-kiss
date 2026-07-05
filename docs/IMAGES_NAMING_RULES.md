@@ -71,6 +71,7 @@ BG/BG_[場所]_[時間帯].WEBP
 BG_CLASSROOM_DAY.WEBP
 BG_ROOFTOP_EVE.WEBP
 ```
+イメージボードを参照にバージョンを作成
 
 ---
 

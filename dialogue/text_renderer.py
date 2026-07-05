@@ -3,6 +3,8 @@ from core.config import *
 from .scroll_manager import ScrollManager
 from .name_manager import get_name_manager
 from .date_manager import get_current_game_date
+from .font_effects import render_text_with_effects
+from .historical_weather import get_historical_weather
 from .inline_markup import (
     parse_inline_markup, has_inline_markup, wrap_markup_text,
     PlainChar, RubySpan, BotenSpan,
@@ -84,6 +86,15 @@ class TextRenderer:
             self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
         self.date_color = DATE_TEXT_COLOR
         self.date_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y)
+        self.weather_font_size = max(20, int(self.date_font_size * 0.82))
+        try:
+            weather_font_path = get_font_path("MPLUS1p-Medium.ttf")
+            self.weather_font = pygame.font.Font(weather_font_path, self.weather_font_size)
+        except Exception:
+            self.weather_font = pygame.font.SysFont("msgothic", self.weather_font_size)
+        self.weather_color = DATE_TEXT_COLOR
+        self.weather_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y + DATE_FONT_SIZE)
+        self.historical_weather = get_historical_weather()
 
         # n文字での自動改行を設定
         self.max_chars_per_line = TEXT_MAX_CHARS_PER_LINE
@@ -456,46 +467,30 @@ class TextRenderer:
         return name_surface
     
     def render_date(self):
-        """日付を左上に表示する（影効果付き）"""
+        """日付と史実天気を左上に表示する"""
         if not self.date_display_enabled:
             return
         
         try:
-            # time_manager.pyから現在のゲーム内日付を取得
             from core.time_manager import get_time_manager
             time_manager = get_time_manager()
             date_text = time_manager.get_full_time_string()
-            
-            # テキストと同じ影効果を適用
-            if FONT_EFFECTS.get("enable_shadow", False):
-                # 影を描画
-                shadow_color = (0, 0, 0)
-                shadow_surface = self.date_font.render(date_text, True, shadow_color)
-                
-                # メインテキストを描画
-                date_surface = self.date_font.render(date_text, True, self.date_color)
-                
-                # 影のオフセットを取得
-                offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
-                offx, offy = int(round(offx)), int(round(offy))
-                
-                # 合成サーフェスを作成
-                tw, th = date_surface.get_size()
-                sw, sh = shadow_surface.get_size()
-                final_w = max(tw, sw + offx)
-                final_h = max(th, sh + offy)
-                
-                final_surface = pygame.Surface((final_w, final_h), pygame.SRCALPHA)
-                final_surface.blit(shadow_surface, (offx, offy))  # 影を先に描画
-                final_surface.blit(date_surface, (0, 0))          # メインテキストを上に描画
-                
-                # 日付を左上に表示
-                self.screen.blit(final_surface, self.date_position)
-            else:
-                # 影効果なしの場合
-                date_surface = self.date_font.render(date_text, True, self.date_color)
-                self.screen.blit(date_surface, self.date_position)
-            
+            date_surface = render_text_with_effects(self.date_font, date_text, self.date_color)
+            self.screen.blit(date_surface, self.date_position)
+
+            weather_text = self.historical_weather.get_display_text(
+                time_manager.current_year,
+                time_manager.current_month,
+                time_manager.current_day,
+                time_manager.current_period,
+            )
+            if weather_text:
+                weather_surface = render_text_with_effects(
+                    self.weather_font,
+                    weather_text,
+                    self.weather_color,
+                )
+                self.screen.blit(weather_surface, self.weather_position)
         except Exception as e:
             if self.debug:
                 print(f"日付表示エラー: {e}")

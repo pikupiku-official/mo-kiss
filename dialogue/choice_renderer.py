@@ -1,6 +1,7 @@
 ﻿import pygame
 import os
 from core.config import *
+from .font_effects import get_grid_char_width, render_text_with_effects
 from .name_manager import get_name_manager
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
@@ -59,80 +60,21 @@ class ChoiceRenderer:
         # 名前管理システム
         self.name_manager = get_name_manager()
     
-    def _apply_font_effects(self, text_surface, is_shadow=False):
-        """text_rendererと同じフォント効果を適用する"""
-        if not FONT_EFFECTS:
-            return text_surface
-
-        # 元の描画結果
-        original_surface = text_surface
-        orig_w, orig_h = original_surface.get_size()
-
-        # ここで最終幅を先に決めておく（横伸ばし考慮）
-        stretch_factor = float(FONT_EFFECTS.get("stretch_factor", 1.25)) \
-            if FONT_EFFECTS.get("enable_stretched", False) else 1.0
-        final_w = int(round(orig_w * stretch_factor))
-        final_h = orig_h
-
-        processed_surface = original_surface
-
-        if FONT_EFFECTS.get("enable_pixelated", False):
-            # 1/n に縮小
-            pixelate_factor = max(1, int(FONT_EFFECTS.get("pixelate_factor", 2)))
-            small_w = max(1, orig_w // pixelate_factor)
-            small_h = max(1, orig_h // pixelate_factor)
-
-            # 縮小はAA付き（にじみを抑えるならsmoothscaleがよい）
-            small_surface = pygame.transform.smoothscale(processed_surface, (small_w, small_h))
-
-            # 拡大は「横伸ばし後の最終サイズ」へ一発で
-            processed_surface = pygame.transform.smoothscale(small_surface, (final_w, final_h))
-        else:
-            # ピクセル化なしの場合だけ、必要なら一回だけ横方向拡大
-            if stretch_factor != 1.0:
-                processed_surface = pygame.transform.smoothscale(processed_surface, (final_w, final_h))
-
-        # 透明最適化（描画の滲み対策というより速度向上）
-        return processed_surface.convert_alpha()
-    
     def _render_text_with_effects(self, font, text, color):
         """テキストと同じ効果で選択肢を描画"""
-        text_surface = font.render(text, True, color)
-        text_surface = self._apply_font_effects(text_surface, is_shadow=False)
-
-        if FONT_EFFECTS.get("enable_shadow", False):
-            shadow_color = (0, 0, 0)
-            shadow_surface = font.render(text, True, shadow_color)
-            shadow_surface = self._apply_font_effects(shadow_surface, is_shadow=True)
-
-            offx, offy = FONT_EFFECTS.get("shadow_offset", (6, 6))
-            offx, offy = int(round(offx)), int(round(offy))
-
-            tw, th = text_surface.get_size()
-            sw, sh = shadow_surface.get_size()
-            final_w = max(tw, sw + offx)
-            final_h = max(th, sh + offy)
-
-            final_surface = pygame.Surface((final_w, final_h), pygame.SRCALPHA)
-            final_surface.blit(shadow_surface, (offx, offy))
-            final_surface.blit(text_surface, (0, 0))
-            return final_surface.convert_alpha()
-
-        return text_surface
+        return render_text_with_effects(font, text, color)
     
     def _render_choice_with_grid_system(self, choice_text, color):
         """選択肢をグリッドシステムで描画"""
         if not choice_text:
             return pygame.Surface((1, 1), pygame.SRCALPHA)
         
-        # 1文字あたりの標準幅を計算（日本語文字基準）
-        sample_char = "あ"
-        sample_surface = self.pygame_fonts["text"].render(sample_char, True, color)
-        base_char_width = sample_surface.get_width()
-        
-        # フォント効果を考慮した文字幅
-        stretch_factor = FONT_EFFECTS.get("stretch_factor", 1.0) if FONT_EFFECTS.get("enable_stretched", False) else 1.0
-        grid_char_width = int(base_char_width * stretch_factor * 1.1) + self.char_spacing
+        # 本文と同じグリッド幅を使用
+        grid_char_width = get_grid_char_width(
+            self.pygame_fonts["text"],
+            color,
+            self.char_spacing,
+        )
         
         # 選択肢テキストを自動改行（text_rendererと同じ文字数）
         max_chars = TEXT_MAX_CHARS_PER_LINE
