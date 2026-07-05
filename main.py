@@ -22,18 +22,23 @@ from menu.main_menu import MainMenu
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
 from core.title_subsystem import TitleSubsystem
-from core.option_overlay import OptionOverlay
+from core.option_overlay import MockOptionOverlay, OptionOverlay
 from core.time_manager import get_time_manager
 from home.home import HomeModule
 from core.save_manager import get_save_manager
 from core.loading_screen import show_loading, hide_loading
 import pygame
 
+
+MOCK_OPTION_FRAMES = ("UI_option01.png", "UI_option02.png", "UI_option03.png")
+MOCK_AWAIT_FRAMES = ("UI_await01.png", "UI_await02.png", "UI_await03.png")
+
 class GameApplication:
     def __init__(self):
         """ゲームアプリケーションの初期化"""
         self.current_mode = "menu"  # "menu", "map", "dialogue"
-        self.screen = None  # 実画面（フルスクリーン）
+        self.screen = None  # 仮想画面
+        self.window_surface = None  # 実ウィンドウ
         self.virtual_screen = None  # 仮想画面（1440x1080）
         self.clock = None
         self.running = True
@@ -51,6 +56,70 @@ class GameApplication:
 
         print("🎮 ビジュアルノベルゲーム起動中...")
 
+    def _normalize_event(self, event):
+        """実ウィンドウのマウス座標を仮想画面座標へ変換する。"""
+        from core import config as config_module
+
+        if event.type not in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+            return event
+
+        attrs = event.dict.copy()
+        if "pos" in attrs:
+            attrs["pos"] = config_module.window_to_virtual_pos(attrs["pos"])
+        if event.type == pygame.MOUSEMOTION and "rel" in attrs:
+            rel_x, rel_y = attrs["rel"]
+            scale_x = config_module.WINDOW_CONTENT_WIDTH / config_module.VIRTUAL_WIDTH if config_module.WINDOW_CONTENT_WIDTH else 1
+            scale_y = config_module.WINDOW_CONTENT_HEIGHT / config_module.VIRTUAL_HEIGHT if config_module.WINDOW_CONTENT_HEIGHT else 1
+            attrs["rel"] = (
+                int(rel_x / scale_x) if scale_x else 0,
+                int(rel_y / scale_y) if scale_y else 0,
+            )
+        return pygame.event.Event(event.type, attrs)
+
+    def _gather_normalized_events(self):
+        """イベントを一括取得し、必要な座標変換を行う。"""
+        events = []
+        for event in pygame.event.get():
+            if event.type == pygame.VIDEORESIZE:
+                self._handle_resize_event(event)
+                continue
+            events.append(self._normalize_event(event))
+        return events
+
+    def _queue_events_for_dialogue(self, events):
+        for event in events:
+            try:
+                pygame.event.post(event)
+            except Exception:
+                pass
+
+    def _present_virtual_screen(self):
+        """仮想画面を実ウィンドウへレターボックス付きで転送する。"""
+        from core import config as config_module
+
+        self.window_surface.fill((0, 0, 0))
+        scaled = pygame.transform.smoothscale(
+            self.virtual_screen,
+            (config_module.WINDOW_CONTENT_WIDTH, config_module.WINDOW_CONTENT_HEIGHT),
+        )
+        self.window_surface.blit(
+            scaled,
+            (config_module.WINDOW_OFFSET_X, config_module.WINDOW_OFFSET_Y),
+        )
+
+    def _handle_resize_event(self, event):
+        """ウィンドウリサイズを処理する。"""
+        from core import config as config_module
+        config_module._recalculate_screen_metrics(event.w, event.h)
+        self.window_surface = pygame.display.set_mode(
+            (config_module.WINDOW_SURFACE_WIDTH, config_module.WINDOW_SURFACE_HEIGHT),
+            pygame.RESIZABLE,
+        )
+        print(
+            f"[WINDOW] resized -> {config_module.WINDOW_SURFACE_WIDTH}x{config_module.WINDOW_SURFACE_HEIGHT} "
+            f"(content {config_module.WINDOW_CONTENT_WIDTH}x{config_module.WINDOW_CONTENT_HEIGHT})"
+        )
+
     def initialize(self):
         """アプリケーションの初期化"""
         try:
@@ -59,16 +128,17 @@ class GameApplication:
             pygame.mixer.init()
 
             # 実画面設定（フルスクリーン）
-            self.screen = init_game()  # config.pyのinit_game()を使用
+            self.window_surface = init_game()  # config.pyのinit_game()を使用
 
             # 仮想画面サーフェスを作成（1440x1080）
             self.virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
+            self.screen = self.virtual_screen
             print(f"✓ 仮想画面作成: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
 
             self.clock = pygame.time.Clock()
 
             # ローディング画面表示
-            show_loading("ゲームを初期化中...", self.screen)
+            show_loading("ゲームを初期化中...", self.window_surface)
 
             # メインメニューの初期化
             self.main_menu = MainMenu(self.screen)
@@ -180,6 +250,18 @@ class GameApplication:
             self.current_overlay = OptionOverlay(self.screen, self.current_mode)
             print("[OPTION] オーバーレイ表示")
 
+    def show_mock_option(self):
+        """モック用 OPTION アニメーションを表示"""
+        if self.current_overlay is None:
+            self.current_overlay = MockOptionOverlay(self.screen, MOCK_OPTION_FRAMES)
+            print("[OPTION] モックオーバーレイ表示")
+
+    def show_mock_await(self):
+        """モック用 AWAIT アニメーションを表示"""
+        if self.current_overlay is None:
+            self.current_overlay = MockOptionOverlay(self.screen, MOCK_AWAIT_FRAMES)
+            print("[AWAIT] モックオーバーレイ表示")
+
     def hide_option(self):
         """OPTIONオーバーレイを閉じる"""
         self.current_overlay = None
@@ -198,6 +280,44 @@ class GameApplication:
         elif result in ("go_to_menu", "quit"):
             self.hide_option()
             self._handle_transition(result)
+
+    def _poll_mock_overlay_shortcuts(self, events) -> bool:
+        """F6/F7 を先取りしてモック画像シーケンスの開閉だけを処理する"""
+        shortcut_key = None
+        remaining_events = []
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_F6, pygame.K_F7):
+                shortcut_key = event.key
+                continue
+            remaining_events.append(event)
+
+        events[:] = remaining_events
+
+        if shortcut_key is None:
+            return False
+
+        if isinstance(self.current_overlay, MockOptionOverlay):
+            if shortcut_key == pygame.K_F6 and self.current_overlay.is_same_sequence(MOCK_OPTION_FRAMES):
+                self.current_overlay.start_close()
+                return True
+            if shortcut_key == pygame.K_F7 and self.current_overlay.is_same_sequence(MOCK_AWAIT_FRAMES):
+                self.current_overlay.start_close()
+                return True
+
+            if shortcut_key == pygame.K_F6:
+                self.current_overlay = MockOptionOverlay(self.screen, MOCK_OPTION_FRAMES)
+                return True
+            if shortcut_key == pygame.K_F7:
+                self.current_overlay = MockOptionOverlay(self.screen, MOCK_AWAIT_FRAMES)
+                return True
+
+        if self.current_overlay is None:
+            if shortcut_key == pygame.K_F6:
+                self.show_mock_option()
+            elif shortcut_key == pygame.K_F7:
+                self.show_mock_await()
+            return True
+        return False
 
     def switch_to(self, subsystem, mode_name: str):
         """サブシステム切り替えの統一メソッド（フェーズ4中心）"""
@@ -284,7 +404,7 @@ class GameApplication:
     def _reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""
         try:
-            show_loading("ゲームシステムを再初期化中...", self.screen)
+            show_loading("ゲームシステムを再初期化中...", self.window_surface)
             
             # マップシステムを再初期化
             print("[RELOAD] マップシステムを再初期化中...")
@@ -304,7 +424,7 @@ class GameApplication:
         """マップモードに切り替え"""
         if not self.map_system:
             try:
-                show_loading("マップを読み込み中...", self.screen)
+                show_loading("マップを読み込み中...", self.window_surface)
                 self.map_system = FieldMap(self.screen)
                 hide_loading()
             except Exception as e:
@@ -319,7 +439,7 @@ class GameApplication:
         """家モジュールに切り替え"""
         if not self.home_module:
             try:
-                show_loading("家を読み込み中...", self.screen)
+                show_loading("家を読み込み中...", self.window_surface)
                 self.home_module = HomeModule(self.screen)
                 hide_loading()
             except Exception as e:
@@ -336,7 +456,7 @@ class GameApplication:
         if event_file:
             self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
         try:
-            show_loading('イベントを読み込み中...', self.screen)
+            show_loading('イベントを読み込み中...', self.window_surface)
             dialogue = DialogueSubsystem(self.screen, self.virtual_screen, event_file)
             hide_loading()
             self.switch_to(dialogue, 'dialogue')
@@ -476,11 +596,14 @@ class GameApplication:
 
         while self.running:
             try:
+                events = self._gather_normalized_events()
+
                 if self.current_overlay:
+                    self._poll_mock_overlay_shortcuts(events)
                     # OPTIONオーバーレイがアクティブ
                     # update() は意図的に呼ばない = ゲームがポーズ状態になる（⑤）
                     # BGMはBGMManager側で継続するため別途停止不要
-                    ov_result = self.current_overlay.handle_events()
+                    ov_result = self.current_overlay.handle_events(events)
                     if ov_result:
                         self._handle_overlay_result(ov_result)
                     # ベースシステムを描画してからOPTIONを上に重ねる
@@ -489,8 +612,22 @@ class GameApplication:
                     if self.current_overlay:  # handle後にNoneになる場合を考慮
                         self.current_overlay.render_overlay()
                 elif self.current_subsystem:
+                    if self._poll_mock_overlay_shortcuts(events):
+                        if self.current_subsystem:
+                            self.current_subsystem.render()
+                        if self.current_overlay:
+                            self.current_overlay.render_overlay()
+                        self._present_virtual_screen()
+                        pygame.display.flip()
+                        self.clock.tick(30)
+                        continue
+
                     # 通常モード
-                    result = self.current_subsystem.handle_events()
+                    if isinstance(self.current_subsystem, DialogueSubsystem):
+                        self._queue_events_for_dialogue(events)
+                        result = self.current_subsystem.handle_events()
+                    else:
+                        result = self.current_subsystem.handle_events(events)
                     if result:
                         self._handle_transition(result)
                     if self.current_subsystem:
@@ -498,6 +635,7 @@ class GameApplication:
                     if self.current_subsystem:
                         self.current_subsystem.render()
 
+                self._present_virtual_screen()
                 pygame.display.flip()
                 self.clock.tick(30)
 

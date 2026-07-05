@@ -35,12 +35,22 @@ VIRTUAL_WIDTH = 1440  # 4:3アスペクト比（1920から変更）
 VIRTUAL_HEIGHT = 1080
 
 # 実際のウィンドウサイズ（フルスクリーン）
-WINDOW_WIDTH = DISPLAY_WIDTH
-WINDOW_HEIGHT = DISPLAY_HEIGHT
+_INITIAL_WINDOW_WIDTH_LIMIT = min(VIRTUAL_WIDTH, int(DISPLAY_WIDTH * 0.85))
+_INITIAL_WINDOW_HEIGHT_LIMIT = min(VIRTUAL_HEIGHT, int(DISPLAY_HEIGHT * 0.85))
+WINDOW_HEIGHT = min(_INITIAL_WINDOW_HEIGHT_LIMIT, int(_INITIAL_WINDOW_WIDTH_LIMIT * 3 / 4))
+WINDOW_WIDTH = int(WINDOW_HEIGHT * 4 / 3)
+MIN_WINDOW_WIDTH = 640
+MIN_WINDOW_HEIGHT = 480
+WINDOW_SURFACE_WIDTH = WINDOW_WIDTH
+WINDOW_SURFACE_HEIGHT = WINDOW_HEIGHT
+WINDOW_CONTENT_WIDTH = WINDOW_WIDTH
+WINDOW_CONTENT_HEIGHT = WINDOW_HEIGHT
+WINDOW_OFFSET_X = 0
+WINDOW_OFFSET_Y = 0
 
 # 4:3コンテンツの実際の描画サイズを計算
 # ディスプレイの高さに合わせて4:3コンテンツをスケーリング
-CONTENT_HEIGHT = DISPLAY_HEIGHT
+CONTENT_HEIGHT = VIRTUAL_HEIGHT
 CONTENT_WIDTH = int(CONTENT_HEIGHT * 4 / 3)  # 4:3比率を維持
 
 # コンテンツが画面幅を超える場合は幅に合わせる
@@ -58,14 +68,24 @@ OFFSET_X = (DISPLAY_WIDTH - CONTENT_WIDTH) // 2
 OFFSET_Y = (DISPLAY_HEIGHT - CONTENT_HEIGHT) // 2
 
 # ウィンドウ位置（フルスクリーン）
-X_POS = 0
-Y_POS = 0
+X_POS = 80
+Y_POS = 40
 
 # 定数として設定（元のコードとの互換性のため）
-SCREEN_WIDTH = WINDOW_WIDTH  # フルスクリーン幅
-SCREEN_HEIGHT = WINDOW_HEIGHT  # フルスクリーン高さ
+SCREEN_WIDTH = VIRTUAL_WIDTH
+SCREEN_HEIGHT = VIRTUAL_HEIGHT
 
 # デバッグモード（パフォーマンス向上のためFalseに）
+CONTENT_WIDTH = VIRTUAL_WIDTH
+CONTENT_HEIGHT = VIRTUAL_HEIGHT
+OFFSET_X = 0
+OFFSET_Y = 0
+X_POS = 80
+Y_POS = 40
+SCALE_X = 1.0
+SCALE_Y = 1.0
+SCALE = 1.0
+
 DEBUG = True
 USE_IR = True
 IR_DUMP_JSON = True  # Write IR JSON to disk when True.
@@ -109,13 +129,13 @@ TEXT_PUNCTUATION_DELAY = 500  # 句読点での追加遅延時間（ミリ秒）
 TEXT_PARAGRAPH_TRANSITION_DELAY = 1000  # 段落切り替え遅延時間（ミリ秒）
 
 # フォントサイズ設定（仮想解像度1440x1080基準のピクセル値）
-FONT_NAME_SIZE = 45    # 名前フォントサイズ（ピクセル）
-FONT_TEXT_SIZE = 45    # テキストフォントサイズ（ピクセル）
+FONT_NAME_SIZE = 40    # 名前フォントサイズ（ピクセル）
+FONT_TEXT_SIZE = 40    # テキストフォントサイズ（ピクセル）
 FONT_DEFAULT_SIZE = 26  # デフォルトフォントサイズ（ピクセル）
 
 # テキスト間隔調整設定
 TEXT_LINE_HEIGHT_MULTIPLIER = 1.1   # 行間の倍率（1.0 = デフォルト）
-TEXT_CHAR_SPACING = 2               # 文字間隔の追加ピクセル数
+TEXT_CHAR_SPACING = 5               # 文字間隔の追加ピクセル数
 
 # テキストレンダリング詳細設定
 TEXT_RENDERER_CONFIG = {
@@ -279,6 +299,45 @@ def set_window_position(x, y):
     import os
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x, y)
 
+
+def _recalculate_screen_metrics(screen_width, screen_height):
+    """画面サイズに応じて描画領域とスケールを再計算する。"""
+    global WINDOW_SURFACE_WIDTH, WINDOW_SURFACE_HEIGHT
+    global WINDOW_CONTENT_WIDTH, WINDOW_CONTENT_HEIGHT
+    global WINDOW_OFFSET_X, WINDOW_OFFSET_Y
+
+    WINDOW_SURFACE_WIDTH = max(int(screen_width), MIN_WINDOW_WIDTH)
+    WINDOW_SURFACE_HEIGHT = max(int(screen_height), MIN_WINDOW_HEIGHT)
+
+    content_width = WINDOW_SURFACE_WIDTH
+    content_height = int(content_width * 3 / 4)
+    if content_height > WINDOW_SURFACE_HEIGHT:
+        content_height = WINDOW_SURFACE_HEIGHT
+        content_width = int(content_height * 4 / 3)
+
+    WINDOW_CONTENT_WIDTH = content_width
+    WINDOW_CONTENT_HEIGHT = content_height
+    WINDOW_OFFSET_X = (WINDOW_SURFACE_WIDTH - WINDOW_CONTENT_WIDTH) // 2
+    WINDOW_OFFSET_Y = (WINDOW_SURFACE_HEIGHT - WINDOW_CONTENT_HEIGHT) // 2
+
+
+def window_to_virtual_pos(pos):
+    """実ウィンドウ座標を仮想画面座標へ変換する。"""
+    x, y = pos
+    local_x = x - WINDOW_OFFSET_X
+    local_y = y - WINDOW_OFFSET_Y
+    if WINDOW_CONTENT_WIDTH <= 0 or WINDOW_CONTENT_HEIGHT <= 0:
+        return 0, 0
+
+    local_x = max(0, min(local_x, WINDOW_CONTENT_WIDTH - 1))
+    local_y = max(0, min(local_y, WINDOW_CONTENT_HEIGHT - 1))
+
+    virtual_x = int(local_x * VIRTUAL_WIDTH / WINDOW_CONTENT_WIDTH)
+    virtual_y = int(local_y * VIRTUAL_HEIGHT / WINDOW_CONTENT_HEIGHT)
+    virtual_x = max(0, min(virtual_x, VIRTUAL_WIDTH - 1))
+    virtual_y = max(0, min(virtual_y, VIRTUAL_HEIGHT - 1))
+    return virtual_x, virtual_y
+
 # ゲーム初期化時に呼び出す
 def init_game():
     init_qt_application()
@@ -286,12 +345,13 @@ def init_game():
     pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=1024)
     pygame.init()
     set_window_position(X_POS, Y_POS)
+    _recalculate_screen_metrics(WINDOW_WIDTH, WINDOW_HEIGHT)
     
     # ウィンドウのタイトルを設定
     pygame.display.set_caption("ビジュアルノベル")
     
     # ウィンドウモードでウィンドウサイズを設定
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((WINDOW_SURFACE_WIDTH, WINDOW_SURFACE_HEIGHT), pygame.RESIZABLE)
     
     # デバッグ出力削除（パフォーマンス向上）
     

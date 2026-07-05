@@ -4,97 +4,86 @@
 ;◆メインシナリオ
 ;----------------------------------------------
 
-*scene1|&f.title+"最初のシーン"
+*scene1|&f.title+"スクショ１"
 [resetlaypos]
+[bg_show storage="connectingCorridor" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="桃子" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE01_01" mouth="MMK_F00_MOU06_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.5" y="1.07" size="2.2" fade="0.3"]
+	//桃子//
+	「スカートあが苦しくなってきた最近ちょっちスカートが苦しくなってきたかな〜…なんて」
+	//久保田//
+      	「それが桃子のチャームポイントだろ？」
+      	//桃子//
+      	「も～すぐいぢわる言うんだから…」
+      
+*scen2|&f.title+"スクショ２"
+[resetlaypos]
+[bg_show storage="covenienceStore" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_shift name="桃子" torso="MMK_T01_ARM10_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" accessory="MMK_A01_01" x="0.6" fade="0.3"]
+	//桃子//
+	「何買う何買う〜？」
+	//久保田//
+	「桃子はどうせ新発売のパインソフトだろ」
+//桃子//
+「えへへ〜、ばれた？」
 
-[bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[BGM bgm="school" volume="0" loop="true"]
+*scen3|&f.title+"スクショ３"
+[resetlaypos]
+[chara_hide name="桃子" fade="0.3"]
+[bg_show storage="libraryShelf" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="桃k" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" blink="true" x="0.5" y="1.3" size="3" fade="0.3"]
+//久保田//
+「女の子っていい匂いがするよな。」
+	//桃子//
+「あー、貴方もエッチなんだ〜、ヤラシ〜」
+	//久保田//
+	「い、いや、違うってば！」
 
-  [if condition="choice_1==1"]
-      //増田//
-      「中澤！？ …渋いなぁ。オトナっぽい人好きだよなお前。」
-      //純一//
-      「ほら『サマーナイトタウン』とか、中澤の低い声が映えてただろ。」
-      //増田//
-      「確かに…あの声で締まる感じはあるよな。」
-  [endif]
+*scen4|&f.title+"スクショ４"
+[resetlaypos]
+[chara_hide name="桃k" fade="0.3"]
+[bg_show storage="classroomBack" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="桃子" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.5" y="1.3" size="3" fade="0.3"]
+	//桃子//
+	「そりゃそうだよ〜、坂井泉水とか宇多田ヒカルとか！大好き！」
+      	//久保田//
+      	「最近でいうと僕はモー娘。かなあ。」
+	//桃子//
+	「そういえば明日香ちゃん抜けてから、アイドルっ気強いよね～。」
 
-  [if condition="choice_1==2"]
-      //増田//
-      「石黒？ あー、クール系だよな。ちょっと不良っぽい。」
-      //純一//
-      「『抱いてＨＯＬＤ　ＯＮ　ＭＥ！』で、あのハモりがかっこよかったんだよ。」
-      //増田//
-      「わかるわかる、目線とかも鋭いしさ。大人っぽいとこ憧れてんの？」
-  [endif]
+*scen5|&f.title+"スクショ５"
+[resetlaypos]
+[chara_hide name="桃子" fade="0.3"]
+[bg_show storage="test.bg.schoolroute02" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="桃o" torso="MMK_T03_ARM03_CLO00" eye="MMK_F03_EYE00_00" mouth="MMK_F03_MOU01_00" brow="MMK_F03_BRO03_00" cheek="MMK_F03_CHE01_00" blink="true" x="0.35" y="0.7" size="0.5" fade="0.3"]
+//桃子//
+「ねー！駅まで競走しよー！」
+	//桃子//
+	「勝った方が何の映画観るか選ぶの！」
+      	//久保田//
+      	「おいおい…部活帰りじゃないのかよ…」
 
-  [if condition="choice_1==3"]
-      //増田//
-      「ジョンソン！？なんで？」
-      //純一//
-      「ジョンソンジョンソン言うけど、冷静に見たら一番美人だろ！」
-      //増田//
-      「でもうたばん見てたら、おもしろキャラでしか見れないぜあれは。」
-  [endif]
+*scen5|&f.title+"スクショ５"
+[resetlaypos]
+[chara_hide name="桃o" fade="0.3"]
+//桃子//
+「あ、おはよ～航輝！」
+[bg_show storage="7557" bg_x="0.5" bg_y="1" bg_zoom="1.0"]
+	//久保田//
+	「あれ先輩、ゲームボーイ持ってきてないんですか。牧場物語、ずっとやってるのに。」
+//沙那子//
+「大好きだけど、今日くらいはね。ふふ。」[female]
 
-  [if condition="choice_1==4"]
-      //増田//
-      「やっぱなっちか！王道すぎるわ〜。」
-      //純一//
-      「でもどう考えてもモーニングの顔は、あたしよ。って感じじゃん。」
-      「あとちゃんと一番顔が良いし。」
-      //増田//
-      「まあセンターだし歌割も…。貴さんがああいうのも分かるわ。」
-  [endif]
+[bg_show storage="6870" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+//桃子//
+「あ、おはよ～航輝！」
+	
 
-  [if condition="choice_1==5"]
-      //増田//
-      「福田！？…もう脱退しちゃったじゃん。」
-      //純一//
-      「でも『モーニングコーヒー』のハモりとか、『サマーナイトタウン』の声とか、味あったんだよな。」
-      //増田//
-      「うん…正直もうちょっと見てたかったよな。惜しいよなあ。」
-  [endif]
 
-  [if condition="choice_1==6"]
-      //増田//
-      「保田？ お前マニアックだな…。」
-      //純一//
-      「いや、『Ｍｅｍｏｒｙ 青春の光』の力強い声とか、実は支えてるんだぜ。」
-      //増田//
-      「確かに歌うまいよな。地味に聞かせるとこあるわ。」
-  [endif]
+//久保田//
+「至りってあるよな。例えばほら、中学生の時とか、なんで親に冷たくしちゃうんだろう。」
 
-  [if condition="choice_1==7"]
-      //増田//
-      「矢口ね！ 元気キャラっぽいもんな、お前好きそう。」
-      //純一//
-      「『抱いてＨＯＬＤ　ＯＮ　ＭＥ！』のラップ、矢口じゃなきゃできなかっただろ。」
-      //増田//
-      「あーあれな！ ちょっとイタいと思ったけど…クセになるんだよな。」
-  [endif]
+//桃子//
+「へぇー、航輝にも反抗期があったんだー！なんかへんな感じ。」
 
-  [if condition="choice_1==8"]
-      //増田//
-      「市井？ おお、ギャルっぽいとこ狙いかよ。」
-      //純一//
-      「新曲の『真夏の光線』のＰＶ見た？」
-      //増田//
-      「あー、あれ可愛かったな…。市井あんな可愛かったっけ？」
-  [endif]
 
-  [if condition="choice_1==9"]
-      //増田//
-      「後藤…？聞いたことないぞ、そんなメンバー。」
-      //純一//
-      「あれ、言ったはいいけど、誰だ…？」
-	　//増田//
-      「だって、中澤・石黒・ジョンソン・なっち・福田で、保田圭・矢口・市井が入って、そのあと福田が抜けちゃって７人だろ？」
-      //純一//
-	  「いや、そんなことは分かってるんだけど…」
-	  //増田//
-      「でも、なんかいきなりセンターで大活躍しそうな名前だな。」
-	　//純一//
-      「確かに…」
-  [endif]
-	[scroll-stop]
+[scroll-stop]

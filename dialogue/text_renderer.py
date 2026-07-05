@@ -17,6 +17,7 @@ from core.path_utils import get_font_path
 
 RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
 RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
+SERIF_FONT_FILENAME = "MPLUS1p-Medium.ttf"
 
 def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int):
     """ルビ文字列を span_width 内に両端揃えで blit する。
@@ -78,7 +79,7 @@ class TextRenderer:
         # 日付フォントサイズ（仮想画面基準のピクセル値を使用）
         self.date_font_size = DATE_FONT_SIZE
         try:
-            date_font_path = get_font_path("MPLUS1p-Regular.ttf")
+            date_font_path = self._get_dialogue_font_path()
             self.date_font = pygame.font.Font(date_font_path, self.date_font_size)
         except Exception as e:
             if self.debug:
@@ -152,6 +153,10 @@ class TextRenderer:
         """テキストをn文字で自動改行する（ルビ・傍点マークアップ対応）"""
         return wrap_markup_text(text, self.max_chars_per_line)
 
+    def _get_dialogue_font_path(self):
+        """dialogue で使うフォントファイルのパスを返す"""
+        return get_font_path(SERIF_FONT_FILENAME)
+
     def _get_display_lines_with_scroll(self, display_text_segment):
         """表示用のテキストをn文字改行して、3行スクロール効果を適用"""
         wrapped_lines = self._wrap_text(display_text_segment)
@@ -175,35 +180,30 @@ class TextRenderer:
             default_font_size = FONT_DEFAULT_SIZE
 
             # フォントファイルのパスを設定（path_utils使用）
-            bold_font_path = get_font_path("MPLUS1p-Bold.ttf")
-            medium_font_path = get_font_path("MPLUS1p-Medium.ttf")
+            dialogue_font_path = self._get_dialogue_font_path()
 
             fonts = {}
             
             # PyQt5フォントの初期化
-            if os.path.exists(bold_font_path) and os.path.exists(medium_font_path):
+            if os.path.exists(dialogue_font_path):
                 try:
-                    # Boldフォントの読み込み
-                    bold_font_id = QFontDatabase.addApplicationFont(bold_font_path)
-                    # Mediumフォントの読み込み
-                    medium_font_id = QFontDatabase.addApplicationFont(medium_font_path)
+                    dialogue_font_id = QFontDatabase.addApplicationFont(dialogue_font_path)
 
-                    if bold_font_id != -1 and medium_font_id != -1:
-                        bold_font_family = QFontDatabase.applicationFontFamilies(bold_font_id)[0]
-                        medium_font_family = QFontDatabase.applicationFontFamilies(medium_font_id)[0]
+                    if dialogue_font_id != -1:
+                        dialogue_font_family = QFontDatabase.applicationFontFamilies(dialogue_font_id)[0]
                         
                         # PyQt5フォント（BacklogManager用）
-                        fonts["name"] = QFont(bold_font_family, name_font_size)
-                        fonts["text"] = QFont(medium_font_family, text_font_size)
+                        fonts["name"] = QFont(dialogue_font_family, name_font_size)
+                        fonts["text"] = QFont(dialogue_font_family, text_font_size)
                         
                         # Pygameフォント（TextRenderer用）
-                        fonts["name_pygame"] = pygame.font.Font(bold_font_path, name_font_size)
-                        fonts["text_pygame"] = pygame.font.Font(medium_font_path, text_font_size)
+                        fonts["name_pygame"] = pygame.font.Font(dialogue_font_path, name_font_size)
+                        fonts["text_pygame"] = pygame.font.Font(dialogue_font_path, text_font_size)
                         ruby_font_size = max(8, int(text_font_size * RUBY_FONT_RATIO))
-                        fonts["ruby_pygame"] = pygame.font.Font(medium_font_path, ruby_font_size)
+                        fonts["ruby_pygame"] = pygame.font.Font(dialogue_font_path, ruby_font_size)
 
                         if self.debug:
-                            print("PyQt5とPygameのカスタムフォント読み込み成功")
+                            print("PyQt5とPygameのdialogue用フォント読み込み成功")
                     else:
                         raise Exception("PyQt5フォントID取得失敗")
                         
@@ -214,7 +214,7 @@ class TextRenderer:
                     fonts.update(self._get_fallback_fonts(name_font_size, text_font_size, default_font_size))
             else:
                 if self.debug:
-                    print(f"フォントファイルが見つかりません: {bold_font_path}, {medium_font_path}")
+                    print(f"フォントファイルが見つかりません: {dialogue_font_path}")
                 # フォールバック
                 fonts.update(self._get_fallback_fonts(name_font_size, text_font_size, default_font_size))
             
@@ -280,8 +280,40 @@ class TextRenderer:
         # 透明最適化（描画の滲み対策というより速度向上）
         return processed_surface.convert_alpha()
 
+    def _render_outline_surface(self, font, text, color):
+        """本文テキスト専用の黒縁取りを描画する"""
+        text_surface = font.render(text, True, color)
+        text_surface = self._apply_font_effects(text_surface, is_shadow=False)
+
+        if not FONT_EFFECTS.get("enable_shadow", False):
+            return text_surface
+
+        outline_color = (0, 0, 0)
+        outline_surface = font.render(text, True, outline_color)
+        outline_surface = self._apply_font_effects(outline_surface, is_shadow=True)
+
+        shadow_offset = FONT_EFFECTS.get("shadow_offset", (6, 6))
+        outline_width = max(2, min(3, int(round(max(abs(shadow_offset[0]), abs(shadow_offset[1]))) // 2)))
+
+        tw, th = text_surface.get_size()
+        ow, oh = outline_surface.get_size()
+        padding = outline_width
+        final_surface = pygame.Surface((max(tw, ow) + padding * 2, max(th, oh) + padding * 2), pygame.SRCALPHA)
+
+        for dx in range(-outline_width, outline_width + 1):
+            for dy in range(-outline_width, outline_width + 1):
+                if dx == 0 and dy == 0:
+                    continue
+                final_surface.blit(outline_surface, (padding + dx, padding + dy))
+
+        final_surface.blit(text_surface, (padding, padding))
+        return final_surface.convert_alpha()
+
     
     def _render_text_with_effects(self, font, text, color, is_name=False):
+        if not is_name:
+            return self._render_outline_surface(font, text, color)
+
         text_surface = font.render(text, True, color)
         text_surface = self._apply_font_effects(text_surface, is_shadow=False)
 

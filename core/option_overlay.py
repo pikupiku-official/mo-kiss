@@ -17,12 +17,15 @@ parent_mode によってセーブ/ロードボタンの有効/無効を切り替
 参照: docs/設計_システム.md  OPTION（Overlay）セクション
 """
 
+import os
+
 import pygame
 from .path_utils import get_project_root
-from .config import OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT, SCALE
 
 
 _SAVE_MODES = {"map", "home"}
+_MOCK_FRAME_DURATION_MS = 100
+_MOCK_CLOSE_FRAME_DURATION_MS = 50
 
 
 class OptionOverlay:
@@ -87,13 +90,9 @@ class OptionOverlay:
 
     def render_overlay(self):
         """オーバーレイを現在のスクリーン上に描画"""
-        from . import config
-        # DialogueSubsystem.on_enter() が OFFSET_X/Y を 0 にリセットするため、
-        # 常に DISPLAY サイズから実オフセットを再計算する
-        cw = config.CONTENT_WIDTH
-        ch = config.CONTENT_HEIGHT
-        ox = (config.DISPLAY_WIDTH - cw) // 2
-        oy = (config.DISPLAY_HEIGHT - ch) // 2
+        cw, ch = self.screen.get_size()
+        ox = 0
+        oy = 0
 
         # 半透明背景
         overlay_surf = pygame.Surface((cw, ch), pygame.SRCALPHA)
@@ -120,12 +119,9 @@ class OptionOverlay:
 
     def _get_buttons(self):
         """ボタン定義リスト [(ラベル, Rect, アクション文字列)]"""
-        from . import config
-        # 同上: 実オフセットを再計算
-        cw = config.CONTENT_WIDTH
-        ch = config.CONTENT_HEIGHT
-        ox = (config.DISPLAY_WIDTH - cw) // 2
-        oy = (config.DISPLAY_HEIGHT - ch) // 2
+        cw, ch = self.screen.get_size()
+        ox = 0
+        oy = 0
 
         btn_w, btn_h = int(cw * 0.3), int(ch * 0.07)
         cx = ox + cw // 2 - btn_w // 2
@@ -148,3 +144,75 @@ class OptionOverlay:
         buttons.append(("ゲーム終了", pygame.Rect(cx, y, btn_w, btn_h), "quit"))
 
         return buttons
+
+
+class MockOptionOverlay:
+    """モック用の画像シーケンスを表示するだけのオーバーレイ"""
+
+    def __init__(self, screen: pygame.Surface, frame_names: tuple[str, str, str]):
+        self.screen = screen
+        self.frame_names = frame_names
+        self._opened_at_ms = pygame.time.get_ticks()
+        self._closing_started_at_ms = None
+        self._frames = self._load_frames()
+
+    def _load_frames(self) -> list[pygame.Surface]:
+        frames = []
+        ui_dir = os.path.join(get_project_root(), "images", "UI")
+        for frame_name in self.frame_names:
+            frame_path = os.path.join(ui_dir, frame_name)
+            try:
+                frames.append(pygame.image.load(frame_path).convert_alpha())
+            except Exception:
+                fallback = pygame.Surface(self.screen.get_size())
+                fallback.fill((24, 24, 24))
+                frames.append(fallback)
+        return frames
+
+    def handle_events(self, events=None) -> str | None:
+        if events is None:
+            events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                return "quit"
+        if self._closing_started_at_ms is not None and self._is_close_animation_finished():
+            return "resume"
+        return None
+
+    def start_close(self):
+        if self._closing_started_at_ms is None:
+            self._closing_started_at_ms = pygame.time.get_ticks()
+
+    def is_same_sequence(self, frame_names: tuple[str, str, str]) -> bool:
+        return self.frame_names == frame_names
+
+    def render_overlay(self):
+        cw, ch = self.screen.get_size()
+        ox = 0
+        oy = 0
+
+        frame = self._get_current_frame()
+        if frame.get_size() != (cw, ch):
+            frame = pygame.transform.smoothscale(frame, (cw, ch))
+        self.screen.blit(frame, (ox, oy))
+
+    def render(self):
+        self.render_overlay()
+
+    def _get_current_frame(self) -> pygame.Surface:
+        if self._closing_started_at_ms is not None:
+            return self._get_closing_frame()
+
+        elapsed_ms = max(0, pygame.time.get_ticks() - self._opened_at_ms)
+        frame_index = min(elapsed_ms // _MOCK_FRAME_DURATION_MS, len(self._frames) - 1)
+        return self._frames[frame_index]
+
+    def _get_closing_frame(self) -> pygame.Surface:
+        elapsed_ms = max(0, pygame.time.get_ticks() - self._closing_started_at_ms)
+        close_index = min(elapsed_ms // _MOCK_CLOSE_FRAME_DURATION_MS, len(self._frames) - 1)
+        frame_index = max(0, (len(self._frames) - 1) - close_index)
+        return self._frames[frame_index]
+
+    def _is_close_animation_finished(self) -> bool:
+        elapsed_ms = max(0, pygame.time.get_ticks() - self._closing_started_at_ms)
+        return elapsed_ms >= len(self._frames) * _MOCK_CLOSE_FRAME_DURATION_MS

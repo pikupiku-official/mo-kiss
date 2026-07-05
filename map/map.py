@@ -822,7 +822,8 @@ class FieldMap(SubsystemBase):
                         pygame.draw.circle(self.screen, (255, 255, 0), (icon_x, icon_y), glow_radius - 3, 2)
                     
                     # ホバー判定
-                    mouse_pos = pygame.mouse.get_pos()
+                    from core.config import window_to_virtual_pos
+                    mouse_pos = window_to_virtual_pos(pygame.mouse.get_pos())
                     is_hovered = math.sqrt((mouse_pos[0] - icon_x)**2 + (mouse_pos[1] - icon_y)**2) <= 30
                     
                     # キャラクター画像がある場合は画像を、ない場合は従来のアイコンを描画

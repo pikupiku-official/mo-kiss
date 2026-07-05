@@ -174,6 +174,25 @@ class TestOptionOverlayRender:
             option.render()
 
 
+class TestMockOptionOverlay:
+
+    def test_mock_overlay_instantiable(self, pygame_screen):
+        from core.option_overlay import MockOptionOverlay
+        overlay = MockOptionOverlay(pygame_screen, ("UI_option01.png", "UI_option02.png", "UI_option03.png"))
+        assert overlay is not None
+
+    def test_mock_overlay_start_close(self, pygame_screen):
+        from core.option_overlay import MockOptionOverlay
+        overlay = MockOptionOverlay(pygame_screen, ("UI_option01.png", "UI_option02.png", "UI_option03.png"))
+        overlay.start_close()
+        assert overlay._closing_started_at_ms is not None
+
+    def test_mock_overlay_render_callable(self, pygame_screen):
+        from core.option_overlay import MockOptionOverlay
+        overlay = MockOptionOverlay(pygame_screen, ("UI_option01.png", "UI_option02.png", "UI_option03.png"))
+        overlay.render_overlay()
+
+
 # ─────────────────────────────────────────────
 # グループ5: GameApplication のオーバーレイ管理
 # ─────────────────────────────────────────────
@@ -191,6 +210,13 @@ class TestGameApplicationOverlay:
     def test_hide_option_method_exists(self):
         """main.py に hide_option() メソッドがある"""
         assert 'def hide_option(' in MAIN_SRC
+
+    def test_mock_option_shortcut_exists(self):
+        """main.py に F6/F7 モック表示のショートカットがある"""
+        assert 'pygame.K_F6' in MAIN_SRC
+        assert 'pygame.K_F7' in MAIN_SRC
+        assert 'def show_mock_option(' in MAIN_SRC
+        assert 'def show_mock_await(' in MAIN_SRC
 
     def test_run_handles_overlay(self):
         """run() が current_overlay を考慮したループを持つ"""
