@@ -98,11 +98,11 @@
  	「あっ、じゅんいちだ。」[female]
 	「じゅんいち～～～～！」[female]
 
-[SE 走って近づく足音]
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
 
-	//？？//
-	「おはよう！」[female]
+[SE 走って近づく足音]
+[chara_show name="桃子" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_02" x="0.5" y="0.5" torso="MMK_T00_ARM07_CLO00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00"]
+//？？//
+「おはよう！」[female]
 	//純一//
 	「やあ桃⼦。今⽇は遅いね。」
 	「（まるでお⽇様みたいな彼⼥は幼馴染の愛沼桃⼦。）」
