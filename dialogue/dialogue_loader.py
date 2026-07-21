@@ -1,4 +1,4 @@
-﻿import re
+import re
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -325,6 +325,8 @@ class DialogueLoader:
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
                         cheek_type = re.search(r'cheek="([^"]+)"', line)
+                        effect_type = re.search(r'effect="([^"]+)"', line)
+                        accessory_type = re.search(r'accessory="([^"]+)"', line)
                         blink = re.search(r'blink="([^"]+)"', line)
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
@@ -344,7 +346,9 @@ class DialogueLoader:
                                     'eye': "",
                                     'mouth': "",
                                     'brow': "",
-                                    'cheek': ""
+                                    'cheek': "",
+                                    'effect': "",
+                                    'accessory': ""
                                 }
                             
                             # 属性が指定されていない場合や空文字の場合は既存の値を保持
@@ -353,11 +357,31 @@ class DialogueLoader:
                             current_brow = brow_type.group(1) if brow_type and brow_type.group(1) else character_face_parts[current_char]['brow']
                             current_cheek = cheek_type.group(1) if cheek_type and cheek_type.group(1) else character_face_parts[current_char]['cheek']
                             
+                            # 表情パーツの変更検知
+                            face_changed = (
+                                (eye_type and eye_type.group(1) and eye_type.group(1) != character_face_parts[current_char]['eye']) or
+                                (mouth_type and mouth_type.group(1) and mouth_type.group(1) != character_face_parts[current_char]['mouth']) or
+                                (brow_type and brow_type.group(1) and brow_type.group(1) != character_face_parts[current_char]['brow']) or
+                                (cheek_type and cheek_type.group(1) and cheek_type.group(1) != character_face_parts[current_char]['cheek'])
+                            )
+                            
+                            # エフェクトが新たに指定されていれば適用、指定されずに表情が変わればクリア、変わらなければ維持
+                            if effect_type and effect_type.group(1):
+                                current_effect = effect_type.group(1)
+                            elif face_changed or (effect_type and not effect_type.group(1)):
+                                current_effect = ""
+                            else:
+                                current_effect = character_face_parts[current_char]['effect']
+                                
+                            current_accessory = accessory_type.group(1) if accessory_type and accessory_type.group(1) else character_face_parts[current_char]['accessory']
+                            
                             # 更新された顔パーツをキャラクター別に保存
                             character_face_parts[current_char]['eye'] = current_eye
                             character_face_parts[current_char]['mouth'] = current_mouth
                             character_face_parts[current_char]['brow'] = current_brow
                             character_face_parts[current_char]['cheek'] = current_cheek
+                            character_face_parts[current_char]['effect'] = current_effect
+                            character_face_parts[current_char]['accessory'] = current_accessory
 
                             # x, y を数値として処理
                             try:
@@ -400,6 +424,8 @@ class DialogueLoader:
                                 'mouth': current_mouth,
                                 'brow': current_brow,
                                 'cheek': current_cheek,
+                                'effect': current_effect,
+                                'accessory': current_accessory,
                                 'blink': current_blink,
                                 'show_x': current_show_x,
                                 'show_y': current_show_y,
@@ -428,6 +454,8 @@ class DialogueLoader:
                         mouth_type = re.search(r'mouth="([^"]+)"', line)
                         brow_type = re.search(r'brow="([^"]+)"', line)
                         cheek_type = re.search(r'cheek="([^"]+)"', line)
+                        effect_type = re.search(r'effect="([^"]+)"', line)
+                        accessory_type = re.search(r'accessory="([^"]+)"', line)
                         show_x = re.search(r'x="([^"]+)"', line)
                         show_y = re.search(r'y="([^"]+)"', line)
                         size = re.search(r'size="([^"]+)"', line)
@@ -437,10 +465,38 @@ class DialogueLoader:
                         if char_name:
                             current_char = char_name.group(1)
                             current_torso = torso_id.group(1) if torso_id else None
+
+                            if current_char not in character_face_parts:
+                                character_face_parts[current_char] = {
+                                    'eye': "",
+                                    'mouth': "",
+                                    'brow': "",
+                                    'cheek': "",
+                                    'effect': "",
+                                    'accessory': ""
+                                }
+
                             current_eye = eye_type.group(1) if eye_type else ""
                             current_mouth = mouth_type.group(1) if mouth_type else ""
                             current_brow = brow_type.group(1) if brow_type else ""
                             current_cheek = cheek_type.group(1) if cheek_type else ""
+                            
+                            # 表情パーツの変更検知
+                            face_changed = (
+                                (eye_type is not None and current_eye != character_face_parts[current_char]['eye']) or
+                                (mouth_type is not None and current_mouth != character_face_parts[current_char]['mouth']) or
+                                (brow_type is not None and current_brow != character_face_parts[current_char]['brow']) or
+                                (cheek_type is not None and current_cheek != character_face_parts[current_char]['cheek'])
+                            )
+                            
+                            if effect_type is not None:
+                                current_effect = effect_type.group(1)
+                            elif face_changed:
+                                current_effect = ""
+                            else:
+                                current_effect = character_face_parts[current_char]['effect']
+                                
+                            current_accessory = accessory_type.group(1) if accessory_type else ""
                             current_show_x = show_x.group(1) if show_x else None
                             current_show_y = show_y.group(1) if show_y else None
                             current_size = size.group(1) if size else None
@@ -457,7 +513,9 @@ class DialogueLoader:
                                     'eye': "",
                                     'mouth': "",
                                     'brow': "",
-                                    'cheek': ""
+                                    'cheek': "",
+                                    'effect': "",
+                                    'accessory': ""
                                 }
 
                             if eye_type is not None:
@@ -483,6 +541,10 @@ class DialogueLoader:
                                 shift_entry['brow'] = current_brow
                             if cheek_type is not None:
                                 shift_entry['cheek'] = current_cheek
+                            if effect_type is not None:
+                                shift_entry['effect'] = current_effect
+                            if accessory_type is not None:
+                                shift_entry['accessory'] = current_accessory
                             if show_x is not None:
                                 shift_entry['x'] = current_show_x
                             if show_y is not None:
@@ -722,7 +784,9 @@ class DialogueLoader:
                                     'eye': "",
                                     'mouth': "",
                                     'brow': "",
-                                    'cheek': ""
+                                    'cheek': "",
+                                    'effect': "",
+                                    'accessory': ""
                                 })
                                 
                                 dialogue_data.append({
@@ -733,6 +797,8 @@ class DialogueLoader:
                                     'mouth': speaker_face_parts['mouth'],
                                     'brow': speaker_face_parts['brow'],
                                     'cheek': speaker_face_parts['cheek'],
+                                    'effect': speaker_face_parts['effect'],
+                                    'accessory': speaker_face_parts['accessory'],
                                     'background': current_bg,
                                     'bgm': current_bgm,
                                     'bgm_volume': current_bgm_volume,

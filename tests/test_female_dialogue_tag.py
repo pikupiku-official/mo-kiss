@@ -78,3 +78,20 @@ def test_step_editor_round_trip_preserves_female_tag():
         [],
     )
     assert "「更新したセリフ」[female]" in updated
+
+
+def test_effect_auto_clear_on_expression_change():
+    loader = _loader()
+    raw = loader._parse_ks_content(
+        "[chara_show name=\"momoko\" eye=\"sad\" effect=\"sweat\"]\n"
+        "[chara_show name=\"momoko\" eye=\"smile\"]\n"
+    )
+    
+    chara_entries = [entry for entry in raw if entry.get("type") == "character"]
+    
+    assert len(chara_entries) == 2
+    assert chara_entries[0]["eye"] == "sad"
+    assert chara_entries[0]["effect"] == "sweat"
+    assert chara_entries[1]["eye"] == "smile"
+    assert chara_entries[1]["effect"] == ""
+

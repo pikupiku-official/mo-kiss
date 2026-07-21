@@ -161,7 +161,7 @@ def _update_last_expressions(
     if not target:
         return
     record = last_expressions.setdefault(target, {})
-    for key in ("eye", "mouth", "brow", "cheek"):
+    for key in ("eye", "mouth", "brow", "cheek", "effect", "accessory"):
         if key in params and params.get(key):
             record[key] = params.get(key) or ""
 
@@ -183,6 +183,11 @@ def _action_for_expression(
     ):
         if value:
             incoming[key] = value
+    if len(entry) > 13 and isinstance(entry[13], dict):
+        extra = entry[13]
+        for key in ("effect", "accessory"):
+            if extra.get(key):
+                incoming[key] = extra[key]
     if not incoming:
         return None
     previous = last_expressions.get(target, {})
@@ -197,7 +202,7 @@ def _action_for_expression(
 
 def _normalize_chara_shift_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     params: Dict[str, Any] = {}
-    for key in ("torso", "eye", "mouth", "brow", "cheek", "x", "y", "size", "fade"):
+    for key in ("torso", "eye", "mouth", "brow", "cheek", "effect", "accessory", "x", "y", "size", "fade"):
         if key in entry:
             params[key] = entry.get(key)
     for key in ("x", "y", "size", "fade"):
@@ -238,6 +243,8 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
                 "cheek": entry[5] if len(entry) > 5 else "",
             }
         )
+        if len(entry) > 13 and isinstance(entry[13], dict):
+            params.update(entry[13])
         target = params.get("name") or entry[1] or params.get("torso")
         return make_action(
             action="chara_show",

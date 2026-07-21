@@ -1,4 +1,4 @@
-﻿"""
+"""
 KSファイル専用エディタ - PyQt5版(macOS対応)
 
 画面構成:
@@ -320,9 +320,13 @@ class PreviewWindow:
                     choice_renderer = self.game_state['choice_renderer']
                     choice_showing = choice_renderer.is_choice_showing()
 
-                if not choice_showing and 'text_renderer' in self.game_state:
+                if 'text_renderer' in self.game_state:
                     text_renderer = self.game_state['text_renderer']
-                    text_renderer.render_text_window(self.game_state)
+                    if not choice_showing:
+                        text_renderer.render_text_window(self.game_state)
+                    else:
+                        # 選択肢表示中はトーク文を隠し、日付時刻だけ表示
+                        text_renderer.render_date()
 
                 if choice_showing:
                     choice_renderer.render()
@@ -516,7 +520,7 @@ class CharaCompositePreviewDialog(QDialog):
     """
 
     # 描画レイヤー順（下から上）
-    LAYER_ORDER = ['torso', 'brow', 'cheek', 'eye', 'mouth', 'effect', 'accessory']
+    LAYER_ORDER = ['torso', 'brow', 'cheek', 'eye', 'mouth', 'accessory', 'effect']
     PART_LABELS = {
         'torso':     '体 (T)',
         'brow':      '眉 (BRO)',
@@ -834,6 +838,19 @@ class CharaCompositePreviewDialog(QDialog):
             if not path or not os.path.exists(path):
                 continue
             img = QImage(path)
+            if img.isNull():
+                # Fallback to pygame loading for WebP support in Qt5
+                try:
+                    surf = pygame.image.load(path)
+                    try:
+                        rgba_data = pygame.image.tobytes(surf, "RGBA")
+                    except AttributeError:
+                        rgba_data = pygame.image.tostring(surf, "RGBA")
+                    w, h = surf.get_size()
+                    img = QImage(rgba_data, w, h, QImage.Format_RGBA8888).copy()
+                except Exception as e:
+                    logger.error(f"Fallback pygame loading failed for {path}: {e}")
+                    continue
             if img.isNull():
                 continue
             img = img.convertToFormat(QImage.Format_ARGB32)

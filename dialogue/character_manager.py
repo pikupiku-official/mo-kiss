@@ -396,7 +396,7 @@ def update_character_fades(game_state):
             hide_character(game_state, char_name)
             fades.pop(char_name, None)
 
-def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale, fade_map=None, current_time=None):
+def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale, fade_map=None, current_time=None, effect_type="", accessory_type=""):
     """Face parts rendering with optional crossfade."""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
@@ -471,6 +471,8 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     draw_part('eye', final_eye_type)
     draw_part('mouth', mouth_type)
     draw_part('cheek', cheek_type)
+    draw_part('accessory', accessory_type)
+    draw_part('effect', effect_type)
 
 def draw_characters(game_state):
     """Draw characters with optional part fades."""
@@ -534,6 +536,8 @@ def draw_characters(game_state):
             mouth_type = expressions.get('mouth', '')
             brow_type = expressions.get('brow', '')
             cheek_type = expressions.get('cheek', '')
+            effect_type = expressions.get('effect', '')
+            accessory_type = expressions.get('accessory', '')
 
             face_final_zoom = zoom_scale * char_base_scale * SCALE
             render_face_parts(
@@ -546,6 +550,8 @@ def draw_characters(game_state):
                 face_final_zoom,
                 fade_map=fade_map,
                 current_time=current_time,
+                effect_type=effect_type,
+                accessory_type=accessory_type,
             )
 
 

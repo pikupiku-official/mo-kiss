@@ -77,3 +77,28 @@ def test_chara_shift_preserves_unspecified_axes():
 
     assert game_state["character_pos"]["momoko"] == _expected_position(500, 1000, center_x, center_y, 1.5)
     assert game_state["character_zoom"]["momoko"] == 1.5
+
+
+def test_chara_show_updates_position_and_size_for_existing_character():
+    from dialogue.scenario_manager import _ir_handle_character_show
+    torso = DummyImage(500, 1000)
+    game_state = {
+        "active_characters": ["momoko"],
+        "character_pos": {"momoko": [10, 20]},
+        "character_zoom": {"momoko": 1.0},
+        "character_expressions": {"momoko": {}},
+        "character_torso": {"momoko": "T00"},
+        "character_blink_enabled": {},
+        "character_blink_state": {},
+        "character_blink_timers": {},
+        "image_manager": DummyImageManager({("torso", "T00"): torso}),
+    }
+
+    _ir_handle_character_show(
+        game_state,
+        "momoko",
+        {"torso": "T00", "x": "0.6", "y": "0.4", "size": "1.5", "fade": "0", "blink": "false"},
+    )
+
+    assert game_state["character_pos"]["momoko"] == _expected_position(500, 1000, 0.6, 0.4, 1.5)
+    assert game_state["character_zoom"]["momoko"] == 1.5

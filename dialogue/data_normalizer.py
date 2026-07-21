@@ -1,4 +1,4 @@
-﻿from core.config import *
+from core.config import *
 
 def normalize_dialogue_data(raw_data):
     """dialogue_loader.pyの辞書リストを正規化して統一された構造にする"""
@@ -7,13 +7,25 @@ def normalize_dialogue_data(raw_data):
     if not raw_data:
         return get_default_normalized_dialogue()
     
-    normalized_data = []
+    class CustomList(list):
+        def append(self, item):
+            if isinstance(item, list):
+                while len(item) < 12:
+                    item.append(None)
+                if len(item) == 12:
+                    item.append(False)
+                item.append({"effect": current_effect, "accessory": current_accessory})
+            super().append(item)
+
+    normalized_data = CustomList()
     current_bg = None  # 初期背景はなし
     current_char = None
     current_eye = ""
     current_mouth = ""
     current_brow = ""
     current_cheek = ""
+    current_effect = ""
+    current_accessory = ""
     current_blink = True  # デフォルトでまばたき有効
     current_bgm = "maou_bgm_8bit29.mp3"
     current_bgm_volume = 0.1
@@ -59,6 +71,8 @@ def normalize_dialogue_data(raw_data):
 
             # current_charは画像ロード用にtorso_idを保持
             current_char = torso_id
+            current_effect = entry.get('effect', '')
+            current_accessory = entry.get('accessory', '')
 
             # 顔パーツはファイル名をそのまま使用
             current_eye = entry['eye']
@@ -135,6 +149,8 @@ def normalize_dialogue_data(raw_data):
             dialogue_mouth = entry['mouth']
             dialogue_brow = entry['brow']
             dialogue_cheek = entry.get('cheek', '')
+            current_effect = entry.get('effect', '')
+            current_accessory = entry.get('accessory', '')
             
             
             normalized_data.append([
@@ -225,6 +241,10 @@ def normalize_dialogue_data(raw_data):
                 
         
         elif entry_type == 'chara_shift':
+            if 'effect' in entry:
+                current_effect = entry['effect']
+            if 'accessory' in entry:
+                current_accessory = entry['accessory']
             # preserve chara_shift as dict entry
             normalized_data.append(entry)
             if DEBUG:

@@ -1,4 +1,4 @@
-﻿import pygame
+import pygame
 from core.config import *
 from .character_manager import (
     move_character,
@@ -271,14 +271,17 @@ def _ir_handle_character_show(game_state, target, params):
     is_new_character = target not in game_state.get("active_characters", [])
     if is_new_character:
         game_state["active_characters"].append(target)
-        pos_x, pos_y = _ir_compute_character_placement(char_img, show_x, show_y, size)
 
-        game_state["character_pos"][target] = [pos_x, pos_y]
-        game_state["character_zoom"][target] = size
-
-        set_blink_enabled(game_state, target, blink_enabled)
-        if blink_enabled:
+    # 既にアクティブなキャラでもblinkの設定を更新
+    set_blink_enabled(game_state, target, blink_enabled)
+    if blink_enabled:
+        if target not in game_state.get("character_blink_state", {}):
             init_blink_system(game_state, target)
+
+    # size, x, y は新規キャラクターであるかに関わらず、常に反映する
+    pos_x, pos_y = _ir_compute_character_placement(char_img, show_x, show_y, size)
+    game_state["character_pos"][target] = [pos_x, pos_y]
+    game_state["character_zoom"][target] = size
 
     _ir_update_expressions(game_state, target, params)
     if fade_ms > 0:
@@ -292,6 +295,10 @@ def _ir_handle_character_show(game_state, target, params):
             start_character_part_fade(game_state, target, "mouth", None, expressions.get("mouth"), fade_ms)
         if expressions.get("cheek"):
             start_character_part_fade(game_state, target, "cheek", None, expressions.get("cheek"), fade_ms)
+        if expressions.get("effect"):
+            start_character_part_fade(game_state, target, "effect", None, expressions.get("effect"), fade_ms)
+        if expressions.get("accessory"):
+            start_character_part_fade(game_state, target, "accessory", None, expressions.get("accessory"), fade_ms)
 
     try:
         image_manager.preload_character_set(target, {
@@ -358,7 +365,7 @@ def _ir_handle_character_shift(game_state, target, params):
             start_character_part_fade(game_state, target, "torso", old_torso, torso_id, fade_ms)
 
         new_expressions = game_state.get("character_expressions", {}).get(target, {})
-        for key, part in (("brow", "brow"), ("eye", "eye"), ("mouth", "mouth"), ("cheek", "cheek")):
+        for key, part in (("brow", "brow"), ("eye", "eye"), ("mouth", "mouth"), ("cheek", "cheek"), ("effect", "effect"), ("accessory", "accessory")):
             if key not in params:
                 continue
             old_val = old_expressions.get(key, "")
@@ -458,6 +465,8 @@ def _ir_update_expressions(game_state, target, params):
         "mouth": "",
         "brow": "",
         "cheek": "",
+        "effect": "",
+        "accessory": "",
     })
     expressions = existing_expressions.copy()
     if "eye" in params:
@@ -468,6 +477,10 @@ def _ir_update_expressions(game_state, target, params):
         expressions["brow"] = params.get("brow") or ""
     if "cheek" in params:
         expressions["cheek"] = params.get("cheek") or ""
+    if "effect" in params:
+        expressions["effect"] = params.get("effect") or ""
+    if "accessory" in params:
+        expressions["accessory"] = params.get("accessory") or ""
     game_state.setdefault("character_expressions", {})[target] = expressions
 
 def _to_float(value, default):
@@ -648,7 +661,7 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
         if len(current_dialogue) >= 6:
             # 既存の表情を取得（存在しない場合は空の表情）
             existing_expressions = game_state['character_expressions'].get(char_name, {
-                'eye': '', 'mouth': '', 'brow': '', 'cheek': ''
+                'eye': '', 'mouth': '', 'brow': '', 'cheek': '', 'effect': '', 'accessory': ''
             })
 
             # 新しい表情データを構築（空でない場合のみ上書き）
@@ -661,6 +674,12 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
                 expressions['brow'] = current_dialogue[4]
             if len(current_dialogue) > 5 and current_dialogue[5]:  # 頬
                 expressions['cheek'] = current_dialogue[5]
+            if len(current_dialogue) > 13 and isinstance(current_dialogue[13], dict):
+                extra = current_dialogue[13]
+                if extra.get('effect'):
+                    expressions['effect'] = extra['effect']
+                if extra.get('accessory'):
+                    expressions['accessory'] = extra['accessory']
 
             game_state['character_expressions'][char_name] = expressions
 
@@ -673,7 +692,9 @@ def _handle_character_show(game_state, dialogue_text, current_dialogue):
                     'eye': [expressions['eye']] if expressions['eye'] else [],
                     'mouth': [expressions['mouth']] if expressions['mouth'] else [],
                     'brow': [expressions['brow']] if expressions['brow'] else [],
-                    'cheek': [expressions['cheek']] if expressions['cheek'] else []
+                    'cheek': [expressions['cheek']] if expressions['cheek'] else [],
+                    'effect': [expressions['effect']] if expressions.get('effect') else [],
+                    'accessory': [expressions['accessory']] if expressions.get('accessory') else []
                 })
             except Exception as e:
                 if DEBUG:
@@ -854,7 +875,7 @@ def _handle_dialogue_text(game_state, current_dialogue):
         if len(current_dialogue) >= 5:
             # 既存の表情を取得
             existing_expressions = game_state['character_expressions'].get(char_name, {
-                'eye': '', 'mouth': '', 'brow': '', 'cheek': ''
+                'eye': '', 'mouth': '', 'brow': '', 'cheek': '', 'effect': '', 'accessory': ''
             })
             
             # 新しい表情データがある場合のみ更新
@@ -867,6 +888,12 @@ def _handle_dialogue_text(game_state, current_dialogue):
                 expressions['brow'] = current_dialogue[4]
             if len(current_dialogue) > 5 and current_dialogue[5]:  # 新しい頬のデータがある場合
                 expressions['cheek'] = current_dialogue[5]
+            if len(current_dialogue) > 13 and isinstance(current_dialogue[13], dict):
+                extra = current_dialogue[13]
+                if extra.get('effect'):
+                    expressions['effect'] = extra['effect']
+                if extra.get('accessory'):
+                    expressions['accessory'] = extra['accessory']
             
             game_state['character_expressions'][char_name] = expressions
     

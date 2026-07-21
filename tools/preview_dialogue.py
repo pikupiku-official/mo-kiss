@@ -1,4 +1,4 @@
-﻿"""
+"""
 KSファイル専用プレビュースクリプト
 event_editor_mac.pyから別プロセスで起動され、指定された.ksファイルをプレビュー表示する
 
@@ -578,9 +578,12 @@ def preview_ks_file(ks_file_path):
                     print(f"[PREVIEW] UI要素描画エラー: {e} (以降このエラーは抑制)")
                     error_logged['ui_elements'] = True
 
-        # テキスト描画（選択肢表示中は非表示）
-        if game_state.get('show_text', True) and not choice_renderer.is_showing_choices:
-            text_renderer.render()
+        # テキスト描画（選択肢表示中はトーク文を非表示にし、日付時刻のみ表示）
+        if game_state.get('show_text', True):
+            if not choice_renderer.is_showing_choices:
+                text_renderer.render()
+            else:
+                text_renderer.render_date()
 
         # 選択肢描画
         choice_renderer.render()
