@@ -31,6 +31,17 @@ class SEManager:
 
     def play_se(self, filename, volume=0.5, frequency=1):
         try:
+            # 拡張子が含まれていない場合、実在する拡張子（.wav, .mp3, .ogg, .m4a）を自動補完
+            if filename and not any(filename.lower().endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a']):
+                for ext in ['.wav', '.mp3', '.ogg', '.m4a']:
+                    candidate = f"{filename}{ext}"
+                    if os.path.exists(os.path.join(self.SE_PATH, candidate)):
+                        filename = candidate
+                        break
+                else:
+                    # 見つからない場合はデフォルトで.wavを付与
+                    filename = f"{filename}.wav"
+
             # ファイル名の有効性をチェック
             if not self.is_valid_se_filename(filename):
                 if self.debug:

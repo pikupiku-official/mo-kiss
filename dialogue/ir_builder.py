@@ -205,6 +205,8 @@ def _normalize_chara_shift_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     for key in ("torso", "eye", "mouth", "brow", "cheek", "effect", "accessory", "x", "y", "size", "fade"):
         if key in entry:
             params[key] = entry.get(key)
+    if "effect" not in params:
+        params["effect"] = ""
     for key in ("x", "y", "size", "fade"):
         if key in params and params[key] is not None:
             params[key] = _to_float(params[key], params[key])
@@ -218,6 +220,16 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
     if text.startswith("_CHOICE_"):
         options = entry[12] if len(entry) > 12 else []
         return make_action(action="choice", params={"options": options})
+
+    if text.startswith("_BGM_PLAY_"):
+        parts = text.split("_")
+        filename = parts[3] if len(parts) > 3 else ""
+        volume = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
+        loop = parts[5].lower() == "true" if len(parts) > 5 else True
+        return make_action(
+            action="bgm_play",
+            params={"file": filename, "volume": volume, "loop": loop},
+        )
 
     if text.startswith("_BGM_PAUSE"):
         fade_time = 0.0

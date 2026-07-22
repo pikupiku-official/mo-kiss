@@ -41,18 +41,52 @@ class BGMManager:
         return True
 
     def play_bgm(self, filename, volume=0.5, loop=True):
+        print(f"[BGM_DEBUG] play_bgm要求: filename='{filename}', volume={volume}, loop={loop}")
+        if not pygame.mixer.get_init():
+            try:
+                pygame.mixer.init()
+                print("[BGM_DEBUG] pygame.mixer was not initialized. Auto initialized mixer.")
+            except Exception as e:
+                print(f"[BGM_DEBUG] pygame.mixer init error: {e}")
+                return False
         try:
+            # 音量の正規化
+            try:
+                volume = float(volume)
+            except (ValueError, TypeError):
+                volume = 0.5
+
+            if volume <= 0:
+                print(f"[BGM_DEBUG] volume={volume} (0以下) 指定のため BGM 停止/消音処理: filename='{filename}'")
+                self.stop_bgm()
+                return True
+            elif volume > 1.0:
+                if volume <= 10.0:
+                    volume = volume / 10.0
+                else:
+                    volume = min(volume / 100.0, 1.0)
+
             # ファイル名の有効性をチェック
             if not self.is_valid_bgm_filename(filename):
-                if self.debug:
-                    print(f"無効なBGMファイル名: {filename}")
-                return False
+                # 拡張子がない場合は実在するファイル名を探す
+                actual_filename = self.get_bgm_for_scene(filename)
+                if actual_filename:
+                    filename = actual_filename
+                else:
+                    print(f"[BGM_DEBUG] 無効なBGMファイル名 & 代替ファイルなし: '{filename}'")
+                    return False
             
             bgm_path = os.path.join(self.BGM_PATH, filename)
             
             # ファイルの存在チェック
             if not os.path.exists(bgm_path):
-                return False
+                actual_filename = self.get_bgm_for_scene(filename)
+                if actual_filename:
+                    filename = actual_filename
+                    bgm_path = os.path.join(self.BGM_PATH, filename)
+                else:
+                    print(f"[BGM_DEBUG] BGMファイルが存在しません: '{bgm_path}'")
+                    return False
             
             pygame.mixer.music.load(bgm_path)
             pygame.mixer.music.set_volume(volume)
@@ -64,16 +98,15 @@ class BGMManager:
             self.current_bgm = filename
             self.current_volume = volume
             self.target_volume = volume
-            if self.debug:
-                print(f"BGMを再生開始: {filename} (loop={loop})")
+            print(f"[BGM_DEBUG] BGM再生成功! file='{filename}', full_path='{bgm_path}', volume={volume}, loop={loop}")
             return True
             
         except Exception as e:
-            if self.debug:
-                print(f"BGMの再生に失敗しました: {e}")
+            print(f"[BGM_DEBUG] BGMの再生失敗: {e}")
             return False
 
     def stop_bgm(self):
+        print(f"🔇 [BGM_DEBUG] stop_bgm呼び出し (現在再生中='{self.current_bgm}')")
         self._stop_fade()
         pygame.mixer.music.stop()
         self.current_bgm = None
@@ -87,6 +120,7 @@ class BGMManager:
             self.paused_volume = self.target_volume
             self.is_paused = True
             pygame.mixer.music.pause()
+            self.current_bgm = None
             if self.debug:
                 print("BGMを一時停止しました")
     
@@ -164,30 +198,36 @@ class BGMManager:
         return 3 * t * t - 2 * t * t * t
     
     def _fade_volume_for_pause(self, target_volume, fade_time):
-        """一時停止用の音量フェード（BGMを停止せずに音量だけ下げる）"""
+        """一時停止用の音量フェード（音量を下げる）"""
         self.is_fading = True
         start_volume = self.current_volume
-        steps = int(fade_time * 10)  # 0.1秒間隔で更新
-        volume_step = (target_volume - start_volume) / steps if steps > 0 else 0
+        fps = 30
+        total_steps = max(int(fade_time * fps), 1) if fade_time > 0 else 0
+        step_duration = fade_time / total_steps if total_steps > 0 else 0
         
         try:
-            for i in range(steps):
+            for i in range(total_steps):
                 if not self.is_fading:
                     break
                 
-                self.current_volume = start_volume + (volume_step * (i + 1))
+                progress = (i + 1) / total_steps
+                eased_progress = self._ease_in_out(progress)
+                self.current_volume = start_volume + (target_volume - start_volume) * eased_progress
                 self.current_volume = max(0.0, min(1.0, self.current_volume))
                 pygame.mixer.music.set_volume(self.current_volume)
                 
-                if self.debug:
+                if self.debug and i % 10 == 0:
                     print(f"一時停止フェード中: {self.current_volume:.2f}")
                 
-                time.sleep(0.1)
+                time.sleep(step_duration)
             
-            # 最終音量に設定（BGMは停止しない）
+            # 最終音量に設定
             if self.is_fading:
                 self.current_volume = target_volume
                 pygame.mixer.music.set_volume(self.current_volume)
+                if target_volume <= 0.0:
+                    pygame.mixer.music.pause()
+                    self.current_bgm = None
                     
         except Exception as e:
             if self.debug:
@@ -265,17 +305,58 @@ class BGMManager:
             print(f"BGMフェードイン再開: {fade_time}秒, 目標音量: {self.paused_volume}")
 
     def get_bgm_for_scene(self, scene_name):
-        """シーン名からBGMファイル名を取得（直接ファイル名を返す）"""
-        # 頻繁に呼ばれるのでログ出力しない
+        """シーン名から実在するBGMファイル名を取得"""
+        if not scene_name or not isinstance(scene_name, str):
+            return None
 
-        # 直接ファイル名が指定された場合はそのまま返す
-        if self.is_valid_bgm_filename(scene_name):
+        bgm_dir = self.BGM_PATH
+        if not os.path.exists(bgm_dir):
+            return None
+
+        # シナリオ論理名 -> 実ディスクファイル名のマッピングテーブル
+        BGM_ALIAS_MAP = {
+            "school_daily": "02_学校生活.ogg",
+            "school": "02_学校生活.ogg",
+            "classroom": "02_学校生活.ogg",
+            "晴海の昼": "02_学校生活.ogg",
+            "MokMas42654": "MokMas42654.mp3",
+            "Mok1_Lap1": "Mok1_Lap1.mp3",
+            "Mok1_Lap2": "Mok1_Lap2.mp3",
+            "title": "maou_bgm_8bit29.mp3",
+            "BGM_TITLE": "maou_bgm_8bit29.mp3",
+        }
+
+        if scene_name in BGM_ALIAS_MAP:
+            alias_file = BGM_ALIAS_MAP[scene_name]
+            if os.path.exists(os.path.join(bgm_dir, alias_file)):
+                return alias_file
+
+        # 1. 直接存在するファイルの場合
+        if os.path.exists(os.path.join(bgm_dir, scene_name)):
             return scene_name
 
-        # 拡張子がない場合、.mp3を自動補完
-        if scene_name and not any(scene_name.lower().endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a']):
-            candidate = f"{scene_name}.mp3"
-            return candidate
+        # 2. 拡張子がない場合、主要拡張子（.mp3, .ogg, .wav, .m4a）で実在チェック
+        for ext in ['.mp3', '.ogg', '.wav', '.m4a']:
+            candidate = f"{scene_name}{ext}"
+            if os.path.exists(os.path.join(bgm_dir, candidate)):
+                return candidate
+
+        # 3. ディレクトリ内の全ファイルから大文字小文字無視・部分一致で探索
+        try:
+            all_files = os.listdir(bgm_dir)
+            scene_lower = scene_name.lower()
+
+            for f in all_files:
+                name_without_ext = os.path.splitext(f)[0].lower()
+                if name_without_ext == scene_lower:
+                    return f
+
+            for f in all_files:
+                f_lower = f.lower()
+                if scene_lower in f_lower or f_lower in scene_lower:
+                    return f
+        except Exception:
+            pass
 
         return None
     

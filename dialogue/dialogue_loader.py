@@ -231,7 +231,7 @@ class DialogueLoader:
                     continue
 
                 # 背景設定を検出
-                if "[bg" in line and "[bg_show" not in line and "[bg_move" not in line:
+                if "[bg" in line.lower() and "[bg_show" not in line.lower() and "[bg_move" not in line.lower() and "[bgm" not in line.lower():
                     try:
                         bg_parts = re.search(r'storage="([^"]+)"', line)
                         if bg_parts:
@@ -491,10 +491,8 @@ class DialogueLoader:
                             
                             if effect_type is not None:
                                 current_effect = effect_type.group(1)
-                            elif face_changed:
-                                current_effect = ""
                             else:
-                                current_effect = character_face_parts[current_char]['effect']
+                                current_effect = ""
                                 
                             current_accessory = accessory_type.group(1) if accessory_type else ""
                             current_show_x = show_x.group(1) if show_x else None
@@ -526,6 +524,7 @@ class DialogueLoader:
                                 character_face_parts[current_char]['brow'] = current_brow
                             if cheek_type is not None:
                                 character_face_parts[current_char]['cheek'] = current_cheek
+                            character_face_parts[current_char]['effect'] = current_effect
 
                             shift_entry = {
                                 'type': 'chara_shift',
@@ -541,8 +540,7 @@ class DialogueLoader:
                                 shift_entry['brow'] = current_brow
                             if cheek_type is not None:
                                 shift_entry['cheek'] = current_cheek
-                            if effect_type is not None:
-                                shift_entry['effect'] = current_effect
+                            shift_entry['effect'] = current_effect
                             if accessory_type is not None:
                                 shift_entry['accessory'] = current_accessory
                             if show_x is not None:
@@ -562,14 +560,15 @@ class DialogueLoader:
                         if self.debug:
                             print(f"chara_shift parse error (line {line_num}): {e} - {line}")
 
-                elif "[BGMSTOP" in line:
+                elif "[BGMSTOP" in line.upper() or "[BGM_STOP" in line.upper():
                     try:
-                        time_match = re.search(r'time="([^"]+)"', line)
+                        time_match = re.search(r'time="?([^"\s\]]+)"?', line, re.IGNORECASE)
                         fade_time = float(time_match.group(1)) if time_match else 0.0
                         
                         if self.debug:
                             print(f"BGM一時停止コマンド検出: fade_time={fade_time}")
                         
+                        current_bgm = None
                         dialogue_data.append({
                             'type': 'bgm_pause',
                             'fade_time': fade_time
@@ -577,6 +576,7 @@ class DialogueLoader:
                     except Exception as e:
                         if self.debug:
                             print(f"BGMSTOP解析エラー（行 {line_num}）: {e} - {line}")
+                        current_bgm = None
                         # エラーの場合はフェードなしで追加
                         dialogue_data.append({
                             'type': 'bgm_pause',
@@ -584,9 +584,9 @@ class DialogueLoader:
                         })
                 
                 # BGM再生開始を検出（[BGM より前にチェック）
-                elif "[BGMSTART" in line:
+                elif "[BGMSTART" in line.upper() or "[BGM_START" in line.upper():
                     try:
-                        time_match = re.search(r'time="([^"]+)"', line)
+                        time_match = re.search(r'time="?([^"\s\]]+)"?', line, re.IGNORECASE)
                         fade_time = float(time_match.group(1)) if time_match else 0.0
                         
                         if self.debug:
@@ -605,12 +605,12 @@ class DialogueLoader:
                             'fade_time': 0.0
                         })
                 
-                # BGM設定を検出
-                elif "[BGM" in line:
+                # BGM設定を検出 ([BGM or [playbgm)
+                elif "[BGM" in line.upper() or "[PLAYBGM" in line.upper():
                     try:
-                        bgm_parts = re.search(r'bgm="([^"]+)"', line)
-                        bgm_volume = re.search(r'volume="([^"]+)"', line)
-                        bgm_loop = re.search(r'loop="([^"]+)"', line)
+                        bgm_parts = re.search(r'(?:bgm|storage|file)="([^"]+)"', line, re.IGNORECASE)
+                        bgm_volume = re.search(r'volume="([^"]+)"', line, re.IGNORECASE)
+                        bgm_loop = re.search(r'loop="([^"]+)"', line, re.IGNORECASE)
                         if bgm_parts:
                             # BGMファイル名をそのまま使用
                             current_bgm = bgm_parts.group(1)
@@ -631,13 +631,13 @@ class DialogueLoader:
                         if self.debug:
                             print(f"BGM解析エラー（行 {line_num}）: {e} - {line}")
                         
-                # SE設定を検出
-                elif "[SE" in line:
+                # SE設定を検出 ([SE or [playse)
+                elif "[SE" in line.upper() or "[PLAYSE" in line.upper():
                     try:
-                        se_parts = re.search(r'se="([^"]+)"', line)
-                        se_volume = re.search(r'volume="([^"]+)"', line)
-                        se_frequency = re.search(r'frequency="([^"]+)"', line)
-                        se_block = re.search(r'block="([^"]+)"', line)
+                        se_parts = re.search(r'(?:se|storage|file)="([^"]+)"', line, re.IGNORECASE)
+                        se_volume = re.search(r'volume="([^"]+)"', line, re.IGNORECASE)
+                        se_frequency = re.search(r'frequency="([^"]+)"', line, re.IGNORECASE)
+                        se_block = re.search(r'block="([^"]+)"', line, re.IGNORECASE)
                         if se_parts:
                             se_name = se_parts.group(1)
                             se_vol = float(se_volume.group(1)) if se_volume else 0.5

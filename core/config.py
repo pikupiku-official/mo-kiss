@@ -12,23 +12,37 @@ _qt_app = None
 def init_qt_application():
     """PyQt5アプリケーションを初期化する"""
     global _qt_app
+    if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+        return None
     if _qt_app is None:
-        # 既存のQApplicationインスタンスがあるかチェック
-        if QApplication.instance() is None:
-            # コマンドライン引数を渡す（空のリストでも可）
-            _qt_app = QApplication(sys.argv if sys.argv else [''])
-            print("PyQt5 QApplication initialized")
-        else:
-            _qt_app = QApplication.instance()
-            print("Using existing PyQt5 QApplication")
+        try:
+            # 既存のQApplicationインスタンスがあるかチェック
+            if QApplication.instance() is None:
+                # コマンドライン引数を渡す（空のリストでも可）
+                _qt_app = QApplication(sys.argv if sys.argv else [''])
+                print("PyQt5 QApplication initialized")
+            else:
+                _qt_app = QApplication.instance()
+                print("Using existing PyQt5 QApplication")
+        except Exception as e:
+            print(f"PyQt5 QApplication initialization skipped: {e}")
+            _qt_app = None
     return _qt_app
 
 # PyQtを使用して画面サイズを取得
-qt_app = init_qt_application()
-screen = qt_app.primaryScreen()
-screen_geometry = screen.geometry()
-DISPLAY_WIDTH = screen_geometry.width()
-DISPLAY_HEIGHT = screen_geometry.height()
+try:
+    qt_app = init_qt_application()
+    screen = qt_app.primaryScreen() if qt_app else None
+    if screen:
+        screen_geometry = screen.geometry()
+        DISPLAY_WIDTH = screen_geometry.width()
+        DISPLAY_HEIGHT = screen_geometry.height()
+    else:
+        DISPLAY_WIDTH = 1920
+        DISPLAY_HEIGHT = 1080
+except Exception:
+    DISPLAY_WIDTH = 1920
+    DISPLAY_HEIGHT = 1080
 
 # 仮想画面の基準解像度（全ての座標・サイズ計算の基準）
 VIRTUAL_WIDTH = 1440  # 4:3アスペクト比（1920から変更）

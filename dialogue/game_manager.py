@@ -243,12 +243,14 @@ def _initialize_bgm(game_state):
     bgm_manager = game_state['bgm_manager']
     dialogue_data = game_state['dialogue_data']
     
-    # 会話データからBGMを探す
+    # 最初の会話エントリからのみBGMを探す
     bgm_from_dialogue = None
-    for entry in dialogue_data:
-        if len(entry) > 7 and entry[7]:  # BGM情報がある場合（インデックス7）
-            bgm_from_dialogue = entry[7]
-            break
+    if dialogue_data and len(dialogue_data) > 0:
+        first_entry = dialogue_data[0]
+        if isinstance(first_entry, list) and len(first_entry) > 7 and first_entry[7]:
+            bgm_from_dialogue = first_entry[7]
+        elif isinstance(first_entry, dict) and first_entry.get('bgm'):
+            bgm_from_dialogue = first_entry.get('bgm')
     
     # BGMの再生を試行
     if bgm_from_dialogue:
@@ -281,12 +283,14 @@ def _initialize_se(game_state):
     se_manager = game_state['se_manager']
     dialogue_data = game_state['dialogue_data']
     
-    # 会話データからSEを探す
+    # 最初の会話エントリからのみSEを探す
     se_from_dialogue = None
-    for entry in dialogue_data:
-        if len(entry) > 8 and entry[8]:  # SE情報がある場合（インデックス8）
-            se_from_dialogue = entry[8]
-            break
+    if dialogue_data and len(dialogue_data) > 0:
+        first_entry = dialogue_data[0]
+        if isinstance(first_entry, list) and len(first_entry) > 8 and isinstance(first_entry[8], str):
+            se_from_dialogue = first_entry[8]
+        elif isinstance(first_entry, dict) and isinstance(first_entry.get('se'), str):
+            se_from_dialogue = first_entry.get('se')
 
     # SEの再生を試行（文字列型のみ処理）
     if se_from_dialogue and isinstance(se_from_dialogue, str):

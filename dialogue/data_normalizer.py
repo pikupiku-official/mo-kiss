@@ -27,7 +27,7 @@ def normalize_dialogue_data(raw_data):
     current_effect = ""
     current_accessory = ""
     current_blink = True  # デフォルトでまばたき有効
-    current_bgm = "maou_bgm_8bit29.mp3"
+    current_bgm = None
     current_bgm_volume = 0.1
     current_bgm_loop = True
     
@@ -99,7 +99,11 @@ def normalize_dialogue_data(raw_data):
             current_bgm = entry['file']
             current_bgm_volume = entry['volume']
             current_bgm_loop = entry['loop']
-            # デバッグ出力削除
+            bgm_play_command = f"_BGM_PLAY_{current_bgm}_{current_bgm_volume}_{current_bgm_loop}"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                bgm_play_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
             
         elif entry_type == 'bgm_pause':
             # BGM一時停止コマンドを辞書形式で保持してフェードタイム情報を含める
@@ -111,6 +115,7 @@ def normalize_dialogue_data(raw_data):
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
                 "_BGM_PAUSE", current_bgm, current_bgm_volume, current_bgm_loop, current_char, False, bgm_pause_data
             ])
+            current_bgm = None
             if DEBUG:
                 print(f"BGM一時停止コマンド追加: fade_time={entry.get('fade_time', 0.0)}")
                 
@@ -241,14 +246,11 @@ def normalize_dialogue_data(raw_data):
                 
         
         elif entry_type == 'chara_shift':
-            if 'effect' in entry:
-                current_effect = entry['effect']
+            current_effect = entry.get('effect', '')
             if 'accessory' in entry:
                 current_accessory = entry['accessory']
             # preserve chara_shift as dict entry
             normalized_data.append(entry)
-            if DEBUG:
-                print(f"chara_shift added: {entry}")
 
         elif entry_type == 'fadein':
             # フェードインコマンドを追加

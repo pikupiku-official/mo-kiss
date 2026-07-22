@@ -305,9 +305,6 @@ class ImageManager:
                 print(f"[IMG_WARN] ロード待機タイムアウト: {image_type}/{image_key}")
                 return None
         else:
-            print(f"[IMG_ERROR] 画像パスが見つかりません: type={image_type}, key={image_key}")
-            if image_type in self.image_paths:
-                print(f"[IMG_ERROR] 利用可能なキー ({image_type}): {list(self.image_paths[image_type].keys())[:10]}...")
             return None
     
     async def get_image_async(self, image_type, image_key, size=None):

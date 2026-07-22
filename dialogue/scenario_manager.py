@@ -75,6 +75,10 @@ def advance_dialogue(game_state):
     elif dialogue_text and dialogue_text.startswith("_FADEIN_"):
         return _handle_fadein(game_state, dialogue_text)
     
+    # BGM再生コマンドかどうかチェック
+    elif dialogue_text and dialogue_text.startswith("_BGM_PLAY_"):
+        return _handle_bgm_play(game_state, dialogue_text)
+    
     # SE再生コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_SE_PLAY_"):
         return _handle_se_play(game_state, dialogue_text)
@@ -212,6 +216,8 @@ def _ir_dispatch_action(game_state, action):
         start_fadein(game_state, time)
     elif action_type == "se_play":
         _ir_handle_se_play(game_state, params)
+    elif action_type == "bgm_play":
+        _ir_handle_bgm_play(game_state, params)
     elif action_type == "bgm_pause":
         _ir_handle_bgm_pause(game_state, params)
     elif action_type == "bgm_unpause":
@@ -319,12 +325,16 @@ def _ir_handle_character_shift(game_state, target, params):
     hide_pending = game_state.get("character_hide_pending")
     if hide_pending and target in hide_pending:
         hide_pending.pop(target, None)
+    if "effect" not in params:
+        params["effect"] = ""
     fade_ms = _get_fade_ms(params, CHARA_TRANSITION_DEFAULT_MS)
     old_expressions = game_state.get("character_expressions", {}).get(target, {
         "eye": "",
         "mouth": "",
         "brow": "",
         "cheek": "",
+        "effect": "",
+        "accessory": "",
     }).copy()
     old_torso = game_state.get("character_torso", {}).get(target)
 
@@ -438,6 +448,20 @@ def _ir_handle_se_play(game_state, params):
             "end_time": timeout,
         })
         game_state["ir_anim_pending"] = True
+
+def _ir_handle_bgm_play(game_state, params):
+    bgm_manager = game_state.get("bgm_manager")
+    if not bgm_manager:
+        return
+    filename = params.get("file")
+    if not filename:
+        return
+    volume = _to_float(params.get("volume"), 0.5)
+    loop = params.get("loop", True)
+
+    actual_bgm_filename = bgm_manager.get_bgm_for_scene(filename) or filename
+    if actual_bgm_filename != bgm_manager.current_bgm or not pygame.mixer.music.get_busy():
+        bgm_manager.play_bgm(actual_bgm_filename, volume, loop)
 
 def _ir_handle_bgm_pause(game_state, params):
     bgm_manager = game_state.get("bgm_manager")
@@ -849,10 +873,21 @@ def _handle_dialogue_text(game_state, current_dialogue):
     # if display_name and display_name not in CHARACTER_IMAGE_MAP:
     #     display_name = None
     
-    # スクロール継続フラグをチェック（リストの12番目の要素）
+    # スクロール継続フラグをチェック（リストの11番目の要素）
     should_scroll = False
     if len(current_dialogue) > 11:
         should_scroll = current_dialogue[11]
+    
+    # BGM再生チェック
+    if len(current_dialogue) > 7 and current_dialogue[7]:
+        bgm_name = current_dialogue[7]
+        bgm_volume = current_dialogue[8] if len(current_dialogue) > 8 else 0.5
+        bgm_loop = current_dialogue[9] if len(current_dialogue) > 9 else True
+        bgm_manager = game_state.get('bgm_manager')
+        if bgm_manager:
+            actual_bgm = bgm_manager.get_bgm_for_scene(bgm_name) or bgm_name
+            if actual_bgm != bgm_manager.current_bgm or not pygame.mixer.music.get_busy():
+                bgm_manager.play_bgm(actual_bgm, bgm_volume, bgm_loop)
     
     # アクティブキャラクターリストを適切な形式で取得
     active_characters = game_state.get('active_characters', [])
@@ -956,6 +991,25 @@ def _handle_fadein(game_state, dialogue_text):
             print(f"エラー: フェードインコマンドの形式が不正です: '{dialogue_text}'")
     
     # フェードインコマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+def _handle_bgm_play(game_state, dialogue_text):
+    """BGM再生コマンドを処理"""
+    parts = dialogue_text.split('_')
+    if len(parts) >= 4:
+        bgm_filename = parts[3]
+        try:
+            bgm_volume = float(parts[4])
+        except (ValueError, IndexError):
+            bgm_volume = 0.5
+        bgm_loop = parts[5].lower() == "true" if len(parts) > 5 else True
+
+        bgm_manager = game_state.get('bgm_manager')
+        if bgm_manager:
+            actual_bgm_filename = bgm_manager.get_bgm_for_scene(bgm_filename) or bgm_filename
+            if actual_bgm_filename != bgm_manager.current_bgm or not pygame.mixer.music.get_busy():
+                bgm_manager.play_bgm(actual_bgm_filename, bgm_volume, bgm_loop)
+
     return advance_dialogue(game_state)
 
 def _handle_se_play(game_state, dialogue_text):

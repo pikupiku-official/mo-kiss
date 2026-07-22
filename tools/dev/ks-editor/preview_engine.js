@@ -229,7 +229,9 @@
     if (type === "chara_shift") {
       const name = p.name || p.target || Object.keys(state.characters)[0] || "character";
       const current = state.characters[name] || { name, x: 0.5, y: 0.5, size: 1 };
+      current.effect = p.effect || "";
       for (const key of LAYER_ORDER) {
+        if (key === "effect") continue;
         if (Object.prototype.hasOwnProperty.call(p, key) && p[key] !== "") current[key] = p[key];
       }
       for (const key of ["x", "y", "size"]) {

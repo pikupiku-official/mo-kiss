@@ -1,0 +1,16 @@
+=== LOG START ===
+1. Importing core modules
+core.config OK
+core.bgm_manager OK
+2. Importing dialogue modules step by step
+dialogue.ir_model OK
+dialogue.dialogue_loader OK
+dialogue.data_normalizer OK
+dialogue.ir_builder OK
+3. Testing DialogueLoader
+Raw loaded: 213 items
+Normalized: 213 items
+IR steps: 149 steps
+4. Testing BGMManager play_bgm directly
+Play bgm result: True, current_bgm: 02_学校生活.ogg
+=== LOG END ===

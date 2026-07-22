@@ -1,4 +1,4 @@
-﻿"""
+"""
 dialogue_subsystem.py - DialogueSubsystem ラッパークラス
 
 SubsystemBase を継承し、既存の dialogue システム（game_state 辞書 + controller2）を
@@ -75,7 +75,7 @@ class DialogueSubsystem(SubsystemBase):
     # ─────────────────────────────────────────────
 
     def on_enter(self):
-        """サブシステム開始時: 座標系を仮想画面モードにリセットし元値を退避"""
+        """サブシステム開始時: 座標系を仮想画面モードにリセットし元値を退避。対話・BGM再生を開始"""
         from core import config
         self._saved_offset_x = config.OFFSET_X
         self._saved_offset_y = config.OFFSET_Y
@@ -87,6 +87,19 @@ class DialogueSubsystem(SubsystemBase):
         print("✓ DialogueSubsystem on_enter: 座標系をリセット "
               f"(退避 OFFSET=({self._saved_offset_x},{self._saved_offset_y}) "
               f"SCALE={self._saved_scale})")
+
+        # 前のサブシステムの cleanup() 完了後に、対話の最初のステップ（BGM再生含む）を安全に開始
+        if self.game_state.get('dialogue_data'):
+            if self.game_state.get('use_ir'):
+                if self.game_state.get('ir_step_index', -1) == -1:
+                    from dialogue.model import advance_dialogue
+                    advance_dialogue(self.game_state)
+                    print("[INFO] DialogueSubsystem on_enter: Dialogue and BGM playback started (IR mode)")
+            else:
+                if self.game_state.get('current_paragraph', -1) == -1:
+                    from dialogue.model import advance_dialogue
+                    advance_dialogue(self.game_state)
+                    print("[INFO] DialogueSubsystem on_enter: Dialogue and BGM playback started (Normal mode)")
 
     def cleanup(self):
         """サブシステム終了時: BGM/SE 停止 + 座標系を復元"""
@@ -285,9 +298,18 @@ class DialogueSubsystem(SubsystemBase):
 
             self.game_state['dialogue_data'] = data
             self.game_state['current_paragraph'] = -1
-            advance_dialogue(self.game_state)
+
+            if self.game_state.get('use_ir'):
+                from dialogue.ir_builder import build_ir_from_normalized
+                ir_data = build_ir_from_normalized(data)
+                self.game_state['ir_data'] = ir_data
+                self.game_state['ir_step_index'] = -1
+                self.game_state['ir_waiting_for_anim'] = False
+                self.game_state['ir_active_anims'] = []
+
+            # advance_dialogue() は on_enter() で直前サブシステムの cleanup() 完了後に実行する
             print(f"✅ DialogueSubsystem: イベント読み込み完了: {event_file} "
-                  f"({len(data)} 段落)")
+                  f"({len(data)} 段落, IRステップ={len(self.game_state.get('ir_data', {}).get('steps', []))})")
 
         except Exception as e:
             print(f"⚠️ DialogueSubsystem: イベントファイル読み込みエラー: {e}")
