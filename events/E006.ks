@@ -141,7 +141,7 @@
 　　　　	「僕は体じゃなくて頭を動かすタイプなんだ。」
 
 [bgmstop time="1.0"]
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.2" y="1.1" size="2.3" fade="0.3"]
+[chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.2" y="1.1" size="2.3" fade="0.3"]
 	//桃子//
 	「なになに？何のはなし？」
 [BGM bgm="Mok1_Lap1" volume="5" loop="true"]

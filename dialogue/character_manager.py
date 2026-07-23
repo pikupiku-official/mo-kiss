@@ -507,4 +507,3 @@ def draw_characters(game_state):
                 accessory_type=accessory_type,
             )
 
-

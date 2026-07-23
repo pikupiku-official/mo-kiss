@@ -657,4 +657,3 @@ class ImageManager:
         
         if self.debug:
             print("ImageManager: リソースクリーンアップ完了")
-

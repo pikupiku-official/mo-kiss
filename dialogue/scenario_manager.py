@@ -1206,4 +1206,3 @@ def _handle_event_unlock(game_state, command_data):
     
     # 次の段落に進む
     return advance_dialogue(game_state)
-
