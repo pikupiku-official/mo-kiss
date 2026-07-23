@@ -1,4 +1,4 @@
-﻿import pygame
+import pygame
 import random
 from core.config import *
 
@@ -397,15 +397,10 @@ def update_character_fades(game_state):
             fades.pop(char_name, None)
 
 def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale, fade_map=None, current_time=None, effect_type="", accessory_type=""):
-    """Face parts rendering with optional crossfade."""
+    """Face parts rendering with strictly unified single-layer drawing."""
     screen = game_state['screen']
     if char_name not in game_state['character_pos']:
         return
-
-    if current_time is None:
-        current_time = pygame.time.get_ticks()
-    if fade_map is None:
-        fade_map = {}
 
     character_pos = game_state['character_pos'][char_name]
     image_manager = game_state['image_manager']
@@ -428,51 +423,27 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         _blit_with_alpha(screen, part_img, part_pos, alpha)
 
     def draw_part(part_type, part_id):
-        fade = fade_map.get(part_type)
-        if fade:
-            duration = fade.get('duration', 0)
-            start_time = fade.get('start_time', 0)
-            progress = 1.0 if duration <= 0 else min(1.0, (current_time - start_time) / duration)
-            if progress >= 1.0:
-                fade_map.pop(part_type, None)
-                part_id = fade.get('to')
-                if not part_id:
-                    return
-                fade = None
-            else:
-                from_id = fade.get('from')
-                to_id = fade.get('to')
-                if from_id:
-                    from_img = image_manager.get_image(part_type, from_id)
-                    if from_img:
-                        from_img = get_scaled_image(from_img, zoom_scale)
-                        draw_part_image(from_img, int(255 * (1.0 - progress)))
-                if to_id:
-                    to_img = image_manager.get_image(part_type, to_id)
-                    if to_img:
-                        to_img = get_scaled_image(to_img, zoom_scale)
-                        draw_part_image(to_img, int(255 * progress))
-                return
-
-        if part_id:
-            part_img = image_manager.get_image(part_type, part_id)
-            if part_img:
-                part_img = get_scaled_image(part_img, zoom_scale)
-                draw_part_image(part_img)
+        if not part_id:
+            return
+        part_img = image_manager.get_image(part_type, part_id)
+        if part_img:
+            scaled_img = get_scaled_image(part_img, zoom_scale)
+            draw_part_image(scaled_img, 255)
 
     final_eye_type = eye_type
     if char_name in game_state.get('character_blink_state', {}) and \
        game_state['character_blink_state'][char_name].get('current_state') == 'blinking':
         blink_eye = game_state['character_expressions'].get(char_name, {}).get('eye_blink', '')
-        if blink_eye and 'eye' not in fade_map:
+        if blink_eye:
             final_eye_type = blink_eye
 
+    # 統一レイヤー順描画 (各スロット1枚のみ)
     draw_part('brow', brow_type)
     draw_part('eye', final_eye_type)
     draw_part('mouth', mouth_type)
     draw_part('cheek', cheek_type)
-    draw_part('accessory', accessory_type)
     draw_part('effect', effect_type)
+    draw_part('accessory', accessory_type)
 
 def draw_characters(game_state):
     """Draw characters with optional part fades."""
@@ -508,25 +479,7 @@ def draw_characters(game_state):
             _blit_with_alpha(screen, scaled_img, (x, y), alpha)
             return torso_img
 
-        torso_fade = fade_map.get('torso')
-        if torso_fade:
-            duration = torso_fade.get('duration', 0)
-            start_time = torso_fade.get('start_time', 0)
-            progress = 1.0 if duration <= 0 else min(1.0, (current_time - start_time) / duration)
-            if progress >= 1.0:
-                fade_map.pop('torso', None)
-                torso_to = torso_fade.get('to')
-                if torso_to:
-                    char_img = draw_torso_image(torso_to) or char_img
-                else:
-                    continue
-            else:
-                if torso_fade.get('from'):
-                    draw_torso_image(torso_fade.get('from'), int(255 * (1.0 - progress)))
-                if torso_fade.get('to'):
-                    draw_torso_image(torso_fade.get('to'), int(255 * progress))
-        else:
-            draw_torso_image(torso_id, 255)
+        draw_torso_image(torso_id, 255)
 
         char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()
 

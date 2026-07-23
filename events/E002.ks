@@ -113,28 +113,28 @@
 	「なッ！？」
 	「（……まずい、まずいぞ、」
 　　　　	「桃子の手作り弁当を食うのは男子からの視線が痛い！……）」
-　　　　	「……いやー僕は普段 増田と学食で＿＿＿」
-
-[SE 走る足音（近づく・大きくなっていく）]
-[SE　大きく教室のドアを開ける音]
-
-[chara_show name="増田"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
-[桃子　驚き顔に変化]
-　　　　 	//純一//
-　　　　	「おっ！増田、良いところに来た！」
+[se se="部屋に駆け込んでくる" volume="0.5" frequency="1" block="false"]
+	//純一//
+	「……いやー僕は普段 増田と学食で＿＿＿」
+[chara_show name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0006" effect="MST_E00_02" blink="true" x="0.8" y="1.0" size="2.3" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU05_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" x="0.4" fade="0.3"]
+[se se="教室ドア開閉勢い" volume="0.5" frequency="1" block="false"]
+	//純一//
+	「おっ！増田、良いところに来た！」
 　　　　	「学食行こうぜ！」
+[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0002" mouth="MST_F00_MOU_0017" brow="MST_F00_BRO_0006" effect="MST_E00_02" blink="true" x="0.8" y="1.0" size="2.3" fade="0.3"]
 	//増田//
-　　　　	「ごめん！それがさ、マエケンに呼ばれちった！」
+	「ごめん！それがさ、マエケンに呼ばれちった！」
+[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0009" brow="MST_F00_BRO_0006" effect="MST_E00_02" blink="true" x="0.8" y="1.0" size="2.3" fade="0.3"]
+	//増田//
 　　　　	「飯は各自済ませるという事で、じゃ！」
-[chara_hide name="増田"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
-
-[SE 走る足音（遠ざかる・小さくなっていく）]
-
-　　　　 	//純一//
-　　　　	「あっ、おい！」
+[chara_hide name="増田" fade="0.3"]
+[se se="学校の廊下を走る" volume="0.5" frequency="1" block="false"]
+	//純一//
+	「あっ、おい！」
 　　　　	「（……軽音楽部の鬼顧問、」
 　　　　	「前山田健吾郎に呼ばれたんじゃ仕方無いか……）」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU03_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU03_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" x="0.5" fade="0.3"]
 	//桃子//
 	「えーと、どうかな？」
 　　　　 	//純一//
@@ -155,7 +155,7 @@
 　　　　	「・・・」
 　　　　	「・・・」
 　　　　	「・・・まぁ、学食代も浮くしな！」
-[chara_shift name="桃子" torso="MMK_T00_ARM04_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE01_00" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T00_ARM04_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE01_00" effect="" fade="0.3"]
 	//桃子//
 	「ほんと？やったー！」
 　　　　 	//純一//
@@ -168,9 +168,7 @@
 　　　　 	//純一//
 　　　　	「で、では早速……」
 　　　　	「桃弁、拝見させていただきます……」
-
-
-[SE お弁当を開ける音　パカ]
+[se se="ビデオディスクをケースから出す" volume="0.5" frequency="1" block="false"]
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" fade="0.3"]
 	//純一//
 	「・・・」
@@ -236,7 +234,7 @@
 	「・・・」
 　　　　 	//純一//
 　　　　	「なかなか楽しませて頂いたよ。」
-[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE02_00" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE02_00" effect="" fade="0.3"]
 	//桃子//
 	「えー、もっと素直に褒めてよぉ。」
 　　　　 	//純一//
@@ -274,7 +272,7 @@
 　　　　	「これは店が出せる味だぞ！」
 	//桃子//
 　　　　	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE01_00" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE01_00" effect="" fade="0.3"]
 	//桃子//
 	「・・・」
 [chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE04_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE02_00" fade="0.3"]
@@ -288,7 +286,7 @@
 [endif]
 
 
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE01_00" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE01_00" effect="" fade="0.3"]
 	//純一//
 	「あっはっはっは！」
 	「（休み時間はこうして桃子の桃弁を食べて過ごした。）」

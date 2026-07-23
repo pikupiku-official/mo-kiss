@@ -18,6 +18,7 @@ def normalize_dialogue_data(raw_data):
             super().append(item)
 
     normalized_data = CustomList()
+    character_torso = {}
     current_bg = None  # 初期背景はなし
     current_char = None
     current_eye = ""
@@ -61,33 +62,48 @@ def normalize_dialogue_data(raw_data):
             ])
             # デバッグ出力削除
                 
+        elif entry_type == 'chara_shift':
+            char_name = entry['name']
+            if entry.get('torso'):
+                character_torso[char_name] = entry['torso']
+            torso_id = entry.get('torso', character_torso.get(char_name, char_name))
+            character_torso[char_name] = torso_id
+            current_char = torso_id
+            current_eye = entry.get('eye', '')
+            current_mouth = entry.get('mouth', '')
+            current_brow = entry.get('brow', '')
+            current_cheek = entry.get('cheek', '')
+            current_effect = entry.get('effect', '')
+            current_accessory = entry.get('accessory', '')
+            show_x = entry.get('x')
+            show_y = entry.get('y')
+            size = entry.get('size')
+            fade = entry.get('fade', 0)
+            command_text = f"_CHARA_SHIFT_{char_name}"
+            normalized_data.append([
+                current_bg, torso_id, current_eye, current_mouth, current_brow, current_cheek,
+                command_text, current_bgm, current_bgm_volume, current_bgm_loop, char_name, False
+            ])
+
         elif entry_type == 'character':
             # キャラクター論理名を取得
             char_name = entry['name']
-
-            # 胴体パーツIDを取得（新形式）
-            # 後方互換性: torsoがない場合はnameをフォールバック
             torso_id = entry.get('torso', char_name)
-
-            # current_charは画像ロード用にtorso_idを保持
+            character_torso[char_name] = torso_id
             current_char = torso_id
             current_effect = entry.get('effect', '')
             current_accessory = entry.get('accessory', '')
-
-            # 顔パーツはファイル名をそのまま使用
             current_eye = entry['eye']
             current_mouth = entry['mouth']
             current_brow = entry['brow']
             current_cheek = entry.get('cheek', '')
-            current_blink = entry.get('blink', True)  # まばたき設定を取得
+            current_blink = entry.get('blink', True)
             show_x = entry.get('show_x', 0.5)
             show_y = entry.get('show_y', 0.5)
             size = entry.get('size', 1.0)
             fade = entry.get('fade')
             if fade is None:
                 fade = CHARA_TRANSITION_DEFAULT_MS / 1000.0
-            # デバッグ出力削除
-            # キャラクター登場コマンドを追加（torso_idを使用、論理名char_nameも渡す）
             command_text = f"_CHARA_NEW_{torso_id}_{show_x}_{show_y}_{size}_{current_blink}_{fade}_{char_name}"
             normalized_data.append([
                 current_bg, torso_id, current_eye, current_mouth, current_brow, current_cheek,
@@ -147,7 +163,7 @@ def normalize_dialogue_data(raw_data):
             # セリフデータを正規化形式で追加（スクロール情報も含む）
             scroll_continue = entry.get('scroll_continue', False)
             dialogue_char = entry['character']
-            converted_char = dialogue_char
+            converted_char = entry.get('torso') or character_torso.get(dialogue_char, dialogue_char)
             
             # 対話時の顔パーツもファイル名をそのまま使用
             dialogue_eye = entry['eye']

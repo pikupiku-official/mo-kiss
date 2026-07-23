@@ -1,4 +1,4 @@
-﻿import pygame
+import pygame
 import os
 import re
 import warnings
@@ -247,64 +247,84 @@ class ImageManager:
     
     def get_image(self, image_type, image_key, size=None):
         """画像を取得（必要に応じて遅延ロード）スレッドセーフ"""
-        if image_type in self.image_paths and image_key in self.image_paths[image_type]:
-            filepath = self.image_paths[image_type][image_key]
-            optimal_size = self._get_optimal_size(filepath, size)
-            cache_key = f"{filepath}_{optimal_size if optimal_size else 'original'}"
+        if not image_key or image_type not in self.image_paths:
+            return None
 
-            # キャッシュチェックとロード中チェック（スレッドセーフ）
-            load_event = None
-            should_load = False
+        if image_key not in self.image_paths[image_type]:
+            wanted = str(image_key).lower().replace(".webp", "").replace(".png", "")
+            found = False
+            for k in self.image_paths[image_type].keys():
+                if wanted in k.lower() or k.lower() in wanted:
+                    image_key = k
+                    found = True
+                    break
+            if not found and image_type == "torso":
+                import re
+                t_match = re.search(r'_T(\d+)', str(image_key), re.IGNORECASE) or re.search(r'T(\d+)', str(image_key), re.IGNORECASE)
+                if t_match:
+                    t_token = f"_t{t_match.group(1)}_"
+                    for k in self.image_paths[image_type].keys():
+                        if t_token in k.lower():
+                            image_key = k
+                            found = True
+                            break
+            if not found:
+                return None
 
-            with self.lock:
+        filepath = self.image_paths[image_type][image_key]
+        optimal_size = self._get_optimal_size(filepath, size)
+        cache_key = f"{filepath}_{optimal_size if optimal_size else 'original'}"
+
+        # キャッシュチェックとロード中チェック（スレッドセーフ）
+        load_event = None
+        should_load = False
+
+        with self.lock:
                 # まずキャッシュを確認
+            if cache_key in self.image_cache:
+                self.image_cache.move_to_end(cache_key)
+                cached_image = self.image_cache[cache_key]
+                # キャッシュヒットは頻繁すぎるのでログ出力しない
+                return cached_image
+
+            # ロード中かチェック
+            if cache_key in self.loading_tasks:
+                # 別スレッドがロード中の場合、イベントを取得して待機
+                load_event = self.loading_tasks[cache_key]
+                should_load = False
+            else:
+                # 新規ロードの場合、イベントを作成
+                import threading
+                load_event = threading.Event()
+                self.loading_tasks[cache_key] = load_event
+                should_load = True
+
+        # ロックの外で処理
+        if should_load:
+            # 自分がロードを担当する場合
+            try:
+                # 新規ロード時のみログ出力
+                print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
+                result = self._load_image_immediately(filepath, optimal_size, cache_key)
+                if result is None:
+                    print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
+                return result
+            finally:
+                # ロード完了後、イベントをシグナルして削除
+                with self.lock:
+                    if cache_key in self.loading_tasks:
+                        load_event.set()  # 待機中のスレッドに通知
+                        del self.loading_tasks[cache_key]
+        else:
+            # 他スレッドがロード中の場合は待機
+            print(f"[IMG_WAIT] ロード完了待機: {image_type}/{image_key}")
+            load_event.wait(timeout=2.0)
+            # 待機後、キャッシュから再取得
+            with self.lock:
                 if cache_key in self.image_cache:
                     self.image_cache.move_to_end(cache_key)
-                    cached_image = self.image_cache[cache_key]
-                    # キャッシュヒットは頻繁すぎるのでログ出力しない
-                    return cached_image
-
-                # ロード中かチェック
-                if cache_key in self.loading_tasks:
-                    # 別スレッドがロード中の場合、イベントを取得して待機
-                    load_event = self.loading_tasks[cache_key]
-                    should_load = False
-                else:
-                    # 新規ロードの場合、イベントを作成
-                    import threading
-                    load_event = threading.Event()
-                    self.loading_tasks[cache_key] = load_event
-                    should_load = True
-
-            # ロックの外で処理
-            if should_load:
-                # 自分がロードを担当する場合
-                try:
-                    # 新規ロード時のみログ出力
-                    print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
-                    result = self._load_image_immediately(filepath, optimal_size, cache_key)
-                    if result is None:
-                        print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
-                    return result
-                finally:
-                    # ロード完了後、イベントをシグナルして削除
-                    with self.lock:
-                        if cache_key in self.loading_tasks:
-                            load_event.set()  # 待機中のスレッドに通知
-                            del self.loading_tasks[cache_key]
-            else:
-                # 他スレッドがロード中の場合は待機
-                print(f"[IMG_WAIT] ロード完了待機: {image_type}/{image_key}")
-                load_event.wait(timeout=2.0)
-                # 待機後、キャッシュから再取得
-                with self.lock:
-                    if cache_key in self.image_cache:
-                        self.image_cache.move_to_end(cache_key)
-                        return self.image_cache[cache_key]
-                # タイムアウトまたはロード失敗
-                print(f"[IMG_WARN] ロード待機タイムアウト: {image_type}/{image_key}")
-                return None
-        else:
+                    return self.image_cache[cache_key]
+            # タイムアウトまたはロード失敗
             return None
     
     async def get_image_async(self, image_type, image_key, size=None):

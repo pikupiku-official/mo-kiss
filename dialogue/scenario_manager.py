@@ -325,8 +325,6 @@ def _ir_handle_character_shift(game_state, target, params):
     hide_pending = game_state.get("character_hide_pending")
     if hide_pending and target in hide_pending:
         hide_pending.pop(target, None)
-    if "effect" not in params:
-        params["effect"] = ""
     fade_ms = _get_fade_ms(params, CHARA_TRANSITION_DEFAULT_MS)
     old_expressions = game_state.get("character_expressions", {}).get(target, {
         "eye": "",
@@ -339,56 +337,30 @@ def _ir_handle_character_shift(game_state, target, params):
     old_torso = game_state.get("character_torso", {}).get(target)
 
     torso_id = params.get("torso")
-    image_manager = game_state.get("image_manager")
-    if torso_id and image_manager and not image_manager.get_image("torso", torso_id):
-        torso_id = None
     if torso_id:
         if "character_torso" not in game_state:
             game_state["character_torso"] = {}
         game_state["character_torso"][target] = torso_id
     current_torso = game_state.get("character_torso", {}).get(target, target)
+    image_manager = game_state.get("image_manager")
     placement_img = image_manager.get_image("torso", current_torso) if image_manager else None
     if placement_img:
         has_position_update = "x" in params or "y" in params or "size" in params
-        if has_position_update:
-            current_zoom = _to_float(game_state.get("character_zoom", {}).get(target), 1.0)
-            current_pos = game_state.get("character_pos", {}).get(target)
-            if current_pos:
-                base_scale = VIRTUAL_HEIGHT / placement_img.get_height()
-                current_width = placement_img.get_width() * base_scale * current_zoom
-                current_height = placement_img.get_height() * base_scale * current_zoom
-                current_center_x = current_pos[0] + current_width / 2
-                current_center_y = current_pos[1] + current_height / 2
-                show_x = _to_float(params.get("x"), current_center_x / SCALE / VIRTUAL_WIDTH)
-                show_y = _to_float(params.get("y"), current_center_y / SCALE / VIRTUAL_HEIGHT)
-            else:
-                show_x = _to_float(params.get("x"), 0.5)
-                show_y = _to_float(params.get("y"), 0.5)
+        current_pos = game_state.get("character_pos", {}).get(target)
+        current_zoom = _to_float(game_state.get("character_zoom", {}).get(target), 1.0)
+        
+        if has_position_update or not current_pos:
+            show_x = _to_float(params.get("x"), 0.5) if "x" in params or not current_pos else None
+            show_y = _to_float(params.get("y"), 0.5) if "y" in params or not current_pos else None
             size = _to_float(params.get("size"), current_zoom)
-            pos_x, pos_y = _ir_compute_character_placement(placement_img, show_x, show_y, size)
-            game_state["character_pos"][target] = [pos_x, pos_y]
+            
+            if show_x is not None and show_y is not None:
+                pos_x, pos_y = _ir_compute_character_placement(placement_img, show_x, show_y, size)
+                game_state["character_pos"][target] = [pos_x, pos_y]
             game_state["character_zoom"][target] = size
     _ir_update_expressions(game_state, target, params)
 
-    if fade_ms > 0:
-        if "torso" in params and torso_id and torso_id != old_torso:
-            start_character_part_fade(game_state, target, "torso", old_torso, torso_id, fade_ms)
 
-        new_expressions = game_state.get("character_expressions", {}).get(target, {})
-        for key, part in (("brow", "brow"), ("eye", "eye"), ("mouth", "mouth"), ("cheek", "cheek"), ("effect", "effect"), ("accessory", "accessory")):
-            if key not in params:
-                continue
-            old_val = old_expressions.get(key, "")
-            new_val = new_expressions.get(key, "")
-            if old_val != new_val:
-                start_character_part_fade(
-                    game_state,
-                    target,
-                    part,
-                    old_val or None,
-                    new_val or None,
-                    fade_ms,
-                )
 
 def _ir_handle_character_hide(game_state, target, params):
     if not target:
@@ -494,17 +466,18 @@ def _ir_update_expressions(game_state, target, params):
     })
     expressions = existing_expressions.copy()
     if "eye" in params:
-        expressions["eye"] = params.get("eye") or ""
+        expressions["eye"] = params.get("eye") if params.get("eye") is not None else ""
     if "mouth" in params:
-        expressions["mouth"] = params.get("mouth") or ""
+        expressions["mouth"] = params.get("mouth") if params.get("mouth") is not None else ""
     if "brow" in params:
-        expressions["brow"] = params.get("brow") or ""
+        expressions["brow"] = params.get("brow") if params.get("brow") is not None else ""
     if "cheek" in params:
-        expressions["cheek"] = params.get("cheek") or ""
+        expressions["cheek"] = params.get("cheek") if params.get("cheek") is not None else ""
     if "effect" in params:
-        expressions["effect"] = params.get("effect") or ""
+        expressions["effect"] = params.get("effect") if params.get("effect") is not None else ""
     if "accessory" in params:
-        expressions["accessory"] = params.get("accessory") or ""
+        expressions["accessory"] = params.get("accessory") if params.get("accessory") is not None else ""
+
     game_state.setdefault("character_expressions", {})[target] = expressions
 
 def _to_float(value, default):

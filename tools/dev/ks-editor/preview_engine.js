@@ -229,11 +229,13 @@
     if (type === "chara_shift") {
       const name = p.name || p.target || Object.keys(state.characters)[0] || "character";
       const current = state.characters[name] || { name, x: 0.5, y: 0.5, size: 1 };
-      current.effect = p.effect || "";
+      
       for (const key of LAYER_ORDER) {
-        if (key === "effect") continue;
-        if (Object.prototype.hasOwnProperty.call(p, key) && p[key] !== "") current[key] = p[key];
+        if (Object.prototype.hasOwnProperty.call(p, key)) {
+          current[key] = p[key];
+        }
       }
+
       for (const key of ["x", "y", "size"]) {
         if (Object.prototype.hasOwnProperty.call(p, key) && p[key] !== "") current[key] = number(p[key], current[key]);
       }
@@ -506,6 +508,16 @@
       const wanted = id.toLowerCase().replace(/\.[^.]+$/, "");
       const exact = options.find((item) => item.stem.toLowerCase() === wanted);
       if (exact) return exact;
+
+      if (part === "torso") {
+        const tMatch = String(id).match(/_T(\d+)/i) || String(id).match(/T(\d+)/i);
+        if (tMatch) {
+          const tToken = `_T${tMatch[1]}_`;
+          const tFound = options.find((item) => item.stem.toUpperCase().includes(tToken));
+          if (tFound) return tFound;
+        }
+      }
+
       const legacyNumber = wanted.match(/(\d+)$/)?.[1]?.padStart(2, "0");
       const token = part === "eye" ? "EYE" : part === "mouth" ? "MOU" : part === "brow" ? "BRO" : part === "cheek" ? "CHE" : "";
       if (legacyNumber && token) {
@@ -571,8 +583,25 @@
       return this.fontReady;
     }
 
+    async preloadAllAssets(state) {
+      const promises = [];
+      if (state.background && state.background.storage) {
+        promises.push(this.assets.resolveBackground(state.background.storage).then(item => item && this.assets.image(item.url)));
+      }
+      for (const character of Object.values(state.characters)) {
+        const code = this.assets.codeFor(character);
+        if (!code) continue;
+        for (const part of LAYER_ORDER) {
+          promises.push(this.assets.resolvePart(code, part, character[part], character.torso).then(item => item && this.assets.image(item.url)));
+        }
+      }
+      await Promise.all(promises).catch(() => {});
+    }
+
     async draw(state) {
       await this.ready();
+      await this.preloadAllAssets(state);
+
       const ctx = this.ctx;
       ctx.clearRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
       ctx.fillStyle = "#000";

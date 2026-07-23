@@ -27,7 +27,7 @@
 　　　　 	//純一//
 　　　　	「・・・」
 　　　　	「・・・・・・」
-[chara_show name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0010" mouth="MST_F00_MOU_0005" brow="MST_F00_BRO_0008" blink="true" x="0.5" y="1.0" size="2.3" fade="0.3"]
+[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0010" mouth="MST_F00_MOU_0005" brow="MST_F00_BRO_0008" blink="true" x="0.5" y="1.0" size="2.3" fade="0.3"]
 	//増田//
 	「おいおい無視スンナ！もくもくと教科書を開くな！」
 　　　　 	//純一//

@@ -57,7 +57,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             params = entry
             if action_type == "chara_shift":
                 params = _normalize_chara_shift_params(entry)
-            if action_type in ("if_start", "if_end", "flag_set", "event_unlock"):
+            if action_type in ("chara_shift", "chara_show", "chara_hide", "character", "if_start", "if_end", "flag_set", "event_unlock"):
                 if pending_actions:
                     emit_step(
                         actions=pending_actions,
@@ -67,13 +67,15 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
                     pending_actions = []
                     pending_sources = []
                 animation = None
-                if action_type == "chara_shift":
+                if action_type in ("chara_shift", "chara_show"):
                     animation = make_animation(on_advance=ON_ADVANCE_BLOCK)
                 emit_step(
                     actions=[make_action(action=action_type, target=target, params=params, animation=animation)],
                     source_index=source_index,
                     source_indices=[source_index],
                 )
+                if action_type in ("chara_shift", "chara_show") and target:
+                    _update_last_expressions(last_expressions, target, params)
             else:
                 animation = None
                 if action_type == "chara_shift":
@@ -162,7 +164,7 @@ def _update_last_expressions(
         return
     record = last_expressions.setdefault(target, {})
     for key in ("eye", "mouth", "brow", "cheek", "effect", "accessory"):
-        if key in params and params.get(key):
+        if key in params and params.get(key) is not None:
             record[key] = params.get(key) or ""
 
 def _action_for_expression(
@@ -181,13 +183,13 @@ def _action_for_expression(
         ("brow", entry[4]),
         ("cheek", entry[5] if len(entry) > 5 else ""),
     ):
-        if value:
-            incoming[key] = value
+        if value is not None:
+            incoming[key] = value or ""
     if len(entry) > 13 and isinstance(entry[13], dict):
         extra = entry[13]
         for key in ("effect", "accessory"):
-            if extra.get(key):
-                incoming[key] = extra[key]
+            if key in extra and extra.get(key) is not None:
+                incoming[key] = extra[key] or ""
     if not incoming:
         return None
     previous = last_expressions.get(target, {})
@@ -203,10 +205,8 @@ def _action_for_expression(
 def _normalize_chara_shift_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     params: Dict[str, Any] = {}
     for key in ("torso", "eye", "mouth", "brow", "cheek", "effect", "accessory", "x", "y", "size", "fade"):
-        if key in entry:
+        if key in entry and entry.get(key) is not None:
             params[key] = entry.get(key)
-    if "effect" not in params:
-        params["effect"] = ""
     for key in ("x", "y", "size", "fade"):
         if key in params and params[key] is not None:
             params[key] = _to_float(params[key], params[key])
