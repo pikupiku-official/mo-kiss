@@ -265,6 +265,25 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
             animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
         )
 
+    if text.startswith("_CHARA_SHIFT_"):
+        parts = text.split("_")
+        target = parts[3] if len(parts) > 3 else (entry[10] if len(entry) > 10 and entry[10] else entry[1])
+        params = {
+            "torso": entry[1],
+            "eye": entry[2],
+            "mouth": entry[3],
+            "brow": entry[4],
+            "cheek": entry[5] if len(entry) > 5 else "",
+        }
+        if len(entry) > 13 and isinstance(entry[13], dict):
+            params.update(entry[13])
+        return make_action(
+            action="chara_shift",
+            target=target,
+            params=params,
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
+        )
+
     if text.startswith("_CHARA_HIDE_"):
         parts = text.split("_")
         target = parts[3] if len(parts) > 3 else entry[1]

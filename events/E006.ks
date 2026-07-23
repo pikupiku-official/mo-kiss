@@ -37,7 +37,7 @@
 	「なんだよ～、かまってよ～、俺の最新ギャグ見てくれよ～。」
 　　　　 	//純一//
 　　　　	「…………まったく、折角やる気が出てきたってのに邪魔してくれちゃって。」
-[chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0008" fade="0.3"]
+[chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0008" effect="" fade="0.3"]
 	//増田//
 	「何殊勝なことやってんのよ！」
 [chara_shift name="増田" torso="MST_T00_ARM_0003" eye="MST_F00_EYE_0003" mouth="MST_F00_MOU_0004" brow="MST_F00_BRO_0008" fade="0.3"]
@@ -77,7 +77,7 @@
 　　　　	「（…………家ではやるんだ。）」
 　　　　	「（大体、１０分だけの中休みで全力鬼ごっこって……）」
 　　　　	「増田よ、君は高校卒業したらどうするつもりだ？」
-[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0003" brow="MST_F00_BRO_0005" fade="0.3"]
+[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0003" brow="MST_F00_BRO_0005" effect="" fade="0.3"]
 	//増田//
 	「んお？」
 　　　　 	//純一//
@@ -132,7 +132,7 @@
 [chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0008" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0005" effect="MST_E00_02" x="0.5" y="1.0" fade="0.3"]
 	//増田//
 	「反応、渋ッ！？」
-[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0002" mouth="MST_F00_MOU_0013" brow="MST_F00_BRO_0004" x="0.5" y="1.0" fade="0.3"]
+[chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0002" mouth="MST_F00_MOU_0013" brow="MST_F00_BRO_0004" effect="" x="0.5" y="1.0" fade="0.3"]
 	//増田//
 	「お前なぁ、少しは運動したり日の光を浴びたりしろよ。」
 [chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0002" mouth="MST_F00_MOU_0012" brow="MST_F00_BRO_0004" x="0.5" y="1.0" fade="0.3"]
@@ -189,7 +189,7 @@
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.275" y="1.1" size="2.3" fade="0.3"]
 	//桃子//
 	「駅前の喫茶店、みんなで行かない？」
-[chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0004" brow="MST_F00_BRO_0005" x="0.725" y="1.0" fade="0.3"]
+[chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0004" brow="MST_F00_BRO_0005" effect="" x="0.725" y="1.0" fade="0.3"]
 	//増田//
 	「おー！めっちゃいいじゃん！」
 [chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0010" mouth="MST_F00_MOU_0015" brow="MST_F00_BRO_0005" x="0.725" y="1.0" fade="0.3"]
@@ -220,7 +220,7 @@
 [chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0003" mouth="MST_F00_MOU_0017" brow="MST_F00_BRO_0008" effect="MST_E00_02" x="0.725" y="1.0" fade="0.3"]
 	//純一//
 	「僕は別に構わな――」
-[chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0005" brow="MST_F00_BRO_0008" x="0.65" y="1.0" fade="0.3"]
+[chara_shift name="増田" torso="MST_T00_ARM_0004" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0005" brow="MST_F00_BRO_0008" effect="" x="0.65" y="1.0" fade="0.3"]
 	//増田//
 	「ちょっと待った！！」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.225" y="1.1" size="2.3" fade="0.3"]
@@ -284,7 +284,7 @@
 [chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0008" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0005" effect="MST_E00_02" x="0.725" y="1.0" fade="0.3"]
 	//増田//
 	「――――なッ！？」
-[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.25" y="1.1" size="2.3" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="" blink="true" x="0.25" y="1.1" size="2.3" fade="0.3"]
 	//桃子//
 	「楽しそうに話してたよね、吉祥寺に評判のラーメン屋があるって。」
 [chara_shift name="増田" torso="MST_T00_ARM_0002" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0017" brow="MST_F00_BRO_0005" effect="MST_E00_02" x="0.75" y="1.0" fade="0.3"]
