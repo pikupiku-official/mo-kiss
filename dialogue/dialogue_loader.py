@@ -481,6 +481,13 @@ class DialogueLoader:
                             current_shift_x = float(show_x.group(1)) if show_x else None
                             current_shift_y = float(show_y.group(1)) if show_y else None
                             current_shift_size = float(size.group(1)) if size else None
+                            fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                            shift_fade = None
+                            if fade_source is not None:
+                                try:
+                                    shift_fade = float(fade_source)
+                                except (ValueError, AttributeError):
+                                    shift_fade = None
 
                             shift_entry = {
                                 'type': 'chara_shift',
@@ -505,8 +512,8 @@ class DialogueLoader:
                                 shift_entry['y'] = current_shift_y
                             if current_shift_size is not None:
                                 shift_entry['size'] = current_shift_size
-                            if current_fade is not None:
-                                shift_entry['fade'] = current_fade
+                            if shift_fade is not None:
+                                shift_entry['fade'] = shift_fade
                             dialogue_data.append(shift_entry)
                         else:
                             if self.debug:

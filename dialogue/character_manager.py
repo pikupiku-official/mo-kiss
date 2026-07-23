@@ -33,6 +33,8 @@ def get_scaled_image(image, zoom_scale):
     return scaled_image
 
 def _blit_with_alpha(screen, image, pos, alpha):
+    if alpha <= 0:
+        return
     if alpha >= 255:
         screen.blit(image, pos)
         return
@@ -422,13 +424,26 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         )
         _blit_with_alpha(screen, part_img, part_pos, alpha)
 
-    def draw_part(part_type, part_id):
+    def draw_part(part_type, part_id, alpha=255):
         if not part_id:
             return
         part_img = image_manager.get_image(part_type, part_id)
         if part_img:
             scaled_img = get_scaled_image(part_img, zoom_scale)
-            draw_part_image(scaled_img, 255)
+            draw_part_image(scaled_img, alpha)
+
+    def draw_part_with_fade(part_type, current_id):
+        fade = (fade_map or {}).get(part_type)
+        if not fade:
+            draw_part(part_type, current_id)
+            return
+
+        duration = max(fade.get('duration', 0), 0)
+        now = current_time if current_time is not None else pygame.time.get_ticks()
+        elapsed = max(0, now - fade.get('start_time', 0))
+        progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
+        draw_part(part_type, fade.get('from'), round(255 * (1.0 - progress)))
+        draw_part(part_type, fade.get('to'), round(255 * progress))
 
     final_eye_type = eye_type
     if char_name in game_state.get('character_blink_state', {}) and \
@@ -438,12 +453,13 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
             final_eye_type = blink_eye
 
     # 統一レイヤー順描画 (各スロット1枚のみ)
-    draw_part('brow', brow_type)
-    draw_part('eye', final_eye_type)
-    draw_part('mouth', mouth_type)
-    draw_part('cheek', cheek_type)
-    draw_part('effect', effect_type)
-    draw_part('accessory', accessory_type)
+    draw_part_with_fade('brow', brow_type)
+    # A blink must not replace either endpoint in the middle of an eye cross-fade.
+    draw_part_with_fade('eye', eye_type if (fade_map or {}).get('eye') else final_eye_type)
+    draw_part_with_fade('mouth', mouth_type)
+    draw_part_with_fade('cheek', cheek_type)
+    draw_part_with_fade('effect', effect_type)
+    draw_part_with_fade('accessory', accessory_type)
 
 def draw_characters(game_state):
     """Draw characters with optional part fades."""
@@ -479,7 +495,15 @@ def draw_characters(game_state):
             _blit_with_alpha(screen, scaled_img, (x, y), alpha)
             return torso_img
 
-        draw_torso_image(torso_id, 255)
+        torso_fade = fade_map.get('torso')
+        if torso_fade:
+            duration = max(torso_fade.get('duration', 0), 0)
+            elapsed = max(0, current_time - torso_fade.get('start_time', 0))
+            progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
+            draw_torso_image(torso_fade.get('from'), round(255 * (1.0 - progress)))
+            draw_torso_image(torso_fade.get('to'), round(255 * progress))
+        else:
+            draw_torso_image(torso_id, 255)
 
         char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()
 

@@ -104,7 +104,7 @@ DEBUG = True
 USE_IR = True
 IR_DUMP_JSON = True  # Write IR JSON to disk when True.
 IR_DUMP_DIR = "debug/ir"
-CHARA_TRANSITION_DEFAULT_MS = 500
+CHARA_TRANSITION_DEFAULT_MS = 150
 
 # タイトル画面設定
 SHOW_TITLE_SCREEN = True            # タイトル画面を表示するかどうか（デバッグ時はFalseに）

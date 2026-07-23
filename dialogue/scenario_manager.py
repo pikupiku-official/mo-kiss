@@ -306,15 +306,12 @@ def _ir_handle_character_show(game_state, target, params):
         if expressions.get("accessory"):
             start_character_part_fade(game_state, target, "accessory", None, expressions.get("accessory"), fade_ms)
 
-    try:
-        image_manager.preload_character_set(target, {
-            "eye": [params.get("eye")] if params.get("eye") else [],
-            "mouth": [params.get("mouth")] if params.get("mouth") else [],
-            "brow": [params.get("brow")] if params.get("brow") else [],
-            "cheek": [params.get("cheek")] if params.get("cheek") else [],
-        })
-    except Exception:
-        pass
+    # get_image is synchronous and cached, so make all layers available before
+    # the first rendered frame.  preload_character_set expects scalar IDs.
+    for part_type in ("brow", "eye", "mouth", "cheek", "effect", "accessory"):
+        part_id = params.get(part_type)
+        if part_id:
+            image_manager.get_image(part_type, part_id)
 
 def _ir_handle_character_shift(game_state, target, params):
     if not target:
@@ -334,15 +331,24 @@ def _ir_handle_character_shift(game_state, target, params):
         "effect": "",
         "accessory": "",
     }).copy()
-    old_torso = game_state.get("character_torso", {}).get(target)
+    old_torso = game_state.get("character_torso", {}).get(target, target)
 
     torso_id = params.get("torso")
+    image_manager = game_state.get("image_manager")
+    # Load incoming layers before publishing the new expression state.
+    if image_manager:
+        if torso_id:
+            image_manager.get_image("torso", torso_id)
+        for part_type in ("brow", "eye", "mouth", "cheek", "effect", "accessory"):
+            part_id = params.get(part_type)
+            if part_id:
+                image_manager.get_image(part_type, part_id)
+
     if torso_id:
         if "character_torso" not in game_state:
             game_state["character_torso"] = {}
         game_state["character_torso"][target] = torso_id
     current_torso = game_state.get("character_torso", {}).get(target, target)
-    image_manager = game_state.get("image_manager")
     placement_img = image_manager.get_image("torso", current_torso) if image_manager else None
     if placement_img:
         has_position_update = "x" in params or "y" in params or "size" in params
@@ -350,16 +356,57 @@ def _ir_handle_character_shift(game_state, target, params):
         current_zoom = _to_float(game_state.get("character_zoom", {}).get(target), 1.0)
         
         if has_position_update or not current_pos:
-            show_x = _to_float(params.get("x"), 0.5) if "x" in params or not current_pos else None
-            show_y = _to_float(params.get("y"), 0.5) if "y" in params or not current_pos else None
+            current_center_x = 0.5
+            current_center_y = 0.5
+            if current_pos:
+                old_img = image_manager.get_image("torso", old_torso) if image_manager else None
+                center_img = old_img or placement_img
+                old_base_scale = VIRTUAL_HEIGHT / center_img.get_height()
+                virtual_left = (current_pos[0] - OFFSET_X) / SCALE
+                virtual_top = (current_pos[1] - OFFSET_Y) / SCALE
+                current_center_x = (
+                    virtual_left
+                    + center_img.get_width() * old_base_scale * current_zoom / 2
+                ) / VIRTUAL_WIDTH
+                current_center_y = (
+                    virtual_top
+                    + center_img.get_height() * old_base_scale * current_zoom / 2
+                ) / VIRTUAL_HEIGHT
+
+            show_x = _to_float(params.get("x"), current_center_x)
+            show_y = _to_float(params.get("y"), current_center_y)
             size = _to_float(params.get("size"), current_zoom)
-            
-            if show_x is not None and show_y is not None:
-                pos_x, pos_y = _ir_compute_character_placement(placement_img, show_x, show_y, size)
-                game_state["character_pos"][target] = [pos_x, pos_y]
+
+            pos_x, pos_y = _ir_compute_character_placement(
+                placement_img, show_x, show_y, size
+            )
+            game_state["character_pos"][target] = [pos_x, pos_y]
             game_state["character_zoom"][target] = size
     _ir_update_expressions(game_state, target, params)
 
+    new_expressions = game_state.get("character_expressions", {}).get(target, {})
+    changed_parts = {}
+    if torso_id and old_torso != current_torso:
+        changed_parts["torso"] = (old_torso, current_torso)
+    for part_type in ("brow", "eye", "mouth", "cheek", "effect", "accessory"):
+        if part_type in params:
+            old_id = old_expressions.get(part_type, "")
+            new_id = new_expressions.get(part_type, "")
+            if old_id != new_id:
+                changed_parts[part_type] = (old_id, new_id)
+
+    if fade_ms > 0:
+        for part_type, (old_id, new_id) in changed_parts.items():
+            start_character_part_fade(
+                game_state, target, part_type, old_id, new_id, fade_ms
+            )
+    else:
+        # An immediate shift supersedes an older transition for the same layers.
+        active_fades = game_state.get("character_part_fades", {}).get(target, {})
+        for part_type in changed_parts:
+            active_fades.pop(part_type, None)
+        if not active_fades:
+            game_state.get("character_part_fades", {}).pop(target, None)
 
 
 def _ir_handle_character_hide(game_state, target, params):
