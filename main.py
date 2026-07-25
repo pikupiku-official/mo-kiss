@@ -47,6 +47,8 @@ class GameApplication:
         self.virtual_screen = None  # 仮想画面（1440x1080）
         self.clock = None
         self.running = True
+        self.is_fullscreen = False
+        self.windowed_size = None
 
         # 各モードのインスタンス
         self.main_menu = None
@@ -85,6 +87,11 @@ class GameApplication:
         """イベントを一括取得し、必要な座標変換を行う。"""
         events = []
         for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                # キーリピート中は何度も表示モードを反転させない。
+                if not getattr(event, "repeat", False):
+                    self._toggle_fullscreen()
+                continue
             if event.type == pygame.VIDEORESIZE:
                 self._handle_resize_event(event)
                 continue
@@ -115,15 +122,50 @@ class GameApplication:
     def _handle_resize_event(self, event):
         """ウィンドウリサイズを処理する。"""
         from core import config as config_module
+
+        if self.is_fullscreen:
+            # set_mode(FULLSCREEN) に伴うリサイズ通知でウィンドウ化しない。
+            width, height = self.window_surface.get_size()
+            config_module._recalculate_screen_metrics(width, height)
+            return
+
         config_module._recalculate_screen_metrics(event.w, event.h)
         self.window_surface = pygame.display.set_mode(
             (config_module.WINDOW_SURFACE_WIDTH, config_module.WINDOW_SURFACE_HEIGHT),
             pygame.RESIZABLE,
         )
+        self.windowed_size = self.window_surface.get_size()
         print(
             f"[WINDOW] resized -> {config_module.WINDOW_SURFACE_WIDTH}x{config_module.WINDOW_SURFACE_HEIGHT} "
             f"(content {config_module.WINDOW_CONTENT_WIDTH}x{config_module.WINDOW_CONTENT_HEIGHT})"
         )
+
+    def _toggle_fullscreen(self):
+        """F11でフルスクリーンとウィンドウ表示を切り替える。"""
+        from core import config as config_module
+
+        if self.is_fullscreen:
+            width, height = self.windowed_size or (
+                config_module.WINDOW_WIDTH,
+                config_module.WINDOW_HEIGHT,
+            )
+            self.window_surface = pygame.display.set_mode(
+                (width, height),
+                pygame.RESIZABLE,
+            )
+            self.is_fullscreen = False
+        else:
+            self.windowed_size = self.window_surface.get_size()
+            self.window_surface = pygame.display.set_mode(
+                (0, 0),
+                pygame.FULLSCREEN,
+            )
+            self.is_fullscreen = True
+
+        width, height = self.window_surface.get_size()
+        config_module._recalculate_screen_metrics(width, height)
+        mode = "fullscreen" if self.is_fullscreen else "windowed"
+        print(f"[WINDOW] {mode} -> {width}x{height}")
 
     def initialize(self):
         """アプリケーションの初期化"""
@@ -132,8 +174,13 @@ class GameApplication:
             pygame.init()
             pygame.mixer.init()
 
-            # 実画面設定（フルスクリーン）
+            # 実ウィンドウを作成
             self.window_surface = init_game()  # config.pyのinit_game()を使用
+            self.is_fullscreen = bool(
+                self.window_surface.get_flags() & pygame.FULLSCREEN
+            )
+            if not self.is_fullscreen:
+                self.windowed_size = self.window_surface.get_size()
 
             # 仮想画面サーフェスを作成（1440x1080）
             self.virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))

@@ -311,6 +311,11 @@ class AlternatingScenarioApplication(GameApplication):
             pygame.mixer.init()
 
             self.window_surface = config.init_game()
+            self.is_fullscreen = bool(
+                self.window_surface.get_flags() & pygame.FULLSCREEN
+            )
+            if not self.is_fullscreen:
+                self.windowed_size = self.window_surface.get_size()
             self.virtual_screen = pygame.Surface(
                 (config.VIRTUAL_WIDTH, config.VIRTUAL_HEIGHT)
             )
