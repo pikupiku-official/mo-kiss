@@ -144,7 +144,7 @@
 [chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.2" y="1.1" size="2.3" fade="0.3"]
 	//桃子//
 	「なになに？何のはなし？」
-[BGM bgm="Mok1_Lap1" volume="5" loop="true"]
+[BGM bgm="MokLap1" volume="5" loop="true"]
 [chara_shift name="増田" torso="MST_T00_ARM_0001" eye="MST_F00_EYE_0010" mouth="MST_F00_MOU_0009" brow="MST_F00_BRO_0006" x="0.725" y="1.0" fade="0.3"]
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.275" y="1.1" size="2.3" fade="0.3"]
 	//増田//

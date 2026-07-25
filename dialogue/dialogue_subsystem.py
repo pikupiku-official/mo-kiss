@@ -63,6 +63,13 @@ class DialogueSubsystem(SubsystemBase):
             # 例外発生時も必ず config を復元（⑦修正）
             _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = _pre_x, _pre_y, _pre_scale
 
+        from dialogue.event_datetime import apply_event_datetime
+        apply_event_datetime(
+            self.game_state["text_renderer"],
+            event_id=self.current_event_id,
+            ks_file_path=event_file,
+        )
+
         # 全レンダラーの screen を仮想画面に差し替え
         self._swap_to_virtual_screen()
 

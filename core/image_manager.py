@@ -247,6 +247,9 @@ class ImageManager:
     
     def get_image(self, image_type, image_key, size=None):
         """画像を取得（必要に応じて遅延ロード）スレッドセーフ"""
+        if self.debug:
+            print(f"[IMG_REQUEST] 要求: {image_type}/{image_key}")
+
         if not image_key or image_type not in self.image_paths:
             return None
 
@@ -284,7 +287,8 @@ class ImageManager:
             if cache_key in self.image_cache:
                 self.image_cache.move_to_end(cache_key)
                 cached_image = self.image_cache[cache_key]
-                # キャッシュヒットは頻繁すぎるのでログ出力しない
+                if self.debug:
+                    print(f"[IMG_CACHE_HIT] ヒット: {image_type}/{image_key}")
                 return cached_image
 
             # ロード中かチェック
@@ -304,7 +308,8 @@ class ImageManager:
             # 自分がロードを担当する場合
             try:
                 # 新規ロード時のみログ出力
-                print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
+                if self.debug:
+                    print(f"[IMG_LOAD] ロード: {image_type}/{image_key}")
                 result = self._load_image_immediately(filepath, optimal_size, cache_key)
                 if result is None:
                     print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
@@ -317,12 +322,15 @@ class ImageManager:
                         del self.loading_tasks[cache_key]
         else:
             # 他スレッドがロード中の場合は待機
-            print(f"[IMG_WAIT] ロード完了待機: {image_type}/{image_key}")
+            if self.debug:
+                print(f"[IMG_WAIT] ロード完了待機: {image_type}/{image_key}")
             load_event.wait(timeout=2.0)
             # 待機後、キャッシュから再取得
             with self.lock:
                 if cache_key in self.image_cache:
                     self.image_cache.move_to_end(cache_key)
+                    if self.debug:
+                        print(f"[IMG_CACHE_HIT] ヒット: {image_type}/{image_key}")
                     return self.image_cache[cache_key]
             # タイムアウトまたはロード失敗
             return None

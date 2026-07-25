@@ -79,10 +79,23 @@ def normalize_dialogue_data(raw_data):
             show_y = entry.get('y')
             size = entry.get('size')
             fade = entry.get('fade', 0)
+            shift_params = {
+                key: entry[key]
+                for key in (
+                    'x',
+                    'y',
+                    'size',
+                    'fade',
+                    'effect',
+                    'accessory',
+                )
+                if key in entry and entry[key] is not None
+            }
             command_text = f"_CHARA_SHIFT_{char_name}"
             normalized_data.append([
                 current_bg, torso_id, current_eye, current_mouth, current_brow, current_cheek,
-                command_text, current_bgm, current_bgm_volume, current_bgm_loop, char_name, False
+                command_text, current_bgm, current_bgm_volume, current_bgm_loop, char_name, False,
+                False, shift_params
             ])
 
         elif entry_type == 'character':

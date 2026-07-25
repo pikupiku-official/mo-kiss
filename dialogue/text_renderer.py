@@ -87,6 +87,8 @@ class TextRenderer:
             self.date_font = pygame.font.SysFont("msgothic", self.date_font_size)
         self.date_color = DATE_TEXT_COLOR
         self.date_position = scale_pos(DATE_DISPLAY_X, DATE_DISPLAY_Y)
+        # events.csvの「イベント日時」。Noneの場合は通常のゲーム内日時を使う。
+        self.event_datetime = None
         self.weather_font_size = WEATHER_FONT_SIZE
         try:
             weather_font_path = get_font_path("MPLUS1p-Medium.ttf")
@@ -481,16 +483,34 @@ class TextRenderer:
         try:
             from core.time_manager import get_time_manager
             time_manager = get_time_manager()
-            date_text = time_manager.get_full_time_string()
+            if self.event_datetime is not None:
+                from core.time_manager import format_game_datetime
+                display_time = self.event_datetime
+                date_text = format_game_datetime(
+                    display_time.year,
+                    display_time.month,
+                    display_time.day,
+                    display_time.weekday,
+                    display_time.period,
+                )
+                weather_args = (
+                    display_time.year,
+                    display_time.month,
+                    display_time.day,
+                    display_time.period,
+                )
+            else:
+                date_text = time_manager.get_full_time_string()
+                weather_args = (
+                    time_manager.current_year,
+                    time_manager.current_month,
+                    time_manager.current_day,
+                    time_manager.current_period,
+                )
             date_surface = render_text_with_effects(self.date_font, date_text, self.date_color)
             self.screen.blit(date_surface, self.date_position)
 
-            weather_text = self.historical_weather.get_display_text(
-                time_manager.current_year,
-                time_manager.current_month,
-                time_manager.current_day,
-                time_manager.current_period,
-            )
+            weather_text = self.historical_weather.get_display_text(*weather_args)
             if weather_text:
                 weather_surface = render_text_with_effects(
                     self.weather_font,
@@ -501,6 +521,10 @@ class TextRenderer:
         except Exception as e:
             if self.debug:
                 print(f"日付表示エラー: {e}")
+
+    def set_event_datetime(self, event_datetime):
+        """イベント固有の表示日時を設定する。Noneで通常日時へ戻す。"""
+        self.event_datetime = event_datetime
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager

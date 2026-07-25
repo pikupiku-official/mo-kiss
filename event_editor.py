@@ -22,6 +22,7 @@ import platform
 import traceback
 import logging
 import subprocess
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -33,7 +34,7 @@ from PyQt5.QtWidgets import (
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
     QFileDialog
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QRect, QPoint
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QRect, QPoint, QProcess
 from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter
 
 # プロジェクトルートをパスに追加
@@ -70,6 +71,12 @@ from dialogue.choice_renderer import ChoiceRenderer
 from dialogue.fade_manager import draw_fade_overlay
 from dialogue.backlog_manager import BacklogManager
 from dialogue.notification_manager import NotificationManager
+from dialogue.event_datetime import (
+    EVENT_DATETIME_FORMAT,
+    EVENT_DATETIME_HEADER,
+    apply_event_datetime,
+    parse_event_datetime,
+)
 from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DEBUG, USE_IR, IR_DUMP_JSON, IR_DUMP_DIR
 from core.bgm_manager import BGMManager
 from core.se_manager import SEManager
@@ -206,6 +213,10 @@ class PreviewWindow:
             if not self.game_state:
                 raise Exception("ゲーム状態の初期化に失敗")
 
+            apply_event_datetime(
+                self.game_state["text_renderer"],
+                ks_file_path=ks_file_path,
+            )
             dialogue_loader = self.game_state['dialogue_loader']
             raw_dialogue_data = dialogue_loader.load_dialogue_from_ks(ks_file_path)
 
@@ -1184,6 +1195,22 @@ class StepEditorDialog(QDialog):
         self.advanced_toggle.stateChanged.connect(self._on_advanced_toggle)
         self.preview_refresh_btn.clicked.connect(self._request_preview_update)
 
+        # Editing software-style live preview: coalesce a burst of keystrokes into
+        # one render instead of launching work for every individual change.
+        self._preview_debounce_timer = QTimer(self)
+        self._preview_debounce_timer.setSingleShot(True)
+        self._preview_debounce_timer.setInterval(300)
+        self._preview_debounce_timer.timeout.connect(self._request_preview_update)
+        self.speaker_input.textChanged.connect(self._schedule_preview_update)
+        self.body_input.textChanged.connect(self._schedule_preview_update)
+        self.scroll_checkbox.stateChanged.connect(self._schedule_preview_update)
+        self.female_checkbox.stateChanged.connect(self._schedule_preview_update)
+        action_model = self.actions_list.model()
+        action_model.dataChanged.connect(self._schedule_preview_update)
+        action_model.rowsInserted.connect(self._schedule_preview_update)
+        action_model.rowsRemoved.connect(self._schedule_preview_update)
+        action_model.rowsMoved.connect(self._schedule_preview_update)
+
         if self.actions_list.count() > 0:
             self.actions_list.setCurrentRow(0)
         else:
@@ -1313,7 +1340,11 @@ class StepEditorDialog(QDialog):
         text = self._build_action(tag, params)
         self.actions_list.item(current_row).setText(text)
 
-    def _request_preview_update(self):
+    def _schedule_preview_update(self, *args):
+        self._preview_debounce_timer.start()
+
+    def _request_preview_update(self, *args):
+        self._preview_debounce_timer.stop()
         parent = self.parent()
         if not parent:
             return
@@ -1746,6 +1777,13 @@ class EventEditorGUI(QMainWindow):
         self.status_signal.status_received.connect(self.handle_status)
         self.preview_signal = PreviewSignal()
         self.preview_signal.preview_ready.connect(self._on_preview_ready)
+        self._step_preview_process = None
+        self._step_preview_stdout = ""
+        self._step_preview_busy = False
+        self._step_preview_active = None
+        self._step_preview_pending = None
+        self._step_preview_request_seq = 0
+        self._closing = False
 
         # events.csvを読み込み
         self.load_events_metadata()
@@ -1779,6 +1817,10 @@ class EventEditorGUI(QMainWindow):
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self.check_status_queue)
         self.status_timer.start(100)  # 100ms
+
+        # Warm the renderer after the editor becomes responsive so the first
+        # step preview does not also pay Python/Pygame startup costs.
+        QTimer.singleShot(750, self._ensure_step_preview_process)
 
     def build_gui(self):
         """GUIを構築"""
@@ -1883,6 +1925,8 @@ class EventEditorGUI(QMainWindow):
         if self.events_headers:
             for header in self.events_headers:
                 field = QLineEdit()
+                if header == EVENT_DATETIME_HEADER:
+                    field.setPlaceholderText(EVENT_DATETIME_FORMAT)
                 metadata_layout.addRow(header, field)
                 self.event_fields[header] = field
         else:
@@ -2051,7 +2095,7 @@ class EventEditorGUI(QMainWindow):
         for header in self.events_headers:
             field = self.event_fields.get(header)
             if field is not None:
-                field.setText(row.get(header, ""))
+                field.setText(row.get(header) or "")
 
     def save_event_metadata(self):
         """フォームの内容をevents.csvに保存"""
@@ -2064,6 +2108,19 @@ class EventEditorGUI(QMainWindow):
         if not event_id:
             QMessageBox.warning(self, "警告", "イベントIDが空です")
             return
+
+        event_datetime_field = self.event_fields.get(EVENT_DATETIME_HEADER)
+        if event_datetime_field is not None:
+            try:
+                parse_event_datetime(event_datetime_field.text())
+            except ValueError as exc:
+                QMessageBox.warning(
+                    self,
+                    "イベント日時の入力エラー",
+                    f"{exc}\n例: 1999-06-01 夜",
+                )
+                event_datetime_field.setFocus()
+                return
 
         row = next((r for r in self.events_rows if r.get("イベントID") == event_id), None)
         if not row:
@@ -2095,6 +2152,8 @@ class EventEditorGUI(QMainWindow):
         fields = {}
         for header in self.events_headers:
             field = QLineEdit()
+            if header == EVENT_DATETIME_HEADER:
+                field.setPlaceholderText(EVENT_DATETIME_FORMAT)
             layout.addRow(header, field)
             fields[header] = field
 
@@ -2110,6 +2169,18 @@ class EventEditorGUI(QMainWindow):
         if not event_id:
             QMessageBox.warning(self, "警告", "イベントIDが空です")
             return
+
+        event_datetime_field = fields.get(EVENT_DATETIME_HEADER)
+        if event_datetime_field is not None:
+            try:
+                parse_event_datetime(event_datetime_field.text())
+            except ValueError as exc:
+                QMessageBox.warning(
+                    self,
+                    "イベント日時の入力エラー",
+                    f"{exc}\n例: 1999-06-01 夜",
+                )
+                return
 
         if not os.path.exists(self.events_dir):
             os.makedirs(self.events_dir, exist_ok=True)
@@ -2530,8 +2601,6 @@ class EventEditorGUI(QMainWindow):
             self._apply_step_update(
                 step, speaker, body, scroll_stop, force_female, actions, memo
             )
-            if step_index is not None:
-                self._generate_step_preview(step_index, dialog)
 
     def _insert_step_template(self, step, insert_before=True):
         """指定stepの前後にテンプレートstepを挿入する"""
@@ -2766,44 +2835,181 @@ class EventEditorGUI(QMainWindow):
         self.update_step_highlights()
 
     def _run_step_preview(self, source_path, step_index, dialog, temp_path=None):
-        preview_script = os.path.join(project_root, "tools", "preview_dialogue.py")
+        preview_script = os.path.join(
+            project_root, "tools", "dialogue_snapshot_renderer.py"
+        )
         if not os.path.exists(preview_script):
             return
 
         out_dir = os.path.join(project_root, "debug", "step_previews")
         os.makedirs(out_dir, exist_ok=True)
         basename = os.path.splitext(os.path.basename(self.current_file_path or source_path))[0]
-        out_path = os.path.join(out_dir, f"{basename}_step_{step_index + 1:04d}.png")
-
-        cmd = [
-            sys.executable,
-            preview_script,
-            source_path,
-            "--step",
-            str(step_index + 1),
-            "--out",
-            out_path,
-        ]
+        self._step_preview_request_seq += 1
+        request_id = self._step_preview_request_seq
+        out_path = os.path.join(
+            out_dir,
+            f".{basename}_step_{step_index + 1:04d}_{request_id}.png",
+        )
+        request = {
+            "request_id": request_id,
+            "source_path": source_path,
+            "step_index": step_index + 1,
+            "out_path": out_path,
+            "dialog": dialog,
+            "temp_path": temp_path,
+        }
+        dialog._preview_request_id = request_id
 
         dialog.preview_label.setText("Generating preview...")
 
-        def worker():
-            success = True
-            message = ""
-            try:
-                subprocess.run(cmd, check=True, timeout=30)
-            except Exception as e:
-                success = False
-                message = f"Preview failed: {e}"
-            if temp_path:
-                try:
-                    os.remove(temp_path)
-                except OSError:
-                    pass
-            self.preview_signal.preview_ready.emit(dialog, out_path, success, message)
+        # Keep only the newest queued edit. The active render is allowed to
+        # finish, but its result is ignored when a newer request exists.
+        if self._step_preview_pending:
+            self._discard_step_preview_request(self._step_preview_pending)
+        self._step_preview_pending = request
+        self._ensure_step_preview_process()
+        self._dispatch_pending_step_preview()
 
-        thread = threading.Thread(target=worker, daemon=True)
-        thread.start()
+    @staticmethod
+    def _remove_preview_file(path):
+        if not path:
+            return
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+    def _discard_step_preview_request(self, request):
+        if not request:
+            return
+        self._remove_preview_file(request.get("temp_path"))
+        self._remove_preview_file(request.get("out_path"))
+
+    def _ensure_step_preview_process(self):
+        process = self._step_preview_process
+        if process is not None and process.state() != QProcess.NotRunning:
+            return
+
+        process = QProcess(self)
+        process.setWorkingDirectory(project_root)
+        process.setProgram(sys.executable)
+        process.setArguments([
+            os.path.join(
+                project_root, "tools", "dialogue_snapshot_renderer.py"
+            ),
+            "--server",
+        ])
+        process.started.connect(self._dispatch_pending_step_preview)
+        process.readyReadStandardOutput.connect(self._read_step_preview_output)
+        process.readyReadStandardError.connect(self._read_step_preview_error)
+        process.finished.connect(self._step_preview_process_finished)
+        self._step_preview_process = process
+        self._step_preview_stdout = ""
+        process.start()
+
+    def _dispatch_pending_step_preview(self):
+        process = self._step_preview_process
+        if (
+            self._step_preview_busy
+            or not self._step_preview_pending
+            or process is None
+            or process.state() != QProcess.Running
+        ):
+            return
+
+        request = self._step_preview_pending
+        self._step_preview_pending = None
+        self._step_preview_active = request
+        self._step_preview_busy = True
+        payload = {
+            "request_id": request["request_id"],
+            "source_path": request["source_path"],
+            "event_id": self.current_event_id,
+            "step_index": request["step_index"],
+            "out_path": request["out_path"],
+            "output_size": [800, 450],
+        }
+        process.write((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
+
+    def _read_step_preview_output(self):
+        process = self._step_preview_process
+        if process is None:
+            return
+        chunk = bytes(process.readAllStandardOutput()).decode("utf-8", errors="replace")
+        self._step_preview_stdout += chunk
+        lines = self._step_preview_stdout.split("\n")
+        self._step_preview_stdout = lines.pop()
+        for line in lines:
+            marker = "@@PREVIEW@@"
+            if not line.startswith(marker):
+                if line.strip():
+                    image_markers = (
+                        "[IMG_REQUEST]",
+                        "[IMG_CACHE_HIT]",
+                        "[IMG_LOAD]",
+                        "[IMG_ERROR]",
+                    )
+                    if line.startswith(image_markers):
+                        logger.info("step snapshot worker: %s", line)
+                    else:
+                        logger.debug("step snapshot worker: %s", line)
+                continue
+            try:
+                message = json.loads(line[len(marker):])
+            except json.JSONDecodeError:
+                continue
+            if message.get("type") == "result":
+                self._finish_step_preview_request(message)
+
+    def _read_step_preview_error(self):
+        process = self._step_preview_process
+        if process is None:
+            return
+        output = bytes(process.readAllStandardError()).decode("utf-8", errors="replace").strip()
+        if output:
+            logger.debug("step preview worker: %s", output)
+
+    def _finish_step_preview_request(self, result):
+        request = self._step_preview_active
+        if not request or result.get("request_id") != request.get("request_id"):
+            return
+
+        dialog = request.get("dialog")
+        is_latest = (
+            dialog is not None
+            and getattr(dialog, "_preview_request_id", None) == request["request_id"]
+        )
+        if is_latest:
+            self._on_preview_ready(
+                dialog,
+                result.get("out_path", request["out_path"]),
+                bool(result.get("success")),
+                result.get("message", ""),
+            )
+        self._discard_step_preview_request(request)
+        self._step_preview_active = None
+        self._step_preview_busy = False
+        self._dispatch_pending_step_preview()
+
+    def _step_preview_process_finished(self, exit_code, exit_status):
+        request = self._step_preview_active
+        if request:
+            dialog = request.get("dialog")
+            if (
+                dialog is not None
+                and getattr(dialog, "_preview_request_id", None) == request["request_id"]
+                and dialog.isVisible()
+            ):
+                dialog.preview_label.setText("Preview worker stopped unexpectedly.")
+            self._discard_step_preview_request(request)
+        self._step_preview_active = None
+        self._step_preview_busy = False
+        process = self._step_preview_process
+        self._step_preview_process = None
+        if process is not None:
+            process.deleteLater()
+        if self._step_preview_pending and not self._closing:
+            self._ensure_step_preview_process()
 
     def _on_preview_ready(self, dialog, image_path, success, message):
         if not dialog or not hasattr(dialog, "preview_label"):
@@ -2934,7 +3140,7 @@ class EventEditorGUI(QMainWindow):
 
     def start_preview(self):
         """ダイアログプレビューを別プロセスとして起動(macOS専用)"""
-        logger.info("start_preview呼び出し(preview_dialogue.py起動)")
+        logger.info("start_preview呼び出し(dialogue_preview_player.py起動)")
         try:
             if not self.current_file_path:
                 QMessageBox.warning(self, "警告", "ファイルが選択されていません")
@@ -2977,9 +3183,11 @@ class EventEditorGUI(QMainWindow):
             elif reply == QMessageBox.Yes:
                 self.save_file()
 
-            # preview_dialogue.pyを別プロセスとして起動
+            # 対話再生専用プレイヤーを別プロセスとして起動
             import subprocess
-            preview_script = os.path.join(project_root, "tools", "preview_dialogue.py")
+            preview_script = os.path.join(
+                project_root, "tools", "dialogue_preview_player.py"
+            )
 
             if not os.path.exists(preview_script):
                 QMessageBox.critical(
@@ -3094,7 +3302,9 @@ class EventEditorGUI(QMainWindow):
                     self.preview_process.wait()
 
             # 新しいプロセスを起動
-            preview_script = os.path.join(project_root, "tools", "preview_dialogue.py")
+            preview_script = os.path.join(
+                project_root, "tools", "dialogue_preview_player.py"
+            )
 
             if platform.system() == 'Darwin':  # macOS
                 self.preview_process = subprocess.Popen(['python3', preview_script, self.current_file_path])
@@ -3163,6 +3373,17 @@ class EventEditorGUI(QMainWindow):
     def closeEvent(self, event):
         """ウィンドウが閉じられる時の処理(macOS専用 - プロセスをクリーンアップ)"""
         logger.info("アプリケーション終了処理開始")
+        self._closing = True
+
+        if self._step_preview_pending:
+            self._discard_step_preview_request(self._step_preview_pending)
+            self._step_preview_pending = None
+        step_process = self._step_preview_process
+        if step_process is not None and step_process.state() != QProcess.NotRunning:
+            step_process.terminate()
+            if not step_process.waitForFinished(1000):
+                step_process.kill()
+                step_process.waitForFinished(1000)
 
         # プレビュープロセスが実行中なら終了
         if self.preview_process and self.preview_process.poll() is None:

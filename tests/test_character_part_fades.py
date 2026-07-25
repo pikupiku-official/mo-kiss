@@ -1,7 +1,9 @@
 import pygame
 
 from dialogue.character_manager import render_face_parts
+from dialogue.data_normalizer import normalize_dialogue_data
 from dialogue.dialogue_loader import DialogueLoader
+from dialogue.ir_builder import build_ir_from_normalized
 from dialogue.scenario_manager import _ir_handle_character_shift
 
 
@@ -24,6 +26,22 @@ def test_dialogue_loader_uses_chara_shift_own_fade_value():
 
     shift = next(entry for entry in entries if entry.get("type") == "chara_shift")
     assert shift["fade"] == 0.3
+
+
+def test_chara_shift_fade_survives_normalization_and_ir_build():
+    loader = DialogueLoader()
+    parsed = loader._parse_ks_content(
+        '[chara_shift name="masuda" torso="T01" eye="EYE02" '
+        'x="0.725" y="1.0" fade="0.3"]'
+    )
+    normalized = normalize_dialogue_data(parsed)
+    ir = build_ir_from_normalized(normalized)
+
+    action = ir["steps"][0]["actions"][0]
+    assert action["action"] == "chara_shift"
+    assert action["params"]["fade"] == 0.3
+    assert action["params"]["x"] == 0.725
+    assert action["params"]["y"] == 1.0
 
 
 def test_chara_shift_registers_crossfades_for_changed_and_cleared_parts(monkeypatch):

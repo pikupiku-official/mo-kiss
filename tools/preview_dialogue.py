@@ -9,6 +9,8 @@ import pygame
 import sys
 import os
 import argparse
+import json
+import copy
 
 # tools/ の親ディレクトリ（プロジェクトルート）を sys.path に追加
 # こうしないと `from core.config import *` 等が tools/ を基準に探してしまい失敗する
@@ -31,20 +33,14 @@ from dialogue.controller2 import handle_events as dialogue_handle_events, draw_i
 from dialogue.controller2 import update_game, is_ir_idle
 from dialogue.scenario_manager import _ir_dispatch_action
 from dialogue.model import change_bgm
+from dialogue.event_datetime import apply_event_datetime
 from core.bgm_manager import BGMManager
 from core.se_manager import SEManager
 from core.image_manager import ImageManager
 from core.path_utils import get_font_path
 
-def preview_step_image(ks_file_path, step_index, out_path):
-    """
-    指定stepの静止画を出力する
-
-    Args:
-        ks_file_path: .ksファイルパス
-        step_index: 1-based step index
-        out_path: 出力PNGパス
-    """
+def create_step_preview_runtime():
+    """Create the expensive, reusable part of step preview rendering."""
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     pygame.init()
     try:
@@ -56,21 +52,92 @@ def preview_step_image(ks_file_path, step_index, out_path):
     hidden_flag = getattr(pygame, "HIDDEN", 0)
     pygame.display.set_mode((1, 1), hidden_flag)
 
-    virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
-
     from core import config as cfg
     cfg.OFFSET_X = 0
     cfg.OFFSET_Y = 0
     cfg.SCALE = 1.0
 
+    virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
+    image_manager = ImageManager(DEBUG, cache_size=200)
+    image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+    images = image_manager.load_essential_images(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+    return {
+        "virtual_screen": virtual_screen,
+        "image_manager": image_manager,
+        "images": images,
+    }
+
+
+def settle_step_preview_animations(game_state):
+    """Seek animations to their final frame without sleeping in real time."""
+    now = pygame.time.get_ticks()
+
+    for anim in game_state.get("character_anim", {}).values():
+        anim["start_time"] = now - max(int(anim.get("duration", 0)), 0)
+
+    background_anim = game_state.get("background_state", {}).get("anim")
+    if background_anim:
+        background_anim["start_time"] = (
+            now - max(int(background_anim.get("duration", 0)), 0)
+        )
+
+    for part_map in game_state.get("character_part_fades", {}).values():
+        for fade in part_map.values():
+            fade["start_time"] = now - max(int(fade.get("duration", 0)), 0)
+
+    for character_name in list(game_state.get("character_hide_pending", {})):
+        game_state["character_hide_pending"][character_name] = now
+
+    fade_state = game_state.get("fade_state", {})
+    if fade_state.get("active"):
+        fade_state["start_time"] = now - max(int(fade_state.get("duration", 0)), 0)
+
+    for anim in game_state.get("ir_active_anims", []):
+        anim["end_time"] = now
+
+    # One update commits the final positions/alphas and clears IR pending flags.
+    update_game(game_state)
+
+
+def preview_step_image(
+    ks_file_path,
+    step_index,
+    out_path,
+    runtime=None,
+    output_size=None,
+    transition_progress=1.0,
+    event_id=None,
+):
+    """
+    指定stepの静止画を出力する
+
+    Args:
+        ks_file_path: .ksファイルパス
+        step_index: 1-based step index
+        out_path: 出力PNGパス
+        transition_progress: 1.0 renders the settled state. Values below 1.0
+            explicitly request an intermediate frame of the selected shift.
+    """
     PREVIEW_DEBUG = False
+    owns_runtime = runtime is None
+
+    if not 0.0 <= transition_progress <= 1.0:
+        raise ValueError("transition_progress must be between 0.0 and 1.0")
 
     try:
+        if runtime is None:
+            runtime = create_step_preview_runtime()
+        virtual_screen = runtime["virtual_screen"]
         bgm_manager = BGMManager(PREVIEW_DEBUG)
         se_manager = SEManager(PREVIEW_DEBUG)
         dialogue_loader = DialogueLoader(PREVIEW_DEBUG)
-        image_manager = ImageManager(PREVIEW_DEBUG)
+        image_manager = runtime["image_manager"]
         text_renderer = TextRenderer(virtual_screen, PREVIEW_DEBUG)
+        apply_event_datetime(
+            text_renderer,
+            event_id=event_id,
+            ks_file_path=ks_file_path,
+        )
         choice_renderer = ChoiceRenderer(virtual_screen, PREVIEW_DEBUG)
         notification_manager = NotificationManager(virtual_screen, PREVIEW_DEBUG)
         backlog_manager = BacklogManager(virtual_screen, text_renderer.fonts, PREVIEW_DEBUG)
@@ -80,8 +147,7 @@ def preview_step_image(ks_file_path, step_index, out_path):
         dialogue_loader.notification_system = notification_manager
         name_manager.set_dialogue_loader(dialogue_loader)
 
-        image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
-        images = image_manager.load_essential_images(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+        images = runtime["images"]
 
         raw_dialogue_data = dialogue_loader.load_dialogue_from_ks(ks_file_path)
         if not raw_dialogue_data:
@@ -147,8 +213,6 @@ def preview_step_image(ks_file_path, step_index, out_path):
             },
         }
 
-        image_manager.preload_characters_from_dialogue(dialogue_data)
-
         steps = (ir_data or {}).get("steps") or []
         visible_step_indices = []
         for idx, step in enumerate(steps):
@@ -173,6 +237,10 @@ def preview_step_image(ks_file_path, step_index, out_path):
         text_renderer = game_state.get("text_renderer")
         choice_renderer = game_state.get("choice_renderer")
         target_step = steps[target_index] if target_index >= 0 and target_index < len(steps) else None
+        # A normal snapshot represents the state after the selected step has
+        # completed. Intermediate transition frames are opt-in.
+        preserve_target_transition = 0.0 <= transition_progress < 1.0
+        target_shift_fades = {}
 
         for idx in range(target_index + 1):
             step = steps[idx] if idx < len(steps) else None
@@ -182,13 +250,35 @@ def preview_step_image(ks_file_path, step_index, out_path):
             actions = step.get("actions") or []
             for action in actions:
                 action_type = action.get("action")
-                if action_type in ("choice", "if_start", "if_end", "flag_set", "event_control"):
+                if action_type in (
+                    "choice",
+                    "if_start",
+                    "if_end",
+                    "flag_set",
+                    "event_control",
+                    "se_play",
+                    "bgm_play",
+                    "bgm_pause",
+                    "bgm_unpause",
+                ):
                     continue
                 if action_type == "scroll_stop":
                     if text_renderer:
                         text_renderer.set_dialogue("_SCROLL_STOP", None)
                     continue
                 _ir_dispatch_action(game_state, action)
+                # A still image cannot play a transition. Preserve fades created
+                # by the selected chara_shift so the preview can show its middle
+                # frame after preceding actions have been settled.
+                if (
+                    preserve_target_transition
+                    and idx == target_index
+                    and action_type == "chara_shift"
+                ):
+                    target = action.get("target")
+                    fade_map = game_state.get("character_part_fades", {}).get(target)
+                    if fade_map:
+                        target_shift_fades[target] = copy.deepcopy(fade_map)
 
             text = step.get("text")
             if text and text_renderer:
@@ -228,21 +318,20 @@ def preview_step_image(ks_file_path, step_index, out_path):
             if isinstance(source_index, int):
                 game_state["current_paragraph"] = source_index
 
-        start_time = pygame.time.get_ticks()
-        while True:
-            update_game(game_state)
-            if text_renderer:
-                text_complete = text_renderer.is_text_complete
-            else:
-                text_complete = True
+        settle_step_preview_animations(game_state)
 
-            if is_ir_idle(game_state) and text_complete and not choice_renderer.is_choice_showing():
-                break
-
-            if pygame.time.get_ticks() - start_time > 2000:
-                break
-
-            pygame.time.delay(16)
+        # Restore the selected transition only when an explicit intermediate
+        # progress was requested. The default snapshot stays fully settled.
+        if target_shift_fades:
+            snapshot_time = pygame.time.get_ticks()
+            fades = game_state.setdefault("character_part_fades", {})
+            for character_name, part_map in target_shift_fades.items():
+                fades[character_name] = part_map
+                for fade in part_map.values():
+                    duration = max(int(fade.get("duration", 0)), 0)
+                    fade["start_time"] = (
+                        snapshot_time - int(duration * transition_progress)
+                    )
 
         if choice_renderer:
             choice_renderer.hide_choices()
@@ -268,14 +357,21 @@ def preview_step_image(ks_file_path, step_index, out_path):
         notification_manager.render()
         draw_input_blocked_notice(game_state, virtual_screen)
 
-        pygame.image.save(virtual_screen, out_path)
+        output_surface = virtual_screen
+        if output_size:
+            output_surface = pygame.transform.smoothscale(
+                virtual_screen,
+                (int(output_size[0]), int(output_size[1])),
+            )
+        pygame.image.save(output_surface, out_path)
         return True
 
     except Exception as e:
         print(f"プレビュー生成エラー: {e}")
         return False
     finally:
-        pygame.quit()
+        if owns_runtime:
+            pygame.quit()
 
 def preview_ks_file(ks_file_path):
     """
@@ -319,8 +415,9 @@ def preview_ks_file(ks_file_path):
         bgm_manager = BGMManager(PREVIEW_DEBUG)
         se_manager = SEManager(PREVIEW_DEBUG)
         dialogue_loader = DialogueLoader(PREVIEW_DEBUG)
-        image_manager = ImageManager(PREVIEW_DEBUG)
+        image_manager = ImageManager(DEBUG)
         text_renderer = TextRenderer(virtual_screen, PREVIEW_DEBUG)
+        apply_event_datetime(text_renderer, ks_file_path=ks_file_path)
         choice_renderer = ChoiceRenderer(virtual_screen, PREVIEW_DEBUG)
         notification_manager = NotificationManager(virtual_screen, PREVIEW_DEBUG)
         backlog_manager = BacklogManager(virtual_screen, text_renderer.fonts, PREVIEW_DEBUG)
@@ -632,17 +729,64 @@ def preview_ks_file(ks_file_path):
     print("プレビュー終了")
     return True
 
+def run_step_preview_server():
+    """Render JSON-line requests while keeping Pygame and image caches warm."""
+    runtime = None
+    try:
+        runtime = create_step_preview_runtime()
+        print('@@PREVIEW@@{"type":"ready"}', flush=True)
+        for line in sys.stdin:
+            request = {}
+            try:
+                request = json.loads(line)
+                success = preview_step_image(
+                    request["source_path"],
+                    int(request["step_index"]),
+                    request["out_path"],
+                    runtime=runtime,
+                    output_size=request.get("output_size"),
+                    transition_progress=float(
+                        request.get("transition_progress", 1.0)
+                    ),
+                    event_id=request.get("event_id"),
+                )
+                result = {
+                    "type": "result",
+                    "request_id": request.get("request_id"),
+                    "success": bool(success),
+                    "out_path": request["out_path"],
+                    "message": "" if success else "Preview renderer returned an error.",
+                }
+            except Exception as exc:
+                result = {
+                    "type": "result",
+                    "request_id": request.get("request_id"),
+                    "success": False,
+                    "out_path": request.get("out_path", ""),
+                    "message": f"Preview failed: {exc}",
+                }
+            print("@@PREVIEW@@" + json.dumps(result, ensure_ascii=False), flush=True)
+    finally:
+        if runtime is not None:
+            pygame.quit()
+
+
 def main():
     """?????"""
     parser = argparse.ArgumentParser(description="KS?????")
-    parser.add_argument("ks_file", help="KS??????")
+    parser.add_argument("ks_file", nargs="?", help="KS??????")
     parser.add_argument("--step", type=int, default=None, help="1-based step index")
     parser.add_argument("--out", default=None, help="??PNG??")
+    parser.add_argument("--server", action="store_true", help="Run persistent step preview server")
     args = parser.parse_args()
+
+    if args.server:
+        run_step_preview_server()
+        return
 
     ks_file_path = args.ks_file
 
-    if not os.path.exists(ks_file_path):
+    if not ks_file_path or not os.path.exists(ks_file_path):
         print(f"???: ????????????: {ks_file_path}")
         sys.exit(1)
 

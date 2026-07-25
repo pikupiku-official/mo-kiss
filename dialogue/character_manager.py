@@ -1,21 +1,24 @@
 import pygame
 import random
+from collections import OrderedDict
 from core.config import *
 
 # 画像スケーリングキャッシュ
-_scaled_image_cache = {}
+_SCALED_IMAGE_CACHE_LIMIT = 100
+_scaled_image_cache = OrderedDict()
 
 def get_scaled_image(image, zoom_scale):
     """画像をキャッシュ付きでスケーリング"""
     if zoom_scale == 1.0:
         return image
-    
-    # キャッシュキーを作成
-    image_id = id(image)
-    cache_key = (image_id, zoom_scale)
-    
+
+    # Surface自体をキーとして保持する。id(image)だけを使うと、元Surfaceが
+    # 解放された後に同じidが別画像へ再利用され、誤った拡大画像を返し得る。
+    cache_key = (image, zoom_scale)
+
     # キャッシュから取得を試行
     if cache_key in _scaled_image_cache:
+        _scaled_image_cache.move_to_end(cache_key)
         return _scaled_image_cache[cache_key]
     
     # スケーリングして新しい画像を作成
@@ -23,13 +26,10 @@ def get_scaled_image(image, zoom_scale):
     new_height = int(image.get_height() * zoom_scale)
     scaled_image = pygame.transform.scale(image, (new_width, new_height))
     
-    # キャッシュに保存（最大100個まで）
-    if len(_scaled_image_cache) > 100:
-        # 古いエントリを削除
-        oldest_key = next(iter(_scaled_image_cache))
-        del _scaled_image_cache[oldest_key]
-    
+    # 元Surfaceへの参照もキー内に保持し、LRUで上限を管理する。
     _scaled_image_cache[cache_key] = scaled_image
+    while len(_scaled_image_cache) > _SCALED_IMAGE_CACHE_LIMIT:
+        _scaled_image_cache.popitem(last=False)
     return scaled_image
 
 def _blit_with_alpha(screen, image, pos, alpha):

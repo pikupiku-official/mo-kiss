@@ -2,6 +2,41 @@ import json
 import os
 from datetime import datetime, timedelta
 
+
+WEEKDAY_NAMES = ["月", "火", "水", "木", "金", "土", "日"]
+
+
+def to_zenkaku(value):
+    """半角数字と括弧を全角に変換する。"""
+    table = str.maketrans({
+        "0": "０",
+        "1": "１",
+        "2": "２",
+        "3": "３",
+        "4": "４",
+        "5": "５",
+        "6": "６",
+        "7": "７",
+        "8": "８",
+        "9": "９",
+        "(": "（",
+        ")": "）",
+    })
+    return str(value).translate(table)
+
+
+def format_game_date(year, month, day, weekday):
+    """指定されたゲーム内日付を画面表示形式へ変換する。"""
+    era_year = year - 1988
+    return (
+        f"平成{to_zenkaku(era_year)}年（{to_zenkaku(year)}年）"
+        f"{to_zenkaku(month)}月{to_zenkaku(day)}日（{WEEKDAY_NAMES[weekday]}）"
+    )
+
+
+def format_game_datetime(year, month, day, weekday, period):
+    return f"{format_game_date(year, month, day, weekday)}{period}"
+
 class TimeManager:
     """時間帯・日付管理システム"""
     
@@ -109,32 +144,16 @@ class TimeManager:
 
     def _to_zenkaku(self, value):
         """半角数字と括弧を全角に変換する"""
-        table = str.maketrans({
-            "0": "０",
-            "1": "１",
-            "2": "２",
-            "3": "３",
-            "4": "４",
-            "5": "５",
-            "6": "６",
-            "7": "７",
-            "8": "８",
-            "9": "９",
-            "(": "（",
-            ")": "）",
-        })
-        return str(value).translate(table)
+        return to_zenkaku(value)
     
     def get_date_string(self):
         """日付文字列を取得"""
-        weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
-        era_year = self.current_year - 1988
-        era_year_text = self._to_zenkaku(era_year)
-        year_text = self._to_zenkaku(self.current_year)
-        month_text = self._to_zenkaku(self.current_month)
-        day_text = self._to_zenkaku(self.current_day)
-        weekday_text = weekday_names[self.current_weekday]
-        return f"平成{era_year_text}年（{year_text}年）{month_text}月{day_text}日（{weekday_text}）"
+        return format_game_date(
+            self.current_year,
+            self.current_month,
+            self.current_day,
+            self.current_weekday,
+        )
     
     def get_full_time_string(self):
         """完全な時間文字列を取得"""

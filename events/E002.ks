@@ -22,7 +22,7 @@
 	「（まずは増田と合流しなければ。今日の定食は何だろうな。）」
 
 [chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.5" y="1.1" size="2.3" fade="0.3"]
-[BGM bgm="Mok_Lap1" volume="5" loop="true"]
+[bgm bgm="MokLap1" volume="0.5" loop="true"]
 	//桃子//
 	「ねえねえ、ちょっと聞いてよぉ。」
 	//純一//
@@ -238,7 +238,7 @@
 	//桃子//
 	「えー、もっと素直に褒めてよぉ。」
 　　　　 	//純一//
-　　　　	「僕を満足させるには あれだな、」
+　　　　	「僕を満足させるにはあれだな、」
 　　　　	「人生経験がちっと足りなかったな。」
 [chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU03_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE02_00" fade="0.3"]
 	//桃子//
