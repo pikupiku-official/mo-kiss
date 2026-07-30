@@ -273,6 +273,9 @@ def _ir_handle_character_show(game_state, target, params):
     hide_pending = game_state.get("character_hide_pending")
     if hide_pending and target in hide_pending:
         hide_pending.pop(target, None)
+    # A show command starts a fresh fade-in. Do not let an interrupted hide or
+    # an older shift keep controlling any of this character's layers.
+    game_state.get("character_part_fades", {}).pop(target, None)
 
     is_new_character = target not in game_state.get("active_characters", [])
     if is_new_character:
@@ -567,9 +570,11 @@ def _ir_get_action_duration_ms(action_type, params):
     return 0
 
 def _ir_default_on_advance(action_type):
+    if action_type in ("chara_show", "chara_shift", "chara_hide"):
+        return "block"
     if action_type in ("fadeout", "fadein"):
         return "complete"
-    if action_type in ("chara_show", "chara_shift", "chara_hide", "chara_move", "bg_show", "bg_move"):
+    if action_type in ("chara_move", "bg_show", "bg_move"):
         return "complete"
     return None
 

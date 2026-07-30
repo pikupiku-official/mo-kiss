@@ -212,7 +212,7 @@ def draw_background(game_state):
             new_width, new_height = scale_size(virtual_new_width, virtual_new_height)
         
         # 背景画像をスケール（キャッシュ使用）
-        if new_width != SCREEN_WIDTH or new_height != SCREEN_HEIGHT:
+        if bg_image.get_size() != (new_width, new_height):
             scaled_bg = get_scaled_background(bg_image, new_width, new_height)
         else:
             scaled_bg = bg_image

@@ -183,6 +183,15 @@ class MockOptionOverlay:
         if self._closing_started_at_ms is None:
             self._closing_started_at_ms = pygame.time.get_ticks()
 
+    def start_close_if_elapsed(self, delay_ms: int) -> bool:
+        """表示開始から指定時間が過ぎていれば閉じるアニメーションを始める。"""
+        if self._closing_started_at_ms is not None:
+            return False
+        if pygame.time.get_ticks() - self._opened_at_ms < delay_ms:
+            return False
+        self.start_close()
+        return True
+
     def is_same_sequence(self, frame_names: tuple[str, str, str]) -> bool:
         return self.frame_names == frame_names
 

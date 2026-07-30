@@ -26,8 +26,17 @@ from tools.preview_dialogue import (
 RESULT_MARKER = "@@PREVIEW@@"
 
 
+def configure_utf8_stdio():
+    """Use the same encoding as the event editor's JSON-line protocol."""
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="strict")
+
+
 def run_snapshot_server():
     """Serve JSON-line snapshot requests with a reusable image cache."""
+    configure_utf8_stdio()
     runtime = None
     try:
         runtime = create_step_preview_runtime()
@@ -55,7 +64,10 @@ def run_snapshot_server():
                     "message": (
                         ""
                         if success
-                        else "Snapshot renderer returned an error."
+                        else runtime.get(
+                            "last_error",
+                            "Snapshot renderer returned an error.",
+                        )
                     ),
                 }
             except Exception as exc:

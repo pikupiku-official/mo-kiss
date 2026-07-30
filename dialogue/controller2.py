@@ -53,10 +53,10 @@ def setup_text_renderer_settings(game_state):
 
 def handle_mouse_click(game_state, mouse_pos, screen):
     """マウスクリックの処理"""
-    if game_state.get("use_ir"):
-        fast_until = game_state.get("ir_fast_forward_until")
-        if fast_until is not None and pygame.time.get_ticks() < fast_until:
-            return
+    if is_input_blocked(game_state):
+        print("[CLICK] 入力ブロック中のため無効")
+        return
+
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
         return
@@ -220,7 +220,7 @@ def handle_events(game_state, screen):
                 print("=====================================")
                 print("🎮 操作方法: F1(影), F2(ピクセル化), F3(引き延ばし), F4(全効果), F5(状態表示)")
                         
-            elif event.key == pygame.K_RETURN and game_state['show_text']:
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and game_state['show_text']:
                 handle_enter_key(game_state)
     
     return True
@@ -244,11 +244,7 @@ def _flush_scroll_line_to_backlog(game_state):
 def handle_enter_key(game_state):
     """Enterキーが押されたときの処理"""
     print("[ENTER] Enterキー処理開始")
-    if game_state.get("use_ir"):
-        fast_until = game_state.get("ir_fast_forward_until")
-        if fast_until is not None and pygame.time.get_ticks() < fast_until:
-            return
-    
+
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
         print("[ENTER] バックログが開いているため無効")
@@ -258,7 +254,12 @@ def handle_enter_key(game_state):
     if game_state['choice_renderer'].is_choice_showing():
         print("[ENTER] 選択肢表示中のため無効（マウスクリックで選択してください）")
         return
-        
+
+    # 入力ブロック中は、文字表示のスキップも段落送りも禁止する。
+    if is_input_blocked(game_state):
+        print("[ENTER] 入力ブロック中のため無効")
+        return
+
     text_renderer = game_state['text_renderer']
     
     if text_renderer.is_displaying():
@@ -314,7 +315,26 @@ def is_ir_idle(game_state):
         return True
     return not game_state.get("ir_anim_pending", False)
 
+def is_character_image_fading(game_state):
+    """キャラクター画像のフェードが実時間上まだ進行中か判定する。"""
+    now = pygame.time.get_ticks()
+    for part_map in game_state.get("character_part_fades", {}).values():
+        for fade in part_map.values():
+            duration = max(0, fade.get("duration", 0))
+            start_time = fade.get("start_time", 0)
+            if duration > 0 and now < start_time + duration:
+                return True
+
+    return any(
+        now < end_time
+        for end_time in game_state.get("character_hide_pending", {}).values()
+    )
+
 def is_input_blocked(game_state):
+    # キャラ画像の表示・差分切替・非表示フェードは、IR側の
+    # on_advance 指定にかかわらず最後まで再生する。
+    if is_character_image_fading(game_state):
+        return True
     if not game_state.get("use_ir"):
         return False
     fast_until = game_state.get("ir_fast_forward_until")
@@ -466,9 +486,9 @@ def update_game(game_state):
         text_renderer = game_state.get("text_renderer")
         if text_renderer and text_renderer.skip_mode:
             if game_state.get("ir_anim_pending"):
-                if _ir_has_blocking_anims(game_state):
+                if is_input_blocked(game_state):
                     if DEBUG:
-                        print("[IR] skip blocked by on_advance=block")
+                        print("[IR] skip blocked while input is blocked")
                 elif not game_state.get("ir_fast_forward_active"):
                     _ir_fast_forward_animations(game_state, 300)
         _update_ir_active_anims(game_state)

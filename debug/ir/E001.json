@@ -20,6 +20,22 @@
             "type": "once",
             "on_advance": "block"
           }
+        },
+        {
+          "action": "chara_shift",
+          "target": "ナレ",
+          "params": {
+            "eye": "",
+            "mouth": "",
+            "brow": "",
+            "cheek": "",
+            "effect": "",
+            "accessory": ""
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
         }
       ],
       "source_index": 1
@@ -364,6 +380,22 @@
             "type": "once",
             "on_advance": "complete"
           }
+        },
+        {
+          "action": "chara_shift",
+          "target": "？？",
+          "params": {
+            "eye": "",
+            "mouth": "",
+            "brow": "",
+            "cheek": "",
+            "effect": "",
+            "accessory": ""
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
         }
       ],
       "source_index": 36
@@ -375,6 +407,24 @@
         "body": "うげっ、朝からこの声はきっと…",
         "scroll": true
       },
+      "actions": [
+        {
+          "action": "chara_shift",
+          "target": "純一",
+          "params": {
+            "eye": "",
+            "mouth": "",
+            "brow": "",
+            "cheek": "",
+            "effect": "",
+            "accessory": ""
+          },
+          "animation": {
+            "type": "once",
+            "on_advance": "block"
+          }
+        }
+      ],
       "source_index": 37
     },
     {
@@ -413,11 +463,13 @@
             "y": 0.5,
             "size": 1.0,
             "blink": true,
-            "fade": 0.5,
+            "fade": 0.15,
             "eye": "eye1",
             "mouth": "mouth1",
             "brow": "",
-            "cheek": ""
+            "cheek": "",
+            "effect": "",
+            "accessory": ""
           },
           "animation": {
             "type": "once",
@@ -541,17 +593,19 @@
           "action": "chara_show",
           "target": "桃子",
           "params": {
-            "torso": "桃子",
+            "torso": "MMK_T00_ARM07_CLO00",
             "name": "桃子",
             "x": 0.5,
             "y": 0.5,
             "size": 1.0,
             "blink": true,
-            "fade": 0.5,
-            "eye": "eye1",
-            "mouth": "mouth1",
-            "brow": "",
-            "cheek": ""
+            "fade": 0.15,
+            "eye": "MMK_F00_EYE04_00",
+            "mouth": "MMK_F00_MOU02_02",
+            "brow": "MMK_F00_BRO00_00",
+            "cheek": "MMK_F00_CHE00_00",
+            "effect": "",
+            "accessory": ""
           },
           "animation": {
             "type": "once",
@@ -834,7 +888,7 @@
           "action": "chara_hide",
           "target": "桃子",
           "params": {
-            "fade": 0.5
+            "fade": 0.15
           },
           "animation": {
             "type": "once",
@@ -997,11 +1051,13 @@
             "y": 0.5,
             "size": 1.0,
             "blink": true,
-            "fade": 0.5,
+            "fade": 0.15,
             "eye": "eye1",
             "mouth": "mouth1",
             "brow": "",
-            "cheek": ""
+            "cheek": "",
+            "effect": "",
+            "accessory": ""
           },
           "animation": {
             "type": "once",
@@ -1041,7 +1097,7 @@
           "action": "chara_hide",
           "target": "桃子",
           "params": {
-            "fade": 0.5
+            "fade": 0.15
           },
           "animation": {
             "type": "once",
