@@ -1697,7 +1697,60 @@ class StepEditorDialog(QDialog):
 class KSTextEditor(QTextEdit):
     """カスタムショートカットを持つKSファイルテキストエディタ"""
 
+    def _indent_selected_lines(self):
+        """選択範囲に含まれるすべての行をタブ1つ分インデントする。"""
+        cursor = self.textCursor()
+        if not cursor.hasSelection():
+            return False
+
+        selection_forward = cursor.anchor() <= cursor.position()
+        selection_start = cursor.selectionStart()
+        selection_end = cursor.selectionEnd()
+        first_block = self.document().findBlock(selection_start)
+        last_block = self.document().findBlock(selection_end)
+
+        # 選択終端が次行の行頭なら、その行自体は選択範囲に含めない。
+        if (
+            selection_end > selection_start
+            and selection_end == last_block.position()
+        ):
+            last_block = last_block.previous()
+
+        blocks = []
+        block = first_block
+        while block.isValid():
+            blocks.append(block)
+            if block == last_block:
+                break
+            block = block.next()
+
+        cursor.beginEditBlock()
+        for block in blocks:
+            line_cursor = QTextCursor(block)
+            line_cursor.insertText("\t")
+        cursor.endEditBlock()
+
+        # 挿入後も同じ文字範囲を選択状態に保ち、Tabを続けて押せるようにする。
+        new_start = selection_start + 1
+        new_end = selection_end + len(blocks)
+        if selection_forward:
+            cursor.setPosition(new_start)
+            cursor.setPosition(new_end, QTextCursor.KeepAnchor)
+        else:
+            cursor.setPosition(new_end)
+            cursor.setPosition(new_start, QTextCursor.KeepAnchor)
+        self.setTextCursor(cursor)
+        return True
+
     def keyPressEvent(self, event):
+        # 範囲選択中のTab: 選択されたすべての行をまとめてインデント
+        if (
+            event.key() == Qt.Key_Tab
+            and event.modifiers() == Qt.NoModifier
+            and self._indent_selected_lines()
+        ):
+            return
+
         # Ctrl+/
         if event.key() == Qt.Key_Slash and event.modifiers() == Qt.ControlModifier:
             cursor = self.textCursor()
