@@ -60,6 +60,8 @@ class GameApplication:
 
         # 現在実行中のイベント情報を保持
         self.current_event_id = None
+        # 通常イベントとは異なる、明示的な会話終了ルート（朝演出など）
+        self.dialogue_completion_result = None
 
         print("🎮 ビジュアルノベルゲーム起動中...")
 
@@ -399,6 +401,14 @@ class GameApplication:
         # dialogue終了
         elif result == "dialogue_ended":
             print("💬 KSファイル終了 - 遷移判定開始")
+            completion_result = self.dialogue_completion_result
+            self.dialogue_completion_result = None
+            if completion_result:
+                print(f"💬 指定された会話終了ルートへ遷移: {completion_result}")
+                self.current_event_id = None
+                self._handle_transition(completion_result)
+                return
+
             current_event = self.current_event_id
             self.mark_current_event_as_completed()
             if current_event and current_event != "E001":
@@ -419,6 +429,8 @@ class GameApplication:
                 self.switch_to_map()
 
         # dialogue開始
+        elif result == "launch_morning_departure":
+            self.switch_to_morning_dialogue()
         elif result.startswith("launch_event:"):
             event_file = result.split(":", 1)[1]
             self.switch_to_dialogue(event_file)
@@ -502,19 +514,56 @@ class GameApplication:
         get_save_manager().save_game("saveslot_auto")
         self.switch_to(self.home_module, "home")
     
-    def switch_to_dialogue(self, event_file=None):
+    def switch_to_morning_dialogue(self):
+        """朝演出中に事前構築した会話へ、ローディング表示なしで切り替える。"""
+        event_file = HomeModule.MORNING_DIALOGUE_FILE
+        home_module = (
+            self.current_subsystem
+            if isinstance(self.current_subsystem, HomeModule)
+            else self.home_module
+        )
+        dialogue = (
+            home_module.take_preloaded_morning_dialogue()
+            if home_module is not None
+            else None
+        )
+
+        if dialogue is None:
+            # 事前構築に失敗していても、この朝会話だけはローディング表示なしで読み込む。
+            self.switch_to_dialogue(
+                event_file,
+                completion_result="go_to_map",
+                display_loading=False,
+            )
+            return
+
+        self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
+        self.dialogue_completion_result = "go_to_map"
+        self.switch_to(dialogue, "dialogue")
+
+    def switch_to_dialogue(
+        self,
+        event_file=None,
+        completion_result=None,
+        display_loading=True,
+    ):
         """会話モードに切り替え（DialogueSubsystem 使用）"""
         print(f'💬 会話モードに切り替え: {event_file}')
+        self.dialogue_completion_result = completion_result
         if event_file:
             self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
         try:
-            show_loading('イベントを読み込み中...', self.window_surface)
+            if display_loading:
+                show_loading('イベントを読み込み中...', self.window_surface)
             dialogue = DialogueSubsystem(self.screen, self.virtual_screen, event_file)
-            hide_loading()
+            if display_loading:
+                hide_loading()
             self.switch_to(dialogue, 'dialogue')
         except Exception as e:
             print(f'❌ 会話モード初期化エラー: {e}')
-            hide_loading()
+            self.dialogue_completion_result = None
+            if display_loading:
+                hide_loading()
             self.switch_to_menu()
 
     def handle_menu_events(self, events):

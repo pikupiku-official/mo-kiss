@@ -334,9 +334,13 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         )
 
     if text.startswith("_FADEOUT_"):
+        # Keep fade parameters structured through normalization.  Parsing the
+        # legacy command string remains as a fallback for older normalized data.
+        fade_data = entry[12] if len(entry) > 12 and isinstance(entry[12], dict) else {}
         parts = text.split("_")
-        color = parts[2] if len(parts) > 2 else "black"
-        time = _to_float(parts[3], 1.0) if len(parts) > 3 else 1.0
+        color = fade_data.get("color", parts[2] if len(parts) > 2 else "black")
+        legacy_time = parts[3] if len(parts) > 3 else 1.0
+        time = _to_float(fade_data.get("time", legacy_time), 1.0)
         return make_action(
             action="fadeout",
             params={"color": color, "time": time},

@@ -19,8 +19,8 @@
 [resetlaypos]
 [bg_show storage="covenienceStore" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [chara_shift name="桃子" torso="MMK_T01_ARM10_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" accessory="MMK_A01_01" x="0.6" fade="0.3"]
-	//桃子//
-	「何買う何買う〜？」
+//桃子//
+「何買う何買う〜？」
 	//久保田//
 	「桃子はどうせ新発売のパインソフトだろ」
 //桃子//
@@ -47,6 +47,7 @@
 	「そりゃそうだよ〜、坂井泉水とか宇多田ヒカルとか！大好き！」
       	//久保田//
       	「最近でいうと僕はモー娘。かなあ。」
+
 	//桃子//
 	「そういえば明日香ちゃん抜けてから、アイドルっ気強いよね～。」
 

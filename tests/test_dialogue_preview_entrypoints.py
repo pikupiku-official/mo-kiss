@@ -28,3 +28,22 @@ def test_snapshot_rejects_invalid_transition_progress(tmp_path):
         assert "between 0.0 and 1.0" in str(exc)
     else:
         raise AssertionError("invalid transition progress was accepted")
+
+
+def test_snapshot_server_forces_utf8_stdio(monkeypatch):
+    class FakeStream:
+        def __init__(self):
+            self.calls = []
+
+        def reconfigure(self, **kwargs):
+            self.calls.append(kwargs)
+
+    streams = [FakeStream(), FakeStream(), FakeStream()]
+    monkeypatch.setattr(dialogue_snapshot_renderer.sys, "stdin", streams[0])
+    monkeypatch.setattr(dialogue_snapshot_renderer.sys, "stdout", streams[1])
+    monkeypatch.setattr(dialogue_snapshot_renderer.sys, "stderr", streams[2])
+
+    dialogue_snapshot_renderer.configure_utf8_stdio()
+
+    for stream in streams:
+        assert stream.calls == [{"encoding": "utf-8", "errors": "strict"}]

@@ -1697,7 +1697,60 @@ class StepEditorDialog(QDialog):
 class KSTextEditor(QTextEdit):
     """カスタムショートカットを持つKSファイルテキストエディタ"""
 
+    def _indent_selected_lines(self):
+        """選択範囲に含まれるすべての行をタブ1つ分インデントする。"""
+        cursor = self.textCursor()
+        if not cursor.hasSelection():
+            return False
+
+        selection_forward = cursor.anchor() <= cursor.position()
+        selection_start = cursor.selectionStart()
+        selection_end = cursor.selectionEnd()
+        first_block = self.document().findBlock(selection_start)
+        last_block = self.document().findBlock(selection_end)
+
+        # 選択終端が次行の行頭なら、その行自体は選択範囲に含めない。
+        if (
+            selection_end > selection_start
+            and selection_end == last_block.position()
+        ):
+            last_block = last_block.previous()
+
+        blocks = []
+        block = first_block
+        while block.isValid():
+            blocks.append(block)
+            if block == last_block:
+                break
+            block = block.next()
+
+        cursor.beginEditBlock()
+        for block in blocks:
+            line_cursor = QTextCursor(block)
+            line_cursor.insertText("\t")
+        cursor.endEditBlock()
+
+        # 挿入後も同じ文字範囲を選択状態に保ち、Tabを続けて押せるようにする。
+        new_start = selection_start + 1
+        new_end = selection_end + len(blocks)
+        if selection_forward:
+            cursor.setPosition(new_start)
+            cursor.setPosition(new_end, QTextCursor.KeepAnchor)
+        else:
+            cursor.setPosition(new_end)
+            cursor.setPosition(new_start, QTextCursor.KeepAnchor)
+        self.setTextCursor(cursor)
+        return True
+
     def keyPressEvent(self, event):
+        # 範囲選択中のTab: 選択されたすべての行をまとめてインデント
+        if (
+            event.key() == Qt.Key_Tab
+            and event.modifiers() == Qt.NoModifier
+            and self._indent_selected_lines()
+        ):
+            return
+
         # Ctrl+/
         if event.key() == Qt.Key_Slash and event.modifiers() == Qt.ControlModifier:
             cursor = self.textCursor()
@@ -2927,9 +2980,14 @@ class EventEditorGUI(QMainWindow):
             "event_id": self.current_event_id,
             "step_index": request["step_index"],
             "out_path": request["out_path"],
-            "output_size": [800, 450],
+            # ゲーム画面の仮想解像度は4:3。16:9へ直接リサイズすると
+            # スクリーンショット内の背景・立ち絵・UIが横に引き伸ばされる。
+            "output_size": [640, 480],
         }
-        process.write((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
+        # Keep the JSON-line protocol ASCII-safe. Windows child processes can
+        # otherwise decode a UTF-8 workspace path with the active ANSI code
+        # page before the snapshot worker gets a chance to use it.
+        process.write((json.dumps(payload, ensure_ascii=True) + "\n").encode("ascii"))
 
     def _read_step_preview_output(self):
         process = self._step_preview_process
@@ -2959,6 +3017,14 @@ class EventEditorGUI(QMainWindow):
             except json.JSONDecodeError:
                 continue
             if message.get("type") == "result":
+                logger.info(
+                    "step snapshot result: request=%s success=%s exists=%s out=%s message=%s",
+                    message.get("request_id"),
+                    message.get("success"),
+                    os.path.exists(message.get("out_path") or ""),
+                    message.get("out_path"),
+                    message.get("message") or "",
+                )
                 self._finish_step_preview_request(message)
 
     def _read_step_preview_error(self):
@@ -2986,7 +3052,19 @@ class EventEditorGUI(QMainWindow):
                 bool(result.get("success")),
                 result.get("message", ""),
             )
-        self._discard_step_preview_request(request)
+        # QPixmap normally loads synchronously, but deleting the worker output
+        # immediately here can leave the label without a usable backing file
+        # on some Qt/Windows combinations.  Keep the rendered PNG until the
+        # next preview request (or editor shutdown); only the edited temp KS
+        # file is safe to remove now.
+        if result.get("success"):
+            self._remove_preview_file(request.get("temp_path"))
+            request["temp_path"] = None
+        else:
+            logger.error(
+                "step snapshot failed; source kept for reproduction: %s",
+                request.get("source_path"),
+            )
         self._step_preview_active = None
         self._step_preview_busy = False
         self._dispatch_pending_step_preview()
@@ -3013,8 +3091,6 @@ class EventEditorGUI(QMainWindow):
 
     def _on_preview_ready(self, dialog, image_path, success, message):
         if not dialog or not hasattr(dialog, "preview_label"):
-            return
-        if not dialog.isVisible():
             return
         if not success:
             dialog.preview_label.setText(message)

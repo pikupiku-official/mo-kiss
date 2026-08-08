@@ -11,6 +11,7 @@ import os
 import argparse
 import json
 import copy
+import traceback
 
 # tools/ の親ディレクトリ（プロジェクトルート）を sys.path に追加
 # こうしないと `from core.config import *` 等が tools/ を基準に探してしまい失敗する
@@ -127,6 +128,7 @@ def preview_step_image(
     try:
         if runtime is None:
             runtime = create_step_preview_runtime()
+        runtime.pop("last_error", None)
         virtual_screen = runtime["virtual_screen"]
         bgm_manager = BGMManager(PREVIEW_DEBUG)
         se_manager = SEManager(PREVIEW_DEBUG)
@@ -367,7 +369,11 @@ def preview_step_image(
         return True
 
     except Exception as e:
-        print(f"プレビュー生成エラー: {e}")
+        error_detail = traceback.format_exc()
+        if runtime is not None:
+            runtime["last_error"] = error_detail
+        print(f"[SNAPSHOT_ERROR] {e}")
+        print(error_detail)
         return False
     finally:
         if owns_runtime:

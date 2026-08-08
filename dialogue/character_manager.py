@@ -6,6 +6,9 @@ from core.config import *
 # 画像スケーリングキャッシュ
 _SCALED_IMAGE_CACHE_LIMIT = 100
 _scaled_image_cache = OrderedDict()
+_opaque_bounds_cache = OrderedDict()
+_PREMULTIPLIED_CROP_CACHE_LIMIT = 12
+_premultiplied_crop_cache = OrderedDict()
 
 def get_scaled_image(image, zoom_scale):
     """画像をキャッシュ付きでスケーリング"""
@@ -42,6 +45,101 @@ def _blit_with_alpha(screen, image, pos, alpha):
     temp.set_alpha(alpha)
     screen.blit(temp, pos)
 
+def _blit_crossfade(screen, from_image, from_pos, to_image, to_pos, progress):
+    """Blend two alpha surfaces linearly without dimming the overlap."""
+    progress = max(0.0, min(float(progress), 1.0))
+    if from_image is None:
+        if to_image is not None:
+            _blit_with_alpha(screen, to_image, to_pos, round(255 * progress))
+        return
+    if to_image is None:
+        _blit_with_alpha(screen, from_image, from_pos, round(255 * (1.0 - progress)))
+        return
+    if progress <= 0.0:
+        screen.blit(from_image, from_pos)
+        return
+    if progress >= 1.0:
+        screen.blit(to_image, to_pos)
+        return
+
+    def get_opaque_bounds(image):
+        bounds = _opaque_bounds_cache.get(image)
+        if bounds is not None:
+            _opaque_bounds_cache.move_to_end(image)
+            return bounds
+        bounds = image.get_bounding_rect(min_alpha=1)
+        _opaque_bounds_cache[image] = bounds
+        while len(_opaque_bounds_cache) > _SCALED_IMAGE_CACHE_LIMIT:
+            _opaque_bounds_cache.popitem(last=False)
+        return bounds
+
+    def get_premultiplied_crop(image, bounds):
+        premultiplied = _premultiplied_crop_cache.get(image)
+        if premultiplied is not None:
+            _premultiplied_crop_cache.move_to_end(image)
+            return premultiplied
+        # premul_alpha() requires a contiguous surface here. Calling it
+        # directly on a pitched subsurface can produce horizontal corruption.
+        premultiplied = image.subsurface(bounds).copy().premul_alpha()
+        _premultiplied_crop_cache[image] = premultiplied
+        while len(_premultiplied_crop_cache) > _PREMULTIPLIED_CROP_CACHE_LIMIT:
+            _premultiplied_crop_cache.popitem(last=False)
+        return premultiplied
+
+    from_bounds = get_opaque_bounds(from_image)
+    to_bounds = get_opaque_bounds(to_image)
+    weighted_sources = []
+    if from_bounds.width > 0 and from_bounds.height > 0:
+        weighted_sources.append(
+            (from_image, from_bounds, from_bounds.move(from_pos), 1.0 - progress)
+        )
+    if to_bounds.width > 0 and to_bounds.height > 0:
+        weighted_sources.append(
+            (to_image, to_bounds, to_bounds.move(to_pos), progress)
+        )
+    if not weighted_sources:
+        return
+
+    blend_rect = weighted_sources[0][2].copy()
+    for _, _, destination_rect, _ in weighted_sources[1:]:
+        blend_rect.union_ip(destination_rect)
+    blend_rect = blend_rect.clip(screen.get_clip())
+    if blend_rect.width <= 0 or blend_rect.height <= 0:
+        return
+
+    # Normal source-over blending makes the background contribute up to 25%
+    # halfway through a crossfade. Build the weighted, premultiplied result on
+    # a transparent surface first so old/new weights remain (1-p)/p.
+    blended = pygame.Surface(blend_rect.size, pygame.SRCALPHA)
+
+    def add_weighted(image, source_bounds, destination_rect, weight):
+        visible_rect = destination_rect.clip(blend_rect)
+        if visible_rect.width <= 0 or visible_rect.height <= 0:
+            return
+        source_rect = pygame.Rect(
+            source_bounds.x + visible_rect.x - destination_rect.x,
+            source_bounds.y + visible_rect.y - destination_rect.y,
+            visible_rect.width,
+            visible_rect.height,
+        )
+        premultiplied = get_premultiplied_crop(image, source_bounds)
+        crop_rect = source_rect.move(-source_bounds.x, -source_bounds.y)
+        weighted = premultiplied.subsurface(crop_rect).copy()
+        channel_weight = round(255 * weight)
+        weighted.fill(
+            (channel_weight, channel_weight, channel_weight, channel_weight),
+            special_flags=pygame.BLEND_RGBA_MULT,
+        )
+        blended.blit(
+            weighted,
+            (visible_rect.x - blend_rect.x, visible_rect.y - blend_rect.y),
+            special_flags=pygame.BLEND_RGBA_ADD,
+        )
+
+    for weighted_source in weighted_sources:
+        add_weighted(*weighted_source)
+    screen.blit(blended, blend_rect.topleft, special_flags=pygame.BLEND_PREMULTIPLIED)
+
 def start_character_part_fade(game_state, character_name, part_type, from_id, to_id, duration_ms):
     if duration_ms <= 0:
         return
@@ -73,6 +171,8 @@ def start_character_hide_fade(game_state, character_name, duration_ms):
     start_character_part_fade(game_state, character_name, 'eye', expressions.get('eye'), None, duration_ms)
     start_character_part_fade(game_state, character_name, 'mouth', expressions.get('mouth'), None, duration_ms)
     start_character_part_fade(game_state, character_name, 'cheek', expressions.get('cheek'), None, duration_ms)
+    start_character_part_fade(game_state, character_name, 'effect', expressions.get('effect'), None, duration_ms)
+    start_character_part_fade(game_state, character_name, 'accessory', expressions.get('accessory'), None, duration_ms)
     hide_pending = game_state.setdefault('character_hide_pending', {})
     hide_pending[character_name] = pygame.time.get_ticks() + duration_ms
 
@@ -485,25 +585,31 @@ def draw_characters(game_state):
         x, y = game_state['character_pos'][char_name]
         zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
 
-        def draw_torso_image(torso_key, alpha=255):
+        def get_torso_image(torso_key):
             torso_img = image_manager.get_image("torso", torso_key)
             if not torso_img:
                 return None
             base_scale = VIRTUAL_HEIGHT / torso_img.get_height()
             final_zoom = zoom_scale * base_scale * SCALE
-            scaled_img = get_scaled_image(torso_img, final_zoom)
-            _blit_with_alpha(screen, scaled_img, (x, y), alpha)
-            return torso_img
+            return get_scaled_image(torso_img, final_zoom)
 
         torso_fade = fade_map.get('torso')
         if torso_fade:
             duration = max(torso_fade.get('duration', 0), 0)
             elapsed = max(0, current_time - torso_fade.get('start_time', 0))
             progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
-            draw_torso_image(torso_fade.get('from'), round(255 * (1.0 - progress)))
-            draw_torso_image(torso_fade.get('to'), round(255 * progress))
+            _blit_crossfade(
+                screen,
+                get_torso_image(torso_fade.get('from')),
+                (x, y),
+                get_torso_image(torso_fade.get('to')),
+                (x, y),
+                progress,
+            )
         else:
-            draw_torso_image(torso_id, 255)
+            torso_surface = get_torso_image(torso_id)
+            if torso_surface:
+                screen.blit(torso_surface, (x, y))
 
         char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()
 

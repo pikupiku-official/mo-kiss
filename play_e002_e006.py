@@ -1,8 +1,9 @@
-"""E002.ks and E006.ksを、タイトル画面を挟んで交互に再生する。
+"""タイトル画面で選択したE002.ksまたはE006.ksを再生する。
 
 遷移:
-    タイトル -> E002 -> タイトル -> E006 -> タイトル -> ...
-    タイトルで20秒間無操作 -> demo.mp4 -> タイトル
+    タイトルで2 -> E002 -> タイトル
+    タイトルで6 -> E006 -> タイトル
+    会話中に5秒間無操作 -> 腕時計を2秒表示 -> 5秒間無操作 -> ...
 
 この専用プレイヤーでは、セーブ、ゲーム内時間の進行、イベント完了記録を
 行わない。
@@ -19,17 +20,37 @@ import pygame
 
 from core import config
 from core.loading_screen import hide_loading, show_loading
+from core.option_overlay import MockOptionOverlay
 from core.subsystem_base import SubsystemBase
 from core.title_subsystem import TitleSubsystem
 from dialogue.dialogue_subsystem import DialogueSubsystem
-from main import GameApplication
+from main import GameApplication, MOCK_AWAIT_FRAMES
 
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 EVENT_FILES = ("events/E002.ks", "events/E006.ks")
 DEMO_VIDEO_FILE = os.path.join(PROJECT_ROOT, "movies", "demo.mp4")
 TITLE_IDLE_TIMEOUT_MS = 10_000
+IDLE_AWAIT_TIMEOUT_MS = 5_000
+IDLE_AWAIT_VISIBLE_MS = 2_000
 KS_AUDIO_VOLUME_SCALE = 0.5
+TITLE_PROMPT = "PRESS 2: E002 / 6: E006"
+USER_ACTIVITY_EVENT_TYPES = (
+    pygame.KEYDOWN,
+    pygame.MOUSEMOTION,
+    pygame.MOUSEBUTTONDOWN,
+    pygame.MOUSEBUTTONUP,
+)
+TITLE_EVENT_RESULTS = {
+    pygame.K_2: "play_e002",
+    pygame.K_KP2: "play_e002",
+    pygame.K_6: "play_e006",
+    pygame.K_KP6: "play_e006",
+}
+RESULT_EVENT_FILES = {
+    "play_e002": EVENT_FILES[0],
+    "play_e006": EVENT_FILES[1],
+}
 
 
 def _normalize_ks_volume(volume, default=0.5):
@@ -82,10 +103,12 @@ def _apply_ks_audio_volume(dialogue):
 
 
 class TimedTitleSubsystem(TitleSubsystem):
-    """20秒間入力がなければデモ動画への遷移を要求するタイトル画面。"""
+    """2/6でシナリオを選び、無操作時はデモ動画へ遷移するタイトル画面。"""
 
     def __init__(self, screen: pygame.Surface):
         super().__init__(screen)
+        self._title.title_text = TITLE_PROMPT
+        self._title.calculate_positions()
         self._idle_started_at = pygame.time.get_ticks()
 
     def on_enter(self):
@@ -99,11 +122,13 @@ class TimedTitleSubsystem(TitleSubsystem):
         if events is None:
             events = pygame.event.get()
 
-        # TitleSubsystemはKEYDOWNとMOUSEBUTTONDOWNだけを入力として扱う。
-        # MOUSEMOTIONは無視されるため、マウス移動ではタイマーを解除しない。
-        result = super().handle_events(events)
-        if result:
-            return result
+        for event in events:
+            if event.type == pygame.QUIT:
+                return "quit"
+            if event.type == pygame.KEYDOWN:
+                result = TITLE_EVENT_RESULTS.get(event.key)
+                if result:
+                    return result
 
         elapsed = pygame.time.get_ticks() - self._idle_started_at
         if elapsed >= TITLE_IDLE_TIMEOUT_MS:
@@ -298,11 +323,12 @@ class NoSaveDialogueSubsystem(DialogueSubsystem):
 
 
 class AlternatingScenarioApplication(GameApplication):
-    """タイトルを挟みながらE002とE006を交互に再生するアプリ。"""
+    """タイトルで指定されたE002またはE006を再生するアプリ。"""
 
     def __init__(self):
         super().__init__()
-        self._next_event_index = 0
+        self._last_activity_at_ms = pygame.time.get_ticks()
+        self._idle_await_overlay = None
 
     def initialize(self):
         """メニューやセーブ機構を起動せず、タイトル画面だけを初期化する。"""
@@ -325,6 +351,7 @@ class AlternatingScenarioApplication(GameApplication):
             self.current_subsystem = TimedTitleSubsystem(self.screen)
             self.current_mode = "title"
             self.current_subsystem.on_enter()
+            self._last_activity_at_ms = pygame.time.get_ticks()
 
             print("タイトル画面を表示しました")
             return True
@@ -364,6 +391,91 @@ class AlternatingScenarioApplication(GameApplication):
 
         self.switch_to(dialogue, "dialogue")
 
+    def switch_to(self, subsystem, mode_name: str):
+        """画面遷移時に放置判定をリセットする。"""
+        super().switch_to(subsystem, mode_name)
+        self._last_activity_at_ms = pygame.time.get_ticks()
+        self._idle_await_overlay = None
+
+    def _gather_normalized_events(self):
+        events = super()._gather_normalized_events()
+        self._update_idle_await(events)
+        return events
+
+    def _update_idle_await(self, events):
+        """無操作5秒で腕時計を表示し、2秒後または操作再開時に閉じる。"""
+        now = pygame.time.get_ticks()
+
+        if (
+            self._idle_await_overlay is not None
+            and self.current_overlay is not self._idle_await_overlay
+        ):
+            self._idle_await_overlay = None
+
+        activity_events = [
+            event for event in events if event.type in USER_ACTIVITY_EVENT_TYPES
+        ]
+        if activity_events:
+            self._last_activity_at_ms = now
+            if isinstance(self.current_subsystem, TimedTitleSubsystem):
+                self.current_subsystem.reset_idle_timer()
+
+            if (
+                self._idle_await_overlay is not None
+                and self.current_overlay is self._idle_await_overlay
+            ):
+                has_mock_shortcut = any(
+                    event.type == pygame.KEYDOWN
+                    and event.key in (pygame.K_F6, pygame.K_F7)
+                    for event in activity_events
+                )
+                if not has_mock_shortcut:
+                    self.current_overlay.start_close()
+                    events[:] = [
+                        event
+                        for event in events
+                        if event.type not in USER_ACTIVITY_EVENT_TYPES
+                    ]
+            return
+
+        if (
+            isinstance(self.current_overlay, MockOptionOverlay)
+            and self.current_overlay.is_same_sequence(MOCK_AWAIT_FRAMES)
+            and self.current_overlay.start_close_if_elapsed(IDLE_AWAIT_VISIBLE_MS)
+        ):
+            return
+
+        if (
+            self.current_overlay is None
+            and self.current_mode == "dialogue"
+            and now - self._last_activity_at_ms >= IDLE_AWAIT_TIMEOUT_MS
+        ):
+            self.show_mock_await()
+            self._idle_await_overlay = self.current_overlay
+
+    def _poll_mock_overlay_shortcuts(self, events) -> bool:
+        """main.pyと同じF6/F7モックUIの開閉処理を使用する。"""
+        return super()._poll_mock_overlay_shortcuts(events)
+
+    def _handle_overlay_result(self, result: str):
+        """腕時計が消えた時点から次の5秒を数える。"""
+        was_await = (
+            isinstance(self.current_overlay, MockOptionOverlay)
+            and self.current_overlay.is_same_sequence(MOCK_AWAIT_FRAMES)
+        )
+        was_idle_await = (
+            self._idle_await_overlay is not None
+            and self.current_overlay is self._idle_await_overlay
+        )
+        super()._handle_overlay_result(result)
+
+        if (was_await or was_idle_await) and result == "resume":
+            self._last_activity_at_ms = pygame.time.get_ticks()
+            if was_idle_await:
+                self._idle_await_overlay = None
+            if isinstance(self.current_subsystem, TimedTitleSubsystem):
+                self.current_subsystem.reset_idle_timer()
+
     def _handle_transition(self, result: str):
         """このプレイヤーで必要な遷移だけを処理する。"""
         if not result:
@@ -373,8 +485,8 @@ class AlternatingScenarioApplication(GameApplication):
             self.running = False
             return
 
-        if result == "go_to_menu" and self.current_mode == "title":
-            self.switch_to_dialogue(EVENT_FILES[self._next_event_index])
+        if result in RESULT_EVENT_FILES and self.current_mode == "title":
+            self.switch_to_dialogue(RESULT_EVENT_FILES[result])
             return
 
         if result == "play_demo" and self.current_mode == "title":
@@ -393,13 +505,9 @@ class AlternatingScenarioApplication(GameApplication):
             return
 
         if result == "dialogue_ended" and self.current_mode == "dialogue":
-            completed_event = EVENT_FILES[self._next_event_index]
-            self._next_event_index = (self._next_event_index + 1) % len(EVENT_FILES)
+            completed_event = self.current_event_id or "scenario"
             self.current_event_id = None
-            print(
-                f"{completed_event}が終了しました。"
-                f"次は{EVENT_FILES[self._next_event_index]}です"
-            )
+            print(f"{completed_event}が終了しました。タイトルへ戻ります")
             self.switch_to(TimedTitleSubsystem(self.screen), "title")
             return
 

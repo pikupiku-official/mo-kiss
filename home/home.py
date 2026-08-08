@@ -12,15 +12,24 @@ import os
 from core.time_manager import get_time_manager
 from core.save_manager import get_save_manager
 from core.loading_screen import show_loading, hide_loading
-from core.path_utils import get_font_path
+from core.path_utils import get_font_path, get_resource_path
 from core.subsystem_base import SubsystemBase
+from home.morning_sequence import MorningSequence
 
 class HomeModule(SubsystemBase):
+    MORNING_DIALOGUE_FILE = "events/HOME_MORNING_DEPARTURE.ks"
+
     def __init__(self, screen):
         super().__init__(screen)
         self.font = None
         self.large_font = None
         self._init_fonts()
+        self.background_images = self._load_background_images()
+        self.background_image = self.background_images.get("home00")
+        self.morning_sequence = None
+        self._morning_frame_presented = False
+        self._morning_dialogue_preload_attempted = False
+        self._preloaded_morning_dialogue = None
         
         # 選択肢データ
         self.choices = [
@@ -42,6 +51,30 @@ class HomeModule(SubsystemBase):
         self.save_mode = None  # 'save' または 'load' または None
         self.save_slots = []
         self.selected_slot = 0
+
+    def _load_background_images(self):
+        """家画面と朝演出の背景画像を4:3コンテンツサイズで読み込む。"""
+        from core.config import CONTENT_WIDTH, CONTENT_HEIGHT
+
+        backgrounds = {}
+        for index in range(4):
+            key = f"home{index:02d}"
+            background_path = get_resource_path("images", os.path.join("BG", f"{key}.jpg"))
+            if not os.path.exists(background_path):
+                # Windows以外でも、実際のアセット名の拡張子が大文字なら読み込めるようにする。
+                background_path = get_resource_path("images", os.path.join("BG", f"{key}.JPG"))
+
+            try:
+                background = pygame.image.load(background_path)
+                backgrounds[key] = pygame.transform.smoothscale(
+                    background,
+                    (CONTENT_WIDTH, CONTENT_HEIGHT),
+                )
+            except (OSError, pygame.error) as e:
+                print(f"[HOME] 背景画像の読み込みに失敗しました: {background_path}: {e}")
+                backgrounds[key] = None
+
+        return backgrounds
     
     def _init_fonts(self):
         """フォント初期化（日本語対応）"""
@@ -143,6 +176,16 @@ class HomeModule(SubsystemBase):
         """イベント処理。events=None時はpygame.event.get()を内部呼び出し。"""
         if events is None:
             events = pygame.event.get()
+
+        if self.morning_sequence:
+            for event in events:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return "show_option"
+            result = self.morning_sequence.handle_events(events)
+            if result:
+                self.morning_sequence = None
+            return result
+
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 return "show_option"
@@ -165,8 +208,12 @@ class HomeModule(SubsystemBase):
                             # 時間管理：次の日の朝に設定
                             time_manager = get_time_manager()
                             time_manager.set_to_morning()
-                            print("[HOME] 睡眠完了 - mapモジュールへ遷移")
-                            return "go_to_map"
+                            self.morning_sequence = MorningSequence(time_manager.get_date_string())
+                            self._morning_frame_presented = False
+                            self._morning_dialogue_preload_attempted = False
+                            self._preloaded_morning_dialogue = None
+                            print("[HOME] 睡眠完了 - 朝演出を開始")
+                            return None
                             
                         elif selected_action == "save":
                             self.save_mode = "save"
@@ -204,7 +251,35 @@ class HomeModule(SubsystemBase):
     
     def update(self):
         """更新処理"""
-        pass
+        if self.morning_sequence:
+            self.morning_sequence.update()
+            if (
+                self._morning_frame_presented
+                and not self._morning_dialogue_preload_attempted
+            ):
+                self._preload_morning_dialogue()
+
+    def _preload_morning_dialogue(self):
+        """ニュース表示中に朝の一言会話を構築する（ローディング画面なし）。"""
+        self._morning_dialogue_preload_attempted = True
+        try:
+            from dialogue.dialogue_subsystem import DialogueSubsystem
+
+            self._preloaded_morning_dialogue = DialogueSubsystem(
+                self.screen,
+                self.screen,
+                self.MORNING_DIALOGUE_FILE,
+            )
+            print("[HOME] 朝の一言会話を事前読み込みしました")
+        except Exception as e:
+            self._preloaded_morning_dialogue = None
+            print(f"[HOME] 朝の一言会話の事前読み込みに失敗しました: {e}")
+
+    def take_preloaded_morning_dialogue(self):
+        """事前構築した朝の会話をmainへ一度だけ引き渡す。"""
+        dialogue = self._preloaded_morning_dialogue
+        self._preloaded_morning_dialogue = None
+        return dialogue
     
     def _load_save_slots(self):
         """セーブスロット情報を読み込む"""
@@ -275,15 +350,33 @@ class HomeModule(SubsystemBase):
         # 全画面を黒で塗りつぶし（ピラーボックス用）
         self.screen.fill((0, 0, 0))
 
-        # 4:3コンテンツ領域に背景色を塗る
+        # 4:3コンテンツ領域に背景を描画する
         from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
         content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
-        self.screen.fill(self.bg_color, content_rect)
+        background_image = self.background_image
+        if self.morning_sequence:
+            background_image = self.background_images.get(
+                self.morning_sequence.background_key,
+                self.background_image,
+            )
+
+        if background_image:
+            self.screen.blit(background_image, content_rect.topleft)
+        else:
+            self.screen.fill(self.bg_color, content_rect)
 
         # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
         self.screen.set_clip(content_rect)
 
-        if self.save_mode is None:
+        if self.morning_sequence:
+            self.morning_sequence.render_overlay(
+                self.screen,
+                content_rect,
+                self.font,
+                self.large_font,
+            )
+            self._morning_frame_presented = True
+        elif self.save_mode is None:
             # メインメニュー描画
             self._render_main_menu()
         else:
