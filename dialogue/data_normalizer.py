@@ -244,10 +244,13 @@ def normalize_dialogue_data(raw_data):
                 
         elif entry_type == 'fadeout':
             # フェードアウトコマンドを追加
-            fadeout_command = f"_FADEOUT_{entry['color']}_{entry['time']}"
+            fade_color = entry.get('color', 'black')
+            fade_time = entry.get('time', 1.0)
+            fadeout_command = f"_FADEOUT_{fade_color}_{fade_time}"
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
-                fadeout_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                fadeout_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False,
+                {'color': fade_color, 'time': fade_time}
             ])
         
         elif entry_type == 'if_start':
