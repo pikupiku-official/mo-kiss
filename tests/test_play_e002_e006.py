@@ -166,7 +166,7 @@ def test_f7_still_controls_automatically_shown_watch(monkeypatch):
 
 
 def test_manual_f7_watch_closes_two_seconds_after_opening(monkeypatch):
-    from core.option_overlay import MockOptionOverlay
+    from core.ui.option_overlay import MockOptionOverlay
 
     now = [1_000]
     monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])
@@ -200,7 +200,7 @@ def test_manual_f7_watch_closes_two_seconds_after_opening(monkeypatch):
 
 
 def test_idle_await_repeats_five_seconds_after_it_closes(monkeypatch):
-    from core.option_overlay import MockOptionOverlay
+    from core.ui.option_overlay import MockOptionOverlay
 
     now = [6_000]
     monkeypatch.setattr(pygame.time, "get_ticks", lambda: now[0])

@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core.time_manager import format_game_datetime
+from core.services.time_manager import format_game_datetime
 from dialogue.event_datetime import (
     EventDateTime,
     apply_event_datetime,

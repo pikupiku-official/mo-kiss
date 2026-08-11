@@ -9,15 +9,15 @@
 import pygame
 import sys
 import os
-from core.time_manager import get_time_manager
-from core.save_manager import get_save_manager
-from core.loading_screen import show_loading, hide_loading
+from core.services.time_manager import get_time_manager
+from core.services.save_manager import get_save_manager
+from core.ui.loading_screen import show_loading, hide_loading
 from core.path_utils import get_font_path, get_resource_path
-from core.subsystem_base import SubsystemBase
-from home.morning_sequence import MorningSequence
+from core.runtime.subsystem_base import SubsystemBase
+from home.morning_flow import MorningFlow
 
 class HomeModule(SubsystemBase):
-    MORNING_DIALOGUE_FILE = "events/HOME_MORNING_DEPARTURE.ks"
+    MORNING_DIALOGUE_FILE = MorningFlow.DIALOGUE_FILE
 
     def __init__(self, screen):
         super().__init__(screen)
@@ -26,10 +26,7 @@ class HomeModule(SubsystemBase):
         self._init_fonts()
         self.background_images = self._load_background_images()
         self.background_image = self.background_images.get("home00")
-        self.morning_sequence = None
-        self._morning_frame_presented = False
-        self._morning_dialogue_preload_attempted = False
-        self._preloaded_morning_dialogue = None
+        self.morning_flow = MorningFlow(screen)
         
         # 選択肢データ
         self.choices = [
@@ -51,6 +48,46 @@ class HomeModule(SubsystemBase):
         self.save_mode = None  # 'save' または 'load' または None
         self.save_slots = []
         self.selected_slot = 0
+
+    def _ensure_morning_flow(self):
+        flow = self.__dict__.get("morning_flow")
+        if flow is None:
+            flow = MorningFlow(getattr(self, "screen", None))
+            self.__dict__["morning_flow"] = flow
+        return flow
+
+    # Compatibility accessors for editor/tests while MorningFlow owns the state.
+    @property
+    def morning_sequence(self):
+        return self._ensure_morning_flow().sequence
+
+    @morning_sequence.setter
+    def morning_sequence(self, value):
+        self._ensure_morning_flow().sequence = value
+
+    @property
+    def _morning_frame_presented(self):
+        return self._ensure_morning_flow().frame_presented
+
+    @_morning_frame_presented.setter
+    def _morning_frame_presented(self, value):
+        self._ensure_morning_flow().frame_presented = value
+
+    @property
+    def _morning_dialogue_preload_attempted(self):
+        return self._ensure_morning_flow().preload_attempted
+
+    @_morning_dialogue_preload_attempted.setter
+    def _morning_dialogue_preload_attempted(self, value):
+        self._ensure_morning_flow().preload_attempted = value
+
+    @property
+    def _preloaded_morning_dialogue(self):
+        return self._ensure_morning_flow().preloaded_dialogue
+
+    @_preloaded_morning_dialogue.setter
+    def _preloaded_morning_dialogue(self, value):
+        self._ensure_morning_flow().preloaded_dialogue = value
 
     def _load_background_images(self):
         """家画面と朝演出の背景画像を4:3コンテンツサイズで読み込む。"""
@@ -177,14 +214,11 @@ class HomeModule(SubsystemBase):
         if events is None:
             events = pygame.event.get()
 
-        if self.morning_sequence:
+        if self._ensure_morning_flow().active:
             for event in events:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     return "show_option"
-            result = self.morning_sequence.handle_events(events)
-            if result:
-                self.morning_sequence = None
-            return result
+            return self.morning_flow.handle_events(events)
 
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -208,10 +242,9 @@ class HomeModule(SubsystemBase):
                             # 時間管理：次の日の朝に設定
                             time_manager = get_time_manager()
                             time_manager.set_to_morning()
-                            self.morning_sequence = MorningSequence(time_manager.get_date_string())
-                            self._morning_frame_presented = False
-                            self._morning_dialogue_preload_attempted = False
-                            self._preloaded_morning_dialogue = None
+                            self._ensure_morning_flow().start(
+                                time_manager.get_date_string()
+                            )
                             print("[HOME] 睡眠完了 - 朝演出を開始")
                             return None
                             
@@ -251,35 +284,16 @@ class HomeModule(SubsystemBase):
     
     def update(self):
         """更新処理"""
-        if self.morning_sequence:
-            self.morning_sequence.update()
-            if (
-                self._morning_frame_presented
-                and not self._morning_dialogue_preload_attempted
-            ):
-                self._preload_morning_dialogue()
+        self._ensure_morning_flow().update()
 
     def _preload_morning_dialogue(self):
-        """ニュース表示中に朝の一言会話を構築する（ローディング画面なし）。"""
-        self._morning_dialogue_preload_attempted = True
-        try:
-            from dialogue.dialogue_subsystem import DialogueSubsystem
-
-            self._preloaded_morning_dialogue = DialogueSubsystem(
-                self.screen,
-                self.screen,
-                self.MORNING_DIALOGUE_FILE,
-            )
-            print("[HOME] 朝の一言会話を事前読み込みしました")
-        except Exception as e:
-            self._preloaded_morning_dialogue = None
-            print(f"[HOME] 朝の一言会話の事前読み込みに失敗しました: {e}")
+        """Compatibility delegate; MorningFlow owns preload state."""
+        self._ensure_morning_flow().preload_dialogue()
 
     def take_preloaded_morning_dialogue(self):
-        """事前構築した朝の会話をmainへ一度だけ引き渡す。"""
-        dialogue = self._preloaded_morning_dialogue
-        self._preloaded_morning_dialogue = None
-        return dialogue
+        """Compatibility delegate for callers not yet using StartDialogue."""
+        request = self._ensure_morning_flow().take_dialogue_request()
+        return request.preloaded_subsystem
     
     def _load_save_slots(self):
         """セーブスロット情報を読み込む"""
@@ -354,9 +368,9 @@ class HomeModule(SubsystemBase):
         from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
         content_rect = pygame.Rect(OFFSET_X, OFFSET_Y, CONTENT_WIDTH, CONTENT_HEIGHT)
         background_image = self.background_image
-        if self.morning_sequence:
+        if self._ensure_morning_flow().active:
             background_image = self.background_images.get(
-                self.morning_sequence.background_key,
+                self.morning_flow.background_key,
                 self.background_image,
             )
 
@@ -368,14 +382,13 @@ class HomeModule(SubsystemBase):
         # ★ピラーボックスを「奈落」にする：4:3コンテンツ領域にクリッピング設定★
         self.screen.set_clip(content_rect)
 
-        if self.morning_sequence:
-            self.morning_sequence.render_overlay(
+        if self.morning_flow.active:
+            self.morning_flow.render_overlay(
                 self.screen,
                 content_rect,
                 self.font,
                 self.large_font,
             )
-            self._morning_frame_presented = True
         elif self.save_mode is None:
             # メインメニュー描画
             self._render_main_menu()

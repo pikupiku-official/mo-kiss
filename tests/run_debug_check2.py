@@ -16,8 +16,8 @@ try:
     write_log("1. Importing core modules")
     import core.config
     write_log("core.config OK")
-    import core.bgm_manager
-    write_log("core.bgm_manager OK")
+    import core.services.bgm_manager
+    write_log("core.services.bgm_manager OK")
 
     write_log("2. Importing dialogue modules step by step")
     import dialogue.ir_model
@@ -44,7 +44,7 @@ try:
     write_log(f"IR steps: {len(ir_data.get('steps', []))} steps")
 
     write_log("4. Testing BGMManager play_bgm directly")
-    bgm_mgr = core.bgm_manager.BGMManager(debug=True)
+    bgm_mgr = core.services.bgm_manager.BGMManager(debug=True)
     res = bgm_mgr.play_bgm("school_daily", 0.5, True)
     write_log(f"Play bgm result: {res}, current_bgm: {bgm_mgr.current_bgm}")
 

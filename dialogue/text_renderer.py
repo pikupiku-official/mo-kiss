@@ -481,10 +481,10 @@ class TextRenderer:
             return
         
         try:
-            from core.time_manager import get_time_manager
+            from core.services.time_manager import get_time_manager
             time_manager = get_time_manager()
             if self.event_datetime is not None:
-                from core.time_manager import format_game_datetime
+                from core.services.time_manager import format_game_datetime
                 display_time = self.event_datetime
                 date_text = format_game_datetime(
                     display_time.year,

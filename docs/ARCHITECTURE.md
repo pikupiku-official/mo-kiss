@@ -110,8 +110,8 @@ fonts/       # M+ 系
 
 | モジュール | 責務 |
 |-----------|------|
-| `save_manager.py` | セーブ/ロード |
-| `time_manager.py` | 時間管理 |
+| `core/services/save_manager.py` | セーブ/ロード |
+| `core/services/time_manager.py` | 時間管理 |
 | `story_flags.json` | フラグ管理 |
 
 ---

@@ -2,7 +2,7 @@ import io
 from collections import OrderedDict
 from contextlib import redirect_stdout
 
-from core.image_manager import ImageManager
+from core.services.image_manager import ImageManager
 
 
 def test_get_image_debug_logs_request_cache_hit_and_load(monkeypatch):

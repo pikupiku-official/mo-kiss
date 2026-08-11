@@ -1,8 +1,8 @@
 ﻿import pygame
-from core.bgm_manager import BGMManager
-from core.se_manager import SEManager
+from core.services.bgm_manager import BGMManager
+from core.services.se_manager import SEManager
 from .dialogue_loader import DialogueLoader
-from core.image_manager import ImageManager
+from core.services.image_manager import ImageManager
 from .text_renderer import TextRenderer
 from .backlog_manager import BacklogManager
 from .choice_renderer import ChoiceRenderer

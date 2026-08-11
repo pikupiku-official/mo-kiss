@@ -18,7 +18,7 @@ SubsystemBase を継承し、既存の dialogue システム（game_state 辞書
 import os
 import pygame
 
-from core.subsystem_base import SubsystemBase
+from core.runtime.subsystem_base import SubsystemBase
 from dialogue.model import initialize_game as _init_game
 from dialogue.model import advance_dialogue
 

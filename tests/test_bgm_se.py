@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath("."))
 from dialogue.data_normalizer import normalize_dialogue_data
 from dialogue.dialogue_loader import DialogueLoader
 from dialogue.ir_builder import build_ir_from_normalized
-from core.bgm_manager import BGMManager
+from core.services.bgm_manager import BGMManager
 
 class TestBgmSe(unittest.TestCase):
     def _loader(self):

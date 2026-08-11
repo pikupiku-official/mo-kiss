@@ -16,10 +16,10 @@ sys.path.insert(0, project_root)
 from core.path_utils import get_project_root as _get_project_root
 
 # TimeManagerとBGMManagerをインポート
-from core.time_manager import get_time_manager
-from core.loading_screen import show_loading, hide_loading
-from core.bgm_manager import BGMManager
-from core.subsystem_base import SubsystemBase
+from core.services.time_manager import get_time_manager
+from core.ui.loading_screen import show_loading, hide_loading
+from core.services.bgm_manager import BGMManager
+from core.runtime.subsystem_base import SubsystemBase
 
 # 初期化
 pygame.init()

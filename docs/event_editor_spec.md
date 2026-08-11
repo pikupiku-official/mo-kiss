@@ -247,9 +247,9 @@ smoothscale → window.blit            # スケーリング表示
 | `dialogue/backlog_manager.py` | バックログ | 🔶 オプション |
 | `dialogue/notification_manager.py` | 通知 | 🔶 オプション |
 | `dialogue/model.py` | `advance_dialogue()` | ✅ 段落ジャンプ時 |
-| `core/image_manager.py` | 画像スキャン・UI描画 | ✅ 必須 |
-| `core/bgm_manager.py` | BGM再生 | 🔶 スキップ可（無音） |
-| `core/se_manager.py` | SE再生 | 🔶 スキップ可（無音） |
+| `core/services/image_manager.py` | 画像スキャン・UI描画 | ✅ 必須 |
+| `core/services/bgm_manager.py` | BGM再生 | 🔶 スキップ可（無音） |
+| `core/services/se_manager.py` | SE再生 | 🔶 スキップ可（無音） |
 
 ### IRデータ構造（概要）
 

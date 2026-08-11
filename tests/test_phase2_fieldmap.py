@@ -83,7 +83,7 @@ class TestFieldMapInheritance:
     def test_inherits_subsystembase(self):
         """FieldMap は SubsystemBase のサブクラスである"""
         from map.map import FieldMap
-        from core.subsystem_base import SubsystemBase
+        from core.runtime.subsystem_base import SubsystemBase
         assert issubclass(FieldMap, SubsystemBase), \
             "FieldMap が SubsystemBase を継承していない"
 
@@ -169,7 +169,7 @@ class TestFieldMapLifecycleIntegration:
     def test_switch_from_fieldmap_calls_cleanup(self, pygame_screen):
         """FieldMap から別サブシステムに切り替えると cleanup() が呼ばれる"""
         from map.map import FieldMap
-        from core.subsystem_base import SubsystemBase
+        from core.runtime.subsystem_base import SubsystemBase
 
         class _DummySub(SubsystemBase):
             def handle_events(self, events): return None
@@ -245,7 +245,12 @@ class TestFieldMapRegression:
 
     def test_subsystem_base_comment_updated(self):
         """subsystem_base.py のコメントが FieldMap を参照している"""
-        base_path = os.path.join(PROJECT_ROOT, 'subsystem_base.py')
+        base_path = os.path.join(
+            PROJECT_ROOT,
+            'core',
+            'runtime',
+            'subsystem_base.py',
+        )
         content = open(base_path, encoding='utf-8').read()
         assert 'AdvancedKimikissMap' not in content, \
             "subsystem_base.py のコメントが更新されていない"

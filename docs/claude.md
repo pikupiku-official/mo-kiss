@@ -24,19 +24,13 @@ mo-kiss/
 │   ├── claude.md          # プロジェクトガイド（このファイル）
 │   ├── ドキドキスクリプトVer2仕様書.md
 │   └── ...
-├── core/                  # コアシステム
-│   ├── config.py          # 設定ファイル（旧ルートの config.py）
-│   ├── bgm_manager.py     # BGM管理
-│   ├── se_manager.py      # SE管理
-│   ├── image_manager.py   # 画像管理
-│   ├── save_manager.py    # セーブ管理
-│   ├── time_manager.py    # 時間管理
-│   ├── loading_screen.py  # ローディング画面
-│   ├── option_overlay.py  # オプションオーバーレイ
-│   ├── title_screen.py    # タイトル画面
-│   ├── title_subsystem.py # タイトルサブシステム
-│   ├── subsystem_base.py  # サブシステム基底クラス
-│   ├── path_utils.py      # パスユーティリティ
+├── core/
+│   ├── flow/              # game flow, scene lifecycle, event completion
+│   ├── ui/                # OPTION, title, loading presentation
+│   ├── runtime/           # subsystem contract and Pygame window
+│   ├── services/          # save, time, image, BGM, SE
+│   ├── config.py          # shared configuration
+│   ├── path_utils.py      # shared path utilities
 │   └── __init__.py
 ├── data/                  # データファイル
 │   ├── character_gender.json  # キャラクター性別データ
@@ -166,7 +160,7 @@ font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
 
 ### 時間管理システム
 
-`time_manager.py` で管理:
+`core/services/time_manager.py` で管理:
 - 朝・昼・夕方・夜の4つの時間帯
 - イベントは時間帯によって発生条件が変わる
 
@@ -178,7 +172,7 @@ font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
 
 ### セーブシステム
 
-`save_manager.py` で管理:
+`core/services/save_manager.py` で管理:
 - 10個のセーブスロット
 - JSON形式で保存
 - 保存場所: `data/save/` ディレクトリ

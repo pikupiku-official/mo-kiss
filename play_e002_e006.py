@@ -19,10 +19,10 @@ import sys
 import pygame
 
 from core import config
-from core.loading_screen import hide_loading, show_loading
-from core.option_overlay import MockOptionOverlay
-from core.subsystem_base import SubsystemBase
-from core.title_subsystem import TitleSubsystem
+from core.ui.loading_screen import hide_loading, show_loading
+from core.ui.option_overlay import MockOptionOverlay
+from core.runtime.subsystem_base import SubsystemBase
+from core.ui.title_subsystem import TitleSubsystem
 from dialogue.dialogue_subsystem import DialogueSubsystem
 from main import GameApplication, MOCK_AWAIT_FRAMES
 

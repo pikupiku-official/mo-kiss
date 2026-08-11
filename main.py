@@ -1,11 +1,8 @@
 ﻿"""
 メインアプリケーション - ビジュアルノベルゲーム
 
-このファイルはアプリケーション全体の制御を行います：
-- メインメニュー
-- マップシステム  
-- 会話パート
-の3つのモードを統括します。
+このファイルは起動、依存関係の配線、メインループだけを担当します。
+画面ライフサイクル、ゲーム進行、OPTION、ウィンドウ処理は専用クラスへ委譲します。
 """
 
 import warnings
@@ -26,37 +23,48 @@ from core.config import *
 from menu.main_menu import MainMenu
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
-from core.title_subsystem import TitleSubsystem
-from core.option_overlay import MockOptionOverlay, OptionOverlay
-from core.time_manager import get_time_manager
+from core.ui.title_subsystem import TitleSubsystem
+from core.flow.event_progress import EventProgress
+from core.flow.game_flow import (
+    GameFlowController,
+    Navigate,
+    Scene,
+    StartDialogue,
+)
+from core.ui.option_subsystem import (
+    MOCK_AWAIT_FRAMES,
+    OptionSubsystem,
+)
 from home.home import HomeModule
-from core.save_manager import get_save_manager
-from core.loading_screen import show_loading, hide_loading
+from core.services.save_manager import get_save_manager
+from core.ui.loading_screen import show_loading, hide_loading
+from core.flow.scene_manager import SceneManager
+from core.runtime.window_controller import WindowController
 import pygame
 
-
-MOCK_OPTION_FRAMES = ("UI_option01.png", "UI_option02.png", "UI_option03.png")
-MOCK_AWAIT_FRAMES = ("UI_await01.png", "UI_await02.png", "UI_await03.png")
 
 class GameApplication:
     def __init__(self):
         """ゲームアプリケーションの初期化"""
-        self.current_mode = "menu"  # "menu", "map", "dialogue"
+        self.scene_manager = SceneManager(initial_mode="menu")
         self.screen = None  # 仮想画面
         self.window_surface = None  # 実ウィンドウ
         self.virtual_screen = None  # 仮想画面（1440x1080）
         self.clock = None
         self.running = True
-        self.is_fullscreen = False
-        self.windowed_size = None
+        self.window_controller = None
 
         # 各モードのインスタンス
         self.main_menu = None
         self.map_system = None
-        self.dialogue_game_state = None  # 下位互换性のため残存
         self.home_module = None
-        self.current_subsystem = None   # 現在アクティブな SubsystemBase 実装
-        self.current_overlay = None    # OPTIONオーバーレイ（None=非表示）
+        self.option_subsystem = None
+
+        self.event_progress = EventProgress()
+        self.game_flow = GameFlowController(
+            self,
+            event_progress=self.event_progress,
+        )
 
         # 現在実行中のイベント情報を保持
         self.current_event_id = None
@@ -65,39 +73,61 @@ class GameApplication:
 
         print("🎮 ビジュアルノベルゲーム起動中...")
 
-    def _normalize_event(self, event):
-        """実ウィンドウのマウス座標を仮想画面座標へ変換する。"""
-        from core import config as config_module
+    @property
+    def current_mode(self):
+        return self.scene_manager.current_mode
 
-        if event.type not in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
-            return event
+    @current_mode.setter
+    def current_mode(self, mode_name):
+        if not hasattr(self, "scene_manager"):
+            self.scene_manager = SceneManager(initial_mode=mode_name)
+        else:
+            self.scene_manager.current_mode = mode_name
 
-        attrs = event.dict.copy()
-        if "pos" in attrs:
-            attrs["pos"] = config_module.window_to_virtual_pos(attrs["pos"])
-        if event.type == pygame.MOUSEMOTION and "rel" in attrs:
-            rel_x, rel_y = attrs["rel"]
-            scale_x = config_module.WINDOW_CONTENT_WIDTH / config_module.VIRTUAL_WIDTH if config_module.WINDOW_CONTENT_WIDTH else 1
-            scale_y = config_module.WINDOW_CONTENT_HEIGHT / config_module.VIRTUAL_HEIGHT if config_module.WINDOW_CONTENT_HEIGHT else 1
-            attrs["rel"] = (
-                int(rel_x / scale_x) if scale_x else 0,
-                int(rel_y / scale_y) if scale_y else 0,
+    @property
+    def current_subsystem(self):
+        return self.scene_manager.current_subsystem
+
+    @current_subsystem.setter
+    def current_subsystem(self, subsystem):
+        if not hasattr(self, "scene_manager"):
+            self.scene_manager = SceneManager()
+        self.scene_manager.current_subsystem = subsystem
+
+    @property
+    def current_overlay(self):
+        """Compatibility view of the frontend owned by OptionSubsystem."""
+        option_subsystem = getattr(self, "option_subsystem", None)
+        return option_subsystem.overlay if option_subsystem else None
+
+    @current_overlay.setter
+    def current_overlay(self, overlay):
+        if overlay is None:
+            self.option_subsystem = None
+        else:
+            self.option_subsystem = OptionSubsystem(
+                getattr(self, "screen", None),
+                overlay,
             )
-        return pygame.event.Event(event.type, attrs)
+
+    def _get_game_flow(self):
+        flow = getattr(self, "game_flow", None)
+        if flow is None:
+            event_progress = getattr(self, "event_progress", None) or EventProgress()
+            self.event_progress = event_progress
+            flow = GameFlowController(self, event_progress=event_progress)
+            self.game_flow = flow
+        return flow
 
     def _gather_normalized_events(self):
-        """イベントを一括取得し、必要な座標変換を行う。"""
-        events = []
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
-                # キーリピート中は何度も表示モードを反転させない。
-                if not getattr(event, "repeat", False):
-                    self._toggle_fullscreen()
-                continue
-            if event.type == pygame.VIDEORESIZE:
-                self._handle_resize_event(event)
-                continue
-            events.append(self._normalize_event(event))
+        """WindowControllerへの互換委譲（派生アプリが拡張している）。"""
+        if getattr(self, "window_controller", None) is None:
+            self.window_controller = WindowController(
+                self.window_surface,
+                self.virtual_screen,
+            )
+        events = self.window_controller.gather_normalized_events()
+        self.window_surface = self.window_controller.window_surface
         return events
 
     def _queue_events_for_dialogue(self, events):
@@ -108,66 +138,14 @@ class GameApplication:
                 pass
 
     def _present_virtual_screen(self):
-        """仮想画面を実ウィンドウへレターボックス付きで転送する。"""
-        from core import config as config_module
-
-        self.window_surface.fill((0, 0, 0))
-        scaled = pygame.transform.smoothscale(
-            self.virtual_screen,
-            (config_module.WINDOW_CONTENT_WIDTH, config_module.WINDOW_CONTENT_HEIGHT),
-        )
-        self.window_surface.blit(
-            scaled,
-            (config_module.WINDOW_OFFSET_X, config_module.WINDOW_OFFSET_Y),
-        )
-
-    def _handle_resize_event(self, event):
-        """ウィンドウリサイズを処理する。"""
-        from core import config as config_module
-
-        if self.is_fullscreen:
-            # set_mode(FULLSCREEN) に伴うリサイズ通知でウィンドウ化しない。
-            width, height = self.window_surface.get_size()
-            config_module._recalculate_screen_metrics(width, height)
-            return
-
-        config_module._recalculate_screen_metrics(event.w, event.h)
-        self.window_surface = pygame.display.set_mode(
-            (config_module.WINDOW_SURFACE_WIDTH, config_module.WINDOW_SURFACE_HEIGHT),
-            pygame.RESIZABLE,
-        )
-        self.windowed_size = self.window_surface.get_size()
-        print(
-            f"[WINDOW] resized -> {config_module.WINDOW_SURFACE_WIDTH}x{config_module.WINDOW_SURFACE_HEIGHT} "
-            f"(content {config_module.WINDOW_CONTENT_WIDTH}x{config_module.WINDOW_CONTENT_HEIGHT})"
-        )
-
-    def _toggle_fullscreen(self):
-        """F11でフルスクリーンとウィンドウ表示を切り替える。"""
-        from core import config as config_module
-
-        if self.is_fullscreen:
-            width, height = self.windowed_size or (
-                config_module.WINDOW_WIDTH,
-                config_module.WINDOW_HEIGHT,
+        """WindowControllerへの互換委譲。"""
+        if getattr(self, "window_controller", None) is None:
+            self.window_controller = WindowController(
+                self.window_surface,
+                self.virtual_screen,
             )
-            self.window_surface = pygame.display.set_mode(
-                (width, height),
-                pygame.RESIZABLE,
-            )
-            self.is_fullscreen = False
-        else:
-            self.windowed_size = self.window_surface.get_size()
-            self.window_surface = pygame.display.set_mode(
-                (0, 0),
-                pygame.FULLSCREEN,
-            )
-            self.is_fullscreen = True
-
-        width, height = self.window_surface.get_size()
-        config_module._recalculate_screen_metrics(width, height)
-        mode = "fullscreen" if self.is_fullscreen else "windowed"
-        print(f"[WINDOW] {mode} -> {width}x{height}")
+        self.window_controller.present_virtual_screen()
+        self.window_surface = self.window_controller.window_surface
 
     def initialize(self):
         """アプリケーションの初期化"""
@@ -178,15 +156,13 @@ class GameApplication:
 
             # 実ウィンドウを作成
             self.window_surface = init_game()  # config.pyのinit_game()を使用
-            self.is_fullscreen = bool(
-                self.window_surface.get_flags() & pygame.FULLSCREEN
-            )
-            if not self.is_fullscreen:
-                self.windowed_size = self.window_surface.get_size()
-
             # 仮想画面サーフェスを作成（1440x1080）
             self.virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
             self.screen = self.virtual_screen
+            self.window_controller = WindowController(
+                self.window_surface,
+                self.virtual_screen,
+            )
             print(f"✓ 仮想画面作成: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
 
             self.clock = pygame.time.Clock()
@@ -213,130 +189,51 @@ class GameApplication:
             return False
 
     def mark_current_event_as_completed(self):
-        """現在のイベントをcompleted_events.csvに記録（実行回数管理）"""
-        if not self.current_event_id:
-            print("[EVENT] 現在のイベントIDが設定されていません")
-            return
-        
-        try:
-            import csv
-            import os
-            from datetime import datetime
-            
-            # events.csvから該当イベント情報を取得
-            events_csv_path = os.path.join(os.path.dirname(__file__), "events", "events.csv")
-            completed_events_csv_path = os.path.join(os.path.dirname(__file__), "data", "current_state", "completed_events.csv")
-            
-            event_info = None
-            
-            # events.csvから該当イベントを検索
-            if os.path.exists(events_csv_path):
-                with open(events_csv_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        if row['イベントID'] == self.current_event_id:
-                            event_info = row
-                            break
-            
-            if not event_info:
-                print(f"[EVENT] events.csvに{self.current_event_id}が見つかりません")
-                return
-            
-            # completed_events.csvの全データを読み込み（全イベント保持）
-            all_events = []
-            file_exists = os.path.exists(completed_events_csv_path)
-            event_found = False
-            
-            if file_exists:
-                with open(completed_events_csv_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        # 不要なフィールドを削除（古いデータからの移行）
-                        for field in ['ヒロイン名', '場所', 'イベントタイトル']:
-                            row.pop(field, None)
-                        # 有効フラグがない場合はTRUEで設定
-                        if '有効フラグ' not in row:
-                            row['有効フラグ'] = 'TRUE'
-                            
-                        if row['イベントID'] == self.current_event_id:
-                            # 該当イベントの実行回数を+1
-                            current_count = int(row.get('実行回数', '0'))
-                            row['実行回数'] = str(current_count + 1)
-                            # ゲーム内時間で更新
-                            time_manager = get_time_manager()
-                            row['実行日時'] = time_manager.get_full_time_string()
-                            event_found = True
-                            print(f"[EVENT] {self.current_event_id}の実行回数を{current_count + 1}に更新")
-                        
-                        all_events.append(row)
-            
-            # 新しいイベントの場合は追加
-            if not event_found:
-                # ゲーム内時間を取得
-                time_manager = get_time_manager()
-                game_time_str = time_manager.get_full_time_string()
-                
-                new_event = {
-                    'イベントID': self.current_event_id,
-                    '実行日時': game_time_str,
-                    '実行回数': '1',
-                    '有効フラグ': 'TRUE'  # 実行時点では有効
-                }
-                all_events.append(new_event)
-                print(f"[EVENT] {self.current_event_id}を新規記録（実行回数: 1）")
-            
-            # ファイルに書き戻し（全イベントデータ保持）
-            fieldnames = ['イベントID', '実行日時', '実行回数', '有効フラグ']
-            with open(completed_events_csv_path, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(all_events)
-            
-            # イベントID をリセット
+        """Compatibility delegate to the core event-progress service."""
+        event_progress = getattr(self, "event_progress", None) or EventProgress()
+        self.event_progress = event_progress
+        if event_progress.record_completion(self.current_event_id):
             self.current_event_id = None
-            
-        except Exception as e:
-            print(f"[EVENT] イベント完了記録エラー: {e}")
 
     def show_option(self):
-        """OPTIONオーバーレイを表示（BGM継続）"""
-        if self.current_overlay is None:
-            self.current_overlay = OptionOverlay(self.screen, self.current_mode)
+        """OPTIONモーダルSubsystemを表示（BGM継続）。"""
+        if self.option_subsystem is None:
+            self.option_subsystem = OptionSubsystem.standard(
+                self.screen,
+                self.current_mode,
+            )
             print("[OPTION] オーバーレイ表示")
 
     def show_mock_option(self):
         """モック用 OPTION アニメーションを表示"""
-        if self.current_overlay is None:
-            self.current_overlay = MockOptionOverlay(self.screen, MOCK_OPTION_FRAMES)
+        if self.option_subsystem is None:
+            self.option_subsystem = OptionSubsystem.image_option(self.screen)
             print("[OPTION] モックオーバーレイ表示")
 
     def show_mock_await(self):
         """モック用 AWAIT アニメーションを表示"""
-        if self.current_overlay is None:
-            self.current_overlay = MockOptionOverlay(self.screen, MOCK_AWAIT_FRAMES)
+        if self.option_subsystem is None:
+            self.option_subsystem = OptionSubsystem.await_sequence(self.screen)
             print("[AWAIT] モックオーバーレイ表示")
 
     def hide_option(self):
         """OPTIONオーバーレイを閉じる"""
-        self.current_overlay = None
+        self.option_subsystem = None
         print("[OPTION] オーバーレイ非表示")
 
     def _handle_overlay_result(self, result: str):
-        """オーバーレイからの戻り値を処理"""
-        if result == "resume":
-            self.hide_option()
-        elif result == "save":
-            from core.save_manager import get_save_manager
-            get_save_manager().save_game("saveslot_auto")
-            # TODO: スロット選択UIを開く（フェーズ7で実装）
-        elif result == "load":
-            pass  # TODO: スロット選択UIを開く（フェーズ7で実装）
-        elif result in ("go_to_menu", "quit"):
-            self.hide_option()
-            self._handle_transition(result)
+        """Compatibility delegate for modal actions."""
+        self._get_game_flow().handle_option_action(result)
+
+    def _resume_loaded_game(self):
+        """Compatibility delegate to GameFlowController."""
+        self._get_game_flow().resume_loaded_game()
 
     def _poll_mock_overlay_shortcuts(self, events) -> bool:
-        """F6/F7 を先取りしてモック画像シーケンスの開閉だけを処理する"""
+        """Compatibility delegate for the explicit F6/F7 modal shortcuts."""
+        if self.option_subsystem is not None:
+            return self.option_subsystem.poll_mock_shortcuts(events)
+
         shortcut_key = None
         remaining_events = []
         for event in events:
@@ -344,120 +241,22 @@ class GameApplication:
                 shortcut_key = event.key
                 continue
             remaining_events.append(event)
-
         events[:] = remaining_events
-
-        if shortcut_key is None:
-            return False
-
-        if isinstance(self.current_overlay, MockOptionOverlay):
-            if shortcut_key == pygame.K_F6 and self.current_overlay.is_same_sequence(MOCK_OPTION_FRAMES):
-                self.current_overlay.start_close()
-                return True
-            if shortcut_key == pygame.K_F7 and self.current_overlay.is_same_sequence(MOCK_AWAIT_FRAMES):
-                self.current_overlay.start_close()
-                return True
-
-            if shortcut_key == pygame.K_F6:
-                self.current_overlay = MockOptionOverlay(self.screen, MOCK_OPTION_FRAMES)
-                return True
-            if shortcut_key == pygame.K_F7:
-                self.current_overlay = MockOptionOverlay(self.screen, MOCK_AWAIT_FRAMES)
-                return True
-
-        if self.current_overlay is None:
-            if shortcut_key == pygame.K_F6:
-                self.show_mock_option()
-            elif shortcut_key == pygame.K_F7:
-                self.show_mock_await()
+        if shortcut_key == pygame.K_F6:
+            self.show_mock_option()
+            return True
+        if shortcut_key == pygame.K_F7:
+            self.show_mock_await()
             return True
         return False
 
     def switch_to(self, subsystem, mode_name: str):
-        """サブシステム切り替えの統一メソッド（フェーズ4中心）"""
-        if self.current_subsystem:
-            self.current_subsystem.cleanup()
-            print(f"🔇 {self.current_mode} cleanup完了")
-        self.current_subsystem = subsystem
-        self.current_mode = mode_name
-        self.current_subsystem.on_enter()
-        print(f"✅ {mode_name} に切り替え")
+        """Compatibility delegate to the scene lifecycle manager."""
+        self.scene_manager.switch_to(subsystem, mode_name)
 
     def _handle_transition(self, result: str):
-        """サブシステムからの遷移結果をルーティング（フェーズ4中心）"""
-        if not result:
-            return
-
-        # 共通遷移
-        if result == "go_to_map":
-            self.switch_to_map()
-        elif result in ("go_to_menu", "back_to_menu", "go_to_main_menu"):
-            self.switch_to_menu()
-        elif result == "show_option":
-            self.show_option()
-        elif result in ("go_to_home", "skip_to_home"):
-            self.switch_to_home()
-
-        # dialogue終了
-        elif result == "dialogue_ended":
-            print("💬 KSファイル終了 - 遷移判定開始")
-            completion_result = self.dialogue_completion_result
-            self.dialogue_completion_result = None
-            if completion_result:
-                print(f"💬 指定された会話終了ルートへ遷移: {completion_result}")
-                self.current_event_id = None
-                self._handle_transition(completion_result)
-                return
-
-            current_event = self.current_event_id
-            self.mark_current_event_as_completed()
-            if current_event and current_event != "E001":
-                time_manager = get_time_manager()
-                current_period_before = time_manager.get_current_period()
-                was_after_school = time_manager.is_after_school()
-                print(f"[DEBUG] イベント{current_event}完了後 - 時間帯: {current_period_before}, 放課後: {was_after_school}")
-                if was_after_school:
-                    time_manager.advance_period()
-                    print(f"[TIME] 放課後イベント終了 → {time_manager.get_full_time_string()} → 家モジュールへ")
-                    self.switch_to_home()
-                else:
-                    time_manager.advance_period()
-                    print(f"[TIME] イベント{current_event}終了 → {time_manager.get_full_time_string()} → mapへ")
-                    self.switch_to_map()
-            else:
-                print("[TIME] E001終了 - 時間進行なしでmapへ")
-                self.switch_to_map()
-
-        # dialogue開始
-        elif result == "launch_morning_departure":
-            self.switch_to_morning_dialogue()
-        elif result.startswith("launch_event:"):
-            event_file = result.split(":", 1)[1]
-            self.switch_to_dialogue(event_file)
-        elif result.startswith("start_event:"):
-            event_id = result.split(":", 1)[1]
-            self.switch_to_dialogue(f"events/{event_id}.ks")
-
-        # メニュー固有
-        elif result == "new_game":
-            print("[NEW_GAME] E001イベントを開始")
-            self.switch_to_dialogue("events/E001.ks")
-        elif result == "dialogue_test":
-            self.switch_to_dialogue("events/E004.ks")
-        elif result == "continue_game":
-            print("[CONTINUE] ロード完了 - システムを再初期化中...")
-            self._reload_game_systems()
-            time_manager = get_time_manager()
-            current_period = time_manager.get_current_period()
-            print(f"[CONTINUE] ロード完了後の時間帯: {current_period}")
-            if current_period == "夜":
-                self.switch_to_home()
-            else:
-                self.switch_to_map()
-
-        # 終了
-        elif result == "quit":
-            self.running = False
+        """Normalize legacy results and delegate routing to GameFlowController."""
+        self._get_game_flow().handle(result)
 
     def switch_to_menu(self):
         """メインメニューモードに切り替え"""
@@ -465,7 +264,7 @@ class GameApplication:
             self.main_menu = MainMenu(self.screen)
         self.switch_to(self.main_menu, "menu")
 
-    def _reload_game_systems(self):
+    def reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""
         try:
             show_loading("ゲームシステムを再初期化中...", self.window_surface)
@@ -483,6 +282,10 @@ class GameApplication:
         except Exception as e:
             hide_loading()
             print(f"[RELOAD] ゲームシステム再初期化エラー: {e}")
+
+    def _reload_game_systems(self):
+        """Compatibility delegate for older callers."""
+        return self.reload_game_systems()
     
     def switch_to_map(self):
         """マップモードに切り替え"""
@@ -514,32 +317,52 @@ class GameApplication:
         get_save_manager().save_game("saveslot_auto")
         self.switch_to(self.home_module, "home")
     
-    def switch_to_morning_dialogue(self):
-        """朝演出中に事前構築した会話へ、ローディング表示なしで切り替える。"""
-        event_file = HomeModule.MORNING_DIALOGUE_FILE
+    def start_morning_dialogue(self):
+        """Consume Home's explicit one-shot morning dialogue request."""
         home_module = (
             self.current_subsystem
             if isinstance(self.current_subsystem, HomeModule)
             else self.home_module
         )
-        dialogue = (
-            home_module.take_preloaded_morning_dialogue()
-            if home_module is not None
-            else None
-        )
-
-        if dialogue is None:
-            # 事前構築に失敗していても、この朝会話だけはローディング表示なしで読み込む。
-            self.switch_to_dialogue(
-                event_file,
-                completion_result="go_to_map",
+        if home_module is not None:
+            request = home_module._ensure_morning_flow().take_dialogue_request()
+        else:
+            request = StartDialogue(
+                event_file=HomeModule.MORNING_DIALOGUE_FILE,
+                completion=Navigate(Scene.MAP),
                 display_loading=False,
             )
+        self.start_dialogue(request)
+
+    def switch_to_morning_dialogue(self):
+        """Compatibility delegate for the isolated MorningFlow handoff."""
+        self.start_morning_dialogue()
+
+    def start_dialogue(self, request: StartDialogue):
+        """Start a typed dialogue request, including explicit preloaded handoffs."""
+        event_file = request.event_file
+        print(f'💬 会話モードに切り替え: {event_file}')
+        self.dialogue_completion_result = request.completion
+        if event_file:
+            self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
+
+        if request.preloaded_subsystem is not None:
+            self.switch_to(request.preloaded_subsystem, "dialogue")
             return
 
-        self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
-        self.dialogue_completion_result = "go_to_map"
-        self.switch_to(dialogue, "dialogue")
+        try:
+            if request.display_loading:
+                show_loading('イベントを読み込み中...', self.window_surface)
+            dialogue = DialogueSubsystem(self.screen, self.virtual_screen, event_file)
+            if request.display_loading:
+                hide_loading()
+            self.switch_to(dialogue, 'dialogue')
+        except Exception as e:
+            print(f'❌ 会話モード初期化エラー: {e}')
+            self.dialogue_completion_result = None
+            if request.display_loading:
+                hide_loading()
+            self.switch_to_menu()
 
     def switch_to_dialogue(
         self,
@@ -547,146 +370,14 @@ class GameApplication:
         completion_result=None,
         display_loading=True,
     ):
-        """会話モードに切り替え（DialogueSubsystem 使用）"""
-        print(f'💬 会話モードに切り替え: {event_file}')
-        self.dialogue_completion_result = completion_result
-        if event_file:
-            self.current_event_id = os.path.splitext(os.path.basename(event_file))[0]
-        try:
-            if display_loading:
-                show_loading('イベントを読み込み中...', self.window_surface)
-            dialogue = DialogueSubsystem(self.screen, self.virtual_screen, event_file)
-            if display_loading:
-                hide_loading()
-            self.switch_to(dialogue, 'dialogue')
-        except Exception as e:
-            print(f'❌ 会話モード初期化エラー: {e}')
-            self.dialogue_completion_result = None
-            if display_loading:
-                hide_loading()
-            self.switch_to_menu()
-
-    def handle_menu_events(self, events):
-        """メインメニューのイベント処理"""
-        for event in events:
-            if event.type == pygame.QUIT:
-                self.running = False
-                return
-            
-            result = self.main_menu.handle_event(event)
-            
-            if result == "new_game":
-                # 新規ゲーム：E001イベント開始
-                print("[NEW_GAME] E001イベントを開始")
-                self.switch_to_dialogue("events/E001.ks")
-            elif result == "continue_game":
-                # ゲーム続行：ロード完了後にマップシステムを再初期化
-                print("[CONTINUE] ロード完了 - システムを再初期化中...")
-                self._reload_game_systems()
-                
-                # 時間帯に応じて遷移先を決定
-                time_manager = get_time_manager()
-                current_period = time_manager.get_current_period()
-                print(f"[CONTINUE] ロード完了後の時間帯: {current_period}")
-                
-                if current_period == "夜":
-                    # 夜の場合は家に遷移
-                    print("[CONTINUE] 夜のため家モジュールに遷移")
-                    self.switch_to_home()
-                elif current_period in ["朝", "昼", "放課後"]:
-                    # 朝・昼・放課後の場合はマップに遷移
-                    print(f"[CONTINUE] {current_period}のためマップモジュールに遷移")
-                    self.switch_to_map()
-                else:
-                    # 予期しない時間帯の場合はマップに遷移
-                    print(f"[CONTINUE] 予期しない時間帯({current_period})のためマップモジュールに遷移")
-                    self.switch_to_map()
-            elif result == "dialogue_test":
-                self.switch_to_dialogue("events/E004.ks")
-            elif result == "go_to_home":
-                self.switch_to_home()
-            elif result == "quit":
-                self.running = False
-
-    def handle_map_events(self, events):
-        """マップモードのイベント処理"""
-        for event in events:
-            if event.type == pygame.QUIT:
-                self.running = False
-                return
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.switch_to_menu()
-                    return
-            
-            if self.map_system:
-                result = self.map_system.handle_event(event)
-                
-                if result and result.startswith("launch_event:"):
-                    event_file = result.split(":", 1)[1]
-                    self.switch_to_dialogue(event_file)
-                elif result == "back_to_menu":
-                    self.switch_to_menu()
-                elif result == "skip_to_home":
-                    self.switch_to_home()
-                elif result == "skip_time":
-                    # 時間スキップ処理（マップは継続）
-                    pass
-
-    def handle_home_events(self, events):
-        """家モードのイベント処理"""
-        if self.home_module:
-            result = self.home_module.handle_events(events)
-            if result == "go_to_map":
-                self.switch_to_map()
-            elif result == "go_to_main_menu":
-                self.switch_to_menu()
-
-    def handle_dialogue_events(self):
-        """会話モードのイベント処理"""
-        # controller2が独自にpygame.event.get()を使用するため、
-        # main.pyからはeventsを渡さない
-        if self.dialogue_game_state:
-            from dialogue.controller2 import handle_events
-            continue_dialogue = handle_events(self.dialogue_game_state, self.screen)
-            if not continue_dialogue:  # 会話が終了した場合
-                print("💬 KSファイル終了 - 遷移判定開始")
-                
-                # 時間進行処理のためにイベントIDを保存
-                current_event = self.current_event_id
-                
-                # イベント完了処理（この中でcurrent_event_idがNoneにリセットされる）
-                self.mark_current_event_as_completed()
-                
-                # E001以外のイベントは時間を進める
-                if current_event and current_event != "E001":
-                    time_manager = get_time_manager()
-                    current_period_before = time_manager.get_current_period()
-                    print(f"[DEBUG] イベント{current_event}完了後 - 現在時間帯: {current_period_before}")
-                    
-                    # 現在が放課後かどうか事前にチェック
-                    was_after_school = time_manager.is_after_school()
-                    print(f"[DEBUG] 放課後判定: {was_after_school}")
-                    
-                    if was_after_school:
-                        # 放課後イベント完了後は明示的に「夜」に設定
-                        print("[DEBUG] 放課後イベント完了 - 時間を進めます")
-                        time_manager.advance_period()  # 放課後 → 夜
-                        current_period_after = time_manager.get_current_period()
-                        print(f"[TIME] 放課後イベント{current_event}終了 - {current_period_before} → {current_period_after}: {time_manager.get_full_time_string()}")
-                        print("[TIME] 夜になったため家モジュールに遷移")
-                        self.switch_to_home()
-                    else:
-                        # 朝・昼のイベント完了後は通常の時間進行
-                        time_manager.advance_period()
-                        print(f"[TIME] {current_event}終了により時間進行: {time_manager.get_full_time_string()}")
-                        print("[TIME] イベント終了 - mapモジュールに遷移")
-                        self.switch_to_map()
-                else:
-                    # E001の場合は時間を進めずにmapに遷移
-                    if current_event == "E001":
-                        print("[TIME] E001終了 - 時間進行なしでmapモジュールに遷移")
-                    self.switch_to_map()
+        """Compatibility adapter from legacy arguments to StartDialogue."""
+        self.start_dialogue(
+            StartDialogue(
+                event_file=event_file,
+                completion=completion_result,
+                display_loading=display_loading,
+            )
+        )
 
     def run(self):
         """メインゲームループ（フェーズ4: current_subsystem による統一制御）"""
@@ -699,28 +390,28 @@ class GameApplication:
             try:
                 events = self._gather_normalized_events()
 
-                if self.current_overlay:
+                if self.option_subsystem:
                     self._poll_mock_overlay_shortcuts(events)
                     # OPTIONオーバーレイがアクティブ
                     # update() は意図的に呼ばない = ゲームがポーズ状態になる（⑤）
                     # BGMはBGMManager側で継続するため別途停止不要
-                    ov_result = self.current_overlay.handle_events(events)
+                    ov_result = self.option_subsystem.handle_events(events)
                     if ov_result:
                         self._handle_overlay_result(ov_result)
                     # ベースシステムを描画してからOPTIONを上に重ねる
                     if self.current_subsystem:
                         self.current_subsystem.render()
-                    if self.current_overlay:  # handle後にNoneになる場合を考慮
-                        self.current_overlay.render_overlay()
+                    if self.option_subsystem:  # handle後にNoneになる場合を考慮
+                        self.option_subsystem.render_overlay()
                 elif self.current_subsystem:
                     if self._poll_mock_overlay_shortcuts(events):
                         if self.current_subsystem:
                             self.current_subsystem.render()
-                        if self.current_overlay:
-                            self.current_overlay.render_overlay()
+                        if self.option_subsystem:
+                            self.option_subsystem.render_overlay()
                         self._present_virtual_screen()
                         pygame.display.flip()
-                        self.clock.tick(30)
+                        self.clock.tick(60)
                         continue
 
                     # 通常モード
@@ -738,7 +429,7 @@ class GameApplication:
 
                 self._present_virtual_screen()
                 pygame.display.flip()
-                self.clock.tick(30)
+                self.clock.tick(60 if self.option_subsystem else 30)
 
             except Exception as e:
                 print(f'❌ ゲームループエラー: {e}')

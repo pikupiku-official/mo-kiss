@@ -71,7 +71,7 @@ class TestDialogueSubsystemStructure:
     def test_inherits_subsystembase(self):
         """DialogueSubsystem は SubsystemBase のサブクラスである"""
         from dialogue.dialogue_subsystem import DialogueSubsystem
-        from core.subsystem_base import SubsystemBase
+        from core.runtime.subsystem_base import SubsystemBase
         assert issubclass(DialogueSubsystem, SubsystemBase)
 
     def test_instantiable_with_screens(self, pygame_surfaces):

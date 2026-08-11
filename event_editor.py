@@ -78,9 +78,9 @@ from dialogue.event_datetime import (
     parse_event_datetime,
 )
 from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DEBUG, USE_IR, IR_DUMP_JSON, IR_DUMP_DIR
-from core.bgm_manager import BGMManager
-from core.se_manager import SEManager
-from core.image_manager import ImageManager
+from core.services.bgm_manager import BGMManager
+from core.services.se_manager import SEManager
+from core.services.image_manager import ImageManager
 
 
 class PreviewWindow:
@@ -569,6 +569,9 @@ class CharaCompositePreviewDialog(QDialog):
             part: (action_overrides or {}).get(part, '')
             for part in self.LAYER_ORDER
         }
+        self._prev_fields = self._sanitize_fields_for_character(self._prev_fields)
+        self._fields = self._sanitize_fields_for_character(self._fields)
+        self._action_overrides = self._sanitize_fields_for_character(self._action_overrides)
         self._apply_btn = None
         self._name_combo = None
 
@@ -597,6 +600,19 @@ class CharaCompositePreviewDialog(QDialog):
             return sorted(k for k in paths if k.startswith(code + '_'))
         return sorted(paths.keys())
 
+    def _sanitize_fields_for_character(self, fields):
+        """選択中キャラクター以外のパーツ値を除外する。"""
+        from core.config import CHAR_CODE
+
+        code = CHAR_CODE.get(self._char_name, '')
+        if not code:
+            return dict(fields)
+        prefix = code + '_'
+        return {
+            part: value if not str(value).strip() or str(value).strip().startswith(prefix) else ''
+            for part, value in fields.items()
+        }
+
     def _sync_apply_enabled(self):
         if self._apply_btn:
             self._apply_btn.setEnabled(bool(self._char_name.strip()))
@@ -610,7 +626,10 @@ class CharaCompositePreviewDialog(QDialog):
         for part, value in self._action_overrides.items():
             if str(value).strip():
                 merged[part] = value
-        return base_fields, merged
+        return (
+            self._sanitize_fields_for_character(base_fields),
+            self._sanitize_fields_for_character(merged),
+        )
 
     def _get_filtered_options(self, part):
         """トルソー番号でフィルタした選択肢を返す。
@@ -788,7 +807,7 @@ class CharaCompositePreviewDialog(QDialog):
         for part in self.LAYER_ORDER:
             combo = self._combos[part]
             label = self._label_widgets[part]
-            current = combo.currentText()
+            current = self._fields.get(part, '')
             opts = (self._get_filtered_options(part)
                     if part in self.TORSO_LINKED_PARTS
                     else self._get_char_options(part))

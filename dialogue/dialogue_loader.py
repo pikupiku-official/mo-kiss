@@ -2,7 +2,7 @@ import re
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from core.bgm_manager import BGMManager
+from core.services.bgm_manager import BGMManager
 from core.config import *
 from .ir_model import make_action, make_step, make_text
 

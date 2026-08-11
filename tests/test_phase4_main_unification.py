@@ -1,12 +1,12 @@
 ﻿"""
-フェーズ4 テスト: main.py switch_to() 統一化
+GameApplication / SceneManager / GameFlowController 統合テスト
 
 テスト対象:
-- GameApplication.switch_to(subsystem, mode_name) の追加
-- 各 switch_to_*() が switch_to() を経由する
-- switch_to_dialogue() が DialogueSubsystem を使う
+- GameApplication.switch_to() が SceneManager を経由する
+- 各 switch_to_*() が互換アダプターとして機能する
+- switch_to_dialogue() が型付き StartDialogue へ変換される
 - 重複 BGM 停止コードが main.py から消えている
-- _handle_transition() が遷移文字列を正しくルーティングする
+- _handle_transition() が GameFlowController へ委譲する
 - メインループが統一インターフェースを使う
 
 方針:
@@ -23,6 +23,7 @@
 import os
 import sys
 import ast
+import inspect
 import unittest.mock as mock
 import pytest
 
@@ -81,28 +82,22 @@ class TestSwitchToMethod:
             "GameApplication.switch_to() が main.py に存在しない"
 
     def test_switch_to_calls_cleanup(self):
-        """switch_to() が current_subsystem.cleanup() を呼ぶ"""
+        """switch_to() がSceneManagerへ委譲する"""
         src = _get_method_src('switch_to')
-        assert 'cleanup()' in src, \
-            "switch_to() が cleanup() を呼んでいない"
+        assert 'scene_manager.switch_to' in src
 
     def test_switch_to_calls_on_enter(self):
-        """switch_to() が新サブシステムの on_enter() を呼ぶ"""
-        src = _get_method_src('switch_to')
-        assert 'on_enter()' in src, \
-            "switch_to() が on_enter() を呼んでいない"
+        """SceneManagerが新サブシステムのon_enter()を呼ぶ"""
+        from core.flow.scene_manager import SceneManager
+        assert 'on_enter' in inspect.getsource(SceneManager.switch_to)
 
     def test_switch_to_updates_current_subsystem(self):
-        """switch_to() が self.current_subsystem を更新する"""
-        src = _get_method_src('switch_to')
-        assert 'self.current_subsystem' in src, \
-            "switch_to() が current_subsystem を更新していない"
+        from core.flow.scene_manager import SceneManager
+        assert 'current_subsystem' in inspect.getsource(SceneManager.switch_to)
 
     def test_switch_to_updates_current_mode(self):
-        """switch_to() が self.current_mode を更新する"""
-        src = _get_method_src('switch_to')
-        assert 'self.current_mode' in src, \
-            "switch_to() が current_mode を更新していない"
+        from core.flow.scene_manager import SceneManager
+        assert 'current_mode' in inspect.getsource(SceneManager.switch_to)
 
 
 # ─────────────────────────────────────────────
@@ -131,16 +126,16 @@ class TestSwitchToRouting:
             "switch_to_home() が self.switch_to() を呼んでいない"
 
     def test_switch_to_dialogue_uses_switch_to(self):
-        """switch_to_dialogue() が self.switch_to() を呼ぶ"""
+        """switch_to_dialogue() が型付き開始要求へ変換する"""
         src = _get_method_src('switch_to_dialogue')
-        assert 'self.switch_to(' in src, \
-            "switch_to_dialogue() が self.switch_to() を呼んでいない"
+        assert 'self.start_dialogue(' in src
+        assert 'StartDialogue(' in src
 
     def test_switch_to_dialogue_uses_dialogue_subsystem(self):
-        """switch_to_dialogue() が DialogueSubsystem を使う"""
-        src = _get_method_src('switch_to_dialogue')
-        assert 'DialogueSubsystem' in src, \
-            "switch_to_dialogue() が DialogueSubsystem を使っていない"
+        """start_dialogue() が DialogueSubsystem を生成する"""
+        src = _get_method_src('start_dialogue')
+        assert 'DialogueSubsystem' in src
+        assert 'self.switch_to(' in src
 
 
 # ─────────────────────────────────────────────
@@ -187,7 +182,7 @@ class TestDuplicateCodeRemoved:
 # ─────────────────────────────────────────────
 
 class TestHandleTransition:
-    """_handle_transition() が遷移文字列を正しくルーティングするか"""
+    """_handle_transition() がGameFlowControllerへ委譲するか"""
 
     def test_handle_transition_exists(self):
         """_handle_transition() メソッドが存在する"""
@@ -195,41 +190,32 @@ class TestHandleTransition:
             "_handle_transition() が main.py に存在しない"
 
     def test_handle_transition_routes_go_to_map(self):
-        """'go_to_map' が switch_to_map() を呼ぶ"""
+        """旧文字列の解釈をmain.pyで行わない"""
         src = _get_method_src('_handle_transition')
-        assert 'go_to_map' in src, \
-            "_handle_transition() に 'go_to_map' のルーティングがない"
-        assert 'switch_to_map' in src, \
-            "_handle_transition() が switch_to_map() を呼んでいない"
+        assert '_get_game_flow' in src
+        assert '.handle(result)' in src
 
     def test_handle_transition_routes_go_to_menu(self):
-        """'go_to_menu' が switch_to_menu() を呼ぶ"""
-        src = _get_method_src('_handle_transition')
-        assert 'go_to_menu' in src
-        assert 'switch_to_menu' in src
+        from core.flow.game_flow import Navigate, Scene, normalize_flow_request
+        assert normalize_flow_request('go_to_menu') == Navigate(Scene.MENU)
 
     def test_handle_transition_routes_go_to_home(self):
-        """'go_to_home' が switch_to_home() を呼ぶ"""
-        src = _get_method_src('_handle_transition')
-        assert 'go_to_home' in src
-        assert 'switch_to_home' in src
+        from core.flow.game_flow import Navigate, Scene, normalize_flow_request
+        assert normalize_flow_request('go_to_home') == Navigate(Scene.HOME)
 
     def test_handle_transition_routes_dialogue_ended(self):
-        """'dialogue_ended' が後処理（完了記録＋マップ/ホーム遷移）を呼ぶ"""
-        src = _get_method_src('_handle_transition')
-        assert 'dialogue_ended' in src
+        from core.flow.game_flow import DialogueEnded, normalize_flow_request
+        assert normalize_flow_request('dialogue_ended') == DialogueEnded()
 
     def test_handle_transition_routes_start_event(self):
-        """'start_event:' プレフィックスが switch_to_dialogue() を呼ぶ"""
-        src = _get_method_src('_handle_transition')
-        assert 'start_event' in src
-        assert 'switch_to_dialogue' in src
+        from core.flow.game_flow import StartDialogue, normalize_flow_request
+        assert normalize_flow_request('start_event:E123') == StartDialogue(
+            'events/E123.ks'
+        )
 
     def test_handle_transition_routes_quit(self):
-        """'quit' が self.running = False を設定する"""
-        src = _get_method_src('_handle_transition')
-        assert 'quit' in src
-        assert 'self.running' in src
+        from core.flow.game_flow import QuitApplication, normalize_flow_request
+        assert normalize_flow_request('quit') == QuitApplication()
 
 
 # ─────────────────────────────────────────────
@@ -387,18 +373,18 @@ class TestPhase4Regression:
         """フェーズ1 のテストが引き続き通過する（import チェックのみ）"""
         from menu.main_menu import MainMenu
         from home.home import HomeModule
-        from core.subsystem_base import SubsystemBase
+        from core.runtime.subsystem_base import SubsystemBase
         assert issubclass(MainMenu, SubsystemBase)
         assert issubclass(HomeModule, SubsystemBase)
 
     def test_phase2_tests_still_pass(self):
         """フェーズ2 のテストが引き続き通過する（import チェックのみ）"""
         from map.map import FieldMap
-        from core.subsystem_base import SubsystemBase
+        from core.runtime.subsystem_base import SubsystemBase
         assert issubclass(FieldMap, SubsystemBase)
 
     def test_phase3_tests_still_pass(self):
         """フェーズ3 のテストが引き続き通過する（import チェックのみ）"""
         from dialogue.dialogue_subsystem import DialogueSubsystem
-        from core.subsystem_base import SubsystemBase
+        from core.runtime.subsystem_base import SubsystemBase
         assert issubclass(DialogueSubsystem, SubsystemBase)

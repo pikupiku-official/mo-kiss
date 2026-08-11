@@ -1,7 +1,7 @@
 === LOG START ===
 1. Importing core modules
 core.config OK
-core.bgm_manager OK
+core.services.bgm_manager OK
 2. Importing dialogue modules step by step
 dialogue.ir_model OK
 dialogue.dialogue_loader OK

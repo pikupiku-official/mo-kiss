@@ -4,15 +4,15 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from core.config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos, scale_size
-from core.subsystem_base import SubsystemBase
+from core.runtime.subsystem_base import SubsystemBase
 from .main_menu_config import (
     COLORS, FONT_SIZES, LAYOUT, MenuState, DEFAULT_AUDIO_SETTINGS
 )
 from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton, TextInput
-from core.loading_screen import show_loading, hide_loading
+from core.ui.loading_screen import show_loading, hide_loading
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dialogue.name_manager import get_name_manager
-from core.save_manager import get_save_manager
+from core.services.save_manager import get_save_manager
 
 class MainMenu(SubsystemBase):
     def __init__(self, screen=None):

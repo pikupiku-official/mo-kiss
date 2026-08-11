@@ -22,8 +22,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 MAP_PY      = os.path.join(PROJECT_ROOT, 'map', 'map.py')
-SAVE_PY     = os.path.join(PROJECT_ROOT, 'core', 'save_manager.py')
-LOADING_PY  = os.path.join(PROJECT_ROOT, 'core', 'loading_screen.py')
+SAVE_PY     = os.path.join(PROJECT_ROOT, 'core', 'services', 'save_manager.py')
+LOADING_PY  = os.path.join(PROJECT_ROOT, 'core', 'ui', 'loading_screen.py')
 CHOICE_PY   = os.path.join(PROJECT_ROOT, 'dialogue', 'choice_renderer.py')
 
 MAP_SRC     = open(MAP_PY,     encoding='utf-8').read()

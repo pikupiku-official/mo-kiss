@@ -35,9 +35,9 @@ from dialogue.controller2 import update_game, is_ir_idle
 from dialogue.scenario_manager import _ir_dispatch_action
 from dialogue.model import change_bgm
 from dialogue.event_datetime import apply_event_datetime
-from core.bgm_manager import BGMManager
-from core.se_manager import SEManager
-from core.image_manager import ImageManager
+from core.services.bgm_manager import BGMManager
+from core.services.se_manager import SEManager
+from core.services.image_manager import ImageManager
 from core.path_utils import get_font_path
 
 def create_step_preview_runtime():

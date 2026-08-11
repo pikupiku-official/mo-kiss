@@ -116,21 +116,21 @@ def test_sleep_advances_date_once_and_starts_morning_sequence(monkeypatch):
 
 
 def test_home_preloads_dialogue_after_first_morning_frame_is_presented():
-    import home.home as home_module
+    from home.morning_flow import MorningFlow
 
-    home = home_module.HomeModule.__new__(home_module.HomeModule)
-    home.morning_sequence = MorningSequence("1999-06-01", clock_ms=lambda: 0)
-    home._morning_frame_presented = False
-    home._morning_dialogue_preload_attempted = False
     preload_calls = []
-    home._preload_morning_dialogue = lambda: preload_calls.append("preload")
+    flow = MorningFlow(
+        None,
+        dialogue_factory=lambda screen, event_file: preload_calls.append(event_file),
+    )
+    flow.sequence = MorningSequence("1999-06-01", clock_ms=lambda: 0)
 
-    home.update()
+    flow.update()
     assert preload_calls == []
 
-    home._morning_frame_presented = True
-    home.update()
-    assert preload_calls == ["preload"]
+    flow.frame_presented = True
+    flow.update()
+    assert preload_calls == ["events/HOME_MORNING_DEPARTURE.ks"]
 
 
 def test_morning_ks_uses_fullname_tag_for_speaker():
@@ -160,7 +160,7 @@ def test_morning_sequence_uses_dedicated_dialogue_switch():
 
     app = GameApplication.__new__(GameApplication)
     called = []
-    app.switch_to_morning_dialogue = lambda: called.append("morning")
+    app.start_morning_dialogue = lambda: called.append("morning")
 
     GameApplication._handle_transition(app, MORNING_DIALOGUE_RESULT)
 
@@ -188,7 +188,8 @@ def test_preloaded_morning_dialogue_switches_without_loading_screen():
 
     assert switched == [(dialogue, "dialogue")]
     assert app.current_event_id == "HOME_MORNING_DEPARTURE"
-    assert app.dialogue_completion_result == "go_to_map"
+    from core.flow.game_flow import Navigate, Scene
+    assert app.dialogue_completion_result == Navigate(Scene.MAP)
     assert home._preloaded_morning_dialogue is None
 
 
@@ -202,19 +203,17 @@ def test_morning_dialogue_fallback_also_hides_loading_screen():
     app = GameApplication.__new__(GameApplication)
     app.current_subsystem = home
     app.home_module = home
-    called = {}
-    app.switch_to_dialogue = lambda event_file, **kwargs: called.update(
-        event_file=event_file,
-        **kwargs,
-    )
+    called = []
+    app.start_dialogue = called.append
 
     GameApplication.switch_to_morning_dialogue(app)
 
-    assert called == {
-        "event_file": "events/HOME_MORNING_DEPARTURE.ks",
-        "completion_result": "go_to_map",
-        "display_loading": False,
-    }
+    from core.flow.game_flow import Navigate, Scene, StartDialogue
+    assert called == [StartDialogue(
+        event_file="events/HOME_MORNING_DEPARTURE.ks",
+        completion=Navigate(Scene.MAP),
+        display_loading=False,
+    )]
 
 
 def test_regular_dialogue_keeps_loading_screen(monkeypatch):
