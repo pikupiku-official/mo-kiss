@@ -58,7 +58,9 @@ class DialogueSubsystem(SubsystemBase):
         _pre_x, _pre_y, _pre_scale = _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE
         _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = 0, 0, 1.0
         try:
-            self.game_state = _init_game()
+            # Initialize from the requested event so a small specialized
+            # dialogue (such as HOME_DIARY) does not preload all of E001 first.
+            self.game_state = _init_game(event_file or "events/E001.ks")
         finally:
             # 例外発生時も必ず config を復元（⑦修正）
             _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = _pre_x, _pre_y, _pre_scale
