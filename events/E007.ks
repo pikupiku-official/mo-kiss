@@ -4,13 +4,13 @@
 ;◆メインシナリオ
 ;----------------------------------------------
 
-*scene1|&f.title+"最初のシーン"
+*scene7|
+
+
 [resetlaypos]
-
-[bg_show storage="純一の部屋"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-
-　　　　 //純一//
-　　　　「（久しぶりにデパートにでも行って、ルンルンを買ってくるとしよう。）」
+[bg_show storage="純一部屋" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	//純一//
+	「（久しぶりにデパートにでも行って、ルンルンを買ってくるとしよう。）」
 
 [fadeout]
 [SE　ゆっくり歩く音]
@@ -43,30 +43,37 @@
 
 [bg_show storage="デパート⑤"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 
-      //純一//
-　　　　「（……）」
-　　　　「（不覚だった。まさかここまで土地勘をなくしているとは……）」
-　　　　「（……しかもレディースエリアに迷い込んでしまったみたいだ。）」
-　　　　「（僕は上品で教養があって礼儀正しい紳士だというのに。）」
-　　　　「（……おや？」
-　　　　「あの後ろ姿、あれは……）」
-
-
-[chara_show name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" blink="true" x="0.5" y="0.5" size="1.0" fade="0.15"]
-//静//
-「これはチョット背伸びしすぎじゃない？」
-　　　　 //杏//
-　　　　「そうかな？年相応だよ～。」
 	//純一//
-　　　　「（愛沼親子だ。やはり夏服を買いに来たのかな。）」
-　　　　 //静//
-　　　　「ママの頃は考えられなかったけどねぇ……そういうものかしら。」
-　　　　　//杏//
-　　　　「今は平成だよ、ママ。ほらみて！おねぇにすごく似合ってる！」
-　　　　//純一//
-　　　　「（ん？お姉ちゃん？ということは……）」
-　　　　 //桃子//
-　　　　「そ、そうかなぁ……？」
+	「（……）」
+	「（不覚だった。まさかここまで土地勘をなくしているとは……）」
+	「（……しかもレディースエリアに迷い込んでしまったみたいだ。）」
+	「（僕は上品で教養があって礼儀正しい紳士だというのに。）」
+	//静//
+	「これはチョット背伸びしすぎじゃない？」
+　　　　 	//杏//
+　　　　	「そうかな？年相応だよ～。」
+	//純一//
+	「（……おや？この見覚えのある声は……）」
+[chara_show name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0007" mouth="SZK_F01_MOU_0010" brow="SZK_F01_BRO_0003" cheek="SZK_F01_CHE_0001" blink="true" x="0.15" y="0.6" size="1.0" fade="0.15"]
+[chara_show name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0003" mouth="ANZ_F00_MOU_0015" brow="ANZ_F00_BRO_0003" cheek="ANZ_F00_CHE_0001" blink="true" x="0.3" y="0.6" size="1.0" fade="0.15"]
+	//純一//
+　　　　	「（桃子のお母さんと妹の愛沼親子だ。やはり夏服を買いに来たのかな。）」
+[chara_shift name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0003" mouth="SZK_F01_MOU_0002" brow="SZK_F01_BRO_0003" cheek="SZK_F01_CHE_0001" blink="true" x="0.15" y="0.6" size="1.0" fade="0.15"]
+	//静//
+	「ママの頃は考えられなかったけどねぇ……そういうものかしら。」
+[chara_shift name="杏" torso="ANZ_T00_0002" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" x="0.3" y="0.6" size="1.0" fade="0.15"]
+	//杏//
+	「今は平成だよ、ママ。」
+[chara_shift name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0004" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" x="0.3" y="0.6" size="1.0" fade="0.15"]
+	//杏//
+	「ほらみて！おねぇにすごく似合ってる！」
+	//純一//
+	「（ん？お姉ちゃん？ということは……）」
+[chara_shift name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0003" mouth="SZK_F01_MOU_0002" brow="SZK_F01_BRO_0003" cheek="SZK_F01_CHE_0001" blink="true" x="0.3" y="0.6" size="1.0" fade="0.15"]
+[chara_shift name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0004" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" x="0.45" y="0.6" size="1.0" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" blink="true" x="0.15" y="0.6" size="1.0" fade="0.15"]
+	//桃子//
+	「そ、そうかなぁ……？」
 	//純一//
 　　　　「（……ですよねーーー。）」
 　　　　「（愛沼家御一行もデパートへショッピングか。）」
