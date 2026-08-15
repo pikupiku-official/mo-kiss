@@ -63,6 +63,17 @@ class OptionSubsystem:
         )
 
     @classmethod
+    def settings(cls, screen, fullscreen_callback=None):
+        return cls(
+            screen,
+            SettingsFaderOverlay(
+                screen,
+                fullscreen_callback=fullscreen_callback,
+            ),
+            fullscreen_callback=fullscreen_callback,
+        )
+
+    @classmethod
     def await_sequence(cls, screen):
         return cls(screen, MockOptionOverlay(screen, MOCK_AWAIT_FRAMES))
 

@@ -8,7 +8,7 @@
 
 | 用語 | 定義 |
 |------|------|
-| **Base State** | TITLE / MAIN_MENU / HOME / DIALOGUE / MAP の主画面 |
+| **Base State** | TITLE / MAIN_MENU / LOAD / HOME / DIALOGUE / MAP の主画面 |
 | **Overlay** | Base State の上に開く画面。本作では OPTION |
 | **Event** | DIALOGUE を起動するストーリー単位（例: `events/E001.ks`）|
 | **シナリオフラグ** | イベント完了・分岐選択を表す状態。開始/ロード時に初期化 |
@@ -21,7 +21,7 @@
 
 ```
 main.py
-└─ Base State: TITLE → MAIN_MENU → HOME / DIALOGUE / MAP
+└─ Base State: TITLE → MAIN_MENU → LOAD / HOME / DIALOGUE / MAP
                                   └─ Overlay: OPTION
 ```
 
@@ -31,7 +31,7 @@ main.py
 |------|------|
 | TITLE → MAIN_MENU | 固定 |
 | MAIN_MENU → DIALOGUE（E001.ks） | 新規開始 |
-| MAIN_MENU → 保存時の状態 | 続きから |
+| MAIN_MENU → LOAD → 保存時の状態 | スロット選択からの続行 |
 | HOME → DIALOGUE / MAP | 状況依存 |
 | DIALOGUE ↔ MAP | 昼ループ |
 | DIALOGUE → HOME | 帰宅 |
@@ -45,7 +45,9 @@ main.py
 - デモ動画再生（スキップ可）→ PRESS ANY KEY → MAIN_MENU
 
 ### MAIN_MENU
-- はじめから（名前入力 → E001.ks）/ つづきから（ロード）
+- はじめから（名前入力 → E001.ks）/ つづきから（共通ロード画面）
+- 設定（フェーダー設定）/ 終了
+- 家・マップへの直行項目は開発中のみ表示するデバッグ導線
 - セーブ・OPTION なし
 
 ### HOME

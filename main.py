@@ -21,6 +21,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 from core.config import *
 from menu.main_menu import MainMenu
+from menu.load_screen import LoadScreen
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
 from core.ui.title_subsystem import TitleSubsystem
@@ -56,6 +57,7 @@ class GameApplication:
 
         # 各モードのインスタンス
         self.main_menu = None
+        self.load_screen = None
         self.map_system = None
         self.home_module = None
         self.option_subsystem = None
@@ -206,6 +208,15 @@ class GameApplication:
             )
             print("[OPTION] オーバーレイ表示")
 
+    def show_settings(self):
+        """メインメニューからフェーダー設定を直接表示する。"""
+        if self.option_subsystem is None:
+            self.option_subsystem = OptionSubsystem.settings(
+                self.screen,
+                fullscreen_callback=self._set_fullscreen,
+            )
+            print("[SETTINGS] フェーダー設定表示")
+
     def show_mock_option(self):
         """モック用 OPTION アニメーションを表示"""
         if self.option_subsystem is None:
@@ -273,6 +284,12 @@ class GameApplication:
         if not self.main_menu:
             self.main_menu = MainMenu(self.screen)
         self.switch_to(self.main_menu, "menu")
+
+    def switch_to_load(self):
+        """どの呼び出し元からも利用できるロード専用画面へ切り替える。"""
+        if not self.load_screen:
+            self.load_screen = LoadScreen(self.screen)
+        self.switch_to(self.load_screen, "load")
 
     def reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""
