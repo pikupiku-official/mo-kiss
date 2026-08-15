@@ -163,6 +163,8 @@ class GameApplication:
                 self.window_surface,
                 self.virtual_screen,
             )
+            from core.services.settings_manager import get_settings_manager
+            self._set_fullscreen(get_settings_manager().get("fullscreen"))
             print(f"✓ 仮想画面作成: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
 
             self.clock = pygame.time.Clock()
@@ -198,17 +200,25 @@ class GameApplication:
     def show_option(self):
         """OPTIONモーダルSubsystemを表示（BGM継続）。"""
         if self.option_subsystem is None:
-            self.option_subsystem = OptionSubsystem.standard(
+            self.option_subsystem = OptionSubsystem.image_option(
                 self.screen,
-                self.current_mode,
+                fullscreen_callback=self._set_fullscreen,
             )
             print("[OPTION] オーバーレイ表示")
 
     def show_mock_option(self):
         """モック用 OPTION アニメーションを表示"""
         if self.option_subsystem is None:
-            self.option_subsystem = OptionSubsystem.image_option(self.screen)
+            self.option_subsystem = OptionSubsystem.image_option(
+                self.screen,
+                fullscreen_callback=self._set_fullscreen,
+            )
             print("[OPTION] モックオーバーレイ表示")
+
+    def _set_fullscreen(self, enabled: bool):
+        if self.window_controller is not None:
+            self.window_controller.set_fullscreen(enabled)
+            self.window_surface = self.window_controller.window_surface
 
     def show_mock_await(self):
         """モック用 AWAIT アニメーションを表示"""

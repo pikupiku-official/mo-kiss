@@ -5,6 +5,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from core.services.settings_manager import get_settings_manager
+
 class SEManager:
     def __init__(self, debug=False):
         self.debug = debug
@@ -66,7 +68,8 @@ class SEManager:
             
             def play_sequential():
                 for i in range(int(frequency)):
-                    sound.play()
+                    channel = sound.play()
+                    get_settings_manager().apply_se_channel_volume(channel)
                     if i < int(frequency) - 1:  # 最後以外は待機
                         time.sleep(sound.get_length())
             
@@ -76,6 +79,7 @@ class SEManager:
                 channel = None
             else:
                 channel = sound.play()
+                get_settings_manager().apply_se_channel_volume(channel)
             
             if self.debug:
                 print(f"SEを再生: {filename} (volume={volume}, frequency={frequency})")
@@ -162,7 +166,8 @@ class SEManager:
             if int(frequency) > 1:
                 await asyncio.to_thread(self._play_sequential_async, sound, frequency)
             else:
-                sound.play()
+                channel = sound.play()
+                get_settings_manager().apply_se_channel_volume(channel)
             
             if self.debug:
                 print(f"SE非同期再生: {filename} (volume={volume}, frequency={frequency})")
@@ -176,7 +181,8 @@ class SEManager:
     def _play_sequential_async(self, sound, frequency):
         """連続再生（非同期版）"""
         for i in range(int(frequency)):
-            sound.play()
+            channel = sound.play()
+            get_settings_manager().apply_se_channel_volume(channel)
             if i < int(frequency) - 1:  # 最後以外は待機
                 time.sleep(sound.get_length())
 

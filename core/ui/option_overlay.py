@@ -21,6 +21,7 @@ import os
 
 import pygame
 from core.path_utils import get_project_root
+from core.services.settings_manager import get_settings_manager
 
 
 _SAVE_MODES = {"map", "home"}
@@ -38,7 +39,23 @@ _OPTION_ACTIONS = {
     3: "save",
     4: "load",
     5: "return_to_morning",
+    6: "settings",
 }
+
+_SETTINGS_FRAME_DURATION_MS = 120
+_SETTINGS_SOURCE_SIZE = (640, 480)
+_SETTINGS_FADER_X = (107, 193, 277, 361, 445, 529)
+_SETTINGS_FADER_TOP_Y = 230
+_SETTINGS_FADER_BOTTOM_Y = 327
+_SETTINGS_KNOB_SIZE = (36, 48)
+_SETTINGS_KEYS = (
+    "master_volume",
+    "music_volume",
+    "se_volume",
+    "voice_volume",
+    "text_speed",
+    "fullscreen",
+)
 
 
 class OptionOverlay:
@@ -247,6 +264,223 @@ class MockOptionOverlay:
         if self._closing_started_at_ms is None:
             return False
         return self._is_close_animation_finished()
+
+
+class SettingsFaderOverlay:
+    """Animated six-fader settings screen drawn from the mixer artwork."""
+
+    def __init__(self, screen: pygame.Surface, fullscreen_callback=None):
+        self.screen = screen
+        self.settings = get_settings_manager()
+        self.fullscreen_callback = fullscreen_callback
+        self._opened_at_ms = pygame.time.get_ticks()
+        self._closing_started_at_ms = None
+        self.dragging_fader = None
+        self.hovered_action = None
+        self._frames = self._load_frames()
+        self._knob = self._load_knob()
+        self._font = self._load_font(15)
+        self._small_font = self._load_font(12)
+
+    def _load_frames(self):
+        setting_dir = os.path.join(get_project_root(), "images", "UI", "setting")
+        frames = []
+        for index in range(3):
+            path = os.path.join(setting_dir, f"fader{index}.png")
+            try:
+                frames.append(pygame.image.load(path).convert_alpha())
+            except Exception:
+                fallback = pygame.Surface(_SETTINGS_SOURCE_SIZE)
+                fallback.fill((28, 28, 28))
+                frames.append(fallback)
+        return frames
+
+    def _load_knob(self):
+        path = os.path.join(
+            get_project_root(), "images", "UI", "setting", "button.png"
+        )
+        try:
+            image = pygame.image.load(path).convert_alpha()
+        except Exception:
+            image = pygame.Surface(_SETTINGS_KNOB_SIZE, pygame.SRCALPHA)
+            image.fill((24, 24, 24))
+        return pygame.transform.smoothscale(image, _SETTINGS_KNOB_SIZE)
+
+    @staticmethod
+    def _load_font(source_size):
+        path = os.path.join(get_project_root(), "fonts", "MPLUS1p-Medium.ttf")
+        try:
+            return pygame.font.Font(path, source_size)
+        except Exception:
+            return pygame.font.SysFont("msgothic", source_size)
+
+    @property
+    def is_opening(self):
+        return (
+            self._closing_started_at_ms is None
+            and pygame.time.get_ticks() - self._opened_at_ms
+            < len(self._frames) * _SETTINGS_FRAME_DURATION_MS
+        )
+
+    @property
+    def is_closing(self):
+        return self._closing_started_at_ms is not None
+
+    def start_close(self):
+        if self._closing_started_at_ms is None:
+            self.dragging_fader = None
+            self._closing_started_at_ms = pygame.time.get_ticks()
+
+    def is_close_animation_finished(self):
+        if self._closing_started_at_ms is None:
+            return False
+        return (
+            pygame.time.get_ticks() - self._closing_started_at_ms
+            >= len(self._frames) * _SETTINGS_FRAME_DURATION_MS
+        )
+
+    def begin_drag(self, pos):
+        if self.is_opening or self.is_closing:
+            return False
+        source_x, source_y = self._to_source_pos(pos)
+        for index, center_x in enumerate(_SETTINGS_FADER_X):
+            if abs(source_x - center_x) <= 24 and 204 <= source_y <= 352:
+                self.dragging_fader = index
+                self.drag_to(pos, persist=index == 5)
+                return True
+        return False
+
+    def drag_to(self, pos, *, persist=False):
+        if self.dragging_fader is None:
+            return
+        _, source_y = self._to_source_pos(pos)
+        value = (
+            _SETTINGS_FADER_BOTTOM_Y - source_y
+        ) / (_SETTINGS_FADER_BOTTOM_Y - _SETTINGS_FADER_TOP_Y)
+        value = max(0.0, min(1.0, value))
+        key = _SETTINGS_KEYS[self.dragging_fader]
+        if key == "fullscreen":
+            enabled = value >= 0.5
+            changed = self.settings.get(key) != enabled
+            self.settings.set(key, enabled, persist=True)
+            if changed and self.fullscreen_callback is not None:
+                self.fullscreen_callback(enabled)
+        else:
+            self.settings.set(key, value, persist=persist)
+
+    def end_drag(self):
+        if self.dragging_fader is None:
+            return
+        key = _SETTINGS_KEYS[self.dragging_fader]
+        self.dragging_fader = None
+        self.settings.set(key, self.settings.get(key), persist=True)
+
+    def action_at(self, pos):
+        if self.is_opening or self.is_closing:
+            return None
+        source_pos = self._to_source_pos(pos)
+        for action, rect in self._choice_rects():
+            if rect.collidepoint(source_pos):
+                return action
+        return None
+
+    def update_hover(self, pos):
+        self.hovered_action = self.action_at(pos)
+
+    def reset_to_defaults(self):
+        was_fullscreen = self.settings.get("fullscreen")
+        self.settings.reset()
+        if was_fullscreen and self.fullscreen_callback is not None:
+            self.fullscreen_callback(False)
+
+    def render_overlay(self):
+        frame = self._current_frame()
+        target_size = self.screen.get_size()
+        if frame.get_size() != target_size:
+            frame = pygame.transform.smoothscale(frame, target_size)
+        self.screen.blit(frame, (0, 0))
+        if not self.is_opening and not self.is_closing:
+            self._render_controls()
+
+    def _current_frame(self):
+        if self._closing_started_at_ms is not None:
+            elapsed = pygame.time.get_ticks() - self._closing_started_at_ms
+            index = min(elapsed // _SETTINGS_FRAME_DURATION_MS, 2)
+            return self._frames[2 - index]
+        elapsed = pygame.time.get_ticks() - self._opened_at_ms
+        index = min(elapsed // _SETTINGS_FRAME_DURATION_MS, 2)
+        return self._frames[index]
+
+    def _render_controls(self):
+        width, height = self.screen.get_size()
+        sx = width / _SETTINGS_SOURCE_SIZE[0]
+        sy = height / _SETTINGS_SOURCE_SIZE[1]
+        knob_size = (
+            max(1, round(_SETTINGS_KNOB_SIZE[0] * sx)),
+            max(1, round(_SETTINGS_KNOB_SIZE[1] * sy)),
+        )
+        knob = pygame.transform.smoothscale(self._knob, knob_size)
+
+        for index, (center_x, key) in enumerate(zip(_SETTINGS_FADER_X, _SETTINGS_KEYS)):
+            value = float(self.settings.get(key))
+            center_y = _SETTINGS_FADER_BOTTOM_Y - value * (
+                _SETTINGS_FADER_BOTTOM_Y - _SETTINGS_FADER_TOP_Y
+            )
+            self.screen.blit(
+                knob,
+                (
+                    round(center_x * sx - knob_size[0] / 2),
+                    round(center_y * sy - knob_size[1] / 2),
+                ),
+            )
+            display = self._display_value(index, value)
+            self._draw_centered_text(display, center_x, 423, self._small_font, sx, sy)
+
+        for action, rect in self._choice_rects():
+            color = (255, 231, 118) if self.hovered_action == action else (245, 245, 238)
+            label = "▶ " if self.hovered_action == action else "  "
+            label += "ゲームに戻る" if action == "resume" else "工場出荷時の設定に戻す"
+            self._draw_centered_text(label, rect.centerx, rect.centery, self._font, sx, sy, color)
+
+    def _draw_centered_text(self, text, x, y, font, sx, sy, color=(245, 245, 238)):
+        surface = font.render(text, True, color)
+        shadow = font.render(text, True, (25, 20, 15))
+        size = (max(1, round(surface.get_width() * sx)), max(1, round(surface.get_height() * sy)))
+        surface = pygame.transform.smoothscale(surface, size)
+        shadow = pygame.transform.smoothscale(shadow, size)
+        rect = surface.get_rect(center=(round(x * sx), round(y * sy)))
+        self.screen.blit(shadow, rect.move(max(1, round(sx)), max(1, round(sy))))
+        self.screen.blit(surface, rect)
+
+    @staticmethod
+    def _display_value(index, value):
+        if index <= 3:
+            return f"{round(value * 100)}%"
+        if index == 4:
+            if value < 0.2:
+                return "最遅"
+            if value < 0.4:
+                return "遅い"
+            if value < 0.6:
+                return "普通"
+            if value < 0.8:
+                return "速い"
+            return "最速"
+        return "ON" if value >= 0.5 else "OFF"
+
+    @staticmethod
+    def _choice_rects():
+        return (
+            ("resume", pygame.Rect(32, 443, 220, 32)),
+            ("reset", pygame.Rect(272, 443, 340, 32)),
+        )
+
+    def _to_source_pos(self, pos):
+        width, height = self.screen.get_size()
+        return (
+            pos[0] * _SETTINGS_SOURCE_SIZE[0] / width,
+            pos[1] * _SETTINGS_SOURCE_SIZE[1] / height,
+        )
 
 
 class OptionImageOverlay:

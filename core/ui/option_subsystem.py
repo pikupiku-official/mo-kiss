@@ -6,7 +6,12 @@ from enum import Enum
 
 import pygame
 
-from core.ui.option_overlay import MockOptionOverlay, OptionImageOverlay, OptionOverlay
+from core.ui.option_overlay import (
+    MockOptionOverlay,
+    OptionImageOverlay,
+    OptionOverlay,
+    SettingsFaderOverlay,
+)
 
 
 MOCK_AWAIT_FRAMES = ("UI_await01.png", "UI_await02.png", "UI_await03.png")
@@ -38,9 +43,10 @@ class OptionAction(str, Enum):
 class OptionSubsystem:
     """Own modal input/state while an overlay remains the visual frontend."""
 
-    def __init__(self, screen, overlay):
+    def __init__(self, screen, overlay, fullscreen_callback=None):
         self.screen = screen
         self.overlay = overlay
+        self._fullscreen_callback = fullscreen_callback
         self._held_direction_key = None
         self._next_direction_repeat_at_ms = None
 
@@ -49,8 +55,12 @@ class OptionSubsystem:
         return cls(screen, OptionOverlay(screen, parent_mode))
 
     @classmethod
-    def image_option(cls, screen):
-        return cls(screen, OptionImageOverlay(screen))
+    def image_option(cls, screen, fullscreen_callback=None):
+        return cls(
+            screen,
+            OptionImageOverlay(screen),
+            fullscreen_callback=fullscreen_callback,
+        )
 
     @classmethod
     def await_sequence(cls, screen):
@@ -66,6 +76,8 @@ class OptionSubsystem:
             return self._handle_standard_option(events)
         if isinstance(self.overlay, OptionImageOverlay):
             return self._handle_image_option(events)
+        if isinstance(self.overlay, SettingsFaderOverlay):
+            return self._handle_settings_fader(events)
         if isinstance(self.overlay, MockOptionOverlay):
             if self.overlay.is_close_animation_finished():
                 return OptionAction.RESUME
@@ -115,6 +127,10 @@ class OptionSubsystem:
             else:
                 self._clear_held_direction()
                 self.overlay = MockOptionOverlay(self.screen, MOCK_AWAIT_FRAMES)
+            return True
+
+        if isinstance(self.overlay, SettingsFaderOverlay):
+            self.overlay.start_close()
             return True
 
         if isinstance(self.overlay, MockOptionOverlay):
@@ -194,6 +210,10 @@ class OptionSubsystem:
             elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 if not has_move:
                     requested_action = self.overlay.activate_selection()
+            elif event.key == pygame.K_ESCAPE:
+                self._clear_held_direction()
+                self.overlay.start_close()
+                return None
 
         if has_move:
             # Independent taps collected in one frame are collapsed to their
@@ -202,6 +222,13 @@ class OptionSubsystem:
             self.overlay.move_selection(move_delta)
             return None
         if requested_action is not None:
+            if requested_action == "settings":
+                self._clear_held_direction()
+                self.overlay = SettingsFaderOverlay(
+                    self.screen,
+                    fullscreen_callback=self._fullscreen_callback,
+                )
+                return None
             return OptionAction.from_value(requested_action)
 
         if (
@@ -217,6 +244,36 @@ class OptionSubsystem:
             self._next_direction_repeat_at_ms = (
                 now + _HELD_DIRECTION_REPEAT_MS
             )
+        return None
+
+    def _handle_settings_fader(self, events):
+        if self.overlay.is_closing:
+            if self.overlay.is_close_animation_finished():
+                return OptionAction.RESUME
+            return None
+
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.overlay.start_close()
+                continue
+            if event.type == pygame.MOUSEMOTION:
+                self.overlay.update_hover(event.pos)
+                if self.overlay.dragging_fader is not None:
+                    self.overlay.drag_to(event.pos)
+                continue
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                self.overlay.end_drag()
+                continue
+            if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+                continue
+
+            action = self.overlay.action_at(event.pos)
+            if action == "resume":
+                self.overlay.start_close()
+            elif action == "reset":
+                self.overlay.reset_to_defaults()
+            else:
+                self.overlay.begin_drag(event.pos)
         return None
 
     def _clear_held_direction(self):

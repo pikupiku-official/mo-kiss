@@ -3,12 +3,10 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from core.config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos, scale_size
+from core.config import init_game, SCREEN_WIDTH, SCREEN_HEIGHT, scale_pos
 from core.runtime.subsystem_base import SubsystemBase
-from .main_menu_config import (
-    COLORS, FONT_SIZES, LAYOUT, MenuState, DEFAULT_AUDIO_SETTINGS
-)
-from .ui_components import Button, Slider, Panel, VolumeIndicator, ToggleButton, TextInput
+from .main_menu_config import COLORS, FONT_SIZES, LAYOUT, MenuState
+from .ui_components import Button, TextInput
 from core.ui.loading_screen import show_loading, hide_loading
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from dialogue.name_manager import get_name_manager
@@ -24,15 +22,8 @@ class MainMenu(SubsystemBase):
         # フォントは後で初期化
         self.fonts = {}
         
-        # 音声設定
-        self.audio_settings = DEFAULT_AUDIO_SETTINGS.copy()
-        
         # UIコンポーネント
         self.buttons = {}
-        self.sliders = {}
-        self.panels = {}
-        self.volume_indicators = {}
-        self.toggle_buttons = {}
         self.text_inputs = {}
         
         # 名前管理
@@ -206,13 +197,8 @@ class MainMenu(SubsystemBase):
             "ロード", self.fonts['medium'], 'green'
         )
 
-        self.buttons['settings'] = Button(
-            button_x, button_y + spacing_offset * 4, 300, 70,
-            "設定", self.fonts['medium'], 'green'
-        )
-
         self.buttons['home'] = Button(
-            button_x, button_y + spacing_offset * 5, 300, 70,
+            button_x, button_y + spacing_offset * 4, 300, 70,
             "家", self.fonts['medium'], 'green'
         )
 
@@ -230,48 +216,6 @@ class MainMenu(SubsystemBase):
             "戻る", self.fonts['small'], 'green'
         )
         
-        # 設定パネル（4:3コンテンツ基準）
-        panel_x, panel_y = scale_pos(LAYOUT['settings_panel_x'], LAYOUT['settings_panel_y'])
-        panel_w, panel_h = scale_size(LAYOUT['settings_panel_width'], LAYOUT['settings_panel_height'])
-
-        self.panels['settings'] = Panel(panel_x, panel_y, panel_w, panel_h)
-
-        # 設定用スライダー（4:3コンテンツ基準）
-        slider_x, slider_y = scale_pos(LAYOUT['settings_panel_x'] + 113, LAYOUT['settings_panel_y'] + 90)  # 150*0.75=113, 120*0.75=90
-        _, slider_spacing = scale_pos(0, 68)  # 90 * 0.75 = 68
-
-        self.sliders['bgm'] = Slider(
-            slider_x, slider_y, 300, 30, 0, 100, self.audio_settings['bgm_volume']
-        )
-
-        self.sliders['voice'] = Slider(
-            slider_x, slider_y + slider_spacing, 300, 30, 0, 100, self.audio_settings['voice_volume']
-        )
-
-        # 音量インジケーター（4:3コンテンツ基準）
-        indicator_x = slider_x + 320
-        self.volume_indicators['bgm'] = VolumeIndicator(
-            indicator_x, slider_y - 5, self.audio_settings['bgm_volume']
-        )
-
-        self.volume_indicators['voice'] = VolumeIndicator(
-            indicator_x, slider_y + slider_spacing - 5, self.audio_settings['voice_volume']
-        )
-
-        # 振動切り替えボタン（4:3コンテンツ基準）
-        vib_btn_x, vib_btn_y = scale_pos(LAYOUT['settings_panel_x'] + 113, LAYOUT['settings_panel_y'] + 45)  # 150*0.75=113, 60*0.75=45
-        self.toggle_buttons['vibration'] = ToggleButton(
-            vib_btn_x, vib_btn_y, 120, 45,
-            self.fonts['small'], self.audio_settings['vibration']
-        )
-
-        # 初期設定に戻すボタン（4:3コンテンツ基準）
-        reset_btn_x, reset_btn_y = scale_pos(LAYOUT['settings_panel_x'] + 38, LAYOUT['settings_panel_y'] + 263)  # 50*0.75=38, 350*0.75=263
-        self.buttons['reset'] = Button(
-            reset_btn_x, reset_btn_y, 240, 60,
-            "初期設定に戻す", self.fonts['small'], 'green'
-        )
-
         # 名前入力欄（「はじめから」ボタンの右側、4:3コンテンツ基準）
         name_input_x = button_x + int(320 * SCALE)  # 「はじめから」ボタンの右側
         name_input_y = button_y
@@ -332,18 +276,6 @@ class MainMenu(SubsystemBase):
                     name = self.text_inputs['name'].get_text()
                     self.name_manager.set_names(surname, name)
             
-            # スライダーイベント処理（設定画面でのみ）
-            if self.state == MenuState.SETTINGS:
-                for slider_name, slider in self.sliders.items():
-                    if slider.handle_event(event):
-                        self._handle_slider_change(slider_name, slider.val)
-                
-                # トグルボタンイベント処理
-                for toggle_name, toggle_button in self.toggle_buttons.items():
-                    result = toggle_button.handle_event(event)
-                    if result == 'toggle':
-                        self._handle_toggle_change(toggle_name, toggle_button.is_enabled)
-    
     def _handle_button_click(self, button_name):
         if button_name == 'start':
             print("新しいゲームを開始")
@@ -351,9 +283,6 @@ class MainMenu(SubsystemBase):
         elif button_name == 'continue':
             print("ゲームを続行")
             # ここにゲーム続行のロジックを追加
-        elif button_name == 'settings':
-            self.state = MenuState.SETTINGS
-            self._update_button_selection()
         elif button_name == 'save':
             self.state = MenuState.SAVE
             self._load_save_slots()
@@ -366,16 +295,11 @@ class MainMenu(SubsystemBase):
             print("テスト機能")
             # ここにテスト機能のロジックを追加
         elif button_name == 'back':
-            if self.state == MenuState.SETTINGS:
-                self.state = MenuState.MAIN
-                self._update_button_selection()
-            elif self.state == MenuState.SAVE or self.state == MenuState.LOAD:
+            if self.state == MenuState.SAVE or self.state == MenuState.LOAD:
                 self.state = MenuState.MAIN
                 self._update_button_selection()
             else:
                 self.running = False
-        elif button_name == 'reset':
-            self._reset_to_defaults()
         elif button_name.startswith('slot_'):
             slot_num = int(button_name.split('_')[1])
             self._handle_slot_click(slot_num)
@@ -408,18 +332,6 @@ class MainMenu(SubsystemBase):
             if result == 'click':
                 return self._handle_button_click_with_result(button_name)
         
-        # スライダーイベント処理（設定画面でのみ）
-        if self.state == MenuState.SETTINGS:
-            for slider_name, slider in self.sliders.items():
-                if slider.handle_event(event):
-                    self._handle_slider_change(slider_name, slider.val)
-            
-            # トグルボタンイベント処理
-            for toggle_name, toggle_button in self.toggle_buttons.items():
-                result = toggle_button.handle_event(event)
-                if result == 'toggle':
-                    self._handle_toggle_change(toggle_name, toggle_button.is_enabled)
-        
         return None
     
     def _handle_button_click_with_result(self, button_name):
@@ -430,23 +342,11 @@ class MainMenu(SubsystemBase):
         elif button_name == 'continue':
             print("ゲームを続行")
             return "continue_game"
-        elif button_name == 'settings':
-            self.state = MenuState.SETTINGS
-            self._update_button_selection()
-            return None
         elif button_name == 'test':
             print("テスト機能")
             return "dialogue_test"
         elif button_name == 'back':
-            if self.state == MenuState.SETTINGS:
-                self.state = MenuState.MAIN
-                self._update_button_selection()
-                return None
-            else:
-                return "quit"
-        elif button_name == 'reset':
-            self._reset_to_defaults()
-            return None
+            return "quit"
         elif button_name == 'save':
             self.state = MenuState.SAVE
             self._load_save_slots()
@@ -475,40 +375,12 @@ class MainMenu(SubsystemBase):
             button.is_selected = False
         
         # 現在の状態に応じて選択状態を設定
-        if self.state == MenuState.SETTINGS:
-            self.buttons['settings'].is_selected = True
-        elif self.state == MenuState.SAVE:
+        if self.state == MenuState.SAVE:
             if 'save' in self.buttons:
                 self.buttons['save'].is_selected = True
         elif self.state == MenuState.LOAD:
             if 'load' in self.buttons:
                 self.buttons['load'].is_selected = True
-    
-    def _handle_slider_change(self, slider_name, value):
-        self.audio_settings[f'{slider_name}_volume'] = int(value)
-        self.volume_indicators[slider_name].volume_level = int(value)
-        print(f"{slider_name}音量: {int(value)}")
-    
-    def _handle_toggle_change(self, toggle_name, is_enabled):
-        self.audio_settings[toggle_name] = is_enabled
-        print(f"{toggle_name}: {'有効' if is_enabled else '無効'}")
-    
-    def _reset_to_defaults(self):
-        """設定を初期値に戻す"""
-        self.audio_settings = DEFAULT_AUDIO_SETTINGS.copy()
-        
-        # スライダーの値を更新
-        self.sliders['bgm'].val = self.audio_settings['bgm_volume']
-        self.sliders['voice'].val = self.audio_settings['voice_volume']
-        
-        # 音量インジケーターを更新
-        self.volume_indicators['bgm'].volume_level = self.audio_settings['bgm_volume']
-        self.volume_indicators['voice'].volume_level = self.audio_settings['voice_volume']
-        
-        # トグルボタンを更新
-        self.toggle_buttons['vibration'].is_enabled = self.audio_settings['vibration']
-        
-        print("設定を初期状態に戻しました")
     
     def _load_save_slots(self):
         """セーブスロット情報を読み込む"""
@@ -634,7 +506,6 @@ class MainMenu(SubsystemBase):
         self.buttons['continue'].draw(self.screen)
         self.buttons['save'].draw(self.screen)
         self.buttons['load'].draw(self.screen)
-        self.buttons['settings'].draw(self.screen)
         self.buttons['home'].draw(self.screen)
         
         # 名前入力欄（「はじめから」ボタンの横に表示）
@@ -651,10 +522,7 @@ class MainMenu(SubsystemBase):
         self.buttons['test'].draw(self.screen)
         self.buttons['back'].draw(self.screen)
         
-        # 設定画面
-        if self.state == MenuState.SETTINGS:
-            self._draw_settings_panel()
-        elif self.state == MenuState.SAVE:
+        if self.state == MenuState.SAVE:
             self._draw_save_load_panel("セーブ")
         elif self.state == MenuState.LOAD:
             self._draw_save_load_panel("ロード")
@@ -663,36 +531,6 @@ class MainMenu(SubsystemBase):
         self.screen.set_clip(None)
 
         pygame.display.flip()
-    
-    def _draw_settings_panel(self):
-        # 設定パネル
-        self.panels['settings'].draw(self.screen)
-        
-        # 設定項目のテキスト
-        panel_x = LAYOUT['settings_panel_x']
-        panel_y = LAYOUT['settings_panel_y']
-        
-        # 振動設定（大きく調整）
-        vibration_text = self.fonts['medium'].render("振動", True, COLORS['text_main'])
-        self.screen.blit(vibration_text, (panel_x + 50, panel_y + 60))
-        
-        # 振動切り替えボタンを描画
-        self.toggle_buttons['vibration'].draw(self.screen)
-        
-        # BGM設定（大きく調整）
-        bgm_text = self.fonts['medium'].render("BGM", True, COLORS['text_main'])
-        self.screen.blit(bgm_text, (panel_x + 50, panel_y + 120))
-        self.sliders['bgm'].draw(self.screen)
-        self.volume_indicators['bgm'].draw(self.screen)
-        
-        # 音声設定（大きく調整）
-        voice_text = self.fonts['medium'].render("音声", True, COLORS['text_main'])
-        self.screen.blit(voice_text, (panel_x + 50, panel_y + 210))
-        self.sliders['voice'].draw(self.screen)
-        self.volume_indicators['voice'].draw(self.screen)
-        
-        # 初期設定に戻すボタンを描画
-        self.buttons['reset'].draw(self.screen)
     
     def _draw_save_load_panel(self, title):
         """セーブ/ロード画面を描画（4:3コンテンツ基準）"""
@@ -727,16 +565,6 @@ class MainMenu(SubsystemBase):
             if hasattr(button, 'update'):
                 button.update()
         
-        # スライダーの状態更新
-        for slider in self.sliders.values():
-            if hasattr(slider, 'update'):
-                slider.update()
-        
-        # 音量インジケーターの更新
-        for indicator in self.volume_indicators.values():
-            if hasattr(indicator, 'update'):
-                indicator.update()
-    
     def render(self):
         """画面描画（main.pyからの呼び出し用）"""
         self.draw()

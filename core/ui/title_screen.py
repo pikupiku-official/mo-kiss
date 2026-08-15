@@ -123,7 +123,8 @@ class TitleScreen:
         if self.bgm_loaded:
             try:
                 pygame.mixer.music.play(-1)  # ループ再生
-                pygame.mixer.music.set_volume(0.3)  # 音量を30%に設定
+                from core.services.settings_manager import get_settings_manager
+                get_settings_manager().apply_bgm_volume(0.3)
                 if self.debug:
                     print("タイトルBGM再生開始")
             except Exception as e:

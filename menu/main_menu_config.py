@@ -37,7 +37,6 @@ COLORS = {
 # メニューの状態
 class MenuState(Enum):
     MAIN = "main"
-    SETTINGS = "settings"
     SAVE = "save"
     LOAD = "load"
 
@@ -70,17 +69,8 @@ SLIDER_CONFIG = {
 LAYOUT = {
     'title_y': 90,  # 120 * 0.75
     'main_menu_start_y': 225,  # 300 * 0.75
-    'settings_panel_x': 375,  # 500 * 0.75
-    'settings_panel_y': 210,  # 280 * 0.75
-    'settings_panel_width': 600,  # 800 * 0.75
-    'settings_panel_height': 338,  # 450 * 0.75
     'right_buttons_x': 900,  # 1200 * 0.75（4:3コンテンツ内の位置）
     'right_buttons_y': 60  # 80 * 0.75
 }
 
 # 音声設定のデフォルト値
-DEFAULT_AUDIO_SETTINGS = {
-    'vibration': False,
-    'bgm_volume': 80,
-    'voice_volume': 80
-}
