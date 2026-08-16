@@ -15,6 +15,7 @@ class Scene(str, Enum):
     MAP = "map"
     MENU = "menu"
     HOME = "home"
+    LOAD = "load"
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,11 @@ class StartDialogue:
 
 @dataclass(frozen=True)
 class ShowOption:
+    pass
+
+
+@dataclass(frozen=True)
+class ShowSettings:
     pass
 
 
@@ -59,6 +65,7 @@ FlowRequest = (
     Navigate
     | StartDialogue
     | ShowOption
+    | ShowSettings
     | DialogueEnded
     | ContinueGame
     | MorningDeparture
@@ -74,6 +81,7 @@ def normalize_flow_request(result) -> FlowRequest | None:
             Navigate,
             StartDialogue,
             ShowOption,
+            ShowSettings,
             DialogueEnded,
             ContinueGame,
             MorningDeparture,
@@ -91,8 +99,10 @@ def normalize_flow_request(result) -> FlowRequest | None:
         "back_to_menu": Navigate(Scene.MENU),
         "go_to_main_menu": Navigate(Scene.MENU),
         "go_to_home": Navigate(Scene.HOME),
+        "go_to_load": Navigate(Scene.LOAD),
         "skip_to_home": Navigate(Scene.HOME),
         "show_option": ShowOption(),
+        "show_settings": ShowSettings(),
         "dialogue_ended": DialogueEnded(),
         "launch_morning_departure": MorningDeparture(),
         "new_game": StartDialogue("events/E001.ks"),
@@ -138,6 +148,8 @@ class GameFlowController:
             self._navigate(request.scene)
         elif isinstance(request, ShowOption):
             self.application.show_option()
+        elif isinstance(request, ShowSettings):
+            self.application.show_settings()
         elif isinstance(request, StartDialogue):
             if (
                 request.completion is None
@@ -210,3 +222,5 @@ class GameFlowController:
             self.application.switch_to_menu()
         elif scene is Scene.HOME:
             self.application.switch_to_home()
+        elif scene is Scene.LOAD:
+            self.application.switch_to_load()

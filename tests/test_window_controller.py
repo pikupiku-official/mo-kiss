@@ -54,6 +54,7 @@ def test_present_virtual_screen_letterboxes_content(monkeypatch):
     virtual = pygame.Surface((100, 100))
     virtual.fill((255, 0, 0))
     controller = WindowController(window, virtual)
+    controller.pointer_image = None
     monkeypatch.setattr(config, "WINDOW_CONTENT_WIDTH", 100)
     monkeypatch.setattr(config, "WINDOW_CONTENT_HEIGHT", 100)
     monkeypatch.setattr(config, "WINDOW_OFFSET_X", 50)
@@ -63,3 +64,54 @@ def test_present_virtual_screen_letterboxes_content(monkeypatch):
 
     assert window.get_at((0, 0))[:3] == (0, 0, 0)
     assert window.get_at((50, 50))[:3] == (255, 0, 0)
+
+
+def test_pointer_scales_but_keeps_hotspot_on_real_mouse_position(monkeypatch):
+    window = pygame.Surface((800, 600))
+    virtual = pygame.Surface((100, 100))
+    controller = WindowController(window, virtual)
+    pointer = pygame.Surface((10, 20), pygame.SRCALPHA)
+    pointer.fill((0, 255, 0, 255))
+    controller.pointer_image = pointer
+    controller.POINTER_HOTSPOT = (2, 4)
+    controller._scaled_pointer_key = None
+
+    monkeypatch.setattr(config, "WINDOW_CONTENT_WIDTH", 720)
+    monkeypatch.setattr(config, "WINDOW_CONTENT_HEIGHT", 540)
+    monkeypatch.setattr(config, "WINDOW_OFFSET_X", 0)
+    monkeypatch.setattr(config, "WINDOW_OFFSET_Y", 0)
+    monkeypatch.setattr(pygame.mouse, "get_pos", lambda: (100, 100))
+
+    controller.present_virtual_screen()
+
+    assert controller._scaled_pointer.get_size() == (5, 10)
+    assert window.get_at((99, 98))[:3] == (0, 255, 0)
+    assert window.get_at((98, 98))[:3] == (0, 0, 0)
+
+
+def test_pointer_fades_out_after_mouse_stops(monkeypatch):
+    window = pygame.Surface((200, 200))
+    virtual = pygame.Surface((100, 100))
+    controller = WindowController(window, virtual)
+    pointer = pygame.Surface((10, 10), pygame.SRCALPHA)
+    pointer.fill((0, 255, 0, 255))
+    controller.pointer_image = pointer
+    controller.POINTER_HOTSPOT = (0, 0)
+    controller._scaled_pointer_key = None
+    controller._pointer_last_position = (100, 100)
+    controller._pointer_last_activity_ms = 1_000
+
+    monkeypatch.setattr(config, "WINDOW_CONTENT_WIDTH", config.VIRTUAL_WIDTH)
+    monkeypatch.setattr(config, "WINDOW_CONTENT_HEIGHT", config.VIRTUAL_HEIGHT)
+    monkeypatch.setattr(config, "WINDOW_OFFSET_X", 0)
+    monkeypatch.setattr(config, "WINDOW_OFFSET_Y", 0)
+    monkeypatch.setattr(pygame.mouse, "get_pos", lambda: (100, 100))
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1_900)
+    controller._draw_pointer()
+    assert controller._scaled_pointer.get_alpha() in (127, 128)
+
+    window.fill((0, 0, 0))
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 2_100)
+    controller._draw_pointer()
+    assert window.get_at((100, 100))[:3] == (0, 0, 0)

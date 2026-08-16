@@ -21,6 +21,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 from core.config import *
 from menu.main_menu import MainMenu
+from menu.load_screen import LoadScreen
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
 from core.ui.title_subsystem import TitleSubsystem
@@ -56,6 +57,7 @@ class GameApplication:
 
         # 各モードのインスタンス
         self.main_menu = None
+        self.load_screen = None
         self.map_system = None
         self.home_module = None
         self.option_subsystem = None
@@ -163,6 +165,8 @@ class GameApplication:
                 self.window_surface,
                 self.virtual_screen,
             )
+            from core.services.settings_manager import get_settings_manager
+            self._set_fullscreen(get_settings_manager().get("fullscreen"))
             print(f"✓ 仮想画面作成: {VIRTUAL_WIDTH}x{VIRTUAL_HEIGHT}")
 
             self.clock = pygame.time.Clock()
@@ -198,17 +202,34 @@ class GameApplication:
     def show_option(self):
         """OPTIONモーダルSubsystemを表示（BGM継続）。"""
         if self.option_subsystem is None:
-            self.option_subsystem = OptionSubsystem.standard(
+            self.option_subsystem = OptionSubsystem.image_option(
                 self.screen,
-                self.current_mode,
+                fullscreen_callback=self._set_fullscreen,
             )
             print("[OPTION] オーバーレイ表示")
+
+    def show_settings(self):
+        """メインメニューからフェーダー設定を直接表示する。"""
+        if self.option_subsystem is None:
+            self.option_subsystem = OptionSubsystem.settings(
+                self.screen,
+                fullscreen_callback=self._set_fullscreen,
+            )
+            print("[SETTINGS] フェーダー設定表示")
 
     def show_mock_option(self):
         """モック用 OPTION アニメーションを表示"""
         if self.option_subsystem is None:
-            self.option_subsystem = OptionSubsystem.image_option(self.screen)
+            self.option_subsystem = OptionSubsystem.image_option(
+                self.screen,
+                fullscreen_callback=self._set_fullscreen,
+            )
             print("[OPTION] モックオーバーレイ表示")
+
+    def _set_fullscreen(self, enabled: bool):
+        if self.window_controller is not None:
+            self.window_controller.set_fullscreen(enabled)
+            self.window_surface = self.window_controller.window_surface
 
     def show_mock_await(self):
         """モック用 AWAIT アニメーションを表示"""
@@ -263,6 +284,12 @@ class GameApplication:
         if not self.main_menu:
             self.main_menu = MainMenu(self.screen)
         self.switch_to(self.main_menu, "menu")
+
+    def switch_to_load(self):
+        """どの呼び出し元からも利用できるロード専用画面へ切り替える。"""
+        if not self.load_screen:
+            self.load_screen = LoadScreen(self.screen)
+        self.switch_to(self.load_screen, "load")
 
     def reload_game_systems(self):
         """ゲームシステムを再初期化（ロード後に使用）"""

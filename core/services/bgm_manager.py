@@ -5,6 +5,8 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
+from core.services.settings_manager import get_settings_manager
+
 class BGMManager:
     def __init__(self, debug=False):
         self.debug = debug
@@ -89,7 +91,7 @@ class BGMManager:
                     return False
             
             pygame.mixer.music.load(bgm_path)
-            pygame.mixer.music.set_volume(volume)
+            get_settings_manager().apply_bgm_volume(volume)
             # ループ設定に応じて再生
             if loop:
                 pygame.mixer.music.play(-1)  # ループ再生
@@ -169,7 +171,7 @@ class BGMManager:
                 self.current_volume = start_volume + (target_volume - start_volume) * eased_progress
                 self.current_volume = max(0.0, min(1.0, self.current_volume))
                 
-                pygame.mixer.music.set_volume(self.current_volume)
+                get_settings_manager().apply_bgm_volume(self.current_volume)
                 
                 if self.debug and i % 10 == 0:  # デバッグ出力を減らす
                     print(f"フェード中: {self.current_volume:.2f} ({progress:.1%})")
@@ -180,7 +182,7 @@ class BGMManager:
             # 最終音量に設定
             if self.is_fading:
                 self.current_volume = target_volume
-                pygame.mixer.music.set_volume(self.current_volume)
+                get_settings_manager().apply_bgm_volume(self.current_volume)
                 
                 # フェードアウト完了後に停止
                 if target_volume <= 0.0:
@@ -214,7 +216,7 @@ class BGMManager:
                 eased_progress = self._ease_in_out(progress)
                 self.current_volume = start_volume + (target_volume - start_volume) * eased_progress
                 self.current_volume = max(0.0, min(1.0, self.current_volume))
-                pygame.mixer.music.set_volume(self.current_volume)
+                get_settings_manager().apply_bgm_volume(self.current_volume)
                 
                 if self.debug and i % 10 == 0:
                     print(f"一時停止フェード中: {self.current_volume:.2f}")
@@ -224,7 +226,7 @@ class BGMManager:
             # 最終音量に設定
             if self.is_fading:
                 self.current_volume = target_volume
-                pygame.mixer.music.set_volume(self.current_volume)
+                get_settings_manager().apply_bgm_volume(self.current_volume)
                 if target_volume <= 0.0:
                     pygame.mixer.music.pause()
                     self.current_bgm = None
@@ -255,7 +257,7 @@ class BGMManager:
         
         # 現在の音量を0に設定してから開始
         self.current_volume = 0.0
-        pygame.mixer.music.set_volume(0.0)
+        get_settings_manager().apply_bgm_volume(0.0)
         
         self.fade_thread = threading.Thread(target=self._fade_volume, args=(target_volume, fade_time))
         self.fade_thread.start()
@@ -379,7 +381,7 @@ class BGMManager:
         
         # 現在の音量を0に設定してから開始
         self.current_volume = 0.0
-        pygame.mixer.music.set_volume(0.0)
+        get_settings_manager().apply_bgm_volume(0.0)
         
         await asyncio.to_thread(self._fade_volume, target_volume, fade_time)
     

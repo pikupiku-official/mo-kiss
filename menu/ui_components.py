@@ -261,13 +261,16 @@ class TextInput:
             
             elif event.type == pygame.TEXTINPUT:
                 # テキスト入力イベント（IME確定後の文字）
-                if not self.is_composing and len(self.text) < self.max_length:
+                if len(self.text) < self.max_length:
                     input_text = event.text
                     # 文字数制限を考慮して追加
                     remaining_length = self.max_length - len(self.text)
                     if len(input_text) <= remaining_length:
                         self.text += input_text
                         result = 'text_changed'
+                # TEXTINPUT はIMEの確定通知なので、変換表示を必ず終了する
+                self.composition_text = ""
+                self.is_composing = False
             
             elif event.type == pygame.TEXTEDITING:
                 # テキスト編集イベント（IME変換中）

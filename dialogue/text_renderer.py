@@ -144,6 +144,8 @@ class TextRenderer:
         self.scroll_manager = ScrollManager(debug)
         # ScrollManagerにTextRendererの参照を設定
         self.scroll_manager.set_text_renderer(self)
+        from core.services.settings_manager import get_settings_manager
+        get_settings_manager().register_text_renderer(self)
         
         # バックログ追加フラグの初期化
         self.backlog_added_for_current = True

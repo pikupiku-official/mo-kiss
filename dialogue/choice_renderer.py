@@ -217,6 +217,20 @@ class ChoiceRenderer:
             # PyQt5フォントの初期化
             if os.path.exists(medium_font_path):
                 try:
+                    # Headless tests deliberately run without QApplication.
+                    # Pygame rendering does not need Qt's font database, and
+                    # calling QFontDatabase without an application aborts the
+                    # process before Python can raise an exception.
+                    if QApplication.instance() is None:
+                        fonts["text"] = QFont("M PLUS 1p", text_font_size)
+                        fonts["text_pygame"] = pygame.font.Font(
+                            medium_font_path, text_font_size
+                        )
+                        fonts["default"] = pygame.font.SysFont(
+                            None, default_font_size
+                        )
+                        return fonts
+
                     # Mediumフォントの読み込み
                     medium_font_id = QFontDatabase.addApplicationFont(medium_font_path)
 
