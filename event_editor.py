@@ -32,7 +32,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QMessageBox, QToolBar, QAction, QGroupBox,
     QFormLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
-    QFileDialog
+    QFileDialog, QInputDialog, QTabWidget
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QRect, QPoint, QProcess
 from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter
@@ -81,6 +81,13 @@ from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DEBUG, USE_IR, IR_DUMP_JS
 from core.services.bgm_manager import BGMManager
 from core.services.se_manager import SEManager
 from core.services.image_manager import ImageManager
+from tools.event_editor_scene import (
+    FitPixmapLabel,
+    StepSceneCanvas,
+    StepSceneStateBuilder,
+    parse_step_action,
+)
+from tools.event_editor_part_templates import CharaPartTemplateStore
 
 
 class PreviewWindow:
@@ -549,7 +556,8 @@ class CharaCompositePreviewDialog(QDialog):
     def __init__(self, parent, image_manager, initial_fields,
                  char_name, is_shift=False, prev_fields=None,
                  char_name_options=None, require_name=False,
-                 state_by_name=None, action_overrides=None):
+                 state_by_name=None, action_overrides=None,
+                 template_store=None):
         super().__init__(parent)
         self._image_manager = image_manager
         self._fields = {p: initial_fields.get(p, '') for p in self.LAYER_ORDER}
@@ -572,8 +580,15 @@ class CharaCompositePreviewDialog(QDialog):
         self._prev_fields = self._sanitize_fields_for_character(self._prev_fields)
         self._fields = self._sanitize_fields_for_character(self._fields)
         self._action_overrides = self._sanitize_fields_for_character(self._action_overrides)
+        self._blink = str(initial_fields.get('blink', 'true')).lower() != 'false'
+        self._prev_blink = str((prev_fields or {}).get('blink', 'true')).lower() != 'false'
+        self._template_store = template_store or CharaPartTemplateStore(
+            os.path.join(project_root, "editor_data", "chara_part_templates.json")
+        )
         self._apply_btn = None
         self._name_combo = None
+        self._template_combo = None
+        self._blink_combo = None
 
         self.setWindowTitle(f"立ち絵プレビュー: {self._char_name or '未選択'}")
         self.resize(1200, 780)
@@ -753,7 +768,41 @@ class CharaCompositePreviewDialog(QDialog):
 
             parts_form.addRow(label, combo)
 
+        self._blink_combo = QComboBox()
+        self._blink_combo.addItems(['true', 'false'])
+        self._blink_combo.setCurrentText('true' if self._blink else 'false')
+        self._blink_combo.currentTextChanged.connect(
+            lambda value: setattr(self, '_blink', value == 'true')
+        )
+        parts_form.addRow('blink', self._blink_combo)
+
         right_layout.addWidget(parts_group)
+
+        template_group = QGroupBox("パーツテンプレート")
+        template_layout = QVBoxLayout(template_group)
+        self._template_combo = QComboBox()
+        template_layout.addWidget(self._template_combo)
+        template_primary_buttons = QHBoxLayout()
+        template_manage_buttons = QHBoxLayout()
+        load_template_btn = QPushButton("呼び出し")
+        save_template_btn = QPushButton("保存")
+        rename_template_btn = QPushButton("名前変更")
+        duplicate_template_btn = QPushButton("複製")
+        delete_template_btn = QPushButton("削除")
+        load_template_btn.clicked.connect(self._apply_selected_template)
+        save_template_btn.clicked.connect(self._save_current_template)
+        rename_template_btn.clicked.connect(self._rename_selected_template)
+        duplicate_template_btn.clicked.connect(self._duplicate_selected_template)
+        delete_template_btn.clicked.connect(self._delete_selected_template)
+        template_primary_buttons.addWidget(load_template_btn)
+        template_primary_buttons.addWidget(save_template_btn)
+        template_manage_buttons.addWidget(rename_template_btn)
+        template_manage_buttons.addWidget(duplicate_template_btn)
+        template_manage_buttons.addWidget(delete_template_btn)
+        template_layout.addLayout(template_primary_buttons)
+        template_layout.addLayout(template_manage_buttons)
+        right_layout.addWidget(template_group)
+        self._refresh_template_combo()
 
         # chara_shift: 差分のみ適用オプション
         self._diff_only = None
@@ -787,7 +836,111 @@ class CharaCompositePreviewDialog(QDialog):
         self._prev_fields, self._fields = self._compose_fields_for_name(self._char_name)
         self.setWindowTitle(f"立ち絵プレビュー: {self._char_name or '未選択'}")
         self._refresh_all_combos()
+        self._refresh_template_combo()
         self._sync_apply_enabled()
+
+    def _refresh_template_combo(self, selected_id=None):
+        if self._template_combo is None:
+            return
+        self._template_combo.blockSignals(True)
+        self._template_combo.clear()
+        for template in self._template_store.for_character(self._char_name):
+            self._template_combo.addItem(template.get('name', ''), template)
+        if selected_id:
+            for index in range(self._template_combo.count()):
+                item = self._template_combo.itemData(index) or {}
+                if item.get('id') == selected_id:
+                    self._template_combo.setCurrentIndex(index)
+                    break
+        self._template_combo.blockSignals(False)
+
+    def _selected_template(self):
+        if self._template_combo is None or self._template_combo.currentIndex() < 0:
+            return None
+        return self._template_combo.currentData()
+
+    def _apply_selected_template(self):
+        template = self._selected_template()
+        if not template:
+            return
+        self._fields = self._sanitize_fields_for_character(template.get('parts', {}))
+        self._blink = bool(template.get('blink', True))
+        if self._blink_combo is not None:
+            self._blink_combo.setCurrentText('true' if self._blink else 'false')
+        self._refresh_all_combos()
+
+    def _save_current_template(self):
+        if not self._char_name:
+            QMessageBox.warning(self, "テンプレート保存", "先にキャラクターを選択してください")
+            return
+        name, accepted = QInputDialog.getText(self, "テンプレート保存", "テンプレート名")
+        if not accepted or not name.strip():
+            return
+        try:
+            template = self._template_store.create(
+                name, self._char_name, self._fields, self._blink
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, "テンプレート保存", str(exc))
+            return
+        self._refresh_template_combo(template.get('id'))
+
+    def _rename_selected_template(self):
+        template = self._selected_template()
+        if not template:
+            return
+        name, accepted = QInputDialog.getText(
+            self,
+            "テンプレート名変更",
+            "新しい名前",
+            text=template.get('name', ''),
+        )
+        if not accepted or not name.strip():
+            return
+        try:
+            updated = self._template_store.rename(template.get('id'), name)
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, "テンプレート名変更", str(exc))
+            return
+        self._refresh_template_combo(updated.get('id') if updated else None)
+
+    def _duplicate_selected_template(self):
+        template = self._selected_template()
+        if not template:
+            return
+        name, accepted = QInputDialog.getText(
+            self,
+            "テンプレート複製",
+            "複製後の名前",
+            text=f"{template.get('name', '')} コピー",
+        )
+        if not accepted or not name.strip():
+            return
+        try:
+            duplicated = self._template_store.duplicate(template.get('id'), name)
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, "テンプレート複製", str(exc))
+            return
+        self._refresh_template_combo(duplicated.get('id') if duplicated else None)
+
+    def _delete_selected_template(self):
+        template = self._selected_template()
+        if not template:
+            return
+        reply = QMessageBox.question(
+            self,
+            "テンプレート削除",
+            f"「{template.get('name', '')}」を削除しますか？",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        try:
+            self._template_store.delete(template.get('id'))
+        except OSError as exc:
+            QMessageBox.critical(self, "テンプレート削除", str(exc))
+            return
+        self._refresh_template_combo()
 
     def _on_field_changed(self, part, text):
         self._fields[part] = text.strip()
@@ -907,10 +1060,13 @@ class CharaCompositePreviewDialog(QDialog):
                 p: v for p, v in self._fields.items()
                 if v.strip() != self._prev_fields.get(p, '').strip()
             }
+            if self._blink != self._prev_blink:
+                result['blink'] = 'true' if self._blink else 'false'
             if result_name:
                 result['name'] = result_name
             return result
         result = dict(self._fields)
+        result['blink'] = 'true' if self._blink else 'false'
         if result_name:
             result['name'] = result_name
         return result
@@ -1065,18 +1221,54 @@ class StepEditorDialog(QDialog):
         "accessory": "char",
     }
 
-    def __init__(self, parent, step, actions=None, all_steps=None, step_index=None, image_manager=None):
+    def __init__(
+        self,
+        parent,
+        step,
+        actions=None,
+        all_steps=None,
+        all_step_actions=None,
+        step_index=None,
+        image_manager=None,
+    ):
         super().__init__(parent)
         self.step = step or {}
         self.actions = actions or []
         self._all_steps = all_steps or []
+        self._all_step_actions = all_step_actions or []
         self._step_index = step_index
         self._image_manager = image_manager
+        self._scene_state_builder = StepSceneStateBuilder(image_manager)
+        self.navigation_offset = 0
+        self._direct_scene_edit = False
 
         self.setWindowTitle("step編集")
-        self.resize(1100, 700)
+        self.resize(1400, 850)
 
         main_layout = QVBoxLayout(self)
+
+        navigation_layout = QHBoxLayout()
+        self.prev_step_btn = QPushButton("← 前のstep")
+        self.prev_step_btn.setToolTip("現在の編集内容を適用して、前のstep編集へ移動します")
+        self.step_position_label = QLabel()
+        self.step_position_label.setAlignment(Qt.AlignCenter)
+        self.next_step_btn = QPushButton("次のstep →")
+        self.next_step_btn.setToolTip("現在の編集内容を適用して、次のstep編集へ移動します")
+        navigation_layout.addWidget(self.prev_step_btn)
+        navigation_layout.addStretch()
+        navigation_layout.addWidget(self.step_position_label)
+        navigation_layout.addStretch()
+        navigation_layout.addWidget(self.next_step_btn)
+        main_layout.addLayout(navigation_layout)
+
+        total_steps = len(self._all_steps)
+        display_index = (self._step_index + 1) if self._step_index is not None else 0
+        self.step_position_label.setText(f"step {display_index} / {total_steps}")
+        self.prev_step_btn.setEnabled(bool(self._step_index is not None and self._step_index > 0))
+        self.next_step_btn.setEnabled(bool(
+            self._step_index is not None and self._step_index + 1 < total_steps
+        ))
+
         main_splitter = QSplitter(Qt.Horizontal)
         main_layout.addWidget(main_splitter)
 
@@ -1090,11 +1282,20 @@ class StepEditorDialog(QDialog):
 
         preview_group = QGroupBox("プレビュー (4:3)")
         preview_layout = QVBoxLayout()
-        self.preview_label = QLabel("プレビュー未実装")
-        self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setFixedSize(400, 300)
+
+        self.preview_tabs = QTabWidget()
+        self.scene_canvas = StepSceneCanvas(self._image_manager)
+        self.preview_tabs.addTab(self.scene_canvas, "オブジェクト")
+
+        self.preview_label = FitPixmapLabel("最終確認画像を生成しています...")
         self.preview_label.setStyleSheet("border: 1px solid #888; background: #111; color: #ddd;")
-        preview_layout.addWidget(self.preview_label, alignment=Qt.AlignCenter)
+        self.preview_tabs.addTab(self.preview_label, "最終確認画像")
+        preview_layout.addWidget(self.preview_tabs)
+
+        self.scene_selection_label = QLabel("オブジェクトをクリックすると選択できます")
+        self.scene_selection_label.setStyleSheet("color: #aaa;")
+        preview_layout.addWidget(self.scene_selection_label)
+
         self.preview_refresh_btn = QPushButton("Preview Update")
         preview_layout.addWidget(self.preview_refresh_btn, alignment=Qt.AlignCenter)
         preview_group.setLayout(preview_layout)
@@ -1191,9 +1392,9 @@ class StepEditorDialog(QDialog):
         editor_group.setLayout(editor_layout)
         right_splitter.addWidget(editor_group)
 
-        main_splitter.setSizes([500, 500])
-        left_splitter.setSizes([300, 100])
-        right_splitter.setSizes([200, 600])
+        main_splitter.setSizes([900, 500])
+        left_splitter.setSizes([620, 180])
+        right_splitter.setSizes([240, 520])
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Ok).setText("保存/適用")
@@ -1213,6 +1414,12 @@ class StepEditorDialog(QDialog):
         self.tag_combo.currentTextChanged.connect(self._apply_param_template)
         self.advanced_toggle.stateChanged.connect(self._on_advanced_toggle)
         self.preview_refresh_btn.clicked.connect(self._request_preview_update)
+        self.prev_step_btn.clicked.connect(lambda: self._navigate_step(-1))
+        self.next_step_btn.clicked.connect(lambda: self._navigate_step(1))
+        self.scene_canvas.object_selected.connect(self._on_scene_object_selected)
+        self.scene_canvas.object_moved.connect(self._on_scene_object_moved)
+        self.scene_canvas.object_scaled.connect(self._on_scene_object_scaled)
+        self.scene_canvas.context_requested.connect(self._show_scene_context_menu)
 
         # Editing software-style live preview: coalesce a burst of keystrokes into
         # one render instead of launching work for every individual change.
@@ -1225,15 +1432,16 @@ class StepEditorDialog(QDialog):
         self.scroll_checkbox.stateChanged.connect(self._schedule_preview_update)
         self.female_checkbox.stateChanged.connect(self._schedule_preview_update)
         action_model = self.actions_list.model()
-        action_model.dataChanged.connect(self._schedule_preview_update)
-        action_model.rowsInserted.connect(self._schedule_preview_update)
-        action_model.rowsRemoved.connect(self._schedule_preview_update)
-        action_model.rowsMoved.connect(self._schedule_preview_update)
+        action_model.dataChanged.connect(self._schedule_scene_preview_update)
+        action_model.rowsInserted.connect(self._schedule_scene_preview_update)
+        action_model.rowsRemoved.connect(self._schedule_scene_preview_update)
+        action_model.rowsMoved.connect(self._schedule_scene_preview_update)
 
         if self.actions_list.count() > 0:
             self.actions_list.setCurrentRow(0)
         else:
             self._apply_param_template(self.tag_combo.currentText())
+        self._refresh_scene_preview()
 
     def get_dialogue_values(self):
         """セリフ編集の値を取得"""
@@ -1255,6 +1463,329 @@ class StepEditorDialog(QDialog):
     def get_memo(self):
         """備考を取得"""
         return self.memo_input.text().strip()
+
+    def _navigate_step(self, offset):
+        """Apply this dialog and ask the parent to open an adjacent step."""
+        if offset not in (-1, 1) or self._step_index is None:
+            return
+        target = self._step_index + offset
+        if target < 0 or target >= len(self._all_steps):
+            return
+        self.navigation_offset = offset
+        self.accept()
+
+    def accept(self):
+        self.scene_canvas.flush_pending_scale()
+        super().accept()
+
+    def reject(self):
+        self.scene_canvas.discard_pending_scale()
+        super().reject()
+
+    def _scene_action_steps(self):
+        total = max(len(self._all_steps), (self._step_index or 0) + 1)
+        action_steps = [list(actions) for actions in self._all_step_actions]
+        while len(action_steps) < total:
+            action_steps.append([])
+        if self._step_index is not None:
+            action_steps[self._step_index] = self.get_actions()
+        return action_steps
+
+    def _refresh_scene_preview(self):
+        if self._step_index is None:
+            self.scene_canvas.set_scene_state({})
+            return
+        scene_states = self._scene_state_builder.build(
+            self._scene_action_steps(), self._step_index
+        )
+        self._scene_states = scene_states
+        self.scene_canvas.set_scene_state(scene_states.get("after", {}))
+
+    def _on_scene_object_selected(self, object_type, object_name, origin):
+        if not object_type:
+            self.scene_selection_label.setText("オブジェクトをクリックすると選択できます")
+            return
+
+        origin_label = {
+            "current": "このstepで表示",
+            "modified": "このstepで変更",
+            "inherited": "前のstepから引き継ぎ",
+        }.get(origin, origin)
+        type_label = "キャラ" if object_type == "character" else "背景"
+        self.scene_selection_label.setText(
+            f"選択: {type_label}「{object_name}」 / {origin_label}"
+        )
+
+        # If the selected object already has an action in this step, expose the
+        # last matching action in the existing inspector.  Inherited objects
+        # deliberately remain explicit instead of guessing a different target.
+        for row in range(self.actions_list.count() - 1, -1, -1):
+            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            params = dict(pairs)
+            if object_type == "character":
+                if tag.startswith("chara_") and params.get("name", "").strip() == object_name:
+                    self.actions_list.setCurrentRow(row)
+                    return
+            elif object_type == "background" and tag in ("bg", "bg_show", "bg_move"):
+                self.actions_list.setCurrentRow(row)
+                return
+
+    @staticmethod
+    def _format_scene_number(value):
+        value = round(float(value), 4)
+        if abs(value) < 0.00005:
+            value = 0.0
+        text = f"{value:.4f}".rstrip("0").rstrip(".")
+        return text if "." in text else text + ".0"
+
+    @staticmethod
+    def _parse_scene_number(value, default):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return float(default)
+
+    def _set_action_row(self, row, tag, params):
+        action_text = self._build_action(tag, list(params.items()))
+        self.actions_list.item(row).setText(action_text)
+        self.actions_list.setCurrentRow(row)
+
+    def _on_scene_object_moved(self, name, delta_x, delta_y, metadata):
+        """Write a direct canvas drag back to this step's explicit action."""
+        name = (name or "").strip()
+        if not name:
+            return
+        relative_x = float(delta_x) / VIRTUAL_WIDTH
+        relative_y = float(delta_y) / VIRTUAL_HEIGHT
+        self._direct_scene_edit = True
+
+        last_show_row = -1
+        last_move_row = -1
+        last_position_shift_row = -1
+        parsed_by_row = {}
+        for row in range(self.actions_list.count()):
+            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            params = dict(pairs)
+            parsed_by_row[row] = (tag, params)
+            if params.get("name", "").strip() != name:
+                continue
+            if tag == "chara_show":
+                last_show_row = row
+            elif tag == "chara_move":
+                last_move_row = row
+            elif tag == "chara_shift" and ("x" in params or "y" in params):
+                last_position_shift_row = row
+
+        latest_absolute_row = max(last_show_row, last_position_shift_row)
+        if last_move_row > latest_absolute_row:
+            tag, params = parsed_by_row[last_move_row]
+            params["left"] = self._format_scene_number(
+                self._parse_scene_number(params.get("left"), 0.0) + relative_x
+            )
+            params["top"] = self._format_scene_number(
+                self._parse_scene_number(params.get("top"), 0.0) + relative_y
+            )
+            params.setdefault(
+                "zoom", self._format_scene_number(metadata.get("zoom", 1.0))
+            )
+            params.setdefault("time", "600")
+            self._set_action_row(last_move_row, tag, params)
+            action_label = "chara_moveを更新"
+        elif last_show_row >= 0 and last_position_shift_row <= last_show_row:
+            tag, params = parsed_by_row[last_show_row]
+            params["x"] = self._format_scene_number(
+                self._parse_scene_number(params.get("x"), 0.5) + relative_x
+            )
+            params["y"] = self._format_scene_number(
+                self._parse_scene_number(params.get("y"), 0.5) + relative_y
+            )
+            self._set_action_row(last_show_row, tag, params)
+            action_label = "chara_showのx/yを更新"
+        else:
+            move_params = {
+                "name": name,
+                "left": self._format_scene_number(relative_x),
+                "top": self._format_scene_number(relative_y),
+                "zoom": self._format_scene_number(metadata.get("zoom", 1.0)),
+                "time": "600",
+            }
+            action_text = self._build_action("chara_move", list(move_params.items()))
+            self.actions_list.addItem(action_text)
+            self.actions_list.setCurrentRow(self.actions_list.count() - 1)
+            action_label = "chara_moveを追加"
+
+        self._direct_scene_edit = False
+        self.scene_canvas.mark_character_modified(name)
+        self.scene_selection_label.setText(
+            f"移動: キャラ「{name}」 / {action_label} "
+            f"(Δx={self._format_scene_number(relative_x)}, "
+            f"Δy={self._format_scene_number(relative_y)})"
+        )
+
+    def _on_scene_object_scaled(self, name, new_zoom, metadata):
+        """Write Shift+wheel scaling to the last effective scale action."""
+        name = (name or "").strip()
+        if not name:
+            return
+
+        self._direct_scene_edit = True
+        scale_rows = []
+        parsed_by_row = {}
+        for row in range(self.actions_list.count()):
+            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            params = dict(pairs)
+            parsed_by_row[row] = (tag, params)
+            if params.get("name", "").strip() != name:
+                continue
+            if tag == "chara_show":
+                scale_rows.append((row, "size"))
+            elif tag == "chara_shift" and "size" in params:
+                scale_rows.append((row, "size"))
+            elif tag == "chara_move":
+                scale_rows.append((row, "zoom"))
+
+        formatted_zoom = self._format_scene_number(new_zoom)
+        if scale_rows:
+            row, scale_key = max(scale_rows, key=lambda value: value[0])
+            tag, params = parsed_by_row[row]
+            params[scale_key] = formatted_zoom
+            self._set_action_row(row, tag, params)
+            action_label = f"{tag}の{scale_key}を更新"
+        else:
+            move_params = {
+                "name": name,
+                "left": "0.0",
+                "top": "0.0",
+                "zoom": formatted_zoom,
+                "time": "600",
+            }
+            action_text = self._build_action("chara_move", list(move_params.items()))
+            self.actions_list.addItem(action_text)
+            self.actions_list.setCurrentRow(self.actions_list.count() - 1)
+            action_label = "拡大縮小用chara_moveを追加"
+
+        self._direct_scene_edit = False
+        self.scene_canvas.mark_character_modified(name)
+        self.scene_selection_label.setText(
+            f"拡大縮小: キャラ「{name}」 / {action_label} "
+            f"(zoom={formatted_zoom})"
+        )
+
+    def _append_action_from_template(self, tag, overrides=None):
+        params = dict(self.PARAM_TEMPLATES.get(tag, []))
+        params.update(overrides or {})
+        action_text = self._build_action(tag, list(params.items()))
+        self.actions_list.addItem(action_text)
+        row = self.actions_list.count() - 1
+        self.actions_list.setCurrentRow(row)
+        return row
+
+    def _find_latest_character_action(self, tag, name):
+        for row in range(self.actions_list.count() - 1, -1, -1):
+            current_tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            if current_tag == tag and dict(pairs).get("name", "").strip() == name:
+                return row
+        return -1
+
+    def _execute_scene_context_command(self, command, object_name="", metadata=None):
+        if command == "character_move":
+            self.scene_selection_label.setText(
+                f"移動モード: キャラ「{object_name}」をドラッグしてください"
+            )
+            return
+        if command == "character_shift":
+            row = self._find_latest_character_action("chara_shift", object_name)
+            if row < 0:
+                row = self._append_action_from_template(
+                    "chara_shift", {"name": object_name, "fade": "0.15"}
+                )
+            else:
+                self.actions_list.setCurrentRow(row)
+            QTimer.singleShot(0, lambda: self._open_chara_preview(True))
+            return
+        if command == "character_hide":
+            self._append_action_from_template(
+                "chara_hide", {"name": object_name, "fade": "0.15"}
+            )
+            return
+        if command == "select_background":
+            for row in range(self.actions_list.count() - 1, -1, -1):
+                tag, _ = self._parse_action(self.actions_list.item(row).text())
+                if tag in ("bg", "bg_show", "bg_move"):
+                    self.actions_list.setCurrentRow(row)
+                    return
+            self.scene_selection_label.setText("このstepには背景アクションがありません")
+            return
+        if command == "chara_show":
+            self._append_action_from_template(command)
+            QTimer.singleShot(0, lambda: self._open_chara_preview(False))
+            return
+        if command:
+            self._append_action_from_template(command)
+
+    def _show_scene_context_menu(
+        self, object_type, object_name, origin, global_pos, metadata
+    ):
+        menu = QMenu(self)
+        action_map = {}
+
+        if object_type == "character":
+            move_action = menu.addAction("移動（ステージ上でドラッグ）")
+            shift_action = menu.addAction("Shift：立ち絵・表情を変更...")
+            menu.addSeparator()
+            hide_action = menu.addAction("Hide：このキャラを非表示")
+            action_map = {
+                move_action: "character_move",
+                shift_action: "character_shift",
+                hide_action: "character_hide",
+            }
+        else:
+            show_action = menu.addAction("キャラクターを表示（chara_show）...")
+
+            background_menu = menu.addMenu("背景")
+            select_bg_action = background_menu.addAction("現在の背景アクションを選択")
+            bg_show_action = background_menu.addAction("背景を設定（bg_show）...")
+            bg_move_action = background_menu.addAction("背景を移動（bg_move）...")
+
+            audio_menu = menu.addMenu("音声")
+            bgm_action = audio_menu.addAction("BGMを追加...")
+            se_action = audio_menu.addAction("SEを追加...")
+            audio_menu.addSeparator()
+            bgm_stop_action = audio_menu.addAction("BGM停止")
+            bgm_start_action = audio_menu.addAction("BGM再開")
+
+            system_menu = menu.addMenu("システム／制御タグ")
+            choice_action = system_menu.addAction("選択肢（choice）")
+            fadeout_action = system_menu.addAction("フェードアウト")
+            fadein_action = system_menu.addAction("フェードイン")
+            flag_action = system_menu.addAction("フラグ設定")
+            if_action = system_menu.addAction("条件分岐開始（if）")
+            endif_action = system_menu.addAction("条件分岐終了（endif）")
+            event_action = system_menu.addAction("イベント制御")
+
+            action_map = {
+                show_action: "chara_show",
+                select_bg_action: "select_background",
+                bg_show_action: "bg_show",
+                bg_move_action: "bg_move",
+                bgm_action: "bgm",
+                se_action: "se",
+                bgm_stop_action: "bgmstop",
+                bgm_start_action: "bgmstart",
+                choice_action: "choice",
+                fadeout_action: "fadeout",
+                fadein_action: "fadein",
+                flag_action: "flag_set",
+                if_action: "if",
+                endif_action: "endif",
+                event_action: "event_control",
+            }
+
+        selected = menu.exec_(global_pos)
+        command = action_map.get(selected)
+        if not command:
+            return
+        self._execute_scene_context_command(command, object_name, metadata)
 
     def _add_action(self):
         tag = self.tag_combo.currentText().strip() or "bg"
@@ -1362,6 +1893,12 @@ class StepEditorDialog(QDialog):
     def _schedule_preview_update(self, *args):
         self._preview_debounce_timer.start()
 
+    def _schedule_scene_preview_update(self, *args):
+        if self._direct_scene_edit:
+            return
+        self._refresh_scene_preview()
+        self._schedule_preview_update()
+
     def _request_preview_update(self, *args):
         self._preview_debounce_timer.stop()
         parent = self.parent()
@@ -1371,18 +1908,7 @@ class StepEditorDialog(QDialog):
             parent._preview_step_from_dialog(self.step, self)
 
     def _parse_action(self, text):
-        text = text.strip()
-        if text.startswith("[") and text.endswith("]"):
-            text = text[1:-1].strip()
-        if not text:
-            return "", []
-        parts = text.split(None, 1)
-        tag = parts[0]
-        params_text = parts[1] if len(parts) > 1 else ""
-        params = []
-        for match in re.finditer(r'(\w+)\s*=\s*"([^"]*)"', params_text):
-            params.append((match.group(1), match.group(2)))
-        return tag, params
+        return parse_step_action(text)
 
     def _build_action(self, tag, params):
         tag = tag.strip()
@@ -1414,13 +1940,7 @@ class StepEditorDialog(QDialog):
         pixmap = QPixmap(image_path)
         if pixmap.isNull():
             return
-        self.preview_label.setPixmap(
-            pixmap.scaled(
-                self.preview_label.size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            )
-        )
+        self.preview_label.set_source_pixmap(pixmap)
 
     def _is_custom_tag(self, tag):
         return tag in self.CUSTOM_EDITORS
@@ -1562,6 +2082,7 @@ class StepEditorDialog(QDialog):
         for part, value in action_overrides.items():
             if value:
                 initial_fields[part] = value
+        initial_fields['blink'] = current.get('blink', 'true') or 'true'
 
         dlg = CharaCompositePreviewDialog(
             self, image_manager, initial_fields,
@@ -2338,6 +2859,9 @@ class EventEditorGUI(QMainWindow):
 
         # 未保存チェック
         if self._has_unsaved_changes() and self.current_file_path:
+            # A pending autosave must not fire against a different file while
+            # the user is deciding whether to keep the current edit.
+            self.realtime_save_timer.stop()
             reply = QMessageBox.question(
                 self,
                 "未保存の変更",
@@ -2345,13 +2869,16 @@ class EventEditorGUI(QMainWindow):
                 QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
             )
             if reply == QMessageBox.Save:
-                self.save_file()
+                if not self.save_file():
+                    self._restore_file_list_selection()
+                    return
             elif reply == QMessageBox.Cancel:
                 # リストの選択を元に戻す
                 self._restore_file_list_selection()
                 return
             # Discard はそのままロードへ
 
+        self.realtime_save_timer.stop()
         self.load_file(filepath)
         event_id = os.path.splitext(filename)[0]
         self.load_event_metadata(event_id)
@@ -2650,29 +3177,68 @@ class EventEditorGUI(QMainWindow):
 
     def open_step_editor(self, step):
         """step編集ダイアログを開く"""
-        try:
-            actions = self._extract_actions_from_step(step)
-            step_index = step.get("step_index")
-            im = getattr(self, 'image_manager', None)
-            dialog = StepEditorDialog(
-                self, step, actions=actions,
-                all_steps=self.current_steps, step_index=step_index,
-                image_manager=im
-            )
-        except Exception as e:
-            import traceback
-            QMessageBox.critical(self, 'stepエディタエラー',
-                f'エラーが発生しました：\n{e}\n\n{traceback.format_exc()}')
+        target_index = step.get("step_index") if step else None
+        if target_index is None:
             return
-        if step_index is not None:
-            self._generate_step_preview(step_index, dialog)
-        if dialog.exec_() == QDialog.Accepted:
+
+        while 0 <= target_index < len(self.current_steps):
+            current_step = self.current_steps[target_index]
+            try:
+                all_step_actions = []
+                for parsed_step in self.current_steps:
+                    parsed_actions = self._extract_actions_from_step(parsed_step)
+                    all_step_actions.append(parsed_actions)
+                    # CharaCompositePreviewDialog consumes this explicit cache
+                    # when resolving the selected character's prior state.
+                    parsed_step["_actions_cache"] = [
+                        {
+                            "tag": tag,
+                            "params": params,
+                        }
+                        for tag, params in (
+                            parse_step_action(action) for action in parsed_actions
+                        )
+                        if tag
+                    ]
+
+                actions = all_step_actions[target_index]
+                im = getattr(self, 'image_manager', None)
+                dialog = StepEditorDialog(
+                    self,
+                    current_step,
+                    actions=actions,
+                    all_steps=self.current_steps,
+                    all_step_actions=all_step_actions,
+                    step_index=target_index,
+                    image_manager=im,
+                )
+            except Exception as e:
+                import traceback
+                QMessageBox.critical(self, 'stepエディタエラー',
+                    f'エラーが発生しました：\n{e}\n\n{traceback.format_exc()}')
+                return
+
+            self._generate_step_preview(target_index, dialog)
+            if dialog.exec_() != QDialog.Accepted:
+                return
+
             speaker, body, scroll_stop, force_female = dialog.get_dialogue_values()
             memo = dialog.get_memo()
             actions = dialog.get_actions()
+            navigation_offset = dialog.navigation_offset
             self._apply_step_update(
-                step, speaker, body, scroll_stop, force_female, actions, memo
+                current_step,
+                speaker,
+                body,
+                scroll_stop,
+                force_female,
+                actions,
+                memo,
             )
+
+            if not navigation_offset:
+                return
+            target_index += navigation_offset
 
     def _insert_step_template(self, step, insert_before=True):
         """指定stepの前後にテンプレートstepを挿入する"""
@@ -2868,8 +3434,10 @@ class EventEditorGUI(QMainWindow):
         self, step, speaker, body, scroll_stop, force_female, actions, memo=""
     ):
         """stepを更新してエディタに反映"""
+        old_text = self.text_editor.toPlainText()
+        was_modified = self.text_editor.document().isModified()
         new_text = self._build_step_update_text(
-            self.text_editor.toPlainText(),
+            old_text,
             step,
             speaker,
             body,
@@ -2895,6 +3463,8 @@ class EventEditorGUI(QMainWindow):
         cursor.setPosition(new_pos, QTextCursor.KeepAnchor)
         self.text_editor.setTextCursor(cursor)
         self.text_editor.blockSignals(False)
+        text_changed = new_text != old_text
+        self.text_editor.document().setModified(was_modified or text_changed)
         # メモをメモリに保存（ディスクには保存時に注入される）
         step_index = step["step_index"]
         old_memo = self.step_memos.get(step_index, "")
@@ -2905,6 +3475,8 @@ class EventEditorGUI(QMainWindow):
         if memo != old_memo:
             self.memos_modified = True
         self.update_step_highlights()
+        if text_changed or memo != old_memo:
+            self._schedule_realtime_save()
 
     def _run_step_preview(self, source_path, step_index, dialog, temp_path=None):
         preview_script = os.path.join(
@@ -3207,7 +3779,7 @@ class EventEditorGUI(QMainWindow):
         """現在のファイルを保存"""
         if not self.current_file_path:
             QMessageBox.warning(self, "警告", "保存するファイルが選択されていません")
-            return
+            return False
 
         try:
             display_text = self.text_editor.toPlainText()
@@ -3228,10 +3800,12 @@ class EventEditorGUI(QMainWindow):
             print(f"ファイル保存: {self.current_file_path}")
 
             QMessageBox.information(self, "成功", f"{self.current_file} を保存しました")
+            return True
 
         except Exception as e:
             QMessageBox.critical(self, "エラー", f"ファイル保存エラー:\n{e}")
             print(f"ファイル保存エラー: {e}")
+            return False
 
     def start_preview(self):
         """ダイアログプレビューを別プロセスとして起動(macOS専用)"""

@@ -3,6 +3,9 @@
 > 生成日: 2026-06-29  
 > 対象ファイル: `event_editor.py`（2543行）  
 > 目的: スマホ向けWEB UI版（ks-editor）への移植ガイドとして作成
+>
+> step編集のオブジェクト型シーンエディタ改革は
+> [event_editor_step_scene_spec.md](event_editor_step_scene_spec.md) を参照。
 
 ---
 
