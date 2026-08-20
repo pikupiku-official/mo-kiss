@@ -35,6 +35,9 @@ class DialogueLoader:
         self.choice_history = {}  # {ks_file: [choice_indices]}
         self.current_ks_file = None
         self.choice_counter = 0
+        # [seed_dialogue] ブロックは通常の段落列から分離し、
+        # 同じKS内のクリック脚注会話として保持する。
+        self.seed_annotations = {}
         
         # name_managerとの連携を設定
         from .name_manager import get_name_manager
@@ -97,7 +100,9 @@ class DialogueLoader:
             
             with open(filename, 'r', encoding='utf-8') as f:
                 content = f.read()
-                
+
+            content = self._extract_seed_dialogues(content)
+
             # 対話データを解析
             dialogue_data = self._parse_ks_content(content)
             self.ir_data = self._build_ir_skeleton(dialogue_data)
@@ -203,7 +208,37 @@ class DialogueLoader:
             }
         ]
         
-    def _parse_ks_content(self, content):    
+    def _extract_seed_dialogues(self, content):
+        """Extract optional seed conversations embedded in a KS file."""
+        annotations = {}
+        pattern = re.compile(
+            r'\[seed_dialogue\s+id="([^"]+)"\](.*?)\[/seed_dialogue\]',
+            re.DOTALL | re.IGNORECASE,
+        )
+
+        def remove_block(match):
+            seed_id = match.group(1).strip()
+            speaker = None
+            lines = []
+            for raw_line in match.group(2).splitlines():
+                line = raw_line.strip()
+                speaker_match = re.fullmatch(r'//([^/]+)//', line)
+                if speaker_match:
+                    speaker = speaker_match.group(1).strip()
+                    continue
+                for dialogue_text in re.findall(r'「([^」]+)」', line):
+                    text = dialogue_text.strip()
+                    if text:
+                        lines.append({"speaker": speaker or "", "text": text})
+            if seed_id and lines:
+                annotations[seed_id] = lines
+            return ""
+
+        stripped = pattern.sub(remove_block, content)
+        self.seed_annotations = annotations
+        return stripped
+
+    def _parse_ks_content(self, content):
         dialogue_data = []
         current_bg = None  # 初期背景はなし
         current_char = None
@@ -523,6 +558,25 @@ class DialogueLoader:
                         if self.debug:
                             print(f"chara_shift parse error (line {line_num}): {e} - {line}")
 
+                elif "[BGMEND" in line.upper() or "[BGM_END" in line.upper():
+                    try:
+                        time_match = re.search(
+                            r'(?:time|fade)="?([^"\s\]]+)"?',
+                            line,
+                            re.IGNORECASE,
+                        )
+                        fade_time = float(time_match.group(1)) if time_match else 1.0
+                        current_bgm = None
+                        dialogue_data.append({
+                            'type': 'bgm_end',
+                            'fade_time': fade_time,
+                        })
+                    except Exception as e:
+                        if self.debug:
+                            print(f"BGMEND解析エラー（行 {line_num}）: {e} - {line}")
+                        current_bgm = None
+                        dialogue_data.append({'type': 'bgm_end', 'fade_time': 1.0})
+
                 elif "[BGMSTOP" in line.upper() or "[BGM_STOP" in line.upper():
                     try:
                         time_match = re.search(r'time="?([^"\s\]]+)"?', line, re.IGNORECASE)
@@ -574,12 +628,14 @@ class DialogueLoader:
                         bgm_parts = re.search(r'(?:bgm|storage|file)="([^"]+)"', line, re.IGNORECASE)
                         bgm_volume = re.search(r'volume="([^"]+)"', line, re.IGNORECASE)
                         bgm_loop = re.search(r'loop="([^"]+)"', line, re.IGNORECASE)
+                        bgm_fade = re.search(r'(?:fade|fade_time)="([^"]+)"', line, re.IGNORECASE)
                         if bgm_parts:
                             # BGMファイル名をそのまま使用
                             current_bgm = bgm_parts.group(1)
                             
                             current_bgm_volume = float(bgm_volume.group(1)) if bgm_volume else DEFAULT_BGM_VOLUME
                             current_bgm_loop = bgm_loop.group(1).lower() == "true" if bgm_loop else DEFAULT_BGM_LOOP
+                            fade_time = float(bgm_fade.group(1)) if bgm_fade else 0.0
                             
                             # デバッグ出力削除
 
@@ -587,15 +643,19 @@ class DialogueLoader:
                                 'type': 'bgm',
                                 'file': current_bgm,
                                 'volume': current_bgm_volume,
-                                'loop': current_bgm_loop
-                            })  
+                                'loop': current_bgm_loop,
+                                'fade_time': fade_time,
+                            })
                                 
                     except Exception as e:
                         if self.debug:
                             print(f"BGM解析エラー（行 {line_num}）: {e} - {line}")
                         
+                elif "[SESTOP" in line.upper() or "[SE_STOP" in line.upper():
+                    dialogue_data.append({'type': 'se_stop'})
+
                 # SE設定を検出 ([SE or [playse)
-                elif "[SE" in line.upper() or "[PLAYSE" in line.upper():
+                elif re.search(r'\[(?:SE|PLAYSE)(?:\s|\])', line, re.IGNORECASE):
                     try:
                         se_parts = re.search(r'(?:se|storage|file)="([^"]+)"', line, re.IGNORECASE)
                         se_volume = re.search(r'volume="([^"]+)"', line, re.IGNORECASE)
@@ -821,11 +881,26 @@ class DialogueLoader:
                         'type': 'scroll_stop'
                     })
 
+                # ターニングポイントの自由記述入力
+                elif "[seed_answer" in line:
+                    try:
+                        turning_point_match = re.search(
+                            r'turning_point="([^"]+)"', line
+                        )
+                        if turning_point_match:
+                            dialogue_data.append({
+                                'type': 'seed_answer',
+                                'turning_point_id': turning_point_match.group(1),
+                            })
+                    except Exception as e:
+                        if self.debug:
+                            print(f"seed_answer解析エラー（行 {line_num}）: {e} - {line}")
+
                 # [event_control]????? - ???????/???
                 elif "[event_control" in line:
                     try:
                         unlock_match = re.search(r'unlock="([^"]+)"', line)
-                        lock_match = re.search(r'lock="([^"]+)"', line)
+                        lock_match = re.search(r'(?:^|\s)lock="([^"]+)"', line)
                         events_match = re.search(r'events="([^"]+)"', line)
                         target_events = re.search(r'target="([^"]+)"', line)
 

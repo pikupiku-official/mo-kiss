@@ -1,6 +1,7 @@
 import os
 import shutil
 import json
+import csv
 from datetime import datetime
 from typing import List, Dict, Optional
 from core.path_utils import get_project_root
@@ -19,7 +20,8 @@ class SaveManager:
             "completed_events.csv",
             "time_state.json", 
             "player_name.json",
-            "dialogue_state.json"
+            "dialogue_state.json",
+            "seed_state.json",
         ]
         
         # ディレクトリが存在しない場合は作成
@@ -161,6 +163,15 @@ class SaveManager:
                     print(f"[LOAD] {slot_name} -> {filename}")
                 else:
                     print(f"[LOAD] 警告: {filename}が{slot_name}にありません")
+                    if filename == "seed_state.json":
+                        template_path = os.path.join(
+                            self.templates_dir, "seed_state_template.json"
+                        )
+                        if os.path.exists(template_path):
+                            shutil.copy2(template_path, dst_path)
+                            print("[LOAD] 旧セーブ用にseed_state.jsonを初期化")
+
+            self._merge_completed_event_defaults()
             
             # マネージャーを再読み込み
             self._reload_managers()
@@ -199,7 +210,8 @@ class SaveManager:
                 "completed_events.csv": "completed_events_template.csv",
                 "time_state.json": "time_state_template.json",
                 "player_name.json": "player_name_template.json",
-                "dialogue_state.json": "dialogue_state_template.json"
+                "dialogue_state.json": "dialogue_state_template.json",
+                "seed_state.json": "seed_state_template.json",
             }
             
             for current_name, template_name in template_mapping.items():
@@ -250,9 +262,42 @@ class SaveManager:
             import dialogue.name_manager as nm
             nm._name_manager = NameManager()
             print("[RELOAD] NameManager再読み込み完了")
+
+            from .seed_manager import reload_seed_manager
+            reload_seed_manager()
+            print("[RELOAD] SeedManager再読み込み完了")
             
         except Exception as e:
             print(f"[RELOAD] マネージャー再読み込みエラー: {e}")
+
+    def _merge_completed_event_defaults(self):
+        """Add newly authored event rows to older saves without changing progress."""
+        current_path = os.path.join(self.current_state_dir, "completed_events.csv")
+        template_path = os.path.join(
+            self.templates_dir, "completed_events_template.csv"
+        )
+        if not os.path.exists(current_path) or not os.path.exists(template_path):
+            return
+        with open(current_path, "r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        existing_ids = {row.get("イベントID") for row in rows}
+        added = 0
+        with open(template_path, "r", encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                event_id = row.get("イベントID")
+                if not event_id or event_id in existing_ids:
+                    continue
+                rows.append(row)
+                existing_ids.add(event_id)
+                added += 1
+        if not added:
+            return
+        fieldnames = ["イベントID", "実行日時", "実行回数", "有効フラグ"]
+        with open(current_path, "w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        print(f"[LOAD] 新規イベント定義を{added}件追加")
 
 # グローバルインスタンス
 _save_manager = None

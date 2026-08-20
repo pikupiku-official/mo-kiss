@@ -3,7 +3,8 @@ from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QPoint
+from PyQt5.QtWidgets import QApplication, QPushButton
 
 from event_editor import CharaCompositePreviewDialog
 from tools.event_editor_part_templates import CharaPartTemplateStore
@@ -79,6 +80,15 @@ def test_part_template_dialog_applies_parts_and_blink_without_position(tmp_path)
     )
 
     assert dialog._template_combo.count() == 1
+    dialog.show()
+    APP.processEvents()
+    load_button = dialog.findChild(QPushButton, "loadPartTemplateButton")
+    save_button = dialog.findChild(QPushButton, "savePartTemplateButton")
+    assert load_button.text() == "選択テンプレを呼び出し"
+    assert save_button.text() == "現在のパーツを保存"
+    assert save_button.mapTo(dialog, QPoint(0, 0)).y() < dialog._combos["torso"].mapTo(
+        dialog, QPoint(0, 0)
+    ).y()
     dialog._apply_selected_template()
     result = dialog.get_result_fields()
 

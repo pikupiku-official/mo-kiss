@@ -178,6 +178,24 @@ class HomeModule(SubsystemBase):
     def _start_diary(self):
         self._finish_diary_dialogue()
         try:
+            from core.services.seed_manager import get_seed_manager
+
+            time_manager = get_time_manager()
+            game_date = (
+                f"{time_manager.current_year:04d}-"
+                f"{time_manager.current_month:02d}-"
+                f"{time_manager.current_day:02d}"
+            )
+            self.journal_new_seed_ids = get_seed_manager().finalize_day(game_date)
+            if self.journal_new_seed_ids:
+                print(
+                    "[SEED] 日記へ追記: "
+                    + ", ".join(self.journal_new_seed_ids)
+                )
+        except Exception as exc:
+            self.journal_new_seed_ids = []
+            print(f"[SEED] 日記追記エラー: {exc}")
+        try:
             from dialogue.dialogue_subsystem import DialogueSubsystem
 
             dialogue = DialogueSubsystem(
@@ -191,6 +209,7 @@ class HomeModule(SubsystemBase):
             dialogue.game_state["image_manager"].image_paths.setdefault("bg", {})[
                 self.DIARY_BACKGROUND_KEY
             ] = desk_path
+            self._append_new_seed_diary_lines(dialogue)
             self._diary_dialogue = dialogue
             self._choice_renderer = dialogue.game_state["choice_renderer"]
             self._diary_active = True
@@ -200,6 +219,39 @@ class HomeModule(SubsystemBase):
             self._diary_dialogue = None
             self._diary_active = False
             self._show_main_choices()
+
+    def _append_new_seed_diary_lines(self, dialogue):
+        """Show each seed finalized today as an actual diary conversation line."""
+        if not self.journal_new_seed_ids:
+            return
+        data = dialogue.game_state.get("dialogue_data") or []
+        base = next(
+            (
+                entry
+                for entry in reversed(data)
+                if isinstance(entry, list) and len(entry) > 10
+            ),
+            None,
+        )
+        if base is None:
+            return
+        from core.services.seed_manager import get_seed_manager
+
+        seed_manager = get_seed_manager()
+        for seed_id in self.journal_new_seed_ids:
+            seed = seed_manager.seeds.get(seed_id, {})
+            journal_text = seed.get("journal_text", seed.get("title", seed_id))
+            entry = list(base)
+            entry[6] = f"今日の日記に、新しいタネを追記した。『{journal_text}』"
+            entry[10] = "{苗字}"
+            entry[11] = False
+            data.append(entry)
+
+        if dialogue.game_state.get("use_ir"):
+            from dialogue.ir_builder import build_ir_from_normalized
+
+            dialogue.game_state["ir_data"] = build_ir_from_normalized(data)
+            dialogue.game_state["ir_step_index"] = -1
 
     def _finish_diary_dialogue(self):
         if self._diary_dialogue is not None and self._diary_active:

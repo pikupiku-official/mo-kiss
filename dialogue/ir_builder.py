@@ -57,7 +57,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             params = entry
             if action_type == "chara_shift":
                 params = _normalize_chara_shift_params(entry)
-            if action_type in ("chara_shift", "chara_show", "chara_hide", "character", "if_start", "if_end", "flag_set", "event_unlock"):
+            if action_type in ("chara_shift", "chara_show", "chara_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer"):
                 if pending_actions:
                     emit_step(
                         actions=pending_actions,
@@ -222,13 +222,24 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         return make_action(action="choice", params={"options": options})
 
     if text.startswith("_BGM_PLAY_"):
+        metadata = entry[13] if len(entry) > 13 and isinstance(entry[13], dict) else {}
         parts = text.split("_")
-        filename = parts[3] if len(parts) > 3 else ""
-        volume = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
-        loop = parts[5].lower() == "true" if len(parts) > 5 else True
+        filename = metadata.get("file", parts[3] if len(parts) > 3 else "")
+        volume = _to_float(metadata.get("volume"), 0.5) if metadata else (
+            _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
+        )
+        loop = _to_bool(metadata.get("loop"), True) if metadata else (
+            parts[5].lower() == "true" if len(parts) > 5 else True
+        )
+        fade_time = _to_float(metadata.get("fade_time"), 0.0)
         return make_action(
             action="bgm_play",
-            params={"file": filename, "volume": volume, "loop": loop},
+            params={
+                "file": filename,
+                "volume": volume,
+                "loop": loop,
+                "fade_time": fade_time,
+            },
         )
 
     if text.startswith("_BGM_PAUSE"):
@@ -242,6 +253,11 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         if len(entry) > 12 and isinstance(entry[12], dict):
             fade_time = float(entry[12].get("fade_time", 0.0))
         return make_action(action="bgm_unpause", params={"fade_time": fade_time})
+
+    if text.startswith("_BGM_END"):
+        data = entry[12] if len(entry) > 12 and isinstance(entry[12], dict) else {}
+        fade_time = _to_float(data.get("fade_time"), 1.0)
+        return make_action(action="bgm_end", params={"fade_time": fade_time})
 
     if text.startswith("_CHARA_NEW_"):
         params = _parse_chara_new(text)
@@ -357,15 +373,25 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         )
 
     if text.startswith("_SE_PLAY_"):
+        metadata = entry[13] if len(entry) > 13 and isinstance(entry[13], dict) else {}
         parts = text.split("_")
-        filename = parts[3] if len(parts) > 3 else ""
-        volume = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
-        frequency = _to_int(parts[5], 1) if len(parts) > 5 else 1
-        block = parts[6].lower() == "true" if len(parts) > 6 else False
+        filename = metadata.get("file", parts[3] if len(parts) > 3 else "")
+        volume = _to_float(metadata.get("volume"), 0.5) if metadata else (
+            _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
+        )
+        frequency = _to_int(metadata.get("frequency"), 1) if metadata else (
+            _to_int(parts[5], 1) if len(parts) > 5 else 1
+        )
+        block = _to_bool(metadata.get("block"), False) if metadata else (
+            parts[6].lower() == "true" if len(parts) > 6 else False
+        )
         return make_action(
             action="se_play",
             params={"file": filename, "volume": volume, "frequency": frequency, "block": block},
         )
+
+    if text.startswith("_SE_STOP"):
+        return make_action(action="se_stop")
 
     return None
 
@@ -428,6 +454,20 @@ def _to_int(value: Any, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _to_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("true", "1", "yes", "on"):
+            return True
+        if normalized in ("false", "0", "no", "off"):
+            return False
+    if value is None:
+        return default
+    return bool(value)
 
 
 def get_ir_dump_path(source_path: str, output_dir: str) -> str:

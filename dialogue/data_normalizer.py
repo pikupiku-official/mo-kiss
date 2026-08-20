@@ -129,9 +129,16 @@ def normalize_dialogue_data(raw_data):
             current_bgm_volume = entry['volume']
             current_bgm_loop = entry['loop']
             bgm_play_command = f"_BGM_PLAY_{current_bgm}_{current_bgm_volume}_{current_bgm_loop}"
+            bgm_params = {
+                'file': current_bgm,
+                'volume': current_bgm_volume,
+                'loop': current_bgm_loop,
+                'fade_time': entry.get('fade_time', 0.0),
+            }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
-                bgm_play_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                bgm_play_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False,
+                False, bgm_params
             ])
             
         elif entry_type == 'bgm_pause':
@@ -160,17 +167,42 @@ def normalize_dialogue_data(raw_data):
             ])
             if DEBUG:
                 print(f"BGM再生開始コマンド追加: fade_time={entry.get('fade_time', 0.0)}")
+
+        elif entry_type == 'bgm_end':
+            bgm_end_data = {
+                'type': 'bgm_end',
+                'fade_time': entry.get('fade_time', 1.0),
+            }
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                "_BGM_END", current_bgm, current_bgm_volume, current_bgm_loop, current_char, False,
+                bgm_end_data
+            ])
+            current_bgm = None
                 
         elif entry_type == 'se':
             # SE再生コマンドを正規化形式で追加
             se_block_flag = "true" if entry.get('block', False) else "false"
             se_command = f"_SE_PLAY_{entry['file']}_{entry['volume']}_{entry['frequency']}_{se_block_flag}"
+            se_params = {
+                'file': entry['file'],
+                'volume': entry['volume'],
+                'frequency': entry['frequency'],
+                'block': entry.get('block', False),
+            }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
-                se_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                se_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False,
+                False, se_params
             ])
             if DEBUG:
                 print(f"SE再生コマンド追加: {entry['file']} (volume={entry['volume']}, frequency={entry['frequency']})")
+
+        elif entry_type == 'se_stop':
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
+                "_SE_STOP", current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+            ])
                 
         elif entry_type == 'dialogue':
             # セリフデータを正規化形式で追加（スクロール情報も含む）
@@ -275,6 +307,9 @@ def normalize_dialogue_data(raw_data):
             # イベント解禁 - 辞書形式をそのまま保持
             normalized_data.append(entry)
             print(f"[NORMALIZE] event_unlock追加: {entry}")
+
+        elif entry_type in ('event_control', 'seed_answer'):
+            normalized_data.append(entry)
                 
         
         elif entry_type == 'chara_shift':

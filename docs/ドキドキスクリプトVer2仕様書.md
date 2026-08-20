@@ -162,12 +162,13 @@
 
 ### BGM 再生
 ```
-[BGM bgm="music.mp3" volume="0.5" loop="true"]
+[BGM bgm="music.mp3" volume="0.5" loop="true" fade="1.0"]
 ```
 **パラメータ**
 - `bgm`: BGMファイル名
 - `volume`: 0.0〜1.0（省略時は設定値）
 - `loop`: true/false（省略時は設定値）
+- `fade` または `fade_time`: フェードイン時間（秒、省略時は即時再生）
 
 **特殊値**
 - `school` : 初期BGMなし
@@ -181,6 +182,17 @@
 **パラメータ**
 - `time`: フェード時間（秒）
 
+`BGMSTOP` は一時停止、`BGMSTART` はその続きから再開する。スクリプト終了時は、再生中のBGMを1秒かけてフェードアウトしてから終了する。
+
+### BGM フェード終了
+```
+[BGMEND time="1.0"]
+```
+**パラメータ**
+- `time` または `fade`: フェードアウト時間（秒、省略時は 1.0）
+
+`BGMEND` はBGMをフェードアウトして終了する。`BGMSTOP` と異なり、`BGMSTART` での再開対象にはならない。
+
 ### SE 再生
 ```
 [SE se="se_name" volume="0.5" frequency="1"]
@@ -189,6 +201,14 @@
 - `se`: SEファイル名
 - `volume`: 0.0〜1.0
 - `frequency`: 連続再生回数
+- `block`: trueの場合、再生完了まで進行を待つ
+
+### SE 全停止
+```
+[SESTOP]
+```
+
+再生中のSEをすべて停止する。
 
 ## 選択肢
 ```

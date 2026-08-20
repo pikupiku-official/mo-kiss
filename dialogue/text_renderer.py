@@ -7,7 +7,7 @@ from .font_effects import render_text_with_effects
 from .historical_weather import get_historical_weather
 from .inline_markup import (
     parse_inline_markup, has_inline_markup, wrap_markup_text,
-    PlainChar, RubySpan, BotenSpan,
+    PlainChar, RubySpan, BotenSpan, SeedSpan,
     build_display_string, total_base_chars, get_logical_char,
 )
 import os
@@ -119,6 +119,11 @@ class TextRenderer:
         self.current_force_female = False
         self._current_tokens = []       # parse_inline_markup 済みトークン
         self._total_base_chars = 0      # 論理ベース文字数の上限
+        self.seed_manager = None
+        self.seed_event_id = None
+        self.seed_annotations = {}
+        self.seed_hit_rects = []
+        self.hovered_seed_id = None
 
         self.displayed_chars = 0        # 論理ベース文字数カウンタ
         self.last_char_time = 0
@@ -156,6 +161,50 @@ class TextRenderer:
     def _wrap_text(self, text):
         """テキストをn文字で自動改行する（ルビ・傍点マークアップ対応）"""
         return wrap_markup_text(text, self.max_chars_per_line)
+
+    def configure_seed_context(self, seed_manager, event_id, seed_annotations=None):
+        self.seed_manager = seed_manager
+        self.seed_event_id = event_id
+        self.configure_seed_annotations(seed_annotations or {})
+
+    def configure_seed_annotations(self, seed_annotations):
+        self.seed_annotations = {
+            str(seed_id): [dict(line) for line in lines]
+            for seed_id, lines in (seed_annotations or {}).items()
+        }
+
+    def _seed_enabled(self, seed_id):
+        return bool(self.seed_manager and self.seed_manager.can_show(seed_id))
+
+    def update_seed_hover(self, mouse_pos):
+        self.hovered_seed_id = None
+        for item in self.seed_hit_rects:
+            if item["rect"].collidepoint(mouse_pos):
+                self.hovered_seed_id = item["seed_id"]
+                break
+        try:
+            cursor = (
+                pygame.SYSTEM_CURSOR_HAND
+                if self.hovered_seed_id
+                else pygame.SYSTEM_CURSOR_ARROW
+            )
+            pygame.mouse.set_cursor(cursor)
+        except pygame.error:
+            pass
+        return self.hovered_seed_id
+
+    def seed_at(self, mouse_pos):
+        for item in self.seed_hit_rects:
+            if item["rect"].collidepoint(mouse_pos):
+                return item["seed_id"]
+        return None
+
+    def get_seed_dialogue_lines(self, seed_id):
+        """Return the authored optional branch for a clickable seed."""
+        if not self._seed_enabled(seed_id):
+            return []
+        lines = self.seed_annotations.get(seed_id, [])
+        return [dict(line) for line in lines]
 
     def _get_dialogue_font_path(self):
         """dialogue で使うフォントファイルのパスを返す"""
@@ -352,7 +401,7 @@ class TextRenderer:
         line_height = base_h + self.ruby_h + 4
 
         total_base = sum(
-            len(t.base) if isinstance(t, (RubySpan, BotenSpan)) else 1
+            len(t.base) if isinstance(t, (RubySpan, BotenSpan, SeedSpan)) else 1
             for t in tokens
         )
         max_chars = min(total_base, self.max_chars_per_line)
@@ -412,6 +461,34 @@ class TextRenderer:
                               + (grid_char_width - dot_surf.get_width()) // 2)
                     line_surface.blit(dot_surf, (dot_x, 0))
 
+                char_count += span_chars
+
+            elif isinstance(token, SeedSpan):
+                span_chars = min(len(token.base), self.max_chars_per_line - char_count)
+                grid_x = char_count * grid_char_width
+                enabled = self._seed_enabled(token.seed_id)
+                seed_color = color
+                if enabled:
+                    seed_color = (
+                        SEED_TEXT_HOVER_COLOR
+                        if token.seed_id == self.hovered_seed_id
+                        else SEED_TEXT_COLOR
+                    )
+                for i, ch in enumerate(token.base[:span_chars]):
+                    ch_surf = self._render_text_with_effects(
+                        self.pygame_fonts["text"], ch, seed_color, is_name=False
+                    )
+                    x = grid_x + i * grid_char_width
+                    line_surface.blit(ch_surf, (x, self.ruby_h))
+                    if enabled:
+                        underline_y = self.ruby_h + ch_surf.get_height() - 2
+                        pygame.draw.line(
+                            line_surface,
+                            seed_color,
+                            (x, underline_y),
+                            (x + grid_char_width - 2, underline_y),
+                            2,
+                        )
                 char_count += span_chars
 
         return line_surface
@@ -605,6 +682,10 @@ class TextRenderer:
         # トークンをキャッシュ（文字送り・描画で共用）
         self._current_tokens = parse_inline_markup(self.current_text)
         self._total_base_chars = total_base_chars(self._current_tokens)
+        if self.seed_manager and self.seed_event_id:
+            for token in self._current_tokens:
+                if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
+                    self.seed_manager.encounter(self.seed_event_id, token.seed_id)
 
         # 新しいテキストが設定されたのでバックログ追加フラグをリセット
         self.backlog_added_for_current = False
@@ -796,6 +877,7 @@ class TextRenderer:
 
     def render_paragraph(self):
         """現在の会話データを描画する（26文字自動改行 + 3行スクロール）"""
+        self.seed_hit_rects = []
         if not self.current_text:
             # 空テキストのログを1回だけ出力するためのフラグ管理
             if not hasattr(self, '_empty_text_logged') or not self._empty_text_logged:
@@ -860,11 +942,44 @@ class TextRenderer:
                     # サーフェス内 base text は ruby_h 下にあるので、上にシフトして画面 Y を固定
                     pos_y = int(round(y)) - self.ruby_h
                     self.screen.blit(text_surface, (pos_x, pos_y))
+                    self._record_seed_hit_rects(single_line, pos_x, int(round(y)))
                 except Exception as e:
                     if self.debug:
                         print(f"テキスト描画エラー: {e}, テキスト: '{single_line}'")
             y += self.text_line_height # 各行の後に高さを加算
         return y
+
+    def _record_seed_hit_rects(self, text_line, pos_x, base_y):
+        tokens = parse_inline_markup(text_line)
+        sample_surface = self.pygame_fonts["text"].render("あ", True, self.text_color)
+        stretch_factor = (
+            FONT_EFFECTS.get("stretch_factor", 1.0)
+            if FONT_EFFECTS.get("enable_stretched", False)
+            else 1.0
+        )
+        grid_width = (
+            int(
+                sample_surface.get_width()
+                * stretch_factor
+                * TEXT_RENDERER_CONFIG["grid_char_width_margin"]
+            )
+            + self.char_spacing
+        )
+        char_count = 0
+        for token in tokens:
+            if isinstance(token, PlainChar):
+                char_count += 1
+                continue
+            span_length = len(token.base)
+            if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
+                rect = pygame.Rect(
+                    pos_x + char_count * grid_width,
+                    base_y,
+                    span_length * grid_width,
+                    self.pygame_fonts["text"].get_height(),
+                )
+                self.seed_hit_rects.append({"seed_id": token.seed_id, "rect": rect})
+            char_count += span_length
 
     def render_scroll_text(self):
         """スクロールテキストを描画する（各行に適切な話者名を表示）"""
@@ -908,7 +1023,10 @@ class TextRenderer:
                     'speaker': block_speaker,
                     'force_female': speakers_info['force_female'][block_index]
                         if block_index < len(speakers_info['force_female']) else False,
-                    'show_speaker': should_show_speaker
+                    'show_speaker': should_show_speaker,
+                    # スクロール内の過去発言に残ったタネは表示だけ行い、
+                    # 現在進行中の最新発言にあるタネだけクリック可能にする。
+                    'is_latest_block': is_latest_block,
                 })
         
         # 最大3行表示でスクロール効果を適用
@@ -946,6 +1064,7 @@ class TextRenderer:
             speaker_name_to_show = ""
             # デフォルトの色を設定
             speaker_text_color = self.text_color
+            mapping = {}
             
             if line_index < len(speaker_mapping_to_draw):
                 mapping = speaker_mapping_to_draw[line_index]
@@ -986,6 +1105,12 @@ class TextRenderer:
                     scroll_text_x = int(round(self.text_start_x))
                     scroll_text_y = int(round(y)) - self.ruby_h
                     self.screen.blit(text_surface, (scroll_text_x, scroll_text_y))
+                    if mapping.get('is_latest_block'):
+                        self._record_seed_hit_rects(
+                            single_line,
+                            scroll_text_x,
+                            int(round(y)),
+                        )
                 except Exception as e:
                     if self.debug:
                         print(f"スクロールテキスト描画エラー: {e}, テキスト: '{single_line}'")

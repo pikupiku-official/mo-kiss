@@ -21,7 +21,7 @@ from dialogue.inline_markup import (
     count_chars_for_wrap,
     has_inline_markup,
     wrap_markup_text,
-    PlainChar, RubySpan, BotenSpan,
+    PlainChar, RubySpan, BotenSpan, SeedSpan, build_display_string,
 )
 
 
@@ -51,6 +51,10 @@ class TestParseInlineMarkup:
         assert len(tokens) == 1
         assert isinstance(tokens[0], BotenSpan)
         assert tokens[0].base == "絶対に"
+
+    def test_seed_span(self):
+        tokens = parse_inline_markup('[seed id="MASUDA_TP1_001"]温泉を断った[/seed]')
+        assert tokens == [SeedSpan("MASUDA_TP1_001", "温泉を断った")]
 
     def test_mixed_ruby_and_plain(self):
         """{ルビ}と平文が混在する場合"""
@@ -128,6 +132,10 @@ class TestCountCharsForWrap:
         tokens = parse_inline_markup("{boten:絶対に}")
         assert count_chars_for_wrap(tokens) == 3  # ベース "絶対に" の文字数
 
+    def test_seed_counts_only_visible_text(self):
+        tokens = parse_inline_markup('[seed id="S1"]手掛かり[/seed]')
+        assert count_chars_for_wrap(tokens) == 4
+
     def test_mixed(self):
         tokens = parse_inline_markup("あ{BC|bc}で{boten:EF}")
         # あ=1, BC=2, で=1, EF=2 → 合計 6
@@ -146,6 +154,9 @@ class TestHasInlineMarkup:
 
     def test_boten_true(self):
         assert has_inline_markup("{boten:強調}") is True
+
+    def test_seed_true(self):
+        assert has_inline_markup('[seed id="S1"]手掛かり[/seed]') is True
 
     def test_variable_like_false(self):
         """変数構文はマークアップではない"""
@@ -231,3 +242,17 @@ class TestWrapMarkupText:
         lines2 = wrap_markup_text(text2, 26)
         assert len(lines2) == 2
         assert lines2[1] == "い"
+
+    def test_long_seed_wraps_without_losing_tag_or_text(self):
+        base = "あ" * 30
+        lines = wrap_markup_text(f'[seed id="S1"]{base}[/seed]', 26)
+        assert lines == [
+            f'[seed id="S1"]{"あ" * 26}[/seed]',
+            f'[seed id="S1"]{"あ" * 4}[/seed]',
+        ]
+        assert "".join(token.base for line in lines for token in parse_inline_markup(line)) == base
+
+
+def test_seed_progressive_display_keeps_clickable_markup():
+    tokens = parse_inline_markup('[seed id="S1"]手掛かり[/seed]')
+    assert build_display_string(tokens, 2) == '[seed id="S1"]手掛[/seed]'

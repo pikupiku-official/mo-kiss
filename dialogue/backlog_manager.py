@@ -3,7 +3,7 @@ from core.config import *
 from .name_manager import get_name_manager
 from .inline_markup import (
     parse_inline_markup, wrap_markup_text, has_inline_markup,
-    PlainChar, RubySpan, BotenSpan,
+    PlainChar, RubySpan, BotenSpan, SeedSpan,
 )
 
 # ルビ・傍点定数（config.py の TEXT_RENDERER_CONFIG から読み込む）
@@ -241,7 +241,7 @@ class BacklogManager:
         line_height = base_h + self.ruby_h + 4
 
         total_base = sum(
-            len(t.base) if isinstance(t, (RubySpan, BotenSpan)) else 1
+            len(t.base) if isinstance(t, (RubySpan, BotenSpan, SeedSpan)) else 1
             for t in tokens
         )
         line_width = max(1, grid_w * total_base)
@@ -273,6 +273,12 @@ class BacklogManager:
                     dot = self._render_with_fx("·", self.backlog_ruby_font, color)
                     dx = gx + i * grid_w + (grid_w - dot.get_width()) // 2
                     surf.blit(dot, (dx, 0))
+                char_count += len(token.base)
+            elif isinstance(token, SeedSpan):
+                gx = char_count * grid_w
+                for i, ch in enumerate(token.base):
+                    cs = render_text_with_qfont_cached(ch, self.backlog_text_font, SEED_TEXT_COLOR)
+                    surf.blit(cs, (gx + i * grid_w, self.ruby_h))
                 char_count += len(token.base)
 
         return surf

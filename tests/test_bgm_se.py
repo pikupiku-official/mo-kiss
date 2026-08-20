@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 import sys
 import os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -8,6 +9,7 @@ from dialogue.data_normalizer import normalize_dialogue_data
 from dialogue.dialogue_loader import DialogueLoader
 from dialogue.ir_builder import build_ir_from_normalized
 from core.services.bgm_manager import BGMManager
+from core.services.se_manager import SEManager
 
 class TestBgmSe(unittest.TestCase):
     def _loader(self):
@@ -89,6 +91,120 @@ class TestBgmSe(unittest.TestCase):
         pause_actions = [a for a in actions if a.get("action") == "bgm_pause"]
         self.assertEqual(len(pause_actions), 1)
         self.assertEqual(pause_actions[0]["params"]["fade_time"], 2.5)
+
+    def test_bgm_and_se_keep_underscore_filenames_and_structured_options(self):
+        raw = self._loader()._parse_ks_content(
+            '[BGM bgm="school_daily_loop.ogg" volume="0.6" loop="true" fade="1.25"]\n'
+            '[SE se="door_open_01.wav" volume="0.8"]\n'
+        )
+        normalized = normalize_dialogue_data(raw)
+        ir = build_ir_from_normalized(normalized)
+        actions = [
+            action
+            for step in ir["steps"]
+            for action in step.get("actions", [])
+        ]
+
+        bgm = next(action for action in actions if action["action"] == "bgm_play")
+        se = next(action for action in actions if action["action"] == "se_play")
+        self.assertEqual(bgm["params"]["file"], "school_daily_loop.ogg")
+        self.assertIs(bgm["params"]["loop"], True)
+        self.assertEqual(bgm["params"]["fade_time"], 1.25)
+        self.assertEqual(se["params"]["file"], "door_open_01.wav")
+
+    def test_sestop_and_bgmend_create_runtime_actions(self):
+        raw = self._loader()._parse_ks_content(
+            '[SE se="door.wav"]\n'
+            '[sestop]\n'
+            '[BGM bgm="school.ogg"]\n'
+            '[bgmend fade="2.0"]\n'
+        )
+        self.assertTrue(any(entry.get("type") == "se_stop" for entry in raw))
+        self.assertTrue(
+            any(
+                entry.get("type") == "bgm_end" and entry.get("fade_time") == 2.0
+                for entry in raw
+            )
+        )
+        normalized = normalize_dialogue_data(raw)
+        ir = build_ir_from_normalized(normalized)
+        actions = [
+            action
+            for step in ir["steps"]
+            for action in step.get("actions", [])
+        ]
+        self.assertIn("se_stop", [action["action"] for action in actions])
+        bgm_end = next(action for action in actions if action["action"] == "bgm_end")
+        self.assertEqual(bgm_end["params"]["fade_time"], 2.0)
+
+    def test_bgm_manager_uses_loop_and_starts_fade_from_zero(self):
+        manager = BGMManager(debug=False)
+        with (
+            mock.patch("core.services.bgm_manager.os.path.exists", return_value=True),
+            mock.patch("core.services.bgm_manager.pygame.mixer.get_init", return_value=True),
+            mock.patch("core.services.bgm_manager.pygame.mixer.music.load"),
+            mock.patch("core.services.bgm_manager.pygame.mixer.music.play") as play,
+            mock.patch("core.services.bgm_manager.get_settings_manager") as settings,
+            mock.patch.object(manager, "fade_in") as fade_in,
+        ):
+            settings.return_value.apply_bgm_volume = mock.Mock()
+            self.assertTrue(
+                manager.play_bgm("school_loop.ogg", 0.6, "true", fade_time=1.5)
+            )
+
+        play.assert_called_once_with(-1)
+        settings.return_value.apply_bgm_volume.assert_called_with(0.0)
+        fade_in.assert_called_once_with(0.6, 1.5)
+        self.assertIs(manager.current_loop, True)
+        self.assertEqual(manager.target_volume, 0.6)
+
+    def test_bgm_stop_is_safe_before_mixer_initialization(self):
+        manager = BGMManager(debug=False)
+        manager.current_bgm = "preview.ogg"
+        with (
+            mock.patch("core.services.bgm_manager.pygame.mixer.get_init", return_value=None),
+            mock.patch("core.services.bgm_manager.pygame.mixer.music.stop") as music_stop,
+        ):
+            manager.stop_bgm()
+
+        music_stop.assert_not_called()
+        self.assertIsNone(manager.current_bgm)
+
+    def test_bgm_volume_can_change_during_preview(self):
+        manager = BGMManager(debug=False)
+        with (
+            mock.patch.object(manager, "_stop_fade") as stop_fade,
+            mock.patch("core.services.bgm_manager.get_settings_manager") as settings,
+        ):
+            self.assertTrue(manager.set_volume(0.37))
+
+        stop_fade.assert_called_once_with()
+        settings.return_value.apply_bgm_volume.assert_called_once_with(0.37)
+        self.assertEqual(manager.current_volume, 0.37)
+        self.assertEqual(manager.target_volume, 0.37)
+
+    def test_se_manager_initializes_mixer_before_preview_playback(self):
+        manager = SEManager(debug=False)
+        sound = mock.Mock()
+        channel = mock.Mock()
+        sound.play.return_value = channel
+        with (
+            mock.patch("core.services.se_manager.pygame.mixer.get_init", return_value=None),
+            mock.patch("core.services.se_manager.pygame.mixer.init") as mixer_init,
+            mock.patch("core.services.se_manager.os.path.exists", return_value=True),
+            mock.patch("core.services.se_manager.pygame.mixer.Sound", return_value=sound),
+            mock.patch("core.services.se_manager.get_settings_manager") as settings,
+        ):
+            result = manager.play_se("door_open.wav", 0.7, 1)
+
+        mixer_init.assert_called_once_with()
+        sound.set_volume.assert_called_once_with(0.7)
+        sound.play.assert_called_once_with()
+        settings.return_value.apply_se_channel_volume.assert_called_once_with(channel)
+        self.assertIs(result, channel)
+
+        self.assertTrue(manager.set_current_volume(0.23))
+        sound.set_volume.assert_called_with(0.23)
 
     def test_bgm_manager_file_search_and_volume_normalization(self):
         manager = BGMManager(debug=False)

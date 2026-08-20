@@ -133,12 +133,12 @@ KSファイル (.ks)
 右カラム:
 ├── アクション一覧（リスト、追加/削除/上下移動）
 └── アクション編集
-    ├── タグ選択コンボ（18種類）
+    ├── タグ選択コンボ
     ├── カスタムエディタ（タグ別専用フォーム）
     │   ├── bg / bg_show / bg_move: storage, 位置, ズーム
     │   ├── chara_show / chara_shift: 全パーツフィールド + 🎨立ち絵プレビューボタン
     │   ├── chara_move / chara_hide: name, 位置, fade
-    │   └── se: se名, volume等
+    │   └── se: SE選択, 試聴, volume等
     └── 詳細パラメータ表示（key-valueテーブル、トグル）
 ```
 
@@ -148,14 +148,17 @@ KSファイル (.ks)
 TAG_NAMES = [
     "bg", "bg_show", "bg_move",
     "chara_show", "chara_shift", "chara_move", "chara_hide",
-    "bgm", "bgmstop", "bgmstart",
-    "se", "fadeout", "fadein",
+    "bgm", "bgmstop", "bgmstart", "bgmend",
+    "se", "sestop", "fadeout", "fadein",
     "choice", "flag_set", "if", "endif", "event_control"
 ]
 ```
 
-**Browseボタン（アセット選択）：**
-- `storage` → `images/BG/` ダイアログ
+**アセット選択：**
+- 背景の `storage` → 登録済み背景を編集可能なプルダウンから選択
+- BGMの `bgm` → `sounds/bgms/` 内の音声を編集可能なプルダウンから選択し、選択欄横で試聴・停止
+- SEの `se` → `sounds/ses/` 内の音声を編集可能なプルダウンから選択し、選択欄横で試聴・停止
+- BGM/SEの `volume` → 0.0〜1.0のフェーダーを主操作とし、小型の数値欄も併設。試聴中は変更をリアルタイム反映
 - キャラパーツ → `images/{CHAR_CODE}/` ダイアログ（name フィールドから推定）
 
 ### 3-7. 立ち絵合成プレビュー（CharaCompositePreviewDialog）
@@ -327,9 +330,12 @@ ir_data = build_ir_from_normalized(dialogue_data)
 #### 音声系
 
 ```ks
-[bgm bgm="BGM_TITLE" volume="0.5" loop="true"]
+[bgm bgm="BGM_TITLE" volume="0.5" loop="true" fade="1.0"]
 [bgmstop time="1.0"]
+[bgmstart time="1.0"]
+[bgmend time="1.0"]
 [se se="SE_CLICK" volume="0.5" frequency="1" block="false"]
+[sestop]
 [fadeout color="black" time="1.0"]
 [fadein time="1.0"]
 ```

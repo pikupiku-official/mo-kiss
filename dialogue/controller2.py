@@ -53,16 +53,25 @@ def setup_text_renderer_settings(game_state):
 
 def handle_mouse_click(game_state, mouse_pos, screen):
     """マウスクリックの処理"""
-    if is_input_blocked(game_state):
-        print("[CLICK] 入力ブロック中のため無効")
-        return
-
     # バックログが開いている時は無効化
     if game_state['backlog_manager'].is_showing_backlog():
         return
 
     # テキストが非表示の時は無効化
     if not game_state['show_text']:
+        return
+
+    text_renderer = game_state.get('text_renderer')
+    seed_id = text_renderer.seed_at(mouse_pos) if text_renderer else None
+    if seed_id and _start_seed_dialogue(game_state, seed_id):
+        print(f"[SEED] 会話分岐を開始: {seed_id}")
+        return
+
+    # タネ会話分岐は選択肢と同じ独立入力として先に処理する。
+    # 立ち絵フェード等が残っていても、表示済みの最新タネをクリックした
+    # 入力まで通常の会話送りと一緒に捨てない。
+    if is_input_blocked(game_state):
+        print("[CLICK] 入力ブロック中のため無効")
         return
 
     # 選択肢が表示中の場合、選択肢をクリック処理
@@ -129,12 +138,79 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     else:
         print("[CLICK] 選択肢表示中のため通常クリック処理は無効")
 
+
+def _show_seed_dialogue_line(game_state, line):
+    """Display one seed branch line through the ordinary dialogue renderer."""
+    text_renderer = game_state['text_renderer']
+    text_renderer.set_dialogue(
+        line.get('text', ''),
+        line.get('speaker', ''),
+        should_scroll=text_renderer.scroll_manager.is_scroll_mode(),
+        background=None,
+        active_characters=game_state.get('active_characters', []),
+        force_female=bool(line.get('force_female', False)),
+    )
+
+
+def _start_seed_dialogue(game_state, seed_id):
+    """Start an optional KS-authored branch after the clicked seed line."""
+    if game_state.get('seed_dialogue_session') is not None:
+        return False
+    text_renderer = game_state.get('text_renderer')
+    if text_renderer is None:
+        return False
+    lines = text_renderer.get_seed_dialogue_lines(seed_id)
+    if not lines:
+        return False
+    game_state['seed_dialogue_session'] = {
+        'seed_id': seed_id,
+        'lines': lines,
+        'index': 0,
+    }
+    _show_seed_dialogue_line(game_state, lines[0])
+    return True
+
+
+def _advance_seed_dialogue(game_state):
+    """Advance an optional branch, then continue with the next main paragraph."""
+    session = game_state.get('seed_dialogue_session')
+    if not session:
+        return None
+    next_index = int(session.get('index', 0)) + 1
+    lines = session.get('lines') or []
+    if next_index < len(lines):
+        session['index'] = next_index
+        _show_seed_dialogue_line(game_state, lines[next_index])
+        return True
+
+    game_state['seed_dialogue_session'] = None
+    return advance_to_next_dialogue(game_state)
+
 def handle_events(game_state, screen):
     """イベント処理を行う"""
     # KSファイル終了チェック
     if game_state.get('ks_finished', False):
         print("[EVENTS] KSファイル終了フラグ検知")
         return False  # KSファイル終了を通知
+
+    seed_answer_overlay = game_state.get("seed_answer_overlay")
+    if seed_answer_overlay is not None:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                seed_answer_overlay.close()
+                return False
+            overlay_event = event
+            if hasattr(event, "pos"):
+                event_values = dict(event.dict)
+                event_values["pos"] = _to_virtual_mouse_pos(
+                    event.pos, screen, game_state
+                )
+                overlay_event = pygame.event.Event(event.type, event_values)
+            answer = seed_answer_overlay.handle_event(overlay_event)
+            if answer is not None:
+                _submit_seed_answer(game_state, answer)
+                break
+        return True
     
     for event in pygame.event.get():
         # バックログ関連のイベント処理
@@ -148,6 +224,7 @@ def handle_events(game_state, screen):
             # event.posを使用（event_editorから座標変換されたイベントに対応）
             mouse_pos = _to_virtual_mouse_pos(event.pos, screen, game_state)
             game_state['choice_renderer'].handle_mouse_motion(mouse_pos)
+            game_state['text_renderer'].update_seed_hover(mouse_pos)
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             # マウスクリックの処理
@@ -255,13 +332,21 @@ def handle_enter_key(game_state):
         print("[ENTER] 選択肢表示中のため無効（マウスクリックで選択してください）")
         return
 
+
+    text_renderer = game_state['text_renderer']
+    if game_state.get('seed_dialogue_session') is not None:
+        if text_renderer.is_displaying():
+            text_renderer.skip_text()
+            return
+        _flush_scroll_line_to_backlog(game_state)
+        _advance_seed_dialogue(game_state)
+        return
+
     # 入力ブロック中は、文字表示のスキップも段落送りも禁止する。
     if is_input_blocked(game_state):
         print("[ENTER] 入力ブロック中のため無効")
         return
 
-    text_renderer = game_state['text_renderer']
-    
     if text_renderer.is_displaying():
         # テキスト表示中ならスキップ
         print("[ENTER] テキスト表示をスキップ")
@@ -284,6 +369,58 @@ def handle_enter_key(game_state):
         print("[ENTER] KSファイル終了")
         # KSファイル終了をgame_stateに記録
         game_state['ks_finished'] = True
+
+
+def _submit_seed_answer(game_state, answer_text):
+    """Persist a turning-point answer, set its branch flag, then echo it."""
+    overlay = game_state.get("seed_answer_overlay")
+    if overlay is None:
+        return
+    turning_point_id = overlay.turning_point_id
+    seed_manager = game_state.get("seed_manager")
+    if seed_manager is None:
+        overlay.close()
+        game_state["seed_answer_overlay"] = None
+        return
+
+    verdict = seed_manager.judge_answer(turning_point_id, answer_text)
+    result = verdict.get("result", "error")
+    if result in ("borderline", "error"):
+        if result == "borderline":
+            message = "惜しい。もう少し具体的に推理しよう。"
+        else:
+            message = "判定モデルを読み込めません。起動コンソールを確認してください。"
+            import sys
+
+            print(f"[SEED][ERROR] Python: {sys.executable}")
+            print(f"[SEED][ERROR] Detail: {verdict.get('error_detail', 'unknown error')}")
+        if hasattr(overlay, "show_judge_feedback"):
+            overlay.show_judge_feedback(result, message)
+        print(
+            f"[SEED] 推理判定保留: {turning_point_id} -> {result} "
+            f"({verdict.get('reason_codes', ())})"
+        )
+        return
+
+    from core.services.time_manager import get_time_manager
+
+    time_manager = get_time_manager()
+    game_date = (
+        f"{time_manager.current_year:04d}-"
+        f"{time_manager.current_month:02d}-"
+        f"{time_manager.current_day:02d}"
+    )
+    seed_manager.record_turning_point_result(
+        turning_point_id, answer_text, verdict, game_date
+    )
+    dialogue_loader = game_state.get("dialogue_loader")
+    if dialogue_loader:
+        dialogue_loader.set_story_flag(f"{turning_point_id}_RESULT", result)
+
+    overlay.close()
+    game_state["seed_answer_overlay"] = None
+    game_state["text_renderer"].set_dialogue(answer_text, "{苗字}")
+    print(f"[SEED] 推理判定: {turning_point_id} -> {result}")
 
 def advance_to_next_dialogue(game_state):
     """次の対話に進む"""
@@ -498,14 +635,17 @@ def update_game(game_state):
 
 
     # 自動進行の処理（選択肢表示中は無効化）
-    if (game_state['text_renderer'].is_ready_for_auto_advance() and 
+    if (game_state['text_renderer'].is_ready_for_auto_advance() and
         is_ir_idle(game_state) and
         not is_input_blocked(game_state) and
         not game_state['backlog_manager'].is_showing_backlog() and
         not game_state['choice_renderer'].is_choice_showing()):
         # 自動的に次の対話に進む
         _flush_scroll_line_to_backlog(game_state)  # スクロール中の現在行をバックログに追加
-        success = advance_to_next_dialogue(game_state)
+        if game_state.get('seed_dialogue_session') is not None:
+            success = _advance_seed_dialogue(game_state)
+        else:
+            success = advance_to_next_dialogue(game_state)
         # 自動進行タイマーをリセット
         game_state['text_renderer'].reset_auto_timer()
 

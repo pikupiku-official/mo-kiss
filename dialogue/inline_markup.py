@@ -5,6 +5,7 @@ dialogue/inline_markup.py
 対応構文:
   {ベーステキスト|よみ}   ← ルビ
   {boten:対象テキスト}    ← 傍点
+  [seed id="ID"]対象テキスト[/seed]  ← タネ
 
 呼び出し順: name_manager.substitute_variables() の後に parse_inline_markup() を呼ぶこと。
 """
@@ -35,15 +36,29 @@ class BotenSpan:
     base: str   # 傍点を振るテキスト（1文字以上）
 
 
-Token = PlainChar | RubySpan | BotenSpan
+@dataclass
+class SeedSpan:
+    """Clickable seed text span."""
+
+    seed_id: str
+    base: str
+
+
+Token = PlainChar | RubySpan | BotenSpan | SeedSpan
 
 # ─── 内部定数 ──────────────────────────────────────────────────────────────
 
 # マークアップ認識パターン（ルビ優先、傍点次）
-_MARKUP_RE = re.compile(r'\{([^}|]+)\|([^}]+)\}|\{boten:([^}]+)\}')
+_MARKUP_RE = re.compile(
+    r'\[seed\s+id="(?P<seed_id>[^"]+)"\](?P<seed_base>.*?)\[/seed\]'
+    r'|\{(?P<ruby_base>[^}|]+)\|(?P<ruby_text>[^}]+)\}'
+    r'|\{boten:(?P<boten_base>[^}]+)\}'
+)
 
 # 折り返し計算用（マークアップ単位 or 1文字にマッチ）
-_WRAP_TOKEN_RE = re.compile(r'\{[^}|]+\|[^}]+\}|\{boten:[^}]+\}|.')
+_WRAP_TOKEN_RE = re.compile(
+    r'\[seed\s+id="[^"]+"\].*?\[/seed\]|\{[^}|]+\|[^}]+\}|\{boten:[^}]+\}|.'
+)
 
 
 # ─── 公開 API ─────────────────────────────────────────────────────────────
@@ -67,12 +82,14 @@ def parse_inline_markup(text: str) -> list[Token]:
         # マッチ前の平文を1文字ずつ追加
         for ch in text[last:m.start()]:
             tokens.append(PlainChar(ch))
-        if m.group(1) is not None:
+        if m.group("seed_id") is not None:
+            tokens.append(SeedSpan(seed_id=m.group("seed_id"), base=m.group("seed_base")))
+        elif m.group("ruby_base") is not None:
             # ルビ: {base|ruby}
-            tokens.append(RubySpan(base=m.group(1), ruby=m.group(2)))
+            tokens.append(RubySpan(base=m.group("ruby_base"), ruby=m.group("ruby_text")))
         else:
             # 傍点: {boten:base}
-            tokens.append(BotenSpan(base=m.group(3)))
+            tokens.append(BotenSpan(base=m.group("boten_base")))
         last = m.end()
     # 末尾の平文
     for ch in text[last:]:
@@ -92,7 +109,7 @@ def count_chars_for_wrap(tokens: list[Token]) -> int:
 
 
 def has_inline_markup(text: str) -> bool:
-    """テキストにルビまたは傍点マークアップが含まれているか"""
+    """テキストにルビ、傍点、またはタネマークアップが含まれているか"""
     return bool(_MARKUP_RE.search(text))
 
 
@@ -120,6 +137,31 @@ def wrap_markup_text(text: str, max_chars: int) -> list[str]:
         for tok in raw_tokens:
             base_len = _base_len_of_raw(tok)
 
+            # タネは長文にも使うため、タグを保ったまま複数行へ分割する。
+            # ルビ・傍点は従来どおり一単位を壊さない。
+            markup_match = _MARKUP_RE.fullmatch(tok)
+            if markup_match and markup_match.group("seed_id") is not None:
+                seed_id = markup_match.group("seed_id")
+                remaining_base = markup_match.group("seed_base")
+                while remaining_base:
+                    available = max_chars - current_count
+                    if available <= 0:
+                        result.append(''.join(current_parts))
+                        current_parts = []
+                        current_count = 0
+                        available = max_chars
+                    chunk = remaining_base[:available]
+                    current_parts.append(
+                        f'[seed id="{seed_id}"]{chunk}[/seed]'
+                    )
+                    current_count += len(chunk)
+                    remaining_base = remaining_base[len(chunk):]
+                    if current_count >= max_chars:
+                        result.append(''.join(current_parts))
+                        current_parts = []
+                        current_count = 0
+                continue
+
             # このトークンを追加すると max_chars を超える場合は改行
             if current_count + base_len > max_chars and current_parts:
                 result.append(''.join(current_parts))
@@ -141,10 +183,11 @@ def _base_len_of_raw(tok: str) -> int:
     """生トークン文字列のベース文字数を返す"""
     m = _MARKUP_RE.fullmatch(tok)
     if m:
-        if m.group(1) is not None:
-            return len(m.group(1))   # ルビのベース
-        else:
-            return len(m.group(3))   # 傍点のベース
+        if m.group("seed_id") is not None:
+            return len(m.group("seed_base"))
+        if m.group("ruby_base") is not None:
+            return len(m.group("ruby_base"))   # ルビのベース
+        return len(m.group("boten_base"))   # 傍点のベース
     return 1  # 平文1文字
 
 # ─── 文字送り用ユーティリティ ──────────────────────────────────────────────
@@ -206,6 +249,13 @@ def build_display_string(tokens: list, display_count: int) -> str:
             shown = min(remaining, base_len)
             for ch in token.base[:shown]:
                 result.append(f"{{boten:{ch}}}")
+            remaining -= shown
+
+        elif isinstance(token, SeedSpan):
+            base_len = len(token.base)
+            shown = min(remaining, base_len)
+            visible = token.base[:shown]
+            result.append(f'[seed id="{token.seed_id}"]{visible}[/seed]')
             remaining -= shown
 
     return "".join(result)

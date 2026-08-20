@@ -191,6 +191,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'background_state': background_state,
         'show_face_parts': True,
         'show_text': True,
+        'seed_dialogue_session': None,
         'current_paragraph': 0,
         'active_characters': [],
         'last_dialogue_logged': False

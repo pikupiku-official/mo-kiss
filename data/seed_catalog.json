@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "characters": [
+    {"id": "MASUDA", "display_name": "増田", "sort_order": 900}
+  ],
+  "seeds": [
+    {
+      "id": "MASUDA_TP1_001",
+      "character_id": "MASUDA",
+      "turning_point_id": "MASUDA_TP1",
+      "title": "温泉への誘い",
+      "journal_text": "増田を温泉に誘ったが、断られた。",
+      "parents": [],
+      "parent_mode": "all",
+      "source_events": ["TANE_MASUDA_01"],
+      "journal_location": {"page": 1, "slot": 1}
+    },
+    {
+      "id": "MASUDA_TP1_002",
+      "character_id": "MASUDA",
+      "turning_point_id": "MASUDA_TP1",
+      "title": "局部を見せることへの拒否",
+      "journal_text": "増田は、局部を人に見せることを極端に嫌がる。",
+      "parents": ["MASUDA_TP1_001"],
+      "parent_mode": "all",
+      "source_events": ["TANE_MASUDA_02"],
+      "journal_location": {"page": 1, "slot": 2}
+    },
+    {
+      "id": "MASUDA_TP1_003",
+      "character_id": "MASUDA",
+      "turning_point_id": "MASUDA_TP1",
+      "title": "触れられない単語",
+      "journal_text": "下ネタに寛容な増田も、「包茎」という言葉には絶対に触れない。",
+      "parents": ["MASUDA_TP1_002"],
+      "parent_mode": "all",
+      "source_events": ["TANE_MASUDA_03"],
+      "journal_location": {"page": 1, "slot": 3}
+    }
+  ]
+}

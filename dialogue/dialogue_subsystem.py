@@ -49,6 +49,7 @@ class DialogueSubsystem(SubsystemBase):
 
         # 段落セーブ用の最後の保存段落インデックス (Task 2c)
         self._last_saved_paragraph: int = -2
+        self._ending_bgm_deadline: int | None = None
 
         # game_state を初期化
         # text_renderer 等が __init__ 時に scale_pos() で座標をベイクするため、
@@ -65,12 +66,27 @@ class DialogueSubsystem(SubsystemBase):
             # 例外発生時も必ず config を復元（⑦修正）
             _cfg.OFFSET_X, _cfg.OFFSET_Y, _cfg.SCALE = _pre_x, _pre_y, _pre_scale
 
+        from core.services.seed_manager import get_seed_manager
+        self.seed_manager = get_seed_manager()
+        self.seed_manager.begin_event(self.current_event_id)
+        self.game_state["seed_manager"] = self.seed_manager
+        self.game_state["current_event_id"] = self.current_event_id
+        text_renderer = self.game_state.get("text_renderer")
+        if text_renderer is not None:
+            dialogue_loader = self.game_state.get("dialogue_loader")
+            text_renderer.configure_seed_context(
+                self.seed_manager,
+                self.current_event_id,
+                getattr(dialogue_loader, "seed_annotations", {}),
+            )
+
         from dialogue.event_datetime import apply_event_datetime
-        apply_event_datetime(
-            self.game_state["text_renderer"],
-            event_id=self.current_event_id,
-            ks_file_path=event_file,
-        )
+        if text_renderer is not None:
+            apply_event_datetime(
+                text_renderer,
+                event_id=self.current_event_id,
+                ks_file_path=event_file,
+            )
 
         # 全レンダラーの screen を仮想画面に差し替え
         self._swap_to_virtual_screen()
@@ -146,6 +162,12 @@ class DialogueSubsystem(SubsystemBase):
         """
         import pygame
 
+        if self._ending_bgm_deadline is not None:
+            if pygame.time.get_ticks() < self._ending_bgm_deadline:
+                return None
+            self._ending_bgm_deadline = None
+            return "dialogue_ended"
+
         # ESC は常に OPTION を開く（バックログの表示状態に関わらず OPTION が優先）
         esc_pressed = False
         other_events = []
@@ -170,6 +192,12 @@ class DialogueSubsystem(SubsystemBase):
             print(f"⚠️ DialogueSubsystem handle_events エラー: {e}")
             return "dialogue_ended"
 
+        # 最後のEnterでks_finishedになった同じフレームに終了遷移する。
+        # 次フレームまで残すと、末尾のevent_control辞書を通常台詞として
+        # 描画しようとする旧コード経路へ入ってしまう。
+        if self.game_state.get('ks_finished', False):
+            continue_dialogue = False
+
         # Task2c: 段落が進んだときだけ dialogue_state.json に保存
         current_para = self.game_state.get('current_paragraph', -1)
         if current_para != self._last_saved_paragraph:
@@ -177,6 +205,14 @@ class DialogueSubsystem(SubsystemBase):
             self._save_dialogue_state(current_para)
 
         if not continue_dialogue:
+            bgm_manager = self.game_state.get('bgm_manager')
+            if bgm_manager and getattr(bgm_manager, 'current_bgm', None):
+                fade_seconds = 1.0
+                bgm_manager.fade_out(fade_seconds)
+                self._ending_bgm_deadline = (
+                    pygame.time.get_ticks() + int(fade_seconds * 1000)
+                )
+                return None
             return "dialogue_ended"
         return None
 
@@ -247,6 +283,10 @@ class DialogueSubsystem(SubsystemBase):
         if choice_showing:
             gs['choice_renderer'].render()
 
+        seed_answer_overlay = gs.get("seed_answer_overlay")
+        if seed_answer_overlay is not None:
+            seed_answer_overlay.render()
+
         # バックログ・通知（最上位レイヤー）
         if 'backlog_manager' in gs:
             gs['backlog_manager'].render()
@@ -307,6 +347,9 @@ class DialogueSubsystem(SubsystemBase):
 
             self.game_state['dialogue_data'] = data
             self.game_state['current_paragraph'] = -1
+            text_renderer = self.game_state.get("text_renderer")
+            if text_renderer is not None:
+                text_renderer.configure_seed_annotations(loader.seed_annotations)
 
             if self.game_state.get('use_ir'):
                 from dialogue.ir_builder import build_ir_from_normalized

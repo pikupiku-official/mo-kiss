@@ -354,6 +354,25 @@
     },
     {
       "id": "step_0026",
+      "actions": [
+        {
+          "action": "event_control",
+          "params": {
+            "type": "event_control",
+            "unlock": [
+              "E002",
+              "E003",
+              "E004",
+              "E005"
+            ],
+            "lock": []
+          }
+        }
+      ],
+      "source_index": 34
+    },
+    {
+      "id": "step_0027",
       "text": {
         "speaker": "？？",
         "body": "君に触れたい〜 君に触れたい〜 ⽇向の窓でぇ〜 へ〜",
@@ -398,10 +417,10 @@
           }
         }
       ],
-      "source_index": 36
+      "source_index": 37
     },
     {
-      "id": "step_0027",
+      "id": "step_0028",
       "text": {
         "speaker": "純一",
         "body": "うげっ、朝からこの声はきっと…",
@@ -425,28 +444,28 @@
           }
         }
       ],
-      "source_index": 37
-    },
-    {
-      "id": "step_0028",
-      "text": {
-        "speaker": "？？",
-        "body": "お！純⼀じゃんか！",
-        "scroll": true
-      },
       "source_index": 38
     },
     {
       "id": "step_0029",
       "text": {
-        "speaker": "純一",
-        "body": "(あえて彼を放る。)",
+        "speaker": "？？",
+        "body": "お！純⼀じゃんか！",
         "scroll": true
       },
       "source_index": 39
     },
     {
       "id": "step_0030",
+      "text": {
+        "speaker": "純一",
+        "body": "(あえて彼を放る。)",
+        "scroll": true
+      },
+      "source_index": 40
+    },
+    {
+      "id": "step_0031",
       "text": {
         "speaker": "？？",
         "body": "おーい！無視すんなって！…",
@@ -477,22 +496,13 @@
           }
         }
       ],
-      "source_index": 41
-    },
-    {
-      "id": "step_0031",
-      "text": {
-        "speaker": "？？",
-        "body": "いつからお前はそんな冷たい奴になったんだ？",
-        "scroll": true
-      },
       "source_index": 42
     },
     {
       "id": "step_0032",
       "text": {
-        "speaker": "純一",
-        "body": "むしろ増⽥が暑いんだよ",
+        "speaker": "？？",
+        "body": "いつからお前はそんな冷たい奴になったんだ？",
         "scroll": true
       },
       "source_index": 43
@@ -501,7 +511,7 @@
       "id": "step_0033",
       "text": {
         "speaker": "純一",
-        "body": "(僕は軽⼝を叩く。そうそう、こんな感じ。これがいつものムード。)",
+        "body": "むしろ増⽥が暑いんだよ",
         "scroll": true
       },
       "source_index": 44
@@ -510,7 +520,7 @@
       "id": "step_0034",
       "text": {
         "speaker": "純一",
-        "body": "（彼は増⽥⼀樹。）",
+        "body": "(僕は軽⼝を叩く。そうそう、こんな感じ。これがいつものムード。)",
         "scroll": true
       },
       "source_index": 45
@@ -519,7 +529,7 @@
       "id": "step_0035",
       "text": {
         "speaker": "純一",
-        "body": "（かれこれ中学から５年間の付き合いになる。）",
+        "body": "（彼は増⽥⼀樹。）",
         "scroll": true
       },
       "source_index": 46
@@ -527,8 +537,8 @@
     {
       "id": "step_0036",
       "text": {
-        "speaker": "増田",
-        "body": "まったく、つれない顔するなよ",
+        "speaker": "純一",
+        "body": "（かれこれ中学から５年間の付き合いになる。）",
         "scroll": true
       },
       "source_index": 47
@@ -536,8 +546,8 @@
     {
       "id": "step_0037",
       "text": {
-        "speaker": "純一",
-        "body": "僕は昔から朝が弱いんだ。",
+        "speaker": "増田",
+        "body": "まったく、つれない顔するなよ",
         "scroll": true
       },
       "source_index": 48
@@ -545,8 +555,8 @@
     {
       "id": "step_0038",
       "text": {
-        "speaker": "増田",
-        "body": "そういやそうだったな。",
+        "speaker": "純一",
+        "body": "僕は昔から朝が弱いんだ。",
         "scroll": true
       },
       "source_index": 49
@@ -555,7 +565,7 @@
       "id": "step_0039",
       "text": {
         "speaker": "増田",
-        "body": "修学旅行のときなんかお前…",
+        "body": "そういやそうだったな。",
         "scroll": true
       },
       "source_index": 50
@@ -563,10 +573,9 @@
     {
       "id": "step_0040",
       "text": {
-        "speaker": "？？",
-        "body": "あっ、じゅんいちだ。",
-        "scroll": true,
-        "force_female": true
+        "speaker": "増田",
+        "body": "修学旅行のときなんかお前…",
+        "scroll": true
       },
       "source_index": 51
     },
@@ -574,7 +583,7 @@
       "id": "step_0041",
       "text": {
         "speaker": "？？",
-        "body": "じゅんいち～～～～！",
+        "body": "あっ、じゅんいちだ。",
         "scroll": true,
         "force_female": true
       },
@@ -582,6 +591,16 @@
     },
     {
       "id": "step_0042",
+      "text": {
+        "speaker": "？？",
+        "body": "じゅんいち～～～～！",
+        "scroll": true,
+        "force_female": true
+      },
+      "source_index": 53
+    },
+    {
+      "id": "step_0043",
       "text": {
         "speaker": "？？",
         "body": "おはよう！",
@@ -613,22 +632,13 @@
           }
         }
       ],
-      "source_index": 54
-    },
-    {
-      "id": "step_0043",
-      "text": {
-        "speaker": "純一",
-        "body": "やあ桃⼦。今⽇は遅いね。",
-        "scroll": true
-      },
       "source_index": 55
     },
     {
       "id": "step_0044",
       "text": {
         "speaker": "純一",
-        "body": "（まるでお⽇様みたいな彼⼥は幼馴染の愛沼桃⼦。）",
+        "body": "やあ桃⼦。今⽇は遅いね。",
         "scroll": true
       },
       "source_index": 56
@@ -637,7 +647,7 @@
       "id": "step_0045",
       "text": {
         "speaker": "純一",
-        "body": "（僕とは⼩学⽣以来の幼馴染で、増⽥と共に⼀緒のクラスでもある。）",
+        "body": "（まるでお⽇様みたいな彼⼥は幼馴染の愛沼桃⼦。）",
         "scroll": true
       },
       "source_index": 57
@@ -645,8 +655,8 @@
     {
       "id": "step_0046",
       "text": {
-        "speaker": "桃子",
-        "body": "うん。家族で古畑任三郎観ててね、夜更かししちゃったの。",
+        "speaker": "純一",
+        "body": "（僕とは⼩学⽣以来の幼馴染で、増⽥と共に⼀緒のクラスでもある。）",
         "scroll": true
       },
       "source_index": 58
@@ -655,7 +665,7 @@
       "id": "step_0047",
       "text": {
         "speaker": "桃子",
-        "body": "ふわぁ～。",
+        "body": "うん。家族で古畑任三郎観ててね、夜更かししちゃったの。",
         "scroll": true
       },
       "source_index": 59
@@ -663,8 +673,8 @@
     {
       "id": "step_0048",
       "text": {
-        "speaker": "増田",
-        "body": "でもさ、古畑は⽕曜だよな？",
+        "speaker": "桃子",
+        "body": "ふわぁ～。",
         "scroll": true
       },
       "source_index": 60
@@ -673,7 +683,7 @@
       "id": "step_0049",
       "text": {
         "speaker": "増田",
-        "body": "ってことは…",
+        "body": "でもさ、古畑は⽕曜だよな？",
         "scroll": true
       },
       "source_index": 61
@@ -682,7 +692,7 @@
       "id": "step_0050",
       "text": {
         "speaker": "増田",
-        "body": "わざわざ録画して⾒てるのか？",
+        "body": "ってことは…",
         "scroll": true
       },
       "source_index": 62
@@ -690,8 +700,8 @@
     {
       "id": "step_0051",
       "text": {
-        "speaker": "桃子",
-        "body": "うん！",
+        "speaker": "増田",
+        "body": "わざわざ録画して⾒てるのか？",
         "scroll": true
       },
       "source_index": 63
@@ -700,7 +710,7 @@
       "id": "step_0052",
       "text": {
         "speaker": "桃子",
-        "body": "うちはみんな三谷幸喜ファンだからね～。",
+        "body": "うん！",
         "scroll": true
       },
       "source_index": 64
@@ -708,8 +718,8 @@
     {
       "id": "step_0053",
       "text": {
-        "speaker": "増田",
-        "body": "桃子ん家は相変わらず仲良しだよな。",
+        "speaker": "桃子",
+        "body": "うちはみんな三谷幸喜ファンだからね～。",
         "scroll": true
       },
       "source_index": 65
@@ -717,8 +727,8 @@
     {
       "id": "step_0054",
       "text": {
-        "speaker": "桃子",
-        "body": "えへへ…",
+        "speaker": "増田",
+        "body": "桃子ん家は相変わらず仲良しだよな。",
         "scroll": true
       },
       "source_index": 66
@@ -726,8 +736,8 @@
     {
       "id": "step_0055",
       "text": {
-        "speaker": "純一",
-        "body": "(ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。)",
+        "speaker": "桃子",
+        "body": "えへへ…",
         "scroll": true
       },
       "source_index": 67
@@ -736,7 +746,7 @@
       "id": "step_0056",
       "text": {
         "speaker": "純一",
-        "body": "（それを⾒て、桃⼦の部活を思い出す。）",
+        "body": "(ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。)",
         "scroll": true
       },
       "source_index": 68
@@ -745,7 +755,7 @@
       "id": "step_0057",
       "text": {
         "speaker": "純一",
-        "body": "…そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？",
+        "body": "（それを⾒て、桃⼦の部活を思い出す。）",
         "scroll": true
       },
       "source_index": 69
@@ -753,8 +763,8 @@
     {
       "id": "step_0058",
       "text": {
-        "speaker": "桃子",
-        "body": "あっ…忘れてたぁ！",
+        "speaker": "純一",
+        "body": "…そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？",
         "scroll": true
       },
       "source_index": 70
@@ -762,8 +772,8 @@
     {
       "id": "step_0059",
       "text": {
-        "speaker": "純一",
-        "body": "やっぱりそうだと思った。",
+        "speaker": "桃子",
+        "body": "あっ…忘れてたぁ！",
         "scroll": true
       },
       "source_index": 71
@@ -772,7 +782,7 @@
       "id": "step_0060",
       "text": {
         "speaker": "純一",
-        "body": "桃子は天然だし。",
+        "body": "やっぱりそうだと思った。",
         "scroll": true
       },
       "source_index": 72
@@ -780,8 +790,8 @@
     {
       "id": "step_0061",
       "text": {
-        "speaker": "桃子",
-        "body": "天然ですって？",
+        "speaker": "純一",
+        "body": "桃子は天然だし。",
         "scroll": true
       },
       "source_index": 73
@@ -790,7 +800,7 @@
       "id": "step_0062",
       "text": {
         "speaker": "桃子",
-        "body": "失礼ね〜〜",
+        "body": "天然ですって？",
         "scroll": true
       },
       "source_index": 74
@@ -798,8 +808,8 @@
     {
       "id": "step_0063",
       "text": {
-        "speaker": "増田",
-        "body": "まあでも純⼀に救われたな！",
+        "speaker": "桃子",
+        "body": "失礼ね〜〜",
         "scroll": true
       },
       "source_index": 75
@@ -808,7 +818,7 @@
       "id": "step_0064",
       "text": {
         "speaker": "増田",
-        "body": "桃⼦さんよ、早く⾏かないと遅刻するぞ？",
+        "body": "まあでも純⼀に救われたな！",
         "scroll": true
       },
       "source_index": 76
@@ -816,8 +826,8 @@
     {
       "id": "step_0065",
       "text": {
-        "speaker": "桃子",
-        "body": "うん…遅刻したら〇〇先⽣に怒られちゃう。",
+        "speaker": "増田",
+        "body": "桃⼦さんよ、早く⾏かないと遅刻するぞ？",
         "scroll": true
       },
       "source_index": 77
@@ -825,8 +835,8 @@
     {
       "id": "step_0066",
       "text": {
-        "speaker": "純一",
-        "body": "(まるで久しぶりに運動させられている飼い⽝みたいだ。)",
+        "speaker": "桃子",
+        "body": "うん…遅刻したら〇〇先⽣に怒られちゃう。",
         "scroll": true
       },
       "source_index": 78
@@ -835,7 +845,7 @@
       "id": "step_0067",
       "text": {
         "speaker": "純一",
-        "body": "（けど、僕は桃⼦が他の⼈たちに笑われてる姿はあまり⾒たくないな。）",
+        "body": "(まるで久しぶりに運動させられている飼い⽝みたいだ。)",
         "scroll": true
       },
       "source_index": 79
@@ -844,7 +854,7 @@
       "id": "step_0068",
       "text": {
         "speaker": "純一",
-        "body": "今⾛っていけば間に合うと思うよ。",
+        "body": "（けど、僕は桃⼦が他の⼈たちに笑われてる姿はあまり⾒たくないな。）",
         "scroll": true
       },
       "source_index": 80
@@ -852,8 +862,8 @@
     {
       "id": "step_0069",
       "text": {
-        "speaker": "桃子",
-        "body": "そうかな？",
+        "speaker": "純一",
+        "body": "今⾛っていけば間に合うと思うよ。",
         "scroll": true
       },
       "source_index": 81
@@ -862,7 +872,7 @@
       "id": "step_0070",
       "text": {
         "speaker": "桃子",
-        "body": "……",
+        "body": "そうかな？",
         "scroll": true
       },
       "source_index": 82
@@ -871,13 +881,22 @@
       "id": "step_0071",
       "text": {
         "speaker": "桃子",
-        "body": "やっぱりせっかく純⼀が教えてくれたことだし、頑張ってみる！",
+        "body": "……",
         "scroll": true
       },
       "source_index": 83
     },
     {
       "id": "step_0072",
+      "text": {
+        "speaker": "桃子",
+        "body": "やっぱりせっかく純⼀が教えてくれたことだし、頑張ってみる！",
+        "scroll": true
+      },
+      "source_index": 84
+    },
+    {
+      "id": "step_0073",
       "text": {
         "speaker": "増田",
         "body": "…結局、俺ら⼆⼈ってことだ。なあ純⼀。",
@@ -896,22 +915,13 @@
           }
         }
       ],
-      "source_index": 85
-    },
-    {
-      "id": "step_0073",
-      "text": {
-        "speaker": "純一",
-        "body": "そうだね…",
-        "scroll": true
-      },
       "source_index": 86
     },
     {
       "id": "step_0074",
       "text": {
-        "speaker": "増田",
-        "body": "よし、そうと決まればスピッツでも歌うか？",
+        "speaker": "純一",
+        "body": "そうだね…",
         "scroll": true
       },
       "source_index": 87
@@ -919,8 +929,8 @@
     {
       "id": "step_0075",
       "text": {
-        "speaker": "純一",
-        "body": "(いつもの増⽥リサイタルが始まりそうだ。今回はどの曲だろうか。)",
+        "speaker": "増田",
+        "body": "よし、そうと決まればスピッツでも歌うか？",
         "scroll": true
       },
       "source_index": 88
@@ -929,7 +939,7 @@
       "id": "step_0076",
       "text": {
         "speaker": "純一",
-        "body": "リクエストは受け付けてますか？",
+        "body": "(いつもの増⽥リサイタルが始まりそうだ。今回はどの曲だろうか。)",
         "scroll": true
       },
       "source_index": 89
@@ -937,8 +947,8 @@
     {
       "id": "step_0077",
       "text": {
-        "speaker": "増田",
-        "body": "おう。何がいいんだ。",
+        "speaker": "純一",
+        "body": "リクエストは受け付けてますか？",
         "scroll": true
       },
       "source_index": 90
@@ -946,8 +956,8 @@
     {
       "id": "step_0078",
       "text": {
-        "speaker": "純一",
-        "body": "なんだっけ、さっき増⽥が⼝ずさんでたやつ。",
+        "speaker": "増田",
+        "body": "おう。何がいいんだ。",
         "scroll": true
       },
       "source_index": 91
@@ -956,7 +966,7 @@
       "id": "step_0079",
       "text": {
         "speaker": "純一",
-        "body": "あれ。",
+        "body": "なんだっけ、さっき増⽥が⼝ずさんでたやつ。",
         "scroll": true
       },
       "source_index": 92
@@ -964,8 +974,8 @@
     {
       "id": "step_0080",
       "text": {
-        "speaker": "増田",
-        "body": "⽇なたの窓に憧れてか？",
+        "speaker": "純一",
+        "body": "あれ。",
         "scroll": true
       },
       "source_index": 93
@@ -974,7 +984,7 @@
       "id": "step_0081",
       "text": {
         "speaker": "増田",
-        "body": "純⼀もセンスがいいねぇ！",
+        "body": "⽇なたの窓に憧れてか？",
         "scroll": true
       },
       "source_index": 94
@@ -982,8 +992,8 @@
     {
       "id": "step_0082",
       "text": {
-        "speaker": "桃子",
-        "body": "純⼀〜〜〜〜〜 ありがとね〜〜〜！！",
+        "speaker": "増田",
+        "body": "純⼀もセンスがいいねぇ！",
         "scroll": true
       },
       "source_index": 95
@@ -991,8 +1001,8 @@
     {
       "id": "step_0083",
       "text": {
-        "speaker": "純一",
-        "body": "え？",
+        "speaker": "桃子",
+        "body": "純⼀〜〜〜〜〜 ありがとね〜〜〜！！",
         "scroll": true
       },
       "source_index": 96
@@ -1000,8 +1010,8 @@
     {
       "id": "step_0084",
       "text": {
-        "speaker": "増田",
-        "body": "あ？",
+        "speaker": "純一",
+        "body": "え？",
         "scroll": true
       },
       "source_index": 97
@@ -1009,8 +1019,8 @@
     {
       "id": "step_0085",
       "text": {
-        "speaker": "純一",
-        "body": "(僕らの声は同時だった。突然の⼤声に驚いて、⾜を⽌める。そして辺りを⾒回す。)",
+        "speaker": "増田",
+        "body": "あ？",
         "scroll": true
       },
       "source_index": 98
@@ -1018,8 +1028,8 @@
     {
       "id": "step_0086",
       "text": {
-        "speaker": "増田",
-        "body": "純⼀、あそこだ。⾒ろよほら、校⾨の前を！",
+        "speaker": "純一",
+        "body": "(僕らの声は同時だった。突然の⼤声に驚いて、⾜を⽌める。そして辺りを⾒回す。)",
         "scroll": true
       },
       "source_index": 99
@@ -1027,14 +1037,23 @@
     {
       "id": "step_0087",
       "text": {
-        "speaker": "純一",
-        "body": "(急いで視線を増⽥が指差す校⾨の⽅に向ける。)",
+        "speaker": "増田",
+        "body": "純⼀、あそこだ。⾒ろよほら、校⾨の前を！",
         "scroll": true
       },
       "source_index": 100
     },
     {
       "id": "step_0088",
+      "text": {
+        "speaker": "純一",
+        "body": "(急いで視線を増⽥が指差す校⾨の⽅に向ける。)",
+        "scroll": true
+      },
+      "source_index": 101
+    },
+    {
+      "id": "step_0089",
       "text": {
         "speaker": "純一",
         "body": "(視線の先にはとびきりの笑顔で⼿を振る桃⼦がいる。)",
@@ -1065,28 +1084,28 @@
           }
         }
       ],
-      "source_index": 102
-    },
-    {
-      "id": "step_0089",
-      "text": {
-        "speaker": "純一",
-        "body": "(僕は正直⼾惑いつつも、急いで彼⼥に⼿を振り返す。)",
-        "scroll": true
-      },
       "source_index": 103
     },
     {
       "id": "step_0090",
       "text": {
-        "speaker": "増田",
-        "body": "頑張れよ～！",
+        "speaker": "純一",
+        "body": "(僕は正直⼾惑いつつも、急いで彼⼥に⼿を振り返す。)",
         "scroll": true
       },
       "source_index": 104
     },
     {
       "id": "step_0091",
+      "text": {
+        "speaker": "増田",
+        "body": "頑張れよ～！",
+        "scroll": true
+      },
+      "source_index": 105
+    },
+    {
+      "id": "step_0092",
       "text": {
         "speaker": "純一",
         "body": "(増⽥の声の後、桃⼦が校⾨の中に駆け込んでいく姿が⼩さく⾒えた。)",
@@ -1105,22 +1124,13 @@
           }
         }
       ],
-      "source_index": 106
-    },
-    {
-      "id": "step_0092",
-      "text": {
-        "speaker": "増田",
-        "body": "あいつたまにああいうことするよな。",
-        "scroll": true
-      },
       "source_index": 107
     },
     {
       "id": "step_0093",
       "text": {
         "speaker": "増田",
-        "body": "素直かつ大胆っていうかさあ。",
+        "body": "あいつたまにああいうことするよな。",
         "scroll": true
       },
       "source_index": 108
@@ -1128,8 +1138,8 @@
     {
       "id": "step_0094",
       "text": {
-        "speaker": "純一",
-        "body": "…",
+        "speaker": "増田",
+        "body": "素直かつ大胆っていうかさあ。",
         "scroll": true
       },
       "source_index": 109
@@ -1137,8 +1147,8 @@
     {
       "id": "step_0095",
       "text": {
-        "speaker": "増田",
-        "body": "あの性格がクラスの奴らを惹きつけているんだろうな。",
+        "speaker": "純一",
+        "body": "…",
         "scroll": true
       },
       "source_index": 110
@@ -1146,8 +1156,8 @@
     {
       "id": "step_0096",
       "text": {
-        "speaker": "純一",
-        "body": "…",
+        "speaker": "増田",
+        "body": "あの性格がクラスの奴らを惹きつけているんだろうな。",
         "scroll": true
       },
       "source_index": 111
@@ -1155,8 +1165,8 @@
     {
       "id": "step_0097",
       "text": {
-        "speaker": "増田",
-        "body": "なあ、純⼀。",
+        "speaker": "純一",
+        "body": "…",
         "scroll": true
       },
       "source_index": 112
@@ -1164,8 +1174,8 @@
     {
       "id": "step_0098",
       "text": {
-        "speaker": "純一",
-        "body": "…",
+        "speaker": "増田",
+        "body": "なあ、純⼀。",
         "scroll": true
       },
       "source_index": 113
@@ -1173,8 +1183,8 @@
     {
       "id": "step_0099",
       "text": {
-        "speaker": "増田",
-        "body": "純⼀? おい、どうしたんだよ。",
+        "speaker": "純一",
+        "body": "…",
         "scroll": true
       },
       "source_index": 114
@@ -1182,8 +1192,8 @@
     {
       "id": "step_0100",
       "text": {
-        "speaker": "純一",
-        "body": "あ、ああ… えーとクラスがなんだっけ。",
+        "speaker": "増田",
+        "body": "純⼀? おい、どうしたんだよ。",
         "scroll": true
       },
       "source_index": 115
@@ -1191,8 +1201,8 @@
     {
       "id": "step_0101",
       "text": {
-        "speaker": "増田",
-        "body": "なんだよ全く。",
+        "speaker": "純一",
+        "body": "あ、ああ… えーとクラスがなんだっけ。",
         "scroll": true
       },
       "source_index": 116
@@ -1201,7 +1211,7 @@
       "id": "step_0102",
       "text": {
         "speaker": "増田",
-        "body": "俺の話も聞かず、⽴ち⽌まってボーッとしやがって。",
+        "body": "なんだよ全く。",
         "scroll": true
       },
       "source_index": 117
@@ -1210,7 +1220,7 @@
       "id": "step_0103",
       "text": {
         "speaker": "増田",
-        "body": "ホントにお前は朝が弱いんだからさ、呆れるよ。",
+        "body": "俺の話も聞かず、⽴ち⽌まってボーッとしやがって。",
         "scroll": true
       },
       "source_index": 118
@@ -1218,8 +1228,8 @@
     {
       "id": "step_0104",
       "text": {
-        "speaker": "純一",
-        "body": "(増⽥の⾔う通り、全く彼の話が頭に⼊ってこなかった。)",
+        "speaker": "増田",
+        "body": "ホントにお前は朝が弱いんだからさ、呆れるよ。",
         "scroll": true
       },
       "source_index": 119
@@ -1228,7 +1238,7 @@
       "id": "step_0105",
       "text": {
         "speaker": "純一",
-        "body": "(正直に⾔うと、坂上に⽴ち笑顔で⼿を振る彼⼥の姿、彼⼥を照らす朝の光。)",
+        "body": "(増⽥の⾔う通り、全く彼の話が頭に⼊ってこなかった。)",
         "scroll": true
       },
       "source_index": 120
@@ -1237,7 +1247,7 @@
       "id": "step_0106",
       "text": {
         "speaker": "純一",
-        "body": "(その景⾊に⽬が離せなかったからだ。)",
+        "body": "(正直に⾔うと、坂上に⽴ち笑顔で⼿を振る彼⼥の姿、彼⼥を照らす朝の光。)",
         "scroll": true
       },
       "source_index": 121
@@ -1246,7 +1256,7 @@
       "id": "step_0107",
       "text": {
         "speaker": "純一",
-        "body": "(それは映画の導⼊シーンみたいだった。)",
+        "body": "(その景⾊に⽬が離せなかったからだ。)",
         "scroll": true
       },
       "source_index": 122
@@ -1255,7 +1265,7 @@
       "id": "step_0108",
       "text": {
         "speaker": "純一",
-        "body": "増田。",
+        "body": "(それは映画の導⼊シーンみたいだった。)",
         "scroll": true
       },
       "source_index": 123
@@ -1263,8 +1273,8 @@
     {
       "id": "step_0109",
       "text": {
-        "speaker": "増田",
-        "body": "はあ。",
+        "speaker": "純一",
+        "body": "増田。",
         "scroll": true
       },
       "source_index": 124
@@ -1272,8 +1282,8 @@
     {
       "id": "step_0110",
       "text": {
-        "speaker": "純一",
-        "body": "僕が今考えていたことを知りたい？",
+        "speaker": "増田",
+        "body": "はあ。",
         "scroll": true
       },
       "source_index": 125
@@ -1281,8 +1291,8 @@
     {
       "id": "step_0111",
       "text": {
-        "speaker": "増田",
-        "body": "早く教えろよ。",
+        "speaker": "純一",
+        "body": "僕が今考えていたことを知りたい？",
         "scroll": true
       },
       "source_index": 126
@@ -1290,8 +1300,8 @@
     {
       "id": "step_0112",
       "text": {
-        "speaker": "純一",
-        "body": "(僕は⽌めていた⾜を踏み出しながら、整理した答えを増⽥に返す。)",
+        "speaker": "増田",
+        "body": "早く教えろよ。",
         "scroll": true
       },
       "source_index": 127
@@ -1300,13 +1310,22 @@
       "id": "step_0113",
       "text": {
         "speaker": "純一",
-        "body": "朝も捨てたもんじゃないってことあ。",
+        "body": "(僕は⽌めていた⾜を踏み出しながら、整理した答えを増⽥に返す。)",
         "scroll": true
       },
       "source_index": 128
     },
     {
       "id": "step_0114",
+      "text": {
+        "speaker": "純一",
+        "body": "朝も捨てたもんじゃないってことあ。",
+        "scroll": true
+      },
+      "source_index": 129
+    },
+    {
+      "id": "step_0115",
       "actions": [
         {
           "action": "se_play",
@@ -1321,7 +1340,7 @@
           "action": "scroll_stop"
         }
       ],
-      "source_index": 130
+      "source_index": 131
     }
   ],
   "source_to_step": {
@@ -1360,13 +1379,13 @@
     "32": 23,
     "33": 24,
     "34": 25,
-    "35": 25,
-    "36": 25,
+    "35": 26,
+    "36": 26,
     "37": 26,
     "38": 27,
     "39": 28,
     "40": 29,
-    "41": 29,
+    "41": 30,
     "42": 30,
     "43": 31,
     "44": 32,
@@ -1379,7 +1398,7 @@
     "51": 39,
     "52": 40,
     "53": 41,
-    "54": 41,
+    "54": 42,
     "55": 42,
     "56": 43,
     "57": 44,
@@ -1410,7 +1429,7 @@
     "82": 69,
     "83": 70,
     "84": 71,
-    "85": 71,
+    "85": 72,
     "86": 72,
     "87": 73,
     "88": 74,
@@ -1427,11 +1446,11 @@
     "99": 85,
     "100": 86,
     "101": 87,
-    "102": 87,
+    "102": 88,
     "103": 88,
     "104": 89,
     "105": 90,
-    "106": 90,
+    "106": 91,
     "107": 91,
     "108": 92,
     "109": 93,
@@ -1455,6 +1474,7 @@
     "127": 111,
     "128": 112,
     "129": 113,
-    "130": 113
+    "130": 114,
+    "131": 114
   }
 }

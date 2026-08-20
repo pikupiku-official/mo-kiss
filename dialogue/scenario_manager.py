@@ -77,11 +77,17 @@ def advance_dialogue(game_state):
     
     # BGM再生コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BGM_PLAY_"):
-        return _handle_bgm_play(game_state, dialogue_text)
+        return _handle_bgm_play(game_state, dialogue_text, current_dialogue)
     
     # SE再生コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_SE_PLAY_"):
-        return _handle_se_play(game_state, dialogue_text)
+        return _handle_se_play(game_state, dialogue_text, current_dialogue)
+
+    elif dialogue_text and dialogue_text.startswith("_SE_STOP"):
+        return _handle_se_stop(game_state)
+
+    elif dialogue_text and dialogue_text.startswith("_BGM_END"):
+        return _handle_bgm_end(game_state, current_dialogue)
     
     # BGM一時停止コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BGM_PAUSE"):
@@ -111,6 +117,12 @@ def advance_dialogue(game_state):
             # イベント解禁
             elif command_type == 'event_unlock':
                 return _handle_event_unlock(game_state, current_dialogue)
+
+            elif command_type == 'event_control':
+                return _handle_event_control(game_state, current_dialogue)
+
+            elif command_type == 'seed_answer':
+                return _handle_seed_answer(game_state, current_dialogue)
 
         # 通常の対話テキスト
         return _handle_dialogue_text(game_state, current_dialogue)
@@ -152,6 +164,10 @@ def advance_dialogue_ir(game_state):
                 return _handle_flag_set(game_state, params)
             if action_type == "event_unlock":
                 return _handle_event_unlock(game_state, params)
+            if action_type == "event_control":
+                return _handle_event_control(game_state, params)
+            if action_type == "seed_answer":
+                return _handle_seed_answer(game_state, params)
             if action_type == "choice":
                 _ir_handle_choice(game_state, params)
                 choice_shown = True
@@ -216,12 +232,16 @@ def _ir_dispatch_action(game_state, action):
         start_fadein(game_state, time)
     elif action_type == "se_play":
         _ir_handle_se_play(game_state, params)
+    elif action_type == "se_stop":
+        _ir_handle_se_stop(game_state)
     elif action_type == "bgm_play":
         _ir_handle_bgm_play(game_state, params)
     elif action_type == "bgm_pause":
         _ir_handle_bgm_pause(game_state, params)
     elif action_type == "bgm_unpause":
         _ir_handle_bgm_unpause(game_state, params)
+    elif action_type == "bgm_end":
+        _ir_handle_bgm_end(game_state, params)
     _ir_register_action_animation(game_state, action)
 
 def _ir_handle_scroll_stop(game_state):
@@ -455,7 +475,7 @@ def _ir_handle_se_play(game_state, params):
         return
     volume = _to_float(params.get("volume"), 0.5)
     frequency = _to_int(params.get("frequency"), 1)
-    block = params.get("block", False)
+    block = _to_bool(params.get("block"), False)
     channel = se_manager.play_se(filename, volume, frequency)
 
     if block and channel is not None:
@@ -471,6 +491,12 @@ def _ir_handle_se_play(game_state, params):
         })
         game_state["ir_anim_pending"] = True
 
+
+def _ir_handle_se_stop(game_state):
+    se_manager = game_state.get("se_manager")
+    if se_manager:
+        se_manager.stop_all_se()
+
 def _ir_handle_bgm_play(game_state, params):
     bgm_manager = game_state.get("bgm_manager")
     if not bgm_manager:
@@ -479,11 +505,16 @@ def _ir_handle_bgm_play(game_state, params):
     if not filename:
         return
     volume = _to_float(params.get("volume"), 0.5)
-    loop = params.get("loop", True)
+    loop = _to_bool(params.get("loop"), True)
+    fade_time = _to_float(params.get("fade_time"), 0.0)
 
     actual_bgm_filename = bgm_manager.get_bgm_for_scene(filename) or filename
-    if actual_bgm_filename != bgm_manager.current_bgm or not pygame.mixer.music.get_busy():
-        bgm_manager.play_bgm(actual_bgm_filename, volume, loop)
+    if (
+        actual_bgm_filename != bgm_manager.current_bgm
+        or not pygame.mixer.music.get_busy()
+        or getattr(bgm_manager, "current_loop", True) != loop
+    ):
+        bgm_manager.play_bgm(actual_bgm_filename, volume, loop, fade_time=fade_time)
 
 def _ir_handle_bgm_pause(game_state, params):
     bgm_manager = game_state.get("bgm_manager")
@@ -504,6 +535,17 @@ def _ir_handle_bgm_unpause(game_state, params):
         bgm_manager.unpause_bgm_with_fade(fade_time)
     else:
         bgm_manager.unpause_bgm()
+
+
+def _ir_handle_bgm_end(game_state, params):
+    bgm_manager = game_state.get("bgm_manager")
+    if not bgm_manager:
+        return
+    fade_time = _to_float(params.get("fade_time"), 1.0)
+    if fade_time > 0:
+        bgm_manager.fade_out(fade_time)
+    else:
+        bgm_manager.stop_bgm()
 
 def _ir_update_expressions(game_state, target, params):
     existing_expressions = game_state.get("character_expressions", {}).get(target, {
@@ -541,6 +583,20 @@ def _to_int(value, default):
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _to_bool(value, default):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        value = value.strip().lower()
+        if value in ("true", "1", "yes", "on"):
+            return True
+        if value in ("false", "0", "no", "off"):
+            return False
+    if value is None:
+        return default
+    return bool(value)
 
 def _get_fade_ms(params, default_ms):
     if not isinstance(params, dict):
@@ -1018,26 +1074,39 @@ def _handle_fadein(game_state, dialogue_text):
     # フェードインコマンドの場合は次の対話に進む
     return advance_dialogue(game_state)
 
-def _handle_bgm_play(game_state, dialogue_text):
+def _handle_bgm_play(game_state, dialogue_text, current_dialogue=None):
     """BGM再生コマンドを処理"""
     parts = dialogue_text.split('_')
     if len(parts) >= 4:
-        bgm_filename = parts[3]
+        metadata = (
+            current_dialogue[13]
+            if isinstance(current_dialogue, list)
+            and len(current_dialogue) > 13
+            and isinstance(current_dialogue[13], dict)
+            else {}
+        )
+        bgm_filename = metadata.get("file", parts[3])
         try:
             bgm_volume = float(parts[4])
         except (ValueError, IndexError):
             bgm_volume = 0.5
-        bgm_loop = parts[5].lower() == "true" if len(parts) > 5 else True
+        bgm_volume = _to_float(metadata.get("volume"), bgm_volume)
+        bgm_loop = _to_bool(metadata.get("loop"), parts[5].lower() == "true" if len(parts) > 5 else True)
+        fade_time = _to_float(metadata.get("fade_time"), 0.0)
 
         bgm_manager = game_state.get('bgm_manager')
         if bgm_manager:
             actual_bgm_filename = bgm_manager.get_bgm_for_scene(bgm_filename) or bgm_filename
-            if actual_bgm_filename != bgm_manager.current_bgm or not pygame.mixer.music.get_busy():
-                bgm_manager.play_bgm(actual_bgm_filename, bgm_volume, bgm_loop)
+            if (
+                actual_bgm_filename != bgm_manager.current_bgm
+                or not pygame.mixer.music.get_busy()
+                or getattr(bgm_manager, "current_loop", True) != bgm_loop
+            ):
+                bgm_manager.play_bgm(actual_bgm_filename, bgm_volume, bgm_loop, fade_time=fade_time)
 
     return advance_dialogue(game_state)
 
-def _handle_se_play(game_state, dialogue_text):
+def _handle_se_play(game_state, dialogue_text, current_dialogue=None):
     """SE再生コマンドを処理"""
     parts = dialogue_text.split('_')
     if DEBUG:
@@ -1045,7 +1114,14 @@ def _handle_se_play(game_state, dialogue_text):
         print(f"分割結果: {parts}")
 
     if len(parts) >= 5:  # _SE_PLAY_filename_volume_frequency
-        se_filename = parts[3]
+        metadata = (
+            current_dialogue[13]
+            if isinstance(current_dialogue, list)
+            and len(current_dialogue) > 13
+            and isinstance(current_dialogue[13], dict)
+            else {}
+        )
+        se_filename = metadata.get("file", parts[3])
         try:
             se_volume = float(parts[4])
         except (ValueError, IndexError):
@@ -1054,6 +1130,8 @@ def _handle_se_play(game_state, dialogue_text):
             se_frequency = int(parts[5])
         except (ValueError, IndexError):
             se_frequency = 1
+        se_volume = _to_float(metadata.get("volume"), se_volume)
+        se_frequency = _to_int(metadata.get("frequency"), se_frequency)
         
         # SEManagerを使ってSEを再生
         se_manager = game_state.get('se_manager')
@@ -1072,6 +1150,28 @@ def _handle_se_play(game_state, dialogue_text):
             print(f"エラー: SE再生コマンドの形式が不正です: '{dialogue_text}'")
     
     # SE再生コマンドの場合は次の対話に進む
+    return advance_dialogue(game_state)
+
+
+def _handle_se_stop(game_state):
+    se_manager = game_state.get('se_manager')
+    if se_manager:
+        se_manager.stop_all_se()
+    return advance_dialogue(game_state)
+
+
+def _handle_bgm_end(game_state, current_dialogue):
+    fade_time = 1.0
+    if isinstance(current_dialogue, list) and len(current_dialogue) > 12:
+        data = current_dialogue[12]
+        if isinstance(data, dict):
+            fade_time = _to_float(data.get('fade_time'), 1.0)
+    bgm_manager = game_state.get('bgm_manager')
+    if bgm_manager:
+        if fade_time > 0:
+            bgm_manager.fade_out(fade_time)
+        else:
+            bgm_manager.stop_bgm()
     return advance_dialogue(game_state)
 
 def _handle_bgm_pause(game_state, current_dialogue):
@@ -1258,3 +1358,28 @@ def _handle_event_unlock(game_state, command_data):
     
     # 次の段落に進む
     return advance_dialogue(game_state)
+
+
+def _handle_event_control(game_state, command_data):
+    """Apply explicit authored event order changes; seed dependencies are unused."""
+    dialogue_loader = game_state.get('dialogue_loader')
+    if dialogue_loader:
+        dialogue_loader.execute_story_command(command_data)
+    return advance_dialogue(game_state)
+
+
+def _handle_seed_answer(game_state, command_data):
+    """Pause dialogue on a diary-backed free-text turning-point prompt."""
+    turning_point_id = command_data.get('turning_point_id')
+    seed_manager = game_state.get('seed_manager')
+    if not turning_point_id or seed_manager is None:
+        return advance_dialogue(game_state)
+    from .seed_answer_overlay import SeedAnswerOverlay
+
+    game_state['seed_answer_overlay'] = SeedAnswerOverlay(
+        game_state['screen'],
+        turning_point_id,
+        seed_manager,
+        game_state['text_renderer'],
+    )
+    return True

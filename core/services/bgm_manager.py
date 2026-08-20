@@ -12,6 +12,7 @@ class BGMManager:
         self.debug = debug
         self.BGM_PATH = os.path.join("sounds", "bgms")
         self.current_bgm = None
+        self.current_loop = True
         self.current_volume = 0.5
         self.target_volume = 0.5
         self.fade_thread = None
@@ -42,8 +43,8 @@ class BGMManager:
         
         return True
 
-    def play_bgm(self, filename, volume=0.5, loop=True):
-        print(f"[BGM_DEBUG] play_bgm要求: filename='{filename}', volume={volume}, loop={loop}")
+    def play_bgm(self, filename, volume=0.5, loop=True, fade_time=0.0):
+        print(f"[BGM_DEBUG] play_bgm要求: filename='{filename}', volume={volume}, loop={loop}, fade={fade_time}")
         if not pygame.mixer.get_init():
             try:
                 pygame.mixer.init()
@@ -52,11 +53,21 @@ class BGMManager:
                 print(f"[BGM_DEBUG] pygame.mixer init error: {e}")
                 return False
         try:
+            self._stop_fade()
             # 音量の正規化
             try:
                 volume = float(volume)
             except (ValueError, TypeError):
                 volume = 0.5
+
+            try:
+                fade_time = max(0.0, float(fade_time))
+            except (ValueError, TypeError):
+                fade_time = 0.0
+            if isinstance(loop, str):
+                loop = loop.strip().lower() in ("true", "1", "yes", "on")
+            else:
+                loop = bool(loop)
 
             if volume <= 0:
                 print(f"[BGM_DEBUG] volume={volume} (0以下) 指定のため BGM 停止/消音処理: filename='{filename}'")
@@ -91,15 +102,21 @@ class BGMManager:
                     return False
             
             pygame.mixer.music.load(bgm_path)
-            get_settings_manager().apply_bgm_volume(volume)
+            start_volume = 0.0 if fade_time > 0 else volume
+            get_settings_manager().apply_bgm_volume(start_volume)
             # ループ設定に応じて再生
             if loop:
                 pygame.mixer.music.play(-1)  # ループ再生
             else:
                 pygame.mixer.music.play(0)   # 一回のみ再生
             self.current_bgm = filename
-            self.current_volume = volume
+            self.current_loop = loop
+            self.current_volume = start_volume
             self.target_volume = volume
+            self.is_paused = False
+            self.paused_bgm = None
+            if fade_time > 0:
+                self.fade_in(volume, fade_time)
             print(f"[BGM_DEBUG] BGM再生成功! file='{filename}', full_path='{bgm_path}', volume={volume}, loop={loop}")
             return True
             
@@ -108,18 +125,35 @@ class BGMManager:
             return False
 
     def stop_bgm(self):
-        print(f"🔇 [BGM_DEBUG] stop_bgm呼び出し (現在再生中='{self.current_bgm}')")
+        print(f"[BGM_DEBUG] stop_bgm呼び出し (現在再生中='{self.current_bgm}')")
         self._stop_fade()
-        pygame.mixer.music.stop()
+        if pygame.mixer.get_init():
+            pygame.mixer.music.stop()
         self.current_bgm = None
+        self.current_loop = True
         self.current_volume = 0.5
         self.target_volume = 0.5
+        self.is_paused = False
+        self.paused_bgm = None
+
+    def set_volume(self, volume):
+        """再生中のBGM音量を即時変更する。"""
+        try:
+            volume = max(0.0, min(1.0, float(volume)))
+        except (TypeError, ValueError):
+            return False
+        self._stop_fade()
+        self.current_volume = volume
+        self.target_volume = volume
+        get_settings_manager().apply_bgm_volume(volume)
+        return True
     
     def pause_bgm(self):
         """BGMを一時停止"""
         if self.current_bgm:
             self.paused_bgm = self.current_bgm
             self.paused_volume = self.target_volume
+            self.paused_loop = self.current_loop
             self.is_paused = True
             pygame.mixer.music.pause()
             self.current_bgm = None
@@ -240,6 +274,8 @@ class BGMManager:
     def fade_out(self, fade_time=1.0):
         """BGMをフェードアウト"""
         self._stop_fade()
+        self.is_paused = False
+        self.paused_bgm = None
         if self.debug:
             print(f"BGMフェードアウト開始: {fade_time}秒")
         
@@ -270,7 +306,7 @@ class BGMManager:
         # 一時停止情報を保存
         self.paused_bgm = self.current_bgm
         self.paused_volume = self.target_volume
-        self.paused_loop = True  # デフォルトでループ有効
+        self.paused_loop = self.current_loop
         self.is_paused = True
         
         self._stop_fade()
@@ -294,7 +330,14 @@ class BGMManager:
         if not self.current_bgm:
             if self.debug:
                 print(f"BGMを再読み込みして再生: {self.paused_bgm}")
-            self.play_bgm(self.paused_bgm, 0.0, self.paused_loop)  # 音量0で開始
+            self.play_bgm(
+                self.paused_bgm,
+                self.paused_volume,
+                self.paused_loop,
+                fade_time=fade_time,
+            )
+            self.is_paused = False
+            return
         else:
             # 単純な一時停止の場合
             pygame.mixer.music.unpause()
@@ -393,7 +436,7 @@ class BGMManager:
         # 一時停止情報を保存
         self.paused_bgm = self.current_bgm
         self.paused_volume = self.target_volume
-        self.paused_loop = True
+        self.paused_loop = self.current_loop
         self.is_paused = True
         
         if self.debug:
@@ -412,7 +455,14 @@ class BGMManager:
         if not self.current_bgm:
             if self.debug:
                 print(f"BGMを再読み込みして再生: {self.paused_bgm}")
-            self.play_bgm(self.paused_bgm, 0.0, self.paused_loop)
+            self.play_bgm(
+                self.paused_bgm,
+                self.paused_volume,
+                self.paused_loop,
+                fade_time=fade_time,
+            )
+            self.is_paused = False
+            return
         else:
             pygame.mixer.music.unpause()
         

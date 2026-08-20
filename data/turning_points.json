@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "turning_points": [
+    {
+      "id": "MASUDA_TP1",
+      "character_id": "MASUDA",
+      "title": "増田が温泉を拒む理由",
+      "sort_order": 900,
+      "required_seed_ids": ["MASUDA_TP1_001", "MASUDA_TP1_002", "MASUDA_TP1_003"],
+      "canonical_answer": "増田は真性包茎である",
+      "accepted_answers": [
+        "増田は真性包茎である",
+        "増田は真性包茎だ",
+        "増田が真性包茎である",
+        "増田が真性包茎だ"
+      ],
+      "semantic_judge": {
+        "enabled": true,
+        "correct_threshold": 0.95,
+        "borderline_threshold": 0.90,
+        "hard_negative_threshold": 0.994,
+        "reject_patterns": [
+          "仮性",
+          "増田(?:では|じゃ)なく"
+        ],
+        "positive_examples": [
+          "増田は真性包茎なんだ",
+          "増田が温泉を断るのは真性包茎を知られたくないからだ",
+          "増田のアレは皮がまったくむけない状態だ",
+          "真性包茎なのを見られたくないんだと思う",
+          "包皮がまったくむけないことを隠している"
+        ],
+        "hard_negatives": [
+          "増田は真性包茎ではない",
+          "増田は仮性包茎である",
+          "増田は裸を見られるのが恥ずかしいだけだ",
+          "増田ではなく純一が真性包茎である",
+          "増田は包茎という言葉が嫌いなだけだ",
+          "増田は包茎の友人をかばっている",
+          "増田は包茎の疑いがあるだけだ",
+          "増田は包茎を馬鹿にしている",
+          "増田は真性包茎を治療済みだ",
+          "増田は真性包茎の友人がいる",
+          "真性包茎なのは純一だ",
+          "増田は体に傷がある"
+        ]
+      }
+    }
+  ]
+}

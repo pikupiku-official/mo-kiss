@@ -18,6 +18,8 @@ class SEManager:
         self.sound_cache = {}  # SEキャッシュ
         self.cache_lock = threading.Lock()
         self.max_cache_size = 20
+        self.current_sound = None
+        self.current_channel = None
 
     def is_valid_se_filename(self, filename):
         """SEファイル名の有効性をチェック"""
@@ -33,6 +35,16 @@ class SEManager:
 
     def play_se(self, filename, volume=0.5, frequency=1):
         try:
+            if not pygame.mixer.get_init():
+                try:
+                    pygame.mixer.init()
+                    if self.debug:
+                        print("SEManager: pygame.mixerを初期化しました")
+                except Exception as e:
+                    if self.debug:
+                        print(f"SEManager: pygame.mixer初期化エラー: {e}")
+                    return False
+
             # 拡張子が含まれていない場合、実在する拡張子（.wav, .mp3, .ogg, .m4a）を自動補完
             if filename and not any(filename.lower().endswith(ext) for ext in ['.mp3', '.wav', '.ogg', '.m4a']):
                 for ext in ['.wav', '.mp3', '.ogg', '.m4a']:
@@ -61,6 +73,7 @@ class SEManager:
             # 効果音を読み込み
             sound = pygame.mixer.Sound(se_path)
             sound.set_volume(volume)
+            self.current_sound = sound
             
             # frequency回数分再生（間隔を開けて）
             import time
@@ -80,6 +93,7 @@ class SEManager:
             else:
                 channel = sound.play()
                 get_settings_manager().apply_se_channel_volume(channel)
+            self.current_channel = channel
             
             if self.debug:
                 print(f"SEを再生: {filename} (volume={volume}, frequency={frequency})")
@@ -89,6 +103,17 @@ class SEManager:
             if self.debug:
                 print(f"SEの再生に失敗しました: {e}")
             return False
+
+    def set_current_volume(self, volume):
+        """直近に再生したSEの音量を即時変更する。"""
+        try:
+            volume = max(0.0, min(1.0, float(volume)))
+        except (TypeError, ValueError):
+            return False
+        if self.current_sound is None:
+            return False
+        self.current_sound.set_volume(volume)
+        return True
 
     def get_se_for_scene(self, scene_name):
         """シーン名からSEファイル名を取得（直接ファイル名を返す）"""
@@ -191,6 +216,8 @@ class SEManager:
         try:
             # pygameのすべてのサウンドチャンネルを停止
             pygame.mixer.stop()
+            self.current_sound = None
+            self.current_channel = None
             if self.debug:
                 print("SEManager: すべてのSEを停止しました")
         except Exception as e:

@@ -564,7 +564,13 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
 def draw_characters(game_state):
     """Draw characters with optional part fades."""
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']] if game_state['dialogue_data'] else None
-    current_speaker = current_dialogue[1] if current_dialogue and len(current_dialogue) > 1 else None
+    if isinstance(current_dialogue, dict):
+        current_speaker = (
+            current_dialogue.get('character')
+            or current_dialogue.get('speaker')
+        )
+    else:
+        current_speaker = current_dialogue[1] if current_dialogue and len(current_dialogue) > 1 else None
     image_manager = game_state['image_manager']
     screen = game_state['screen']
 

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 from dataclasses import dataclass
 
 from core.path_utils import get_project_root
+from core.services.seed_manager import get_seed_manager
 from core.services.time_manager import get_time_manager
 
 
@@ -21,9 +23,15 @@ class EventCompletionDecision:
 class EventProgress:
     """Persist event history and decide the destination after dialogue."""
 
-    def __init__(self, project_root=None, time_manager_getter=get_time_manager):
+    def __init__(
+        self,
+        project_root=None,
+        time_manager_getter=get_time_manager,
+        seed_manager_getter=get_seed_manager,
+    ):
         self.project_root = project_root or get_project_root()
         self._time_manager_getter = time_manager_getter
+        self._seed_manager_getter = seed_manager_getter
 
     @property
     def events_csv_path(self):
@@ -82,11 +90,22 @@ class EventProgress:
     def complete_dialogue(self, event_id: str | None) -> EventCompletionDecision:
         """Record a regular event, advance time when required, and choose a scene."""
         self.record_completion(event_id)
+        time_manager = self._time_manager_getter()
+        game_date = self._get_game_date(time_manager)
+        try:
+            newly_acquired = self._seed_manager_getter().complete_event(
+                event_id, game_date
+            )
+            if newly_acquired:
+                print(f"[SEED] イベント終了時に取得: {', '.join(newly_acquired)}")
+        except Exception as exc:
+            # 補助システムの保存障害で、正常終了したKSからの画面遷移まで
+            # 失わせない。エラーは明示し、マップ/家への遷移は継続する。
+            print(f"[SEED] イベント終了時の取得保存エラー: {exc}")
         if not event_id or event_id == "E001":
             print("[TIME] E001終了 - 時間進行なしでmapへ")
             return EventCompletionDecision(next_mode="map", time_advanced=False)
 
-        time_manager = self._time_manager_getter()
         current_period = time_manager.get_current_period()
         was_after_school = time_manager.is_after_school()
         print(
@@ -107,6 +126,32 @@ class EventProgress:
             f"{time_manager.get_full_time_string()} → mapへ"
         )
         return EventCompletionDecision(next_mode="map", time_advanced=True)
+
+    @staticmethod
+    def _get_game_date(time_manager) -> str:
+        """Read a stable date without requiring one concrete TimeManager shape."""
+        values = (
+            getattr(time_manager, "current_year", None),
+            getattr(time_manager, "current_month", None),
+            getattr(time_manager, "current_day", None),
+        )
+        if all(value is not None for value in values):
+            year, month, day = values
+            return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+        if hasattr(time_manager, "get_time_state"):
+            state = time_manager.get_time_state()
+            if all(key in state for key in ("year", "month", "day")):
+                return (
+                    f"{int(state['year']):04d}-"
+                    f"{int(state['month']):02d}-"
+                    f"{int(state['day']):02d}"
+                )
+        full_time = str(time_manager.get_full_time_string())
+        match = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", full_time)
+        if match:
+            year, month, day = (int(value) for value in match.groups())
+            return f"{year:04d}-{month:02d}-{day:02d}"
+        return full_time
 
     def _event_exists(self, event_id: str) -> bool:
         if not os.path.exists(self.events_csv_path):

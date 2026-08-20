@@ -104,8 +104,8 @@
 ```
 [bg], [bg_show], [bg_move]     # 背景制御
 [chara_show], [chara_move], [chara_hide]  # キャラクター制御
-[BGM], [BGMSTOP], [BGMSTART]   # BGM制御
-[SE]                           # SE制御
+[BGM], [BGMSTOP], [BGMSTART], [BGMEND]  # BGM制御
+[SE], [SESTOP]                           # SE制御
 [choice]                       # 選択肢
 [fadeout], [fadein]           # フェード効果
 [scroll-stop]                 # スクロール停止

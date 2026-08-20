@@ -32,7 +32,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QMessageBox, QToolBar, QAction, QGroupBox,
     QFormLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
-    QFileDialog, QInputDialog, QTabWidget
+    QFileDialog, QInputDialog, QTabWidget, QSlider, QDoubleSpinBox
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QRect, QPoint, QProcess
 from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter
@@ -734,6 +734,38 @@ class CharaCompositePreviewDialog(QDialog):
         self._name_combo.currentTextChanged.connect(self._on_name_changed)
         parts_form.addRow("name", self._name_combo)
 
+        template_group = QGroupBox("キャラパーツテンプレート（保存・呼び出し）")
+        template_layout = QVBoxLayout(template_group)
+        template_help = QLabel("体・表情・装飾・blinkを保存します（位置・サイズは含みません）")
+        template_help.setStyleSheet("color: #888;")
+        template_layout.addWidget(template_help)
+        self._template_combo = QComboBox()
+        self._template_combo.setObjectName("partTemplateCombo")
+        template_layout.addWidget(self._template_combo)
+        template_primary_buttons = QHBoxLayout()
+        template_manage_buttons = QHBoxLayout()
+        load_template_btn = QPushButton("選択テンプレを呼び出し")
+        save_template_btn = QPushButton("現在のパーツを保存")
+        rename_template_btn = QPushButton("名前変更")
+        duplicate_template_btn = QPushButton("複製")
+        delete_template_btn = QPushButton("削除")
+        load_template_btn.setObjectName("loadPartTemplateButton")
+        save_template_btn.setObjectName("savePartTemplateButton")
+        load_template_btn.clicked.connect(self._apply_selected_template)
+        save_template_btn.clicked.connect(self._save_current_template)
+        rename_template_btn.clicked.connect(self._rename_selected_template)
+        duplicate_template_btn.clicked.connect(self._duplicate_selected_template)
+        delete_template_btn.clicked.connect(self._delete_selected_template)
+        template_primary_buttons.addWidget(load_template_btn)
+        template_primary_buttons.addWidget(save_template_btn)
+        template_manage_buttons.addWidget(rename_template_btn)
+        template_manage_buttons.addWidget(duplicate_template_btn)
+        template_manage_buttons.addWidget(delete_template_btn)
+        template_layout.addLayout(template_primary_buttons)
+        template_layout.addLayout(template_manage_buttons)
+        parts_form.addRow(template_group)
+        self._refresh_template_combo()
+
         for part in self.LAYER_ORDER:
             current_val = self._fields[part]
 
@@ -777,32 +809,6 @@ class CharaCompositePreviewDialog(QDialog):
         parts_form.addRow('blink', self._blink_combo)
 
         right_layout.addWidget(parts_group)
-
-        template_group = QGroupBox("パーツテンプレート")
-        template_layout = QVBoxLayout(template_group)
-        self._template_combo = QComboBox()
-        template_layout.addWidget(self._template_combo)
-        template_primary_buttons = QHBoxLayout()
-        template_manage_buttons = QHBoxLayout()
-        load_template_btn = QPushButton("呼び出し")
-        save_template_btn = QPushButton("保存")
-        rename_template_btn = QPushButton("名前変更")
-        duplicate_template_btn = QPushButton("複製")
-        delete_template_btn = QPushButton("削除")
-        load_template_btn.clicked.connect(self._apply_selected_template)
-        save_template_btn.clicked.connect(self._save_current_template)
-        rename_template_btn.clicked.connect(self._rename_selected_template)
-        duplicate_template_btn.clicked.connect(self._duplicate_selected_template)
-        delete_template_btn.clicked.connect(self._delete_selected_template)
-        template_primary_buttons.addWidget(load_template_btn)
-        template_primary_buttons.addWidget(save_template_btn)
-        template_manage_buttons.addWidget(rename_template_btn)
-        template_manage_buttons.addWidget(duplicate_template_btn)
-        template_manage_buttons.addWidget(delete_template_btn)
-        template_layout.addLayout(template_primary_buttons)
-        template_layout.addLayout(template_manage_buttons)
-        right_layout.addWidget(template_group)
-        self._refresh_template_combo()
 
         # chara_shift: 差分のみ適用オプション
         self._diff_only = None
@@ -1088,9 +1094,11 @@ class StepEditorDialog(QDialog):
         "chara_move",
         "chara_hide",
         "bgm",
+        "bgmend",
         "bgmstop",
         "bgmstart",
         "se",
+        "sestop",
         "fadeout",
         "fadein",
         "choice",
@@ -1134,7 +1142,8 @@ class StepEditorDialog(QDialog):
         ],
         "chara_move": [("name", ""), ("left", "0.0"), ("top", "0.0"), ("zoom", "1.0"), ("time", "600")],
         "chara_hide": [("name", ""), ("fade", "0.15")],
-        "bgm": [("bgm", ""), ("volume", "0.5"), ("loop", "true")],
+        "bgm": [("bgm", ""), ("volume", "0.5"), ("loop", "true"), ("fade", "0.0")],
+        "bgmend": [("time", "1.0")],
         "bgmstop": [("time", "1.0")],
         "bgmstart": [("time", "1.0")],
         "se": [("se", ""), ("volume", "0.5"), ("frequency", "1"), ("block", "false")],
@@ -1148,15 +1157,15 @@ class StepEditorDialog(QDialog):
         "event_control": [("unlock", ""), ("lock", "")],
     }
     CUSTOM_EDITORS = {
-        "bg": [("storage", "storage", "text")],
+        "bg": [("storage", "storage", "bg_asset")],
         "bg_show": [
-            ("storage", "storage", "text"),
+            ("storage", "storage", "bg_asset"),
             ("bg_x", "bg_x", "text"),
             ("bg_y", "bg_y", "text"),
             ("bg_zoom", "bg_zoom", "text"),
         ],
         "bg_move": [
-            ("storage", "storage", "text"),
+            ("storage", "storage", "bg_asset"),
             ("bg_left", "bg_left", "text"),
             ("bg_top", "bg_top", "text"),
             ("bg_zoom", "bg_zoom", "text"),
@@ -1202,9 +1211,15 @@ class StepEditorDialog(QDialog):
             ("name", "name", "text"),
             ("fade", "fade", "text"),
         ],
+        "bgm": [
+            ("bgm", "bgm", "bgm_asset"),
+            ("volume", "volume", "volume_slider"),
+            ("loop", "loop", "bool"),
+            ("fade", "fade", "text"),
+        ],
         "se": [
-            ("se", "se", "text"),
-            ("volume", "volume", "text"),
+            ("se", "se", "se_asset"),
+            ("volume", "volume", "volume_slider"),
             ("frequency", "frequency", "text"),
             ("block", "block", "bool"),
         ],
@@ -1241,6 +1256,9 @@ class StepEditorDialog(QDialog):
         self._scene_state_builder = StepSceneStateBuilder(image_manager)
         self.navigation_offset = 0
         self._direct_scene_edit = False
+        self._bgm_preview_manager = None
+        self._se_preview_manager = None
+        self._volume_sliders = {}
 
         self.setWindowTitle("step編集")
         self.resize(1400, 850)
@@ -1476,10 +1494,12 @@ class StepEditorDialog(QDialog):
 
     def accept(self):
         self.scene_canvas.flush_pending_scale()
+        self._stop_audio_preview()
         super().accept()
 
     def reject(self):
         self.scene_canvas.discard_pending_scale()
+        self._stop_audio_preview()
         super().reject()
 
     def _scene_action_steps(self):
@@ -1751,6 +1771,8 @@ class StepEditorDialog(QDialog):
             bgm_action = audio_menu.addAction("BGMを追加...")
             se_action = audio_menu.addAction("SEを追加...")
             audio_menu.addSeparator()
+            se_stop_action = audio_menu.addAction("SEをすべて停止")
+            bgm_end_action = audio_menu.addAction("BGMをフェード終了")
             bgm_stop_action = audio_menu.addAction("BGM停止")
             bgm_start_action = audio_menu.addAction("BGM再開")
 
@@ -1770,6 +1792,8 @@ class StepEditorDialog(QDialog):
                 bg_move_action: "bg_move",
                 bgm_action: "bgm",
                 se_action: "se",
+                se_stop_action: "sestop",
+                bgm_end_action: "bgmend",
                 bgm_stop_action: "bgmstop",
                 bgm_start_action: "bgmstart",
                 choice_action: "choice",
@@ -1964,6 +1988,7 @@ class StepEditorDialog(QDialog):
                     layout.deleteLater()
             self.custom_editor_layout.removeRow(0)
         self.custom_fields = {}
+        self._volume_sliders = {}
         self.custom_editor_widget.adjustSize()
         self.custom_editor_widget.updateGeometry()
 
@@ -2121,10 +2146,60 @@ class StepEditorDialog(QDialog):
             if field_type == "bool":
                 field = QComboBox()
                 field.addItems(["true", "false"])
+                field.setProperty("booleanField", True)
+            elif field_type == "volume_slider":
+                field = QDoubleSpinBox()
+                field.setRange(0.0, 1.0)
+                field.setDecimals(2)
+                field.setSingleStep(0.01)
+                field.setMaximumWidth(76)
+            elif field_type in ("bg_asset", "bgm_asset", "se_asset"):
+                field = QComboBox()
+                field.setEditable(True)
+                field.addItem("")
+                field.addItems(self._editor_asset_options(field_type))
             else:
                 field = QLineEdit()
             self.custom_fields[key] = field
-            if field_type != "bool" and key in self.BROWSE_KEYS:
+            if field_type == "volume_slider":
+                wrapper = QWidget()
+                wrapper_layout = QHBoxLayout(wrapper)
+                wrapper_layout.setContentsMargins(0, 0, 0, 0)
+                slider = QSlider(Qt.Horizontal)
+                slider.setRange(0, 100)
+                slider.setSingleStep(1)
+                slider.setPageStep(5)
+                slider.setTracking(True)
+                slider.setObjectName(f"{key}Slider")
+                self._volume_sliders[key] = slider
+                slider.valueChanged.connect(
+                    lambda value, k=key: self._on_volume_slider_changed(k, value)
+                )
+                field.valueChanged.connect(
+                    lambda value, k=key: self._on_volume_number_changed(k, value)
+                )
+                wrapper_layout.addWidget(slider, 1)
+                wrapper_layout.addWidget(field)
+                self.custom_editor_layout.addRow(label, wrapper)
+            elif field_type in ("bgm_asset", "se_asset"):
+                wrapper = QWidget()
+                wrapper_layout = QHBoxLayout(wrapper)
+                wrapper_layout.setContentsMargins(0, 0, 0, 0)
+                wrapper_layout.addWidget(field, 1)
+                play_btn = QPushButton("▶ 試聴")
+                stop_btn = QPushButton("■")
+                play_btn.setObjectName(f"{key}PreviewButton")
+                stop_btn.setObjectName(f"{key}PreviewStopButton")
+                if field_type == "bgm_asset":
+                    play_btn.clicked.connect(self._preview_selected_bgm)
+                    stop_btn.clicked.connect(self._stop_bgm_preview)
+                else:
+                    play_btn.clicked.connect(self._preview_selected_se)
+                    stop_btn.clicked.connect(self._stop_se_preview)
+                wrapper_layout.addWidget(play_btn)
+                wrapper_layout.addWidget(stop_btn)
+                self.custom_editor_layout.addRow(label, wrapper)
+            elif field_type == "text" and key in self.BROWSE_KEYS:
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
                 wrapper_layout.setContentsMargins(0, 0, 0, 0)
@@ -2154,15 +2229,148 @@ class StepEditorDialog(QDialog):
         for key, field in self.custom_fields.items():
             value = param_map.get(key, "")
             if isinstance(field, QComboBox):
-                field.setCurrentText(value if value else "true")
+                default = "true" if field.property("booleanField") else ""
+                field.setCurrentText(value if value else default)
+            elif isinstance(field, QDoubleSpinBox):
+                try:
+                    numeric_value = float(value)
+                except (TypeError, ValueError):
+                    numeric_value = 0.5
+                field.blockSignals(True)
+                field.setValue(max(0.0, min(1.0, numeric_value)))
+                field.blockSignals(False)
+                slider = self._volume_sliders.get(key)
+                if slider is not None:
+                    slider.blockSignals(True)
+                    slider.setValue(round(field.value() * 100))
+                    slider.blockSignals(False)
             else:
                 field.setText(value)
+
+    def _on_volume_slider_changed(self, key, value):
+        volume = max(0.0, min(1.0, float(value) / 100.0))
+        field = self.custom_fields.get(key)
+        if isinstance(field, QDoubleSpinBox):
+            field.blockSignals(True)
+            field.setValue(volume)
+            field.blockSignals(False)
+        self._apply_live_preview_volume(volume)
+
+    def _on_volume_number_changed(self, key, value):
+        volume = max(0.0, min(1.0, float(value)))
+        slider = self._volume_sliders.get(key)
+        if slider is not None:
+            slider.blockSignals(True)
+            slider.setValue(round(volume * 100))
+            slider.blockSignals(False)
+        self._apply_live_preview_volume(volume)
+
+    def _apply_live_preview_volume(self, volume):
+        tag = self.tag_combo.currentText().strip().lower()
+        if tag == "bgm" and self._bgm_preview_manager is not None:
+            self._bgm_preview_manager.set_volume(volume)
+        elif tag == "se" and self._se_preview_manager is not None:
+            self._se_preview_manager.set_current_volume(volume)
+
+    def _editor_asset_options(self, field_type):
+        if field_type == "bg_asset":
+            paths = getattr(self._image_manager, "image_paths", {}) or {}
+            return sorted((paths.get("bg", {}) or {}).keys())
+        audio_subdirs = {
+            "bgm_asset": "bgms",
+            "se_asset": "ses",
+        }
+        if field_type in audio_subdirs:
+            audio_dir = os.path.join(project_root, "sounds", audio_subdirs[field_type])
+            if not os.path.isdir(audio_dir):
+                return []
+            extensions = (".wav", ".mp3", ".ogg", ".m4a")
+            return sorted(
+                filename
+                for filename in os.listdir(audio_dir)
+                if filename.lower().endswith(extensions)
+            )
+        return []
+
+    @staticmethod
+    def _custom_text_value(field, default=""):
+        if isinstance(field, QComboBox):
+            value = field.currentText().strip()
+        elif isinstance(field, QDoubleSpinBox):
+            value = f"{field.value():.2f}".rstrip("0").rstrip(".")
+        elif isinstance(field, QLineEdit):
+            value = field.text().strip()
+        else:
+            value = ""
+        return value if value else default
+
+    def _preview_selected_bgm(self):
+        filename = self._custom_text_value(self.custom_fields.get("bgm"))
+        if not filename:
+            self.scene_selection_label.setText("BGMを選択してください")
+            return
+        try:
+            volume = float(self._custom_text_value(self.custom_fields.get("volume"), "0.5"))
+        except (TypeError, ValueError):
+            volume = 0.5
+        loop = self._custom_text_value(self.custom_fields.get("loop"), "true").lower() == "true"
+        try:
+            fade_time = float(self._custom_text_value(self.custom_fields.get("fade"), "0.0"))
+        except (TypeError, ValueError):
+            fade_time = 0.0
+        if self._bgm_preview_manager is None:
+            self._bgm_preview_manager = BGMManager(False)
+            self._bgm_preview_manager.BGM_PATH = os.path.join(project_root, "sounds", "bgms")
+        self._bgm_preview_manager.stop_bgm()
+        if self._bgm_preview_manager.play_bgm(
+            filename,
+            volume,
+            loop,
+            fade_time=fade_time,
+        ):
+            self.scene_selection_label.setText(f"BGM試聴中: {filename}")
+        else:
+            self.scene_selection_label.setText(f"BGMを再生できません: {filename}")
+
+    def _stop_bgm_preview(self):
+        if self._bgm_preview_manager is not None:
+            self._bgm_preview_manager.stop_bgm()
+
+    def _preview_selected_se(self):
+        field = self.custom_fields.get("se")
+        filename = field.currentText().strip() if isinstance(field, QComboBox) else ""
+        if not filename:
+            self.scene_selection_label.setText("SEを選択してください")
+            return
+        try:
+            volume = float(self._custom_text_value(self.custom_fields.get("volume"), "0.5"))
+        except (TypeError, ValueError):
+            volume = 0.5
+        if self._se_preview_manager is None:
+            self._se_preview_manager = SEManager(False)
+            self._se_preview_manager.SE_PATH = os.path.join(project_root, "sounds", "ses")
+        self._se_preview_manager.stop_all_se()
+        play_result = self._se_preview_manager.play_se(filename, volume, 1)
+        if play_result is not False and play_result is not None:
+            self.scene_selection_label.setText(f"SE試聴中: {filename}")
+        else:
+            self.scene_selection_label.setText(f"SEを再生できません: {filename}")
+
+    def _stop_se_preview(self):
+        if self._se_preview_manager is not None:
+            self._se_preview_manager.stop_all_se()
+
+    def _stop_audio_preview(self):
+        self._stop_bgm_preview()
+        self._stop_se_preview()
 
     def _collect_custom_params(self):
         params = []
         for key, field in self.custom_fields.items():
             if isinstance(field, QComboBox):
                 value = field.currentText().strip()
+            elif isinstance(field, QDoubleSpinBox):
+                value = f"{field.value():.2f}".rstrip("0").rstrip(".")
             else:
                 value = field.text().strip()
             if value != "":

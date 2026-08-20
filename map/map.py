@@ -391,6 +391,7 @@ class FieldMap(SubsystemBase):
             Character("舞田沙那子", (75, 0, 130), "三年生　帰宅部　つっけんどんな先輩だが実は甘えんぼ！？髪が長い", "Sanako.jpg"),
             Character("宮月深依里", (176, 196, 222), "二年生　帰宅部　儚げなミステリアス　何故かよく隣の席になる同級生", "Miyori.jpg"),
             Character("伊織紅", (220, 20, 60), "一年生　弓道部　母性のある後輩　ちょっと僕のことを馬鹿にしている", "Kou.png"),
+            Character("増田", (70, 150, 205), "同級生　主人公の友人", ""),
         ]
         
         # キャラクター画像を読み込み
@@ -1206,15 +1207,10 @@ class FieldMap(SubsystemBase):
                         if event_info:
                             print(f"📖 イベント: {event_info.title}")
                             
-                            # 時間管理：放課後イベントかどうかを判定
-                            time_manager = get_time_manager()
-                            current_period = time_manager.get_current_period()
-                            
-                            # 放課後イベントでなければ時間帯を進める
-                            if current_period != "放課後":
-                                time_manager.advance_period()
-                                print(f"[TIME] イベント選択により時間帯進行: {time_manager.get_current_period()}")
-                            
+                            # 時間はイベント終了後に EventProgress が一度だけ進める。
+                            # ここで進めると開始時と終了時の二重進行になり、
+                            # 次の時間単元のマップを飛ばしてしまう。
+
                             # イベントファイルパスを返してmain.pyで会話パートを起動
                             ks_file_path = f"events/{event_info.event_id}.ks"
                             return f"launch_event:{ks_file_path}"
@@ -1512,6 +1508,9 @@ class FieldMap(SubsystemBase):
 
     def on_enter(self):
         """サブシステム開始時の処理（SubsystemBase実装）"""
+        # 会話末尾のevent_controlとイベント完了記録はCSVを更新する。
+        # FieldMapは会話前のインスタンスを再利用するため、復帰ごとに再読込する。
+        self.completed_events = self.load_completed_events()
         self.update_events()
         self.update_bgm()
         print("🎵 FieldMap on_enter: BGM再生")
