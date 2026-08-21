@@ -35,7 +35,7 @@ def manager():
 def test_ruri_accepts_semantic_paraphrases(manager, answer):
     verdict = manager.judge_answer("MASUDA_TP1", answer)
 
-    assert verdict["result"] == "correct"
+    assert verdict["result"] == "correct", (answer, verdict)
     assert verdict["judge_version"].startswith("ruri-v3-30m-int8-")
     assert verdict["semantic_score"] >= 0.95
 
@@ -72,3 +72,42 @@ def test_related_but_incomplete_answer_prefers_negative_anchor(manager):
 
     assert verdict["result"] == "incorrect"
     assert verdict["reason_codes"] == ("hard_negative_nearer",)
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "増田は包茎だ",
+        "増田は包茎を隠している",
+        "増田は真性包茎という言葉が嫌いだ",
+        "増田は真性包茎の友達がいる",
+        "増田は真性包茎の人を馬鹿にしている",
+        "増田は真性包茎を治した",
+        "真性包茎なのは純一だ",
+    ],
+)
+def test_ruri_rejects_related_statements_that_do_not_make_the_deduction(
+    manager, answer
+):
+    verdict = manager.judge_answer("MASUDA_TP1", answer)
+
+    assert verdict["result"] == "incorrect", (answer, verdict)
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "増田は真性包茎かもしれない",
+        "増田は真性包茎の可能性がある",
+        "増田が真性包茎かどうかは分からない",
+        "増田はたぶん真性包茎だ",
+        "増田は真性包茎の可能性が高い",
+        "もしかすると増田は真性包茎だ",
+        "増田は真性包茎なのかもしれません",
+        "増田は真性包茎かどうか怪しい",
+    ],
+)
+def test_ruri_keeps_uncertain_deductions_out_of_the_correct_branch(manager, answer):
+    verdict = manager.judge_answer("MASUDA_TP1", answer)
+
+    assert verdict["result"] != "correct", (answer, verdict)

@@ -16,6 +16,7 @@ JUDGE_NAME = "ruri-v3-30m-int8"
 DEFAULT_CORRECT_THRESHOLD = 0.95
 DEFAULT_BORDERLINE_THRESHOLD = 0.90
 DEFAULT_HARD_NEGATIVE_THRESHOLD = 0.994
+DEFAULT_CORRECT_MARGIN = 0.0
 
 
 class SemanticJudgeUnavailable(RuntimeError):
@@ -155,6 +156,8 @@ class SemanticAnswerJudge:
         hard_negative_threshold = float(
             config.get("hard_negative_threshold", DEFAULT_HARD_NEGATIVE_THRESHOLD)
         )
+        correct_margin = float(config.get("correct_margin", DEFAULT_CORRECT_MARGIN))
+        positive_margin = positive_score - negative_score
 
         if negative_score >= hard_negative_threshold:
             result = "incorrect"
@@ -164,13 +167,17 @@ class SemanticAnswerJudge:
             result = "incorrect"
             reason = "hard_negative_nearer"
             confidence = negative_score
-        elif positive_score >= correct_threshold:
+        elif positive_score >= correct_threshold and positive_margin >= correct_margin:
             result = "correct"
             reason = "semantic_match"
             confidence = positive_score
         elif positive_score >= borderline_threshold:
             result = "borderline"
-            reason = "semantic_borderline"
+            reason = (
+                "semantic_ambiguous"
+                if positive_score >= correct_threshold
+                else "semantic_borderline"
+            )
             confidence = positive_score
         else:
             result = "incorrect"
@@ -184,6 +191,7 @@ class SemanticAnswerJudge:
             "reason_codes": (reason,),
             "semantic_score": float(positive_score),
             "hard_negative_score": float(negative_score),
+            "semantic_margin": float(positive_margin),
         }
 
     def _load(self) -> None:
