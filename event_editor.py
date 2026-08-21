@@ -23,6 +23,7 @@ import traceback
 import logging
 import subprocess
 import json
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 
@@ -1596,7 +1597,7 @@ class StepSlideViewport(QWidget):
 
         group = QParallelAnimationGroup(self)
         incoming = QPropertyAnimation(self.content, b"pos", group)
-        incoming.setDuration(280)
+        incoming.setDuration(140)
         incoming.setStartValue(QPoint(direction * distance, 0))
         incoming.setEndValue(QPoint(0, 0))
         incoming.setEasingCurve(QEasingCurve.InOutCubic)
@@ -1604,7 +1605,7 @@ class StepSlideViewport(QWidget):
 
         if old_frame is not None:
             outgoing = QPropertyAnimation(old_frame, b"pos", group)
-            outgoing.setDuration(280)
+            outgoing.setDuration(140)
             outgoing.setStartValue(QPoint(0, 0))
             outgoing.setEndValue(QPoint(-direction * distance, 0))
             outgoing.setEasingCurve(QEasingCurve.InOutCubic)
@@ -1804,6 +1805,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._bgm_preview_manager = None
         self._se_preview_manager = None
         self._volume_sliders = {}
+        # Keep recently visited final renders in memory.  The interactive scene
+        # already changes immediately; this avoids restarting snapshot work
+        # when the user pages back to an unchanged step.
+        self._final_preview_cache = OrderedDict()
+        self._final_preview_cache_limit = 24
 
         self.setWindowTitle("step編集")
         self.resize(1400, 850)
@@ -1871,7 +1877,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.preview_tabs.addTab(self.preview_label, "最終確認画像")
         preview_layout.addWidget(self.preview_tabs)
 
-        self.scene_selection_label = QLabel("オブジェクトをクリックすると選択できます")
+        self.scene_selection_label = QLabel(
+            "オブジェクトをクリックすると選択できます（未選択時 ←/→: step移動）"
+        )
         self.scene_selection_label.setStyleSheet("color: #404040;")
         preview_layout.addWidget(self.scene_selection_label)
 
@@ -2003,6 +2011,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.scene_canvas.object_moved.connect(self._on_scene_object_moved)
         self.scene_canvas.object_scaled.connect(self._on_scene_object_scaled)
         self.scene_canvas.context_requested.connect(self._show_scene_context_menu)
+        self.scene_canvas.step_navigation_requested.connect(self._navigate_step)
 
         # Editing software-style live preview: coalesce a burst of keystrokes into
         # one render instead of launching work for every individual change.
@@ -2093,16 +2102,22 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._outline_navigation = True
         self.step_outline.blockSignals(True)
         try:
-            self.step_outline.clear()
+            if self.step_outline.count() != len(self._all_steps):
+                self.step_outline.clear()
+                for _ in self._all_steps:
+                    self.step_outline.addItem(QListWidgetItem())
             for index, step in enumerate(self._all_steps):
                 dirty = index == self._step_index and self._is_step_dirty()
-                item = QListWidgetItem(self._outline_text(step, dirty=dirty))
+                item = self.step_outline.item(index)
+                text = self._outline_text(step, dirty=dirty)
+                if item.text() != text:
+                    item.setText(text)
                 item.setData(Qt.UserRole, index)
                 tooltip = step.get("body", "") or "セリフなし"
                 if step.get("memo"):
                     tooltip += f"\n備考: {step['memo']}"
-                item.setToolTip(tooltip)
-                self.step_outline.addItem(item)
+                if item.toolTip() != tooltip:
+                    item.setToolTip(tooltip)
             if self._step_index is not None and 0 <= self._step_index < self.step_outline.count():
                 self.step_outline.setCurrentRow(self._step_index)
         finally:
@@ -2288,17 +2303,20 @@ class StepEditorDialog(Win2000FramelessDialog):
         else:
             self._apply_param_template(self.tag_combo.currentText())
 
-        self.preview_label.clear()
-        self.preview_label.setText("最終確認画像を生成しています...")
         self._loading_step = False
         self._refresh_scene_preview()
         self._baseline_signature = self._current_step_signature()
         self._refresh_step_outline()
         self._update_navigation_controls()
 
+        has_cached_preview = self._restore_cached_final_preview()
+        if not has_cached_preview:
+            self.preview_label.clear()
+            self.preview_label.setText("最終確認画像を生成しています...")
+
         parent = self.parent()
         generate_preview = getattr(parent, "_generate_step_preview", None) if parent else None
-        if generate_preview:
+        if generate_preview and not has_cached_preview:
             generate_preview(target_index, self)
         return True
 
@@ -2418,7 +2436,9 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def _on_scene_object_selected(self, object_type, object_name, origin):
         if not object_type:
-            self.scene_selection_label.setText("オブジェクトをクリックすると選択できます")
+            self.scene_selection_label.setText(
+                "オブジェクトをクリックすると選択できます（未選択時 ←/→: step移動）"
+            )
             return
 
         origin_label = {
@@ -2427,8 +2447,13 @@ class StepEditorDialog(Win2000FramelessDialog):
             "inherited": "前のstepから引き継ぎ",
         }.get(origin, origin)
         type_label = "キャラ" if object_type == "character" else "背景"
+        shortcut_hint = (
+            "（矢印: 1px、Shift+矢印: 10px）"
+            if object_type == "character"
+            else ""
+        )
         self.scene_selection_label.setText(
-            f"選択: {type_label}「{object_name}」 / {origin_label}"
+            f"選択: {type_label}「{object_name}」 / {origin_label} {shortcut_hint}"
         )
 
         # If the selected object already has an action in this step, expose the
@@ -2447,10 +2472,10 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     @staticmethod
     def _format_scene_number(value):
-        value = round(float(value), 4)
-        if abs(value) < 0.00005:
+        value = round(float(value), 8)
+        if abs(value) < 0.000000005:
             value = 0.0
-        text = f"{value:.4f}".rstrip("0").rstrip(".")
+        text = f"{value:.8f}".rstrip("0").rstrip(".")
         return text if "." in text else text + ".0"
 
     @staticmethod
@@ -2864,6 +2889,31 @@ class StepEditorDialog(Win2000FramelessDialog):
         if pixmap.isNull():
             return
         self.preview_label.set_source_pixmap(pixmap)
+        cache_key = self._final_preview_cache_key()
+        if cache_key is not None:
+            self._final_preview_cache[cache_key] = pixmap
+            self._final_preview_cache.move_to_end(cache_key)
+            while len(self._final_preview_cache) > self._final_preview_cache_limit:
+                self._final_preview_cache.popitem(last=False)
+
+    def _final_preview_cache_key(self):
+        if self._step_index is None:
+            return None
+        return self._step_index, self._current_step_signature()
+
+    def _restore_cached_final_preview(self):
+        cache_key = self._final_preview_cache_key()
+        if cache_key is None:
+            return False
+        pixmap = self._final_preview_cache.get(cache_key)
+        if pixmap is None or pixmap.isNull():
+            return False
+        self._final_preview_cache.move_to_end(cache_key)
+        # Invalidate an older in-flight request so it cannot replace the image
+        # belonging to the step we just restored.
+        self._preview_request_id = None
+        self.preview_label.set_source_pixmap(pixmap)
+        return True
 
     def _is_custom_tag(self, tag):
         return tag in self.CUSTOM_EDITORS

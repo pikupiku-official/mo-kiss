@@ -4,7 +4,7 @@ from types import SimpleNamespace
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtCore import QEvent, QPoint, QPointF, Qt
-from PyQt5.QtGui import QColor, QImage, QMouseEvent
+from PyQt5.QtGui import QColor, QImage, QKeyEvent, QMouseEvent
 from PyQt5.QtWidgets import QApplication, QDialog, QGraphicsItem
 
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
@@ -67,6 +67,42 @@ def test_scene_builder_removes_hidden_character_from_after_state():
     assert "桃子" in states["before"]["characters"]
     assert "桃子" not in states["after"]["characters"]
     assert states["changes"]["桃子"] == "hide"
+
+
+def test_scene_builder_reuses_an_unchanged_step_state_from_memory():
+    builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+    action_steps = [
+        ['chara_show name="A" torso="MMK_T00"'],
+        ['chara_move name="A" left="0.1" top="0.0" zoom="1.0"'],
+    ]
+
+    first = builder.build(action_steps, 1)
+    second = builder.build(action_steps, 1)
+
+    assert second is first
+
+
+def test_scene_builder_pages_forward_from_the_cached_prefix(monkeypatch):
+    builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+    action_steps = [
+        ['chara_show name="A" torso="MMK_T00"'],
+        ['chara_move name="A" left="0.1" top="0.0" zoom="1.0"'],
+        ['chara_move name="A" left="0.0" top="0.1" zoom="1.0"'],
+    ]
+    original_apply = builder._apply_action
+    calls = []
+
+    def counted_apply(*args, **kwargs):
+        calls.append(args[1])
+        return original_apply(*args, **kwargs)
+
+    monkeypatch.setattr(builder, "_apply_action", counted_apply)
+    builder.build(action_steps, 1)
+    calls_after_first_build = len(calls)
+    builder.build(action_steps, 2)
+
+    assert calls_after_first_build == 2
+    assert len(calls) == calls_after_first_build + 1
 
 
 def test_scene_canvas_keeps_character_as_selectable_object(tmp_path):
@@ -256,6 +292,46 @@ def test_scene_canvas_keeps_character_as_selectable_object(tmp_path):
     assert context_requests[-1][0] == "stage"
 
 
+def test_scene_canvas_arrow_keys_nudge_selection_and_page_when_unselected(tmp_path):
+    torso_path = tmp_path / "torso.png"
+    image = QImage(100, 200, QImage.Format_ARGB32)
+    image.fill(QColor(220, 80, 120))
+    assert image.save(str(torso_path))
+    manager = _empty_image_manager()
+    manager.image_paths["torso"]["body"] = str(torso_path)
+    canvas = StepSceneCanvas(manager)
+    canvas.set_scene_state(
+        {
+            "characters": {
+                "A": {
+                    "name": "A",
+                    "torso": "body",
+                    "left": 100.0,
+                    "top": 200.0,
+                    "zoom": 1.0,
+                }
+            }
+        }
+    )
+    item = next(item for item in canvas.scene().items() if item.data(0) == "character")
+    item.setSelected(True)
+    moved = []
+    navigated = []
+    canvas.object_moved.connect(lambda *args: moved.append(args))
+    canvas.step_navigation_requested.connect(navigated.append)
+
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Left, Qt.NoModifier))
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Down, Qt.ShiftModifier))
+
+    assert item.pos() == QPointF(99.0, 210.0)
+    assert [(entry[1], entry[2]) for entry in moved] == [(-1.0, 0.0), (0.0, 10.0)]
+    assert not navigated
+
+    canvas.scene().clearSelection()
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Right, Qt.NoModifier))
+    assert navigated == [1]
+
+
 def test_final_preview_pixmap_refits_when_tab_gets_smaller():
     label = FitPixmapLabel()
     source = QImage(640, 480, QImage.Format_ARGB32)
@@ -418,6 +494,34 @@ def test_stage_context_commands_insert_visual_audio_and_system_tags(monkeypatch)
     assert opened == [False]
 
 
+def test_dialog_arrow_nudge_persists_one_virtual_pixel():
+    steps = [{"step_index": 0}]
+    show = 'chara_show name="A" torso="missing" x="0.5" y="0.5" size="1.0"'
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[show],
+        all_steps=steps,
+        all_step_actions=[[show]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+    item = next(
+        item
+        for item in dialog.scene_canvas.scene().items()
+        if item.data(0) == "character"
+    )
+    item.setSelected(True)
+
+    dialog.scene_canvas.keyPressEvent(
+        QKeyEvent(QEvent.KeyPress, Qt.Key_Right, Qt.NoModifier)
+    )
+
+    tag, pairs = dialog._parse_action(dialog.get_actions()[0])
+    assert tag == "chara_show"
+    assert dict(pairs)["x"] == "0.50069444"
+
+
 def test_direct_canvas_scale_does_not_start_pygame_snapshot_timer():
     steps = [{"step_index": 0}]
     show = 'chara_show name="桃子" torso="MMK_T00" size="2.3"'
@@ -486,6 +590,59 @@ def test_step_navigation_stays_in_same_dialog_and_loads_adjacent_step():
     assert dialog.body_input.text() == "second"
     assert dialog.step_outline.currentRow() == 1
     assert "新規step" in dialog.next_step_btn.text()
+
+
+def test_unselected_canvas_arrow_pages_the_dialog_step():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+
+    dialog.scene_canvas.scene().clearSelection()
+    dialog.scene_canvas.keyPressEvent(
+        QKeyEvent(QEvent.KeyPress, Qt.Key_Right, Qt.NoModifier)
+    )
+
+    assert dialog._step_index == 1
+    assert dialog.body_input.text() == "second"
+
+
+def test_final_preview_is_restored_from_memory_when_paging_back(tmp_path):
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+    preview_path = tmp_path / "preview.png"
+    preview = QImage(64, 48, QImage.Format_ARGB32)
+    preview.fill(QColor(10, 20, 30))
+    assert preview.save(str(preview_path))
+    dialog.set_preview_image(str(preview_path))
+
+    dialog._navigate_step(1)
+    dialog._navigate_step(-1)
+
+    assert dialog._step_index == 0
+    assert not dialog.preview_label._source_pixmap.isNull()
 
 
 def test_step_navigation_can_apply_dirty_values_before_moving():
@@ -585,10 +742,10 @@ def test_step_slide_moves_two_connected_pages_by_a_full_viewport_width():
 
     assert incoming.startValue() == QPoint(viewport.width(), 0)
     assert incoming.endValue() == QPoint(0, 0)
-    assert incoming.duration() == 280
+    assert incoming.duration() == 140
     assert outgoing.startValue() == QPoint(0, 0)
     assert outgoing.endValue() == QPoint(-viewport.width(), 0)
-    assert outgoing.duration() == 280
+    assert outgoing.duration() == 140
 
     animation.stop()
     dialog.close()
