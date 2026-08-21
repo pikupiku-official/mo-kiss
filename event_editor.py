@@ -28,14 +28,21 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QListWidget, QPushButton, QLabel, QSplitter,
+    QTextEdit, QListWidget, QListWidgetItem, QPushButton, QLabel, QSplitter,
     QLineEdit, QMessageBox, QToolBar, QAction, QGroupBox,
     QFormLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
-    QFileDialog, QInputDialog, QTabWidget, QSlider, QDoubleSpinBox
+    QFileDialog, QInputDialog, QTabWidget, QSlider, QDoubleSpinBox,
+    QStyleFactory, QAbstractButton,
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject, QRect, QPoint, QProcess
-from PyQt5.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter
+from PyQt5.QtCore import (
+    Qt, QTimer, pyqtSignal, QObject, QRect, QPoint, QProcess, QEvent, QSize,
+    QEasingCurve, QParallelAnimationGroup, QPropertyAnimation,
+)
+from PyQt5.QtGui import (
+    QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter,
+    QPalette, QLinearGradient,
+)
 
 # プロジェクトルートをパスに追加
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -88,6 +95,460 @@ from tools.event_editor_scene import (
     parse_step_action,
 )
 from tools.event_editor_part_templates import CharaPartTemplateStore
+
+
+def apply_windows_2000_style(app):
+    """Use Qt's real classic-Windows controls with the Windows 2000 palette."""
+    if app is None:
+        return False
+
+    available_styles = {name.lower(): name for name in QStyleFactory.keys()}
+    windows_style_name = available_styles.get("windows")
+    if windows_style_name:
+        windows_style = QStyleFactory.create(windows_style_name)
+        if windows_style is not None:
+            app.setStyle(windows_style)
+
+    palette = QPalette()
+    classic_colors = {
+        QPalette.Window: QColor(212, 208, 200),       # COLOR_3DFACE
+        QPalette.WindowText: QColor(0, 0, 0),
+        QPalette.Base: QColor(255, 255, 255),         # COLOR_WINDOW
+        QPalette.AlternateBase: QColor(232, 228, 220),
+        QPalette.ToolTipBase: QColor(255, 255, 225),
+        QPalette.ToolTipText: QColor(0, 0, 0),
+        QPalette.Text: QColor(0, 0, 0),
+        QPalette.Button: QColor(212, 208, 200),
+        QPalette.ButtonText: QColor(0, 0, 0),
+        QPalette.BrightText: QColor(255, 255, 255),
+        QPalette.Light: QColor(255, 255, 255),
+        QPalette.Midlight: QColor(223, 220, 212),
+        QPalette.Mid: QColor(160, 160, 160),
+        QPalette.Dark: QColor(128, 128, 128),
+        QPalette.Shadow: QColor(0, 0, 0),
+        QPalette.Highlight: QColor(10, 36, 106),       # COLOR_HIGHLIGHT
+        QPalette.HighlightedText: QColor(255, 255, 255),
+        QPalette.Link: QColor(0, 0, 255),
+        QPalette.LinkVisited: QColor(128, 0, 128),
+    }
+    for role, color in classic_colors.items():
+        palette.setColor(QPalette.Active, role, color)
+        palette.setColor(QPalette.Inactive, role, color)
+
+    disabled_text = QColor(128, 128, 128)
+    for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
+        palette.setColor(QPalette.Disabled, role, disabled_text)
+    palette.setColor(QPalette.Disabled, QPalette.Window, QColor(212, 208, 200))
+    palette.setColor(QPalette.Disabled, QPalette.Base, QColor(212, 208, 200))
+    palette.setColor(QPalette.Disabled, QPalette.Button, QColor(212, 208, 200))
+    palette.setColor(QPalette.Disabled, QPalette.Highlight, QColor(212, 208, 200))
+    palette.setColor(QPalette.Disabled, QPalette.HighlightedText, disabled_text)
+
+    app.setPalette(palette)
+    return windows_style_name is not None
+
+
+class Win2000CaptionButton(QAbstractButton):
+    """Pixel-drawn Windows 2000 caption button."""
+
+    def __init__(self, role, parent=None):
+        super().__init__(parent)
+        self.role = role
+        self.setFixedSize(18, 18)
+        self.setFocusPolicy(Qt.NoFocus)
+        self.setCursor(Qt.ArrowCursor)
+        labels = {
+            "minimize": "最小化",
+            "maximize": "最大化",
+            "restore": "元に戻す",
+            "close": "閉じる",
+        }
+        self.setToolTip(labels.get(role, role))
+        self.setAccessibleName(labels.get(role, role))
+
+    def sizeHint(self):
+        return QSize(18, 18)
+
+    def set_role(self, role):
+        if role == self.role:
+            return
+        self.role = role
+        label = "元に戻す" if role == "restore" else "最大化"
+        self.setToolTip(label)
+        self.setAccessibleName(label)
+        self.update()
+
+    @staticmethod
+    def _draw_bevel(painter, rect, sunken):
+        left = rect.left()
+        top = rect.top()
+        right = rect.right()
+        bottom = rect.bottom()
+        if sunken:
+            painter.setPen(QColor(0, 0, 0))
+            painter.drawLine(left, top, right, top)
+            painter.drawLine(left, top, left, bottom)
+            painter.setPen(QColor(128, 128, 128))
+            painter.drawLine(left + 1, top + 1, right - 1, top + 1)
+            painter.drawLine(left + 1, top + 1, left + 1, bottom - 1)
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawLine(left + 1, bottom, right, bottom)
+            painter.drawLine(right, top + 1, right, bottom)
+        else:
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawLine(left, top, right, top)
+            painter.drawLine(left, top, left, bottom)
+            painter.setPen(QColor(128, 128, 128))
+            painter.drawLine(left + 1, bottom - 1, right - 1, bottom - 1)
+            painter.drawLine(right - 1, top + 1, right - 1, bottom - 1)
+            painter.setPen(QColor(0, 0, 0))
+            painter.drawLine(left, bottom, right, bottom)
+            painter.drawLine(right, top, right, bottom)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        painter.fillRect(self.rect(), QColor(212, 208, 200))
+        self._draw_bevel(painter, self.rect().adjusted(0, 0, -1, -1), self.isDown())
+
+        offset = 1 if self.isDown() else 0
+        painter.setPen(QColor(0, 0, 0))
+        painter.setBrush(QColor(0, 0, 0))
+        if self.role == "minimize":
+            painter.fillRect(5 + offset, 12 + offset, 8, 2, QColor(0, 0, 0))
+        elif self.role == "maximize":
+            painter.drawRect(4 + offset, 4 + offset, 9, 8)
+            painter.fillRect(5 + offset, 5 + offset, 8, 2, QColor(0, 0, 0))
+        elif self.role == "restore":
+            painter.drawRect(6 + offset, 4 + offset, 7, 7)
+            painter.fillRect(7 + offset, 5 + offset, 6, 2, QColor(0, 0, 0))
+            painter.fillRect(4 + offset, 7 + offset, 2, 2, QColor(0, 0, 0))
+            painter.drawRect(4 + offset, 7 + offset, 7, 6)
+        elif self.role == "close":
+            for delta in range(2):
+                painter.drawLine(
+                    5 + offset + delta,
+                    5 + offset,
+                    12 + offset,
+                    12 + offset - delta,
+                )
+                painter.drawLine(
+                    12 + offset - delta,
+                    5 + offset,
+                    5 + offset,
+                    12 + offset - delta,
+                )
+        painter.end()
+
+
+class Win2000TitleBar(QWidget):
+    """Windows 2000 caption bar with native system move behavior."""
+
+    def __init__(self, window):
+        super().__init__(window)
+        self._window = window
+        self._drag_offset = None
+        self.setFixedHeight(22)
+        self.setMouseTracking(True)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 2, 2, 2)
+        layout.setSpacing(2)
+        self.title_label = QLabel(window.windowTitle())
+        self.title_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        title_font = QFont("MS UI Gothic", 9)
+        title_font.setBold(True)
+        self.title_label.setFont(title_font)
+        layout.addWidget(self.title_label, 1)
+
+        self.minimize_button = Win2000CaptionButton("minimize", self)
+        self.maximize_button = Win2000CaptionButton("maximize", self)
+        self.close_button = Win2000CaptionButton("close", self)
+        layout.addWidget(self.minimize_button)
+        layout.addWidget(self.maximize_button)
+        layout.addWidget(self.close_button)
+
+        self.minimize_button.clicked.connect(window.showMinimized)
+        self.maximize_button.clicked.connect(self.toggle_maximize)
+        close_handler = getattr(window, "reject", window.close)
+        self.close_button.clicked.connect(close_handler)
+        self.sync_window_state()
+
+    def set_title(self, title):
+        self.title_label.setText(title)
+
+    def sync_window_state(self):
+        self.maximize_button.set_role(
+            "restore" if self._window.isMaximized() else "maximize"
+        )
+        active = self._window.isActiveWindow()
+        color = QColor(255, 255, 255) if active else QColor(212, 208, 200)
+        palette = self.title_label.palette()
+        palette.setColor(QPalette.WindowText, color)
+        self.title_label.setPalette(palette)
+        self.update()
+
+    def toggle_maximize(self):
+        if self._window.isMaximized():
+            self._window.showNormal()
+        else:
+            self._window.showMaximized()
+        self.sync_window_state()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        gradient = QLinearGradient(0, 0, self.width(), 0)
+        if self._window.isActiveWindow():
+            gradient.setColorAt(0.0, QColor(10, 36, 106))
+            gradient.setColorAt(1.0, QColor(166, 202, 240))
+        else:
+            gradient.setColorAt(0.0, QColor(128, 128, 128))
+            gradient.setColorAt(1.0, QColor(192, 192, 192))
+        painter.fillRect(self.rect(), gradient)
+        painter.end()
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.toggle_maximize()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() != Qt.LeftButton:
+            super().mousePressEvent(event)
+            return
+        if self._window.isMaximized():
+            self._drag_offset = None
+            event.accept()
+            return
+
+        handle = self._window.windowHandle()
+        started = bool(
+            handle
+            and hasattr(handle, "startSystemMove")
+            and handle.startSystemMove()
+        )
+        if not started:
+            self._drag_offset = event.globalPos() - self._window.frameGeometry().topLeft()
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
+            self._window.move(event.globalPos() - self._drag_offset)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_offset = None
+        super().mouseReleaseEvent(event)
+
+
+class Win2000FramelessDialog(QDialog):
+    """Reusable frameless dialog with a Windows 2000 non-client frame."""
+
+    FRAME_WIDTH = 4
+    RESIZE_MARGIN = 7
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        flags = self.windowFlags()
+        flags &= ~Qt.WindowContextHelpButtonHint
+        flags |= Qt.FramelessWindowHint | Qt.WindowSystemMenuHint
+        flags |= Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
+        self.setWindowFlags(flags)
+        self.setMouseTracking(True)
+
+        self._frame_layout = QVBoxLayout(self)
+        self._frame_layout.setContentsMargins(
+            self.FRAME_WIDTH,
+            self.FRAME_WIDTH,
+            self.FRAME_WIDTH,
+            self.FRAME_WIDTH,
+        )
+        self._frame_layout.setSpacing(0)
+        self.title_bar = Win2000TitleBar(self)
+        self._frame_layout.addWidget(self.title_bar)
+
+        self.client_widget = QWidget(self)
+        self.client_widget.setAutoFillBackground(True)
+        self.client_layout = QVBoxLayout(self.client_widget)
+        self._frame_layout.addWidget(self.client_widget, 1)
+
+    def setWindowTitle(self, title):
+        super().setWindowTitle(title)
+        if hasattr(self, "title_bar"):
+            self.title_bar.set_title(title)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (QEvent.ActivationChange, QEvent.WindowStateChange):
+            margin = 0 if self.isMaximized() else self.FRAME_WIDTH
+            self._frame_layout.setContentsMargins(margin, margin, margin, margin)
+            self.title_bar.sync_window_state()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(212, 208, 200))
+        if self.isMaximized():
+            painter.end()
+            return
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        painter.setPen(QColor(255, 255, 255))
+        painter.drawLine(rect.left(), rect.top(), rect.right(), rect.top())
+        painter.drawLine(rect.left(), rect.top(), rect.left(), rect.bottom())
+        painter.setPen(QColor(0, 0, 0))
+        painter.drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom())
+        painter.drawLine(rect.right(), rect.top(), rect.right(), rect.bottom())
+        inner = rect.adjusted(1, 1, -1, -1)
+        painter.setPen(QColor(223, 220, 212))
+        painter.drawLine(inner.left(), inner.top(), inner.right(), inner.top())
+        painter.drawLine(inner.left(), inner.top(), inner.left(), inner.bottom())
+        painter.setPen(QColor(128, 128, 128))
+        painter.drawLine(inner.left(), inner.bottom(), inner.right(), inner.bottom())
+        painter.drawLine(inner.right(), inner.top(), inner.right(), inner.bottom())
+        painter.end()
+
+    def _resize_edges_at(self, pos):
+        if self.isMaximized():
+            return Qt.Edges()
+        margin = self.RESIZE_MARGIN
+        edges = Qt.Edges()
+        if pos.x() <= margin:
+            edges |= Qt.LeftEdge
+        elif pos.x() >= self.width() - margin:
+            edges |= Qt.RightEdge
+        if pos.y() <= margin:
+            edges |= Qt.TopEdge
+        elif pos.y() >= self.height() - margin:
+            edges |= Qt.BottomEdge
+        return edges
+
+    @staticmethod
+    def _cursor_for_edges(edges):
+        if edges in (
+            Qt.LeftEdge | Qt.TopEdge,
+            Qt.RightEdge | Qt.BottomEdge,
+        ):
+            return Qt.SizeFDiagCursor
+        if edges in (
+            Qt.RightEdge | Qt.TopEdge,
+            Qt.LeftEdge | Qt.BottomEdge,
+        ):
+            return Qt.SizeBDiagCursor
+        if edges & (Qt.LeftEdge | Qt.RightEdge):
+            return Qt.SizeHorCursor
+        if edges & (Qt.TopEdge | Qt.BottomEdge):
+            return Qt.SizeVerCursor
+        return Qt.ArrowCursor
+
+    def mouseMoveEvent(self, event):
+        if not event.buttons():
+            self.setCursor(self._cursor_for_edges(self._resize_edges_at(event.pos())))
+        super().mouseMoveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            edges = self._resize_edges_at(event.pos())
+            handle = self.windowHandle()
+            if edges and handle and hasattr(handle, "startSystemResize"):
+                if handle.startSystemResize(edges):
+                    event.accept()
+                    return
+        super().mousePressEvent(event)
+
+
+class Win2000FramelessMainWindow(QMainWindow):
+    """QMainWindow variant of the reusable Windows 2000 frame."""
+
+    FRAME_WIDTH = Win2000FramelessDialog.FRAME_WIDTH
+    RESIZE_MARGIN = Win2000FramelessDialog.RESIZE_MARGIN
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        flags = self.windowFlags()
+        flags &= ~Qt.WindowContextHelpButtonHint
+        flags |= Qt.FramelessWindowHint | Qt.WindowSystemMenuHint
+        flags |= Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
+        self.setWindowFlags(flags)
+        self.setMouseTracking(True)
+        self.setContentsMargins(
+            self.FRAME_WIDTH,
+            self.FRAME_WIDTH,
+            self.FRAME_WIDTH,
+            self.FRAME_WIDTH,
+        )
+        self.title_bar = Win2000TitleBar(self)
+        self.setMenuWidget(self.title_bar)
+
+    def setWindowTitle(self, title):
+        super().setWindowTitle(title)
+        if hasattr(self, "title_bar"):
+            self.title_bar.set_title(title)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (QEvent.ActivationChange, QEvent.WindowStateChange):
+            margin = 0 if self.isMaximized() else self.FRAME_WIDTH
+            self.setContentsMargins(margin, margin, margin, margin)
+            self.title_bar.sync_window_state()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(212, 208, 200))
+        if self.isMaximized():
+            painter.end()
+            return
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        painter.setPen(QColor(255, 255, 255))
+        painter.drawLine(rect.left(), rect.top(), rect.right(), rect.top())
+        painter.drawLine(rect.left(), rect.top(), rect.left(), rect.bottom())
+        painter.setPen(QColor(0, 0, 0))
+        painter.drawLine(rect.left(), rect.bottom(), rect.right(), rect.bottom())
+        painter.drawLine(rect.right(), rect.top(), rect.right(), rect.bottom())
+        inner = rect.adjusted(1, 1, -1, -1)
+        painter.setPen(QColor(223, 220, 212))
+        painter.drawLine(inner.left(), inner.top(), inner.right(), inner.top())
+        painter.drawLine(inner.left(), inner.top(), inner.left(), inner.bottom())
+        painter.setPen(QColor(128, 128, 128))
+        painter.drawLine(inner.left(), inner.bottom(), inner.right(), inner.bottom())
+        painter.drawLine(inner.right(), inner.top(), inner.right(), inner.bottom())
+        painter.end()
+
+    def _resize_edges_at(self, pos):
+        if self.isMaximized():
+            return Qt.Edges()
+        margin = self.RESIZE_MARGIN
+        edges = Qt.Edges()
+        if pos.x() <= margin:
+            edges |= Qt.LeftEdge
+        elif pos.x() >= self.width() - margin:
+            edges |= Qt.RightEdge
+        if pos.y() <= margin:
+            edges |= Qt.TopEdge
+        elif pos.y() >= self.height() - margin:
+            edges |= Qt.BottomEdge
+        return edges
+
+    def mouseMoveEvent(self, event):
+        if not event.buttons():
+            self.setCursor(
+                Win2000FramelessDialog._cursor_for_edges(
+                    self._resize_edges_at(event.pos())
+                )
+            )
+        super().mouseMoveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            edges = self._resize_edges_at(event.pos())
+            handle = self.windowHandle()
+            if edges and handle and hasattr(handle, "startSystemResize"):
+                if handle.startSystemResize(edges):
+                    event.accept()
+                    return
+        super().mousePressEvent(event)
 
 
 class PreviewWindow:
@@ -1080,7 +1541,88 @@ class CharaCompositePreviewDialog(QDialog):
 
 # ---------------------------------------------------------------------------
 
-class StepEditorDialog(QDialog):
+
+class StepSlideViewport(QWidget):
+    """Keep the step editor alive while giving step changes a short slide."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.content = QWidget(self)
+        self.content_layout = QVBoxLayout(self.content)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self._animation = None
+        self._old_frame = None
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if not self._animation or self._animation.state() != self._animation.Running:
+            self.content.setGeometry(self.rect())
+
+    def capture_content(self):
+        if not self.isVisible() or self.width() <= 0 or self.height() <= 0:
+            return QPixmap()
+        return self.content.grab()
+
+    def slide_in(self, direction, previous_pixmap=None):
+        """Slide the new content in from the navigation direction."""
+        if direction not in (-1, 1) or self.width() <= 0:
+            self.content.setGeometry(self.rect())
+            return
+
+        if self._animation and self._animation.state() == self._animation.Running:
+            self._animation.stop()
+        if self._old_frame:
+            self._old_frame.deleteLater()
+            self._old_frame = None
+
+        # Treat adjacent steps as full pages on one continuous horizontal roll:
+        # the old page leaves by one viewport width while the new page enters
+        # from the immediately adjoining position.
+        distance = self.width()
+        self.content.resize(self.size())
+        self.content.move(direction * distance, 0)
+        self.content.show()
+        self.content.raise_()
+
+        old_frame = None
+        if previous_pixmap is not None and not previous_pixmap.isNull():
+            old_frame = QLabel(self)
+            old_frame.setPixmap(previous_pixmap)
+            old_frame.setScaledContents(True)
+            old_frame.setGeometry(self.rect())
+            old_frame.show()
+            old_frame.raise_()
+            self._old_frame = old_frame
+
+        group = QParallelAnimationGroup(self)
+        incoming = QPropertyAnimation(self.content, b"pos", group)
+        incoming.setDuration(280)
+        incoming.setStartValue(QPoint(direction * distance, 0))
+        incoming.setEndValue(QPoint(0, 0))
+        incoming.setEasingCurve(QEasingCurve.InOutCubic)
+        group.addAnimation(incoming)
+
+        if old_frame is not None:
+            outgoing = QPropertyAnimation(old_frame, b"pos", group)
+            outgoing.setDuration(280)
+            outgoing.setStartValue(QPoint(0, 0))
+            outgoing.setEndValue(QPoint(-direction * distance, 0))
+            outgoing.setEasingCurve(QEasingCurve.InOutCubic)
+            group.addAnimation(outgoing)
+
+        def finish_animation():
+            self.content.setGeometry(self.rect())
+            if self._old_frame:
+                self._old_frame.deleteLater()
+                self._old_frame = None
+            self._animation = None
+
+        group.finished.connect(finish_animation)
+        self._animation = group
+        group.start()
+
+
+class StepEditorDialog(Win2000FramelessDialog):
     """step編集用ダイアログ"""
 
     CHARA_PREVIEW_PARTS = tuple(CharaCompositePreviewDialog.LAYER_ORDER)
@@ -1254,6 +1796,9 @@ class StepEditorDialog(QDialog):
         self._step_index = step_index
         self._image_manager = image_manager
         self._scene_state_builder = StepSceneStateBuilder(image_manager)
+        self._loading_step = True
+        self._baseline_signature = None
+        self._outline_navigation = False
         self.navigation_offset = 0
         self._direct_scene_edit = False
         self._bgm_preview_manager = None
@@ -1263,40 +1808,56 @@ class StepEditorDialog(QDialog):
         self.setWindowTitle("step編集")
         self.resize(1400, 850)
 
-        main_layout = QVBoxLayout(self)
+        main_layout = self.client_layout
 
         navigation_layout = QHBoxLayout()
         self.prev_step_btn = QPushButton("← 前のstep")
         self.prev_step_btn.setToolTip("現在の編集内容を適用して、前のstep編集へ移動します")
         self.step_position_label = QLabel()
         self.step_position_label.setAlignment(Qt.AlignCenter)
+        self.unsaved_label = QLabel()
+        self.unsaved_label.setStyleSheet("color: #800000;")
         self.next_step_btn = QPushButton("次のstep →")
         self.next_step_btn.setToolTip("現在の編集内容を適用して、次のstep編集へ移動します")
         navigation_layout.addWidget(self.prev_step_btn)
         navigation_layout.addStretch()
         navigation_layout.addWidget(self.step_position_label)
+        navigation_layout.addWidget(self.unsaved_label)
         navigation_layout.addStretch()
         navigation_layout.addWidget(self.next_step_btn)
         main_layout.addLayout(navigation_layout)
 
-        total_steps = len(self._all_steps)
-        display_index = (self._step_index + 1) if self._step_index is not None else 0
-        self.step_position_label.setText(f"step {display_index} / {total_steps}")
-        self.prev_step_btn.setEnabled(bool(self._step_index is not None and self._step_index > 0))
-        self.next_step_btn.setEnabled(bool(
-            self._step_index is not None and self._step_index + 1 < total_steps
-        ))
-
         main_splitter = QSplitter(Qt.Horizontal)
         main_layout.addWidget(main_splitter)
 
-        # 左カラム: プレビュー + セリフ
+        # 左カラム: step目次。クリックで同じ編集window内を移動する。
+        outline_group = QGroupBox("step目次")
+        outline_layout = QVBoxLayout(outline_group)
+        self.step_outline = QListWidget()
+        self.step_outline.setAlternatingRowColors(True)
+        self.step_outline.setMinimumWidth(210)
+        outline_layout.addWidget(self.step_outline)
+        outline_buttons = QHBoxLayout()
+        self.insert_before_btn = QPushButton("＋ 前に")
+        self.insert_after_btn = QPushButton("後に ＋")
+        outline_buttons.addWidget(self.insert_before_btn)
+        outline_buttons.addWidget(self.insert_after_btn)
+        outline_layout.addLayout(outline_buttons)
+        main_splitter.addWidget(outline_group)
+
+        # 中央・右カラムは1つのviewportに載せ、step切替時だけ短くスライドする。
+        self.slide_viewport = StepSlideViewport()
+        editor_splitter = QSplitter(Qt.Horizontal)
+        self.slide_viewport.content_layout.addWidget(editor_splitter)
+        main_splitter.addWidget(self.slide_viewport)
+
+        # 中央カラム: 大きなプレビュー + セリフ
         left_panel = QWidget()
         left_panel_layout = QVBoxLayout(left_panel)
         left_panel_layout.setContentsMargins(0, 0, 0, 0)
         left_splitter = QSplitter(Qt.Vertical)
         left_panel_layout.addWidget(left_splitter)
-        main_splitter.addWidget(left_panel)
+        editor_splitter.addWidget(left_panel)
 
         preview_group = QGroupBox("プレビュー (4:3)")
         preview_layout = QVBoxLayout()
@@ -1311,7 +1872,7 @@ class StepEditorDialog(QDialog):
         preview_layout.addWidget(self.preview_tabs)
 
         self.scene_selection_label = QLabel("オブジェクトをクリックすると選択できます")
-        self.scene_selection_label.setStyleSheet("color: #aaa;")
+        self.scene_selection_label.setStyleSheet("color: #404040;")
         preview_layout.addWidget(self.scene_selection_label)
 
         self.preview_refresh_btn = QPushButton("Preview Update")
@@ -1351,7 +1912,7 @@ class StepEditorDialog(QDialog):
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         right_splitter = QSplitter(Qt.Vertical)
         right_panel_layout.addWidget(right_splitter)
-        main_splitter.addWidget(right_panel)
+        editor_splitter.addWidget(right_panel)
 
         actions_group = QGroupBox("アクション一覧")
         actions_layout = QVBoxLayout()
@@ -1410,7 +1971,8 @@ class StepEditorDialog(QDialog):
         editor_group.setLayout(editor_layout)
         right_splitter.addWidget(editor_group)
 
-        main_splitter.setSizes([900, 500])
+        main_splitter.setSizes([250, 1150])
+        editor_splitter.setSizes([760, 390])
         left_splitter.setSizes([620, 180])
         right_splitter.setSizes([240, 520])
 
@@ -1434,6 +1996,9 @@ class StepEditorDialog(QDialog):
         self.preview_refresh_btn.clicked.connect(self._request_preview_update)
         self.prev_step_btn.clicked.connect(lambda: self._navigate_step(-1))
         self.next_step_btn.clicked.connect(lambda: self._navigate_step(1))
+        self.insert_before_btn.clicked.connect(lambda: self._create_adjacent_step(-1))
+        self.insert_after_btn.clicked.connect(lambda: self._create_adjacent_step(1))
+        self.step_outline.currentRowChanged.connect(self._on_outline_step_changed)
         self.scene_canvas.object_selected.connect(self._on_scene_object_selected)
         self.scene_canvas.object_moved.connect(self._on_scene_object_moved)
         self.scene_canvas.object_scaled.connect(self._on_scene_object_scaled)
@@ -1449,17 +2014,30 @@ class StepEditorDialog(QDialog):
         self.body_input.textChanged.connect(self._schedule_preview_update)
         self.scroll_checkbox.stateChanged.connect(self._schedule_preview_update)
         self.female_checkbox.stateChanged.connect(self._schedule_preview_update)
+        self.memo_input.textChanged.connect(self._on_edit_state_changed)
+        self.speaker_input.textChanged.connect(self._on_edit_state_changed)
+        self.body_input.textChanged.connect(self._on_edit_state_changed)
+        self.scroll_checkbox.stateChanged.connect(self._on_edit_state_changed)
+        self.female_checkbox.stateChanged.connect(self._on_edit_state_changed)
         action_model = self.actions_list.model()
         action_model.dataChanged.connect(self._schedule_scene_preview_update)
         action_model.rowsInserted.connect(self._schedule_scene_preview_update)
         action_model.rowsRemoved.connect(self._schedule_scene_preview_update)
         action_model.rowsMoved.connect(self._schedule_scene_preview_update)
+        action_model.dataChanged.connect(self._on_edit_state_changed)
+        action_model.rowsInserted.connect(self._on_edit_state_changed)
+        action_model.rowsRemoved.connect(self._on_edit_state_changed)
+        action_model.rowsMoved.connect(self._on_edit_state_changed)
 
         if self.actions_list.count() > 0:
             self.actions_list.setCurrentRow(0)
         else:
             self._apply_param_template(self.tag_combo.currentText())
         self._refresh_scene_preview()
+        self._loading_step = False
+        self._baseline_signature = self._current_step_signature()
+        self._refresh_step_outline()
+        self._update_navigation_controls()
 
     def get_dialogue_values(self):
         """セリフ編集の値を取得"""
@@ -1482,15 +2060,332 @@ class StepEditorDialog(QDialog):
         """備考を取得"""
         return self.memo_input.text().strip()
 
+    def _current_step_signature(self):
+        speaker, body, scroll_stop, force_female = self.get_dialogue_values()
+        return (
+            speaker,
+            body,
+            scroll_stop,
+            force_female,
+            self.get_memo(),
+            tuple(self.get_actions()),
+        )
+
+    def _is_step_dirty(self):
+        return (
+            self._baseline_signature is not None
+            and self._current_step_signature() != self._baseline_signature
+        )
+
+    @staticmethod
+    def _outline_text(step, dirty=False):
+        index = step.get("step_index", 0) + 1
+        speaker = (step.get("speaker") or "（話者なし）").strip()
+        body = re.sub(r"\s+", " ", (step.get("body") or "").strip())
+        if len(body) > 28:
+            body = body[:27] + "…"
+        memo_mark = " ◆" if step.get("memo") else ""
+        dirty_mark = " ●" if dirty else ""
+        summary = f"{speaker}｜{body}" if body else speaker
+        return f"{index:03d}{dirty_mark}{memo_mark}  {summary}"
+
+    def _refresh_step_outline(self):
+        self._outline_navigation = True
+        self.step_outline.blockSignals(True)
+        try:
+            self.step_outline.clear()
+            for index, step in enumerate(self._all_steps):
+                dirty = index == self._step_index and self._is_step_dirty()
+                item = QListWidgetItem(self._outline_text(step, dirty=dirty))
+                item.setData(Qt.UserRole, index)
+                tooltip = step.get("body", "") or "セリフなし"
+                if step.get("memo"):
+                    tooltip += f"\n備考: {step['memo']}"
+                item.setToolTip(tooltip)
+                self.step_outline.addItem(item)
+            if self._step_index is not None and 0 <= self._step_index < self.step_outline.count():
+                self.step_outline.setCurrentRow(self._step_index)
+        finally:
+            self.step_outline.blockSignals(False)
+            self._outline_navigation = False
+
+    def _update_navigation_controls(self):
+        total_steps = len(self._all_steps)
+        has_current = (
+            self._step_index is not None
+            and 0 <= self._step_index < total_steps
+        )
+        display_index = self._step_index + 1 if has_current else 0
+        self.step_position_label.setText(f"step {display_index} / {total_steps}")
+        self.unsaved_label.setText("変更あり ●" if self._is_step_dirty() else "")
+        self.prev_step_btn.setEnabled(has_current)
+        self.next_step_btn.setEnabled(has_current)
+        self.insert_before_btn.setEnabled(has_current)
+        self.insert_after_btn.setEnabled(has_current)
+        if not has_current:
+            self.prev_step_btn.setText("← 前のstep")
+            self.next_step_btn.setText("次のstep →")
+        else:
+            self.prev_step_btn.setText(
+                "← 前のstep" if self._step_index > 0 else "＋ 前に新規step"
+            )
+            self.next_step_btn.setText(
+                "次のstep →"
+                if self._step_index + 1 < total_steps
+                else "次に新規step ＋"
+            )
+
+    def _update_current_outline_item(self):
+        if self._step_index is None:
+            return
+        item = self.step_outline.item(self._step_index)
+        if item is None:
+            return
+        display_step = dict(self.step)
+        display_step.update({
+            "speaker": self.speaker_input.text().strip(),
+            "body": self.body_input.text().strip(),
+            "memo": self.memo_input.text().strip(),
+        })
+        item.setText(self._outline_text(display_step, dirty=self._is_step_dirty()))
+        tooltip = display_step.get("body", "") or "セリフなし"
+        if display_step.get("memo"):
+            tooltip += f"\n備考: {display_step['memo']}"
+        item.setToolTip(tooltip)
+
+    def _on_edit_state_changed(self, *args):
+        if self._loading_step:
+            return
+        self._update_current_outline_item()
+        self._update_navigation_controls()
+
+    def _confirm_step_transition(self):
+        if not self._is_step_dirty():
+            return "discard"
+
+        message = QMessageBox(self)
+        message.setIcon(QMessageBox.Question)
+        message.setWindowTitle("stepの変更")
+        message.setText("このstepには未適用の変更があります。")
+        message.setInformativeText("変更を適用してから移動しますか？")
+        apply_button = message.addButton("適用して移動", QMessageBox.AcceptRole)
+        discard_button = message.addButton("破棄して移動", QMessageBox.DestructiveRole)
+        cancel_button = message.addButton("キャンセル", QMessageBox.RejectRole)
+        message.setDefaultButton(apply_button)
+        message.exec_()
+        clicked = message.clickedButton()
+        if clicked == apply_button:
+            return "apply"
+        if clicked == discard_button:
+            return "discard"
+        if clicked == cancel_button:
+            return "cancel"
+        return "cancel"
+
+    def _sync_steps_from_parent(self):
+        parent = self.parent()
+        parent_steps = getattr(parent, "current_steps", None) if parent else None
+        if parent_steps is not None:
+            self._all_steps = list(parent_steps)
+
+        all_actions = []
+        extractor = getattr(parent, "_extract_actions_from_step", None) if parent else None
+        for index, parsed_step in enumerate(self._all_steps):
+            if extractor:
+                actions = extractor(parsed_step)
+            elif index < len(self._all_step_actions):
+                actions = list(self._all_step_actions[index])
+            else:
+                actions = []
+            all_actions.append(actions)
+            parsed_step["_actions_cache"] = [
+                {"tag": tag, "params": params}
+                for tag, params in (parse_step_action(action) for action in actions)
+                if tag
+            ]
+        self._all_step_actions = all_actions
+
+    def _apply_current_step_to_parent(self):
+        self.scene_canvas.flush_pending_scale()
+        speaker, body, scroll_stop, force_female = self.get_dialogue_values()
+        actions = self.get_actions()
+        memo = self.get_memo()
+        parent = self.parent()
+        apply_update = getattr(parent, "_apply_step_update", None) if parent else None
+        if apply_update:
+            apply_update(
+                self.step,
+                speaker,
+                body,
+                scroll_stop,
+                force_female,
+                actions,
+                memo,
+            )
+            self._sync_steps_from_parent()
+            if self._all_steps:
+                current = min(self._step_index, len(self._all_steps) - 1)
+                self._step_index = current
+                self.step = self._all_steps[current]
+        else:
+            self.step.update({
+                "speaker": speaker,
+                "body": body,
+                "has_scroll_stop": scroll_stop,
+                "force_female": force_female,
+                "memo": memo,
+            })
+            if self._step_index is not None:
+                while len(self._all_step_actions) <= self._step_index:
+                    self._all_step_actions.append([])
+                self._all_step_actions[self._step_index] = list(actions)
+        self._baseline_signature = self._current_step_signature()
+        return True
+
+    def _load_step_index(self, target_index):
+        if target_index < 0 or target_index >= len(self._all_steps):
+            return False
+
+        self._loading_step = True
+        self._preview_debounce_timer.stop()
+        self._stop_audio_preview()
+        self._step_index = target_index
+        self.step = self._all_steps[target_index]
+        self.actions = (
+            list(self._all_step_actions[target_index])
+            if target_index < len(self._all_step_actions)
+            else []
+        )
+
+        fields = (
+            (self.speaker_input, self.step.get("speaker", "")),
+            (self.body_input, self.step.get("body", "")),
+            (self.memo_input, self.step.get("memo", "")),
+        )
+        for field, value in fields:
+            field.blockSignals(True)
+            field.setText(value)
+            field.blockSignals(False)
+        for checkbox, value in (
+            (self.scroll_checkbox, bool(self.step.get("has_scroll_stop"))),
+            (self.female_checkbox, bool(self.step.get("force_female"))),
+        ):
+            checkbox.blockSignals(True)
+            checkbox.setChecked(value)
+            checkbox.blockSignals(False)
+
+        action_model = self.actions_list.model()
+        action_model.blockSignals(True)
+        self.actions_list.blockSignals(True)
+        self.actions_list.clear()
+        self.actions_list.addItems(self.actions)
+        if self.actions_list.count():
+            self.actions_list.setCurrentRow(0)
+        self.actions_list.blockSignals(False)
+        action_model.blockSignals(False)
+        if self.actions_list.currentItem():
+            self._on_action_selected(self.actions_list.currentItem(), None)
+        else:
+            self._apply_param_template(self.tag_combo.currentText())
+
+        self.preview_label.clear()
+        self.preview_label.setText("最終確認画像を生成しています...")
+        self._loading_step = False
+        self._refresh_scene_preview()
+        self._baseline_signature = self._current_step_signature()
+        self._refresh_step_outline()
+        self._update_navigation_controls()
+
+        parent = self.parent()
+        generate_preview = getattr(parent, "_generate_step_preview", None) if parent else None
+        if generate_preview:
+            generate_preview(target_index, self)
+        return True
+
+    def _prepare_step_transition(self):
+        decision = self._confirm_step_transition()
+        if decision == "cancel":
+            self._refresh_step_outline()
+            return False
+        if decision == "apply":
+            return self._apply_current_step_to_parent()
+        return True
+
+    def _change_step(self, target_index, direction):
+        if target_index == self._step_index:
+            return True
+        if not self._prepare_step_transition():
+            return False
+        if target_index < 0 or target_index >= len(self._all_steps):
+            self._refresh_step_outline()
+            return False
+
+        previous = self.slide_viewport.capture_content()
+        if not self._load_step_index(target_index):
+            return False
+        self.slide_viewport.slide_in(direction, previous)
+        return True
+
+    def _on_outline_step_changed(self, row):
+        if self._outline_navigation or self._loading_step or row < 0:
+            return
+        direction = 1 if row > self._step_index else -1
+        self._change_step(row, direction)
+
     def _navigate_step(self, offset):
-        """Apply this dialog and ask the parent to open an adjacent step."""
+        """Move inside this window, creating a step at either edge on request."""
         if offset not in (-1, 1) or self._step_index is None:
             return
         target = self._step_index + offset
         if target < 0 or target >= len(self._all_steps):
+            self._create_adjacent_step(offset)
             return
-        self.navigation_offset = offset
-        self.accept()
+        self._change_step(target, offset)
+
+    def _confirm_create_step(self, offset):
+        side = "前" if offset < 0 else "後ろ"
+        result = QMessageBox.question(
+            self,
+            "新しいstepを作成",
+            f"現在のstepの{side}に新しいstepを作成しますか？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        return result == QMessageBox.Yes
+
+    def _create_adjacent_step(self, offset):
+        if offset not in (-1, 1) or self._step_index is None:
+            return False
+        if not self._confirm_create_step(offset):
+            return False
+        if not self._prepare_step_transition():
+            return False
+
+        previous = self.slide_viewport.capture_content()
+        current_index = self._step_index
+        parent = self.parent()
+        insert_step = getattr(parent, "_insert_step_template", None) if parent else None
+        if insert_step:
+            insert_step(self.step, insert_before=offset < 0)
+            self._sync_steps_from_parent()
+        else:
+            insert_at = current_index if offset < 0 else current_index + 1
+            new_step = {
+                "step_index": insert_at,
+                "speaker": "speaker",
+                "body": "セリフ",
+                "memo": "",
+            }
+            self._all_steps.insert(insert_at, new_step)
+            self._all_step_actions.insert(insert_at, [])
+            for index, step in enumerate(self._all_steps):
+                step["step_index"] = index
+
+        target_index = current_index if offset < 0 else current_index + 1
+        if not self._load_step_index(target_index):
+            return False
+        self.slide_viewport.slide_in(offset, previous)
+        return True
 
     def accept(self):
         self.scene_canvas.flush_pending_scale()
@@ -1915,15 +2810,19 @@ class StepEditorDialog(QDialog):
         self.actions_list.item(current_row).setText(text)
 
     def _schedule_preview_update(self, *args):
+        if self._loading_step:
+            return
         self._preview_debounce_timer.start()
 
     def _schedule_scene_preview_update(self, *args):
-        if self._direct_scene_edit:
+        if self._loading_step or self._direct_scene_edit:
             return
         self._refresh_scene_preview()
         self._schedule_preview_update()
 
     def _request_preview_update(self, *args):
+        if self._loading_step:
+            return
         self._preview_debounce_timer.stop()
         parent = self.parent()
         if not parent:
@@ -2533,7 +3432,7 @@ class KSTextEditor(QTextEdit):
         super().keyPressEvent(event)
 
 
-class EventEditorGUI(QMainWindow):
+class EventEditorGUI(Win2000FramelessMainWindow):
     """PyQt5ベースのKSファイルエディタ"""
 
     def __init__(self):
@@ -3389,74 +4288,70 @@ class EventEditorGUI(QMainWindow):
         if target_index is None:
             return
 
-        while 0 <= target_index < len(self.current_steps):
-            current_step = self.current_steps[target_index]
-            try:
-                all_step_actions = []
-                for parsed_step in self.current_steps:
-                    parsed_actions = self._extract_actions_from_step(parsed_step)
-                    all_step_actions.append(parsed_actions)
-                    # CharaCompositePreviewDialog consumes this explicit cache
-                    # when resolving the selected character's prior state.
-                    parsed_step["_actions_cache"] = [
-                        {
-                            "tag": tag,
-                            "params": params,
-                        }
-                        for tag, params in (
-                            parse_step_action(action) for action in parsed_actions
-                        )
-                        if tag
-                    ]
+        current_step = self.current_steps[target_index]
+        try:
+            all_step_actions = []
+            for parsed_step in self.current_steps:
+                parsed_actions = self._extract_actions_from_step(parsed_step)
+                all_step_actions.append(parsed_actions)
+                # CharaCompositePreviewDialog consumes this explicit cache
+                # when resolving the selected character's prior state.
+                parsed_step["_actions_cache"] = [
+                    {
+                        "tag": tag,
+                        "params": params,
+                    }
+                    for tag, params in (
+                        parse_step_action(action) for action in parsed_actions
+                    )
+                    if tag
+                ]
 
-                actions = all_step_actions[target_index]
-                im = getattr(self, 'image_manager', None)
-                dialog = StepEditorDialog(
-                    self,
-                    current_step,
-                    actions=actions,
-                    all_steps=self.current_steps,
-                    all_step_actions=all_step_actions,
-                    step_index=target_index,
-                    image_manager=im,
-                )
-            except Exception as e:
-                import traceback
-                QMessageBox.critical(self, 'stepエディタエラー',
-                    f'エラーが発生しました：\n{e}\n\n{traceback.format_exc()}')
-                return
-
-            self._generate_step_preview(target_index, dialog)
-            if dialog.exec_() != QDialog.Accepted:
-                return
-
-            speaker, body, scroll_stop, force_female = dialog.get_dialogue_values()
-            memo = dialog.get_memo()
-            actions = dialog.get_actions()
-            navigation_offset = dialog.navigation_offset
-            self._apply_step_update(
+            actions = all_step_actions[target_index]
+            im = getattr(self, 'image_manager', None)
+            dialog = StepEditorDialog(
+                self,
                 current_step,
-                speaker,
-                body,
-                scroll_stop,
-                force_female,
-                actions,
-                memo,
+                actions=actions,
+                all_steps=self.current_steps,
+                all_step_actions=all_step_actions,
+                step_index=target_index,
+                image_manager=im,
             )
+        except Exception as e:
+            import traceback
+            QMessageBox.critical(self, 'stepエディタエラー',
+                f'エラーが発生しました：\n{e}\n\n{traceback.format_exc()}')
+            return
 
-            if not navigation_offset:
-                return
-            target_index += navigation_offset
+        self._generate_step_preview(target_index, dialog)
+        if dialog.exec_() != QDialog.Accepted:
+            return
+
+        speaker, body, scroll_stop, force_female = dialog.get_dialogue_values()
+        memo = dialog.get_memo()
+        actions = dialog.get_actions()
+        self._apply_step_update(
+            dialog.step,
+            speaker,
+            body,
+            scroll_stop,
+            force_female,
+            actions,
+            memo,
+        )
 
     def _insert_step_template(self, step, insert_before=True):
         """指定stepの前後にテンプレートstepを挿入する"""
         if not step:
-            return
+            return None
 
         lines = self.text_editor.toPlainText().splitlines()
         start_line = step.get("start_line", 0)
         end_line = step.get("end_line", start_line)
         insert_at = start_line if insert_before else end_line + 1
+        step_index = step.get("step_index", 0)
+        inserted_step_index = step_index if insert_before else step_index + 1
 
         template_lines = [
             "; --- new step ---",
@@ -3470,11 +4365,23 @@ class EventEditorGUI(QMainWindow):
         if insert_at > len(lines):
             insert_at = len(lines)
 
+        # 備考はstep番号をキーにしているため、途中挿入より後ろを1つずらす。
+        shifted_memos = {
+            index + (1 if index >= inserted_step_index else 0): memo
+            for index, memo in self.step_memos.items()
+        }
+        if shifted_memos != self.step_memos:
+            self.step_memos = shifted_memos
+            self.memos_modified = True
+
         new_lines = lines[:insert_at] + template_lines + lines[insert_at:]
         self.text_editor.blockSignals(True)
         self.text_editor.setPlainText("\n".join(new_lines))
         self.text_editor.blockSignals(False)
+        self.text_editor.document().setModified(True)
         self.update_step_highlights()
+        self._schedule_realtime_save()
+        return inserted_step_index
 
     def _insert_step_template_at_line(self, line_number):
         """stepが無い場合に、指定行へテンプレートstepを挿入する"""
@@ -3495,7 +4402,10 @@ class EventEditorGUI(QMainWindow):
         self.text_editor.blockSignals(True)
         self.text_editor.setPlainText("\n".join(new_lines))
         self.text_editor.blockSignals(False)
+        self.text_editor.document().setModified(True)
         self.update_step_highlights()
+        self._schedule_realtime_save()
+        return 0
 
     def _build_step_update_text(
         self,
@@ -4287,6 +5197,7 @@ def main():
 
     try:
         app = QApplication(sys.argv)
+        apply_windows_2000_style(app)
         editor = EventEditorGUI()
         editor.show()
         sys.exit(app.exec_())

@@ -10,11 +10,6 @@
       "source_event_id": "TANE_MASUDA_02",
       "acquired_game_date": "1999-05-31",
       "journaled_game_date": "1999-05-31"
-    },
-    "MASUDA_TP1_003": {
-      "source_event_id": "TANE_MASUDA_03",
-      "acquired_game_date": "1999-06-01",
-      "journaled_game_date": null
     }
   },
   "journal_days": [

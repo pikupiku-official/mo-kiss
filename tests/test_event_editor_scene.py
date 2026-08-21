@@ -459,11 +459,11 @@ def test_drag_after_position_shift_appends_move_so_final_position_is_not_overrid
     ]
 
 
-def test_step_navigation_applies_and_requests_adjacent_step():
+def test_step_navigation_stays_in_same_dialog_and_loads_adjacent_step():
     manager = _empty_image_manager()
     steps = [
-        {"step_index": 0},
-        {"step_index": 1},
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
     ]
     dialog = StepEditorDialog(
         None,
@@ -475,9 +475,120 @@ def test_step_navigation_applies_and_requests_adjacent_step():
         image_manager=manager,
     )
 
-    assert not dialog.prev_step_btn.isEnabled()
+    assert dialog.prev_step_btn.isEnabled()
+    assert "新規step" in dialog.prev_step_btn.text()
     assert dialog.next_step_btn.isEnabled()
     dialog._navigate_step(1)
 
-    assert dialog.result() == QDialog.Accepted
-    assert dialog.navigation_offset == 1
+    assert dialog.result() != QDialog.Accepted
+    assert dialog._step_index == 1
+    assert dialog.speaker_input.text() == "B"
+    assert dialog.body_input.text() == "second"
+    assert dialog.step_outline.currentRow() == 1
+    assert "新規step" in dialog.next_step_btn.text()
+
+
+def test_step_navigation_can_apply_dirty_values_before_moving():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.body_input.setText("edited")
+    dialog._confirm_step_transition = lambda: "apply"
+
+    dialog._navigate_step(1)
+
+    assert steps[0]["body"] == "edited"
+    assert dialog._step_index == 1
+    assert not dialog._is_step_dirty()
+
+
+def test_outline_navigation_cancel_keeps_the_current_step_and_draft():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.body_input.setText("draft")
+    dialog._confirm_step_transition = lambda: "cancel"
+
+    dialog.step_outline.setCurrentRow(1)
+
+    assert dialog._step_index == 0
+    assert dialog.step_outline.currentRow() == 0
+    assert dialog.body_input.text() == "draft"
+    assert dialog._is_step_dirty()
+
+
+def test_step_navigation_creates_a_new_step_at_the_edge_after_confirmation():
+    manager = _empty_image_manager()
+    steps = [{"step_index": 0, "speaker": "A", "body": "first"}]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog._confirm_create_step = lambda _offset: True
+
+    dialog._navigate_step(1)
+
+    assert len(dialog._all_steps) == 2
+    assert dialog._step_index == 1
+    assert dialog.speaker_input.text() == "speaker"
+    assert dialog.body_input.text() == "セリフ"
+
+
+def test_step_slide_moves_two_connected_pages_by_a_full_viewport_width():
+    manager = _empty_image_manager()
+    step = {"step_index": 0, "speaker": "A", "body": "first"}
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=[],
+        all_steps=[step],
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.show()
+    APP.processEvents()
+
+    viewport = dialog.slide_viewport
+    previous = viewport.capture_content()
+    viewport.slide_in(1, previous)
+    animation = viewport._animation
+    incoming = animation.animationAt(0)
+    outgoing = animation.animationAt(1)
+
+    assert incoming.startValue() == QPoint(viewport.width(), 0)
+    assert incoming.endValue() == QPoint(0, 0)
+    assert incoming.duration() == 280
+    assert outgoing.startValue() == QPoint(0, 0)
+    assert outgoing.endValue() == QPoint(-viewport.width(), 0)
+    assert outgoing.duration() == 280
+
+    animation.stop()
+    dialog.close()

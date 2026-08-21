@@ -48,6 +48,32 @@ def test_step_editor_apply_marks_replaced_ks_text_unsaved():
     assert scheduled == [True]
 
 
+def test_insert_step_reindexes_memos_and_marks_text_unsaved():
+    editor = QTextEdit()
+    editor.setPlainText('//A//\n「one」\n//B//\n「two」')
+    editor.document().setModified(False)
+    scheduled = []
+    harness = SimpleNamespace(
+        text_editor=editor,
+        step_memos={0: "first memo", 1: "second memo"},
+        memos_modified=False,
+        update_step_highlights=lambda: None,
+        _schedule_realtime_save=lambda: scheduled.append(True),
+    )
+
+    inserted_index = EventEditorGUI._insert_step_template(
+        harness,
+        {"step_index": 1, "start_line": 2, "end_line": 3},
+        insert_before=True,
+    )
+
+    assert inserted_index == 1
+    assert harness.step_memos == {0: "first memo", 2: "second memo"}
+    assert "; --- new step ---" in editor.toPlainText()
+    assert editor.document().isModified()
+    assert scheduled == [True]
+
+
 def test_file_switch_prompts_and_stays_on_current_file_when_save_fails(
     monkeypatch, tmp_path
 ):
