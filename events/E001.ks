@@ -61,64 +61,112 @@
 	
 [event_control unlock="E002,E003,E004,E005"]
 
+
 [fadeout color="black"]
-
+[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [fadein time="1.5"]
-
 	//？？//
-	「君に触れたい〜 君に触れたい〜 ⽇向の窓でぇ〜 へ〜」
+	「君に触れたい〜♪君に触れたい〜♪」
 	//純一//
-	「うげっ、朝からこの声はきっと…」
+	「（うげっ、朝からこの声はきっと・・・）」
+[bg_show storage="通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="増田" torso="MST_T00_ARM_0007" eye="MST_F00_EYE_0003" mouth="MST_F00_MOU_0009" brow="MST_F00_BRO_0007" blink="true" x="0.77006507" y="0.66919739" size="0.7" fade="0.15"]
 	//？？//
-	「お！純⼀じゃんか！」
+	「⽇向の窓でぇ〜へ〜♪」
 	//純一//
-	「(あえて彼を放る。)」
-
-[chara_show name="増田"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
-
+	「（やっぱりこいつだ・・・）」
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0008" mouth="MST_F00_MOU_0004" brow="MST_F00_BRO_0006" blink="true" x="0.77006507" y="0.66919739" size="0.7" fade="0.15"]
+[bgm bgm="MokMas42654.mp3" volume="0.5" loop="true" fade="0.0"]
+	//増田//
+	「おっ！純⼀じゃんかあ！」
+	//純一//
+	「（こ、ここはあえて放っておこう・・・）」
+[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_hide name="増田" fade="0.15"]
+	//純一//
+	「（さ、僕は一人で学校へ・・・）」
+[chara_show name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0014" brow="MST_F01_BRO_0008" blink="true" x="0.30639913" y="1.28958785" size="3.1" fade="0.15"]
 	//？？//
-	「おーい！無視すんなって！…」
-	「いつからお前はそんな冷たい奴になったんだ？」
+	「おーい！無視すんなって！」
 	//純一//
-	「むしろ増⽥が暑いんだよ」
-	「(僕は軽⼝を叩く。そうそう、こんな感じ。これがいつものムード。)」
+	「うわあ！びっくりした！」
+[chara_shift name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0017" brow="MST_F01_BRO_0007" effect="MST_E01_01" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
+	//増田//
+	「純一よ、いつからお前はそんな冷たい奴になったんだ？」
+	//純一//
+	「むしろ増⽥が暑いんだよ。」
+[chara_shift name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0008" mouth="MST_F01_MOU_0003" brow="MST_F01_BRO_0007" effect="MST_E01_01" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
+	//増田//
+	「え～？俺が悪いのかよ～。」
+	//純一//
+	「（僕は軽⼝を叩く。そうそう、こんな感じ。これがいつものムード。）」
 	「（彼は増⽥⼀樹。）」
 	「（かれこれ中学から５年間の付き合いになる。）」
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0011" mouth="MST_F01_MOU_0003" brow="MST_F01_BRO_0006" effect="" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
 	//増田//
-	「まったく、つれない顔するなよ」
+	「まったく、つれないなあ。」
 	//純一//
 	「僕は昔から朝が弱いんだ。」
+[chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0004" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
 	//増田//
 	「そういやそうだったな。」
+[chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0005" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
+	//増田//
 	「修学旅行のときなんかお前…」
 
-[SE 遠くで走る足音]
-
- 	//？？//
- 	「あっ、じゅんいちだ。」[female]
+[SE 遠くで走る足音]	
+	//？？//
+	「はぁ……はぁ……」
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0006" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
+	//純一//
+	「・・・ん？」
+[bg_show storage="通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_hide name="増田" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0.15"]
+	//？？//
+	「つ、疲れたあ・・・いったん休憩・・・」[female]
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" effect="" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0.15"]
+	//？？//
+	「あれっ、じゅんいちだ。」[female]
+[chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0.15"]
+	//？？//
 	「じゅんいち～～～～！」[female]
 
-
+[fadeout color="black" time="1.0"]
 [SE 走って近づく足音]
-[chara_show name="桃子" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_02" x="0.5" y="0.5" torso="MMK_T00_ARM07_CLO00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00"]
-//？？//
-「おはよう！」[female]
+[bg storage="通学路①"]
+[chara_show name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0001" brow="MST_F00_BRO_0004" blink="true" x="0.25" y="1.0" size="2.3" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[fadein time="1.0"]
+	//？？//
+	「おはよう！」[female]
 	//純一//
-	「やあ桃⼦。今⽇は遅いね。」
+	「やあ桃⼦。」
 	「（まるでお⽇様みたいな彼⼥は幼馴染の愛沼桃⼦。）」
 	「（僕とは⼩学⽣以来の幼馴染で、増⽥と共に⼀緒のクラスでもある。）」
+	「今⽇は珍しく遅いんだな。」
+[chara_shift name="桃子" torso="MMK_T00_ARM09_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「うん。家族で古畑任三郎観ててね、夜更かししちゃったの。」
-[桃子　眠い顔に変化]
-　　　　　//桃子//
+[chara_shift name="桃子" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU09_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" x="0.75" y="1.0" size="2.3" fade="0.15"]
+	//桃子//
 	「ふわぁ～。」
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0008" mouth="MST_F00_MOU_0010" brow="MST_F00_BRO_0005" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「でもさ、古畑は⽕曜だよな？」
-	「ってことは…」
-	「わざわざ録画して⾒てるのか？」
-[桃子　笑顔に変化]
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
+	//桃子//
+	「そうだよー。」
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0012" brow="MST_F00_BRO_0005" x="0.25" y="1.0" size="2.3" fade="0.15"]
+	//増田//
+	「ってことは、わざわざ録画して⾒てるのか？」
+[chara_shift name="桃子" torso="MMK_T00_ARM06_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「うん！」
+[chara_shift name="桃子" torso="MMK_T00_ARM09_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0012" brow="MST_F00_BRO_0005" x="0.25" y="1.0" size="2.3" fade="0.15"]
+	//桃子//
 	「うちはみんな三谷幸喜ファンだからね～。」
 	//増田//
 	「桃子ん家は相変わらず仲良しだよな。」
@@ -130,6 +178,7 @@
 
 	//純一//
 	「(ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。)」
+;@memo: 〇〇先生の名前
 	「（それを⾒て、桃⼦の部活を思い出す。）」
 	「…そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？」
 [桃子　驚き顔に変化]
@@ -145,7 +194,6 @@
 	//増田//
 	「まあでも純⼀に救われたな！」
 	「桃⼦さんよ、早く⾏かないと遅刻するぞ？」
-;@memo: 〇〇先生の名前
 [桃子　困り顔に変化]
 	//桃子//
 	「うん…遅刻したら〇〇先⽣に怒られちゃう。」
@@ -229,6 +277,7 @@
 	「なんだよ全く。」
 	「俺の話も聞かず、⽴ち⽌まってボーッとしやがって。」
 	「ホントにお前は朝が弱いんだからさ、呆れるよ。」
+;@memo: 素材ナシ
 	//純一//
 	「(増⽥の⾔う通り、全く彼の話が頭に⼊ってこなかった。)」
 	「(正直に⾔うと、坂上に⽴ち笑顔で⼿を振る彼⼥の姿、彼⼥を照らす朝の光。)」
@@ -243,7 +292,6 @@
 	「早く教えろよ。」
 	//純一//
 	「(僕は⽌めていた⾜を踏み出しながら、整理した答えを増⽥に返す。)」
-;@memo: 素材ナシ
 	「朝も捨てたもんじゃないってことあ。」
 
 [SE se="風が流れる音。.mp3" volume="0.5" frequency="5"]
