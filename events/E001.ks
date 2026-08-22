@@ -26,11 +26,9 @@
 	「＿＿＿」
 ;@memo: ここから三連SE、プレイヤーの操作が効かないで、SEだけ聞く時間にしたい。時間間隔大事に。BGMも要検討
 [SE se="電車停車.mp3" volume="0.5" frequency="1"]
-//ナレ//
-「＿＿＿」
+;@standalone-step
 [SE se="電車の発車ベル.mp3" volume="0.5" frequency="1"]
-	//ナレ//
-	「＿＿＿」
+;@standalone-step
 [SE se="電車のドアが開く1.mp3" volume="0.5" frequency="1"]
 	//ナレ//
 	「＿＿＿」
