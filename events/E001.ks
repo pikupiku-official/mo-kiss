@@ -163,134 +163,171 @@
 	//桃子//
 	「うん！」
 [chara_shift name="桃子" torso="MMK_T00_ARM09_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
-[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0012" brow="MST_F00_BRO_0005" x="0.25" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0013" brow="MST_F00_BRO_0004" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「うちはみんな三谷幸喜ファンだからね～。」
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0011" mouth="MST_F00_MOU_0011" brow="MST_F00_BRO_0004" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「桃子ん家は相変わらず仲良しだよな。」
-[桃子　照れ笑顔に変化]
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU11_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「えへへ…」
 
 [SE 遠くの足音(雑踏)]
 
 	//純一//
-	「(ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。)」
-;@memo: 〇〇先生の名前
+	「（ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。）」
 	「（それを⾒て、桃⼦の部活を思い出す。）」
-	「…そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？」
-[桃子　驚き顔に変化]
+	「……そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？」
+[chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0012" brow="MST_F00_BRO_0005" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「あっ…忘れてたぁ！」
+[chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0005" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//純一//
 	「やっぱりそうだと思った。」
+[chara_shift name="桃子" torso="MMK_T00_ARM06_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
+	//純一//
 	「桃子は天然だし。」
-[桃子　怒り顔に変化]
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0002" mouth="MST_F00_MOU_0007" brow="MST_F00_BRO_0005" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「天然ですって？」
-	「失礼ね〜〜」
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_01" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
+	//桃子//
+	「失礼ね〜〜！」
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_01" mouth="MMK_F00_MOU06_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0010" mouth="MST_F00_MOU_0004" brow="MST_F00_BRO_0006" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//増田//
-	「まあでも純⼀に救われたな！」
+	「ま、まあでも純⼀に救われたな！」
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0007" mouth="MST_F00_MOU_0006" brow="MST_F00_BRO_0006" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
+	//増田//
 	「桃⼦さんよ、早く⾏かないと遅刻するぞ？」
-[桃子　困り顔に変化]
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE03_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「うん…遅刻したら〇〇先⽣に怒られちゃう。」
-　　　　　//純一//
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0003" mouth="MST_F00_MOU_0006" brow="MST_F00_BRO_0006" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
+	//純一//
 	「(まるで久しぶりに運動させられている飼い⽝みたいだ。)」
 	「（けど、僕は桃⼦が他の⼈たちに笑われてる姿はあまり⾒たくないな。）」
 	「今⾛っていけば間に合うと思うよ。」
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE03_00" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0011" brow="MST_F00_BRO_0006" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「そうかな？」
-[桃子　悩み顔に変化]	
-　　　　　//桃子//
-　　  　 「……」
-[桃子　笑顔に変化]	
-　　　　　//桃子//
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
+	//桃子//
+	「……」
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
+	//桃子//
 	「やっぱりせっかく純⼀が教えてくれたことだし、頑張ってみる！」
-
 [chara_hide name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
-
 [SE 走って遠ざかる足音]
-	
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0006" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0004" effect="" x="0.25" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「…結局、俺ら⼆⼈ってことだ。なあ純⼀。」
 	//純一//
 	「そうだね…」
+[chara_shift name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0010" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「よし、そうと決まればスピッツでも歌うか？」
 	//純一//
-	「(いつもの増⽥リサイタルが始まりそうだ。今回はどの曲だろうか。)」
+	「（いつもの増⽥リサイタルが始まりそうだ。今回はどの曲だろうか。）」
 	「リクエストは受け付けてますか？」
+[chara_shift name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0008" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「おう。何がいいんだ。」
 	//純一//
-	「なんだっけ、さっき増⽥が⼝ずさんでたやつ。」
-	「あれ。」
+	「なんだっけ、さっき増⽥が⼝ずさんでたやつ。あれ。」
+[chara_shift name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0011" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0008" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「⽇なたの窓に憧れてか？」
+[chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0015" brow="MST_F01_BRO_0008" x="0.5" y="1.0" size="2.3" fade="0.15"]
+	//増田//
 	「純⼀もセンスがいいねぇ！」
 	//桃子//
-	「純⼀〜〜〜〜〜 ありがとね〜〜〜！！」
-	//純一//	
+	「純⼀〜〜〜〜〜！ありがとね〜〜〜！！」
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0008" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
+	//純一//
 	「え？」
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0006" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「あ？」
 	//純一//
-	「(僕らの声は同時だった。突然の⼤声に驚いて、⾜を⽌める。そして辺りを⾒回す。)」
+	「（僕らの声は同時だった。突然の⼤声に驚いて、⾜を⽌める。そして辺りを⾒回す。）」
+[chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0004" mouth="MST_F00_MOU_0013" brow="MST_F00_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「純⼀、あそこだ。⾒ろよほら、校⾨の前を！」
 	//純一//
-	「(急いで視線を増⽥が指差す校⾨の⽅に向ける。)」
+	「（急いで視線を増⽥が指差す校⾨の⽅に向ける。）」
 
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
 
-　　　　　//純一//
+[chara_show name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.43030974" y="0.55973452" size="0.76766449" fade="0.15"]
+[chara_hide name="増田" fade="0.15"]
+[bg_show storage="通学路③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+	//純一//
 	「(視線の先にはとびきりの笑顔で⼿を振る桃⼦がいる。)」
 	「(僕は正直⼾惑いつつも、急いで彼⼥に⼿を振り返す。)」
 	//増田//
 	「頑張れよ～！」
 
-[chara_hide name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
 
+[chara_hide name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
+[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0010" mouth="MST_F01_MOU_0015" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//純一//
-	「(増⽥の声の後、桃⼦が校⾨の中に駆け込んでいく姿が⼩さく⾒えた。)」
+	「（増⽥の声の後、桃⼦が校⾨の中に駆け込んでいく姿が⼩さく⾒えた。）」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「あいつたまにああいうことするよな。」
-	「素直かつ大胆っていうかさあ。」
-	//純一//
-	「…」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
-	「あの性格がクラスの奴らを惹きつけているんだろうな。」
+	「素直というか大胆というかさあ。」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//純一//
-	「…」
+	「・・・」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0004" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+	//増田//
+	「人を惹きつけるものがあるよな、あの性格。」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0004" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+	//純一//
+	「・・・」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「なあ、純⼀。」
 	//純一//
-	「…」
+	「・・・」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
-	「純⼀? おい、どうしたんだよ。」
+	「純⼀？おい、どうしたんだよ。」
 	//純一//
-	「あ、ああ… えーとクラスがなんだっけ。」
+	「あ、ああ……えーと……なんだっけ。」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「なんだよ全く。」
 	「俺の話も聞かず、⽴ち⽌まってボーッとしやがって。」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+	//増田//
 	「ホントにお前は朝が弱いんだからさ、呆れるよ。」
-;@memo: 素材ナシ
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0002" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//純一//
-	「(増⽥の⾔う通り、全く彼の話が頭に⼊ってこなかった。)」
-	「(正直に⾔うと、坂上に⽴ち笑顔で⼿を振る彼⼥の姿、彼⼥を照らす朝の光。)」
-	「(その景⾊に⽬が離せなかったからだ。)」
-	「(それは映画の導⼊シーンみたいだった。)」
+	「（増⽥の⾔う通り、全く彼の話が頭に⼊ってこなかった。）」
+	「（正直に⾔うと、坂上に⽴ち笑顔で⼿を振る彼⼥の姿、彼⼥を照らす朝の光。）」
+	「（その景⾊に⽬が離せなかったからだ。）」
+	「（それは映画の導⼊シーンみたいだった。）」
 	「増田。」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「はあ。」
 	//純一//
 	「僕が今考えていたことを知りたい？」
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「早く教えろよ。」
 	//純一//
-	「(僕は⽌めていた⾜を踏み出しながら、整理した答えを増⽥に返す。)」
-	「朝も捨てたもんじゃないってことあ。」
+	「（僕は⽌めていた⾜を踏み出しながら、整理した答えを増⽥に返す。）」
+	「朝も捨てたもんじゃないってこと。」
 
 [SE se="風が流れる音。.mp3" volume="0.5" frequency="5"]
 
