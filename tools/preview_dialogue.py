@@ -100,6 +100,60 @@ def settle_step_preview_animations(game_state):
     update_game(game_state)
 
 
+def start_preview_at_step(game_state, step_number):
+    """Settle prior IR state, then execute the requested step normally."""
+    steps = ((game_state.get("ir_data") or {}).get("steps") or [])
+    step_number = int(step_number or 1)
+    if step_number < 1 or step_number > len(steps):
+        raise ValueError(
+            f"start step must be between 1 and {len(steps)}: {step_number}"
+        )
+
+    target_index = step_number - 1
+    text_renderer = game_state.get("text_renderer")
+    for index in range(target_index):
+        step = steps[index]
+        for action in step.get("actions") or []:
+            action_type = action.get("action")
+            if action_type in {
+                "choice",
+                "scroll_stop",
+                "if_start",
+                "if_end",
+                "flag_set",
+                "event_control",
+                "seed_answer",
+                "se_play",
+                "se_stop",
+            }:
+                continue
+            _ir_dispatch_action(game_state, action)
+
+        text = step.get("text")
+        if text and text_renderer:
+            active_characters = game_state.get("active_characters", [])
+            if isinstance(active_characters, dict):
+                active_characters = list(active_characters.keys())
+            text_renderer.set_dialogue(
+                text.get("body", ""),
+                text.get("speaker"),
+                should_scroll=bool(text.get("scroll", False)),
+                background=None,
+                active_characters=active_characters,
+                force_female=bool(text.get("force_female", False)),
+            )
+
+    if target_index:
+        settle_step_preview_animations(game_state)
+
+    game_state["ir_step_index"] = target_index - 1
+    game_state["ir_waiting_for_anim"] = False
+    game_state["ir_anim_pending"] = False
+    game_state["ir_active_anims"] = []
+    from dialogue.scenario_manager import advance_dialogue
+    return advance_dialogue(game_state)
+
+
 def preview_step_image(
     ks_file_path,
     step_index,
@@ -379,7 +433,7 @@ def preview_step_image(
         if owns_runtime:
             pygame.quit()
 
-def preview_ks_file(ks_file_path):
+def preview_ks_file(ks_file_path, start_step=1):
     """
     指定されたKSファイルをプレビュー表示する
 
@@ -547,7 +601,10 @@ def preview_ks_file(ks_file_path):
     # 初期シーンの初期化（main.pyと同じ）
     from dialogue.model import initialize_first_scene
     print("[INIT] 初期シーンを初期化中...")
-    initialize_first_scene(game_state)
+    if int(start_step or 1) == 1:
+        initialize_first_scene(game_state)
+    else:
+        start_preview_at_step(game_state, start_step)
     print("[INIT] 初期シーン初期化完了")
 
     # エラーログ抑制フラグ（同じエラーを繰り返さないため）

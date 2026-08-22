@@ -8,11 +8,11 @@ class ScrollManager:
         
         # スクロール状態
         self.scroll_mode = False
-        self.scroll_lines = []  # スクロール表示用のテキストブロック
-        self.max_lines = 3  # 最大表示ブロック数
+        self.scroll_lines = []  # 現在のスクロール区間に含まれるテキストブロック
         self.all_scroll_text = []  # バックログ用：削除されたブロックも含むすべてのテキスト
         self.all_scroll_speakers = []
         self.all_scroll_force_female = []
+        self.current_set_line_count = 0
         
         # 各行の話者情報を管理（修正点）
         self.line_speakers = []  # 各行の話者名
@@ -33,7 +33,27 @@ class ScrollManager:
         """TextRendererの参照を設定"""
         self.text_renderer = text_renderer
         
-    def start_scroll_mode(self, speaker, text, force_female=False):
+    @staticmethod
+    def _normalized_line_count(display_line_count):
+        return max(1, int(display_line_count or 1))
+
+    def _clear_visible_set(self):
+        """Clear only the current window; backlog history remains intact."""
+        self.scroll_lines = []
+        self.line_speakers = []
+        self.line_is_first = []
+        self.line_force_female = []
+        self.current_set_line_count = 0
+        self.last_added_speaker = None
+
+    def start_scroll_mode(
+        self,
+        speaker,
+        text,
+        force_female=False,
+        display_line_count=1,
+        max_display_lines=3,
+    ):
         """スクロールモードを開始"""
         # 変数置換を適用
         substituted_speaker = self.name_manager.substitute_variables(speaker) if speaker else speaker
@@ -49,13 +69,21 @@ class ScrollManager:
         self.all_scroll_text = [substituted_text]  # バックログ用にも記録
         self.all_scroll_speakers = [substituted_speaker]
         self.all_scroll_force_female = [bool(force_female)]
+        self.current_set_line_count = self._normalized_line_count(display_line_count)
         
         # 話者情報を初期化（修正点）
         self.line_speakers = [substituted_speaker]
         self.line_is_first = [True]  # 最初の行なので True
         self.line_force_female = [bool(force_female)]
         
-    def add_text_to_scroll(self, text, speaker=None, force_female=False):
+    def add_text_to_scroll(
+        self,
+        text,
+        speaker=None,
+        force_female=False,
+        display_line_count=1,
+        max_display_lines=3,
+    ):
         """テキストをスクロール表示に追加"""
         if not text:
             return
@@ -70,11 +98,26 @@ class ScrollManager:
             
         if self.debug:
             print(f"[SCROLL] テキストブロック追加: '{substituted_text[:30]}...' by {substituted_speaker}")
-        
+
+        added_line_count = self._normalized_line_count(display_line_count)
+        # セリフ全体が残り行数に収まらない場合は、追加前に窓を一新する。
+        # これにより 1行 + 次の3行セリフが 1+2 に分断されない。
+        if (
+            self.scroll_lines
+            and self.current_set_line_count + added_line_count > max_display_lines
+        ):
+            if self.debug:
+                print(
+                    f"[SCROLL] 次のセリフ{added_line_count}行が残り枠に収まらないため、"
+                    "新しいセットへ移行"
+                )
+            self._clear_visible_set()
+
         self.scroll_lines.append(substituted_text)
         self.all_scroll_text.append(substituted_text)  # バックログ用にも記録
         self.all_scroll_speakers.append(substituted_speaker)
         self.all_scroll_force_female.append(bool(force_female))
+        self.current_set_line_count += added_line_count
         
         # 話者情報を追加（修正点）
         is_speaker_first_line = (substituted_speaker != self.last_added_speaker)
@@ -86,17 +129,8 @@ class ScrollManager:
         # 現在の話者を更新
         self.current_speaker = substituted_speaker
         
-        # 最大ブロック数を超えた場合は古いブロックを削除
-        while len(self.scroll_lines) > self.max_lines:
-            removed_line = self.scroll_lines.pop(0)
-            removed_speaker = self.line_speakers.pop(0)
-            removed_is_first = self.line_is_first.pop(0)
-            self.line_force_female.pop(0)
-            if self.debug:
-                print(f"[SCROLL] 古いブロック削除: '{removed_line[:30]}...' by {removed_speaker} (first: {removed_is_first})")
-        
         if self.debug:
-            print(f"[SCROLL] 現在のブロック数: {len(self.scroll_lines)}/{self.max_lines}")
+            print(f"[SCROLL] 現在のスクロール区間のブロック数: {len(self.scroll_lines)}")
             print(f"[SCROLL] バックログ用テキスト数: {len(self.all_scroll_text)}")
             print(f"[SCROLL] 話者情報: {list(zip(self.line_speakers, self.line_is_first))}")
     
@@ -112,10 +146,23 @@ class ScrollManager:
             
         return True
     
-    def continue_scroll(self, speaker, text, force_female=False):
+    def continue_scroll(
+        self,
+        speaker,
+        text,
+        force_female=False,
+        display_line_count=1,
+        max_display_lines=3,
+    ):
         """スクロールを継続"""
         if self.should_continue_scroll(speaker):
-            self.add_text_to_scroll(text, speaker, force_female)
+            self.add_text_to_scroll(
+                text,
+                speaker,
+                force_female,
+                display_line_count,
+                max_display_lines,
+            )
             if self.debug:
                 print(f"[SCROLL] 継続成功: {speaker}")
             return True
@@ -167,6 +214,7 @@ class ScrollManager:
         self.all_scroll_text = []  # バックログ用リストもリセット
         self.all_scroll_speakers = []
         self.all_scroll_force_female = []
+        self.current_set_line_count = 0
         self.line_speakers = []  # 話者情報もリセット（修正点）
         self.line_is_first = []  # 最初行情報もリセット（修正点）
         self.line_force_female = []

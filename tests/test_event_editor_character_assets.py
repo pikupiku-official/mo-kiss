@@ -1,7 +1,15 @@
+import os
 from types import SimpleNamespace
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PyQt5.QtWidgets import QApplication
 
 from core.config import CHAR_CODE
 from event_editor import CharaCompositePreviewDialog
+
+
+APP = QApplication.instance() or QApplication([])
 
 
 def test_new_character_names_resolve_to_their_image_codes():
@@ -55,3 +63,23 @@ def test_character_preview_discards_parts_owned_by_other_characters():
         "mouth": "NOK_F00_MOU_01",
         "effect": "",
     }
+
+
+def test_character_preview_shows_the_current_unsaved_step_dialogue():
+    image_manager = SimpleNamespace(
+        image_paths={part: {} for part in CharaCompositePreviewDialog.LAYER_ORDER}
+    )
+    dialog = CharaCompositePreviewDialog(
+        None,
+        image_manager,
+        {},
+        char_name="",
+        step_speaker="Yuki",
+        step_body="Current draft line",
+        step_force_female=True,
+    )
+
+    assert dialog.dialogue_speaker_label.text() == "Yuki"
+    assert dialog.dialogue_body_label.text() == "Current draft line"
+    assert "#d00070" in dialog.dialogue_body_label.styleSheet()
+    dialog.close()

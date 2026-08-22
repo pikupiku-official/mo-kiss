@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Optional
 
 # IR data is represented as plain dicts for easy JSON serialization.
 
+STANDALONE_STEP_MARKER = ";@standalone-step"
+
 ON_ADVANCE_BLOCK = "block"
 ON_ADVANCE_COMPLETE = "complete"
 ON_ADVANCE_INTERRUPT = "interrupt"

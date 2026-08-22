@@ -117,6 +117,32 @@ _QIMAGE_CACHE = OrderedDict()
 _QIMAGE_CACHE_LIMIT = 160
 
 
+def _resolve_asset_path(image_manager, image_type, image_key):
+    """Resolve an editor asset with the same legacy matching as the runtime."""
+
+    if not image_manager or not image_key:
+        return ""
+    paths = image_manager.image_paths.get(image_type, {})
+    if image_key in paths:
+        return paths[image_key]
+
+    wanted = str(image_key).lower().replace(".webp", "").replace(".png", "")
+    for candidate, path in paths.items():
+        candidate_lower = candidate.lower()
+        if wanted in candidate_lower or candidate_lower in wanted:
+            return path
+
+    if image_type == "torso":
+        match = re.search(r"_T(\d+)", str(image_key), re.IGNORECASE)
+        match = match or re.search(r"T(\d+)", str(image_key), re.IGNORECASE)
+        if match:
+            token = f"_t{match.group(1)}_"
+            for candidate, path in paths.items():
+                if token in candidate.lower():
+                    return path
+    return ""
+
+
 def _image_cache_key(path):
     """Include cheap file metadata so replaced editor assets invalidate safely."""
 
@@ -188,11 +214,7 @@ class StepSceneStateBuilder:
         self._timeline_states = []
 
     def _asset_path(self, image_type, image_key):
-        if not self.image_manager or not image_key:
-            return ""
-        return (
-            self.image_manager.image_paths.get(image_type, {}).get(image_key, "")
-        )
+        return _resolve_asset_path(self.image_manager, image_type, image_key)
 
     def _image_size(self, image_type, image_key):
         cache_key = (image_type, image_key)
@@ -503,6 +525,13 @@ class StepSceneCanvas(QGraphicsView):
         self._drag_start_pos = None
         self._drag_press_scene_pos = None
         self._drag_axis_lock = None
+        self._resize_handles = []
+        self._resize_item = None
+        self._resize_start_zoom = None
+        self._resize_start_item_scale = None
+        self._resize_start_center = None
+        self._resize_start_distance = None
+        self._resize_current_zoom = None
         self._labels_by_key = {}
         self._character_pixmap_cache = OrderedDict()
         self._character_pixmap_cache_limit = 48
@@ -515,9 +544,7 @@ class StepSceneCanvas(QGraphicsView):
         self._scale_commit_timer.timeout.connect(self.flush_pending_scale)
 
     def _asset_path(self, image_type, image_key):
-        if not self._image_manager or not image_key:
-            return ""
-        return self._image_manager.image_paths.get(image_type, {}).get(image_key, "")
+        return _resolve_asset_path(self._image_manager, image_type, image_key)
 
     @staticmethod
     def _tag_item(item, object_type, object_name, origin, metadata=None):
@@ -646,6 +673,8 @@ class StepSceneCanvas(QGraphicsView):
         self._drag_start_pos = None
         self._drag_press_scene_pos = None
         self._drag_axis_lock = None
+        self._resize_handles = []
+        self._resize_item = None
         self._scene.setSceneRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
         border = self._scene.addRect(
             0,
@@ -676,6 +705,60 @@ class StepSceneCanvas(QGraphicsView):
                     item.setSelected(True)
                     break
         self.fit_stage()
+
+    def _clear_resize_handles(self):
+        for handle in self._resize_handles:
+            if handle.scene() is self._scene:
+                self._scene.removeItem(handle)
+        self._resize_handles = []
+
+    def _update_resize_handles(self):
+        self._clear_resize_handles()
+        selected = next(
+            (
+                item
+                for item in self._scene.selectedItems()
+                if item.data(0) == "character"
+            ),
+            None,
+        )
+        if selected is None:
+            return
+        rect = selected.sceneBoundingRect()
+        corners = {
+            "top_left": rect.topLeft(),
+            "top_right": rect.topRight(),
+            "bottom_left": rect.bottomLeft(),
+            "bottom_right": rect.bottomRight(),
+        }
+        for corner, position in corners.items():
+            handle = QGraphicsRectItem(-7, -7, 14, 14)
+            handle.setBrush(QColor(255, 255, 255))
+            handle.setPen(QPen(QColor(10, 36, 106), 2))
+            handle.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+            handle.setData(0, "resize_handle")
+            handle.setData(1, str(selected.data(1) or ""))
+            handle.setData(4, corner)
+            handle.setPos(position)
+            handle.setZValue(250)
+            self._scene.addItem(handle)
+            self._resize_handles.append(handle)
+
+    def _resize_handle_at(self, viewport_pos):
+        return next(
+            (item for item in self.items(viewport_pos) if item.data(0) == "resize_handle"),
+            None,
+        )
+
+    def _character_item_by_name(self, name):
+        return next(
+            (
+                item
+                for item in self._scene.items()
+                if item.data(0) == "character" and str(item.data(1) or "") == name
+            ),
+            None,
+        )
 
     def fit_stage(self):
         self.fitInView(self.sceneRect(), Qt.KeepAspectRatio)
@@ -731,6 +814,7 @@ class StepSceneCanvas(QGraphicsView):
                     item.setScale(item.scale() * new_zoom / current_zoom)
                 metadata["zoom"] = new_zoom
                 item.setData(3, metadata)
+                self._update_resize_handles()
                 self._pending_scale = (
                     str(item.data(1) or ""),
                     float(new_zoom),
@@ -820,16 +904,35 @@ class StepSceneCanvas(QGraphicsView):
     def _sync_dragged_label(self):
         if self._drag_item is None:
             return
-        key = ("character", str(self._drag_item.data(1) or ""))
+        self._sync_dragged_label_for_item(self._drag_item)
+
+    def _sync_dragged_label_for_item(self, item):
+        key = ("character", str(item.data(1) or ""))
         label = self._labels_by_key.get(key)
         if label is not None:
             label.setPos(
-                self._drag_item.pos().x() + 8,
-                max(0, self._drag_item.pos().y() + 8),
+                item.pos().x() + 8,
+                max(0, item.pos().y() + 8),
             )
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            handle = self._resize_handle_at(event.pos())
+            if handle is not None:
+                item = self._character_item_by_name(str(handle.data(1) or ""))
+                if item is not None:
+                    metadata = dict(item.data(3) or {})
+                    center = item.sceneBoundingRect().center()
+                    press_pos = self.mapToScene(event.pos())
+                    distance = ((press_pos.x() - center.x()) ** 2 + (press_pos.y() - center.y()) ** 2) ** 0.5
+                    self._resize_item = item
+                    self._resize_start_zoom = float(metadata.get("zoom", 1.0))
+                    self._resize_start_item_scale = float(item.scale())
+                    self._resize_start_center = center
+                    self._resize_start_distance = max(distance, 0.001)
+                    self._resize_current_zoom = self._resize_start_zoom
+                    event.accept()
+                    return
             item = self._character_item_at(event.pos())
             if item is not None:
                 self._drag_item = item
@@ -839,6 +942,28 @@ class StepSceneCanvas(QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        if self._resize_item is not None and event.buttons() & Qt.LeftButton:
+            scene_pos = self.mapToScene(event.pos())
+            center = self._resize_start_center
+            distance = ((scene_pos.x() - center.x()) ** 2 + (scene_pos.y() - center.y()) ** 2) ** 0.5
+            factor = max(0.01, distance / self._resize_start_distance)
+            new_zoom = max(0.1, min(5.0, self._resize_start_zoom * factor))
+            self._resize_item.setScale(
+                self._resize_start_item_scale * new_zoom / self._resize_start_zoom
+            )
+            shifted_center = self._resize_item.sceneBoundingRect().center()
+            self._resize_item.moveBy(
+                center.x() - shifted_center.x(),
+                center.y() - shifted_center.y(),
+            )
+            metadata = dict(self._resize_item.data(3) or {})
+            metadata["zoom"] = new_zoom
+            self._resize_item.setData(3, metadata)
+            self._resize_current_zoom = new_zoom
+            self._sync_dragged_label_for_item(self._resize_item)
+            self._update_resize_handles()
+            event.accept()
+            return
         if (
             self._drag_item is not None
             and self._drag_start_pos is not None
@@ -863,6 +988,25 @@ class StepSceneCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
+        if self._resize_item is not None and event.button() == Qt.LeftButton:
+            item = self._resize_item
+            new_zoom = float(self._resize_current_zoom or self._resize_start_zoom or 1.0)
+            old_zoom = float(self._resize_start_zoom or new_zoom)
+            self._resize_item = None
+            self._resize_start_zoom = None
+            self._resize_start_item_scale = None
+            self._resize_start_center = None
+            self._resize_start_distance = None
+            self._resize_current_zoom = None
+            self._update_resize_handles()
+            if abs(new_zoom - old_zoom) >= 0.0001:
+                self.object_scaled.emit(
+                    str(item.data(1) or ""),
+                    new_zoom,
+                    dict(item.data(3) or {}),
+                )
+            event.accept()
+            return
         super().mouseReleaseEvent(event)
         item = self._drag_item
         start_pos = self._drag_start_pos
@@ -887,6 +1031,7 @@ class StepSceneCanvas(QGraphicsView):
         selected = [item for item in self._scene.selectedItems() if item.data(0)]
         if not selected:
             self._selected_key = None
+            self._clear_resize_handles()
             self.object_selected.emit("", "", "")
             return
         item = selected[0]
@@ -894,4 +1039,5 @@ class StepSceneCanvas(QGraphicsView):
         object_name = str(item.data(1) or "")
         origin = str(item.data(2) or "")
         self._selected_key = (object_type, object_name)
+        self._update_resize_handles()
         self.object_selected.emit(object_type, object_name, origin)

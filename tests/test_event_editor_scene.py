@@ -5,7 +5,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtCore import QEvent, QPoint, QPointF, Qt
 from PyQt5.QtGui import QColor, QImage, QKeyEvent, QMouseEvent
-from PyQt5.QtWidgets import QApplication, QDialog, QGraphicsItem
+from PyQt5.QtWidgets import QApplication, QDialog, QGraphicsItem, QLineEdit, QWidget
 
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
 from event_editor import StepEditorDialog
@@ -103,6 +103,45 @@ def test_scene_builder_pages_forward_from_the_cached_prefix(monkeypatch):
 
     assert calls_after_first_build == 2
     assert len(calls) == calls_after_first_build + 1
+
+
+def test_scene_canvas_resolves_legacy_partial_background_id(tmp_path):
+    background_path = tmp_path / "classroom.png"
+    image = QImage(320, 240, QImage.Format_ARGB32)
+    image.fill(QColor(40, 100, 160))
+    assert image.save(str(background_path))
+
+    manager = SimpleNamespace(
+        image_paths={
+            "bg": {"教室昼": str(background_path)},
+            "torso": {},
+            "brow": {},
+            "cheek": {},
+            "eye": {},
+            "mouth": {},
+            "accessory": {},
+            "effect": {},
+        }
+    )
+    canvas = StepSceneCanvas(manager)
+    canvas.set_scene_state(
+        {
+            "background": {
+                "storage": "教室",
+                "zoom": 1.0,
+                "offset_x": 0.0,
+                "offset_y": 0.0,
+                "origin": "current",
+            },
+            "characters": {},
+        }
+    )
+
+    background_items = [
+        item for item in canvas.scene().items() if item.data(0) == "background"
+    ]
+    assert len(background_items) == 1
+    assert background_items[0].data(1) == "教室"
 
 
 def test_scene_canvas_keeps_character_as_selectable_object(tmp_path):
@@ -330,6 +369,79 @@ def test_scene_canvas_arrow_keys_nudge_selection_and_page_when_unselected(tmp_pa
     canvas.scene().clearSelection()
     canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Right, Qt.NoModifier))
     assert navigated == [1]
+
+
+def test_scene_canvas_corner_drag_scales_selected_character(tmp_path):
+    torso_path = tmp_path / "torso.png"
+    image = QImage(100, 200, QImage.Format_ARGB32)
+    image.fill(QColor(220, 80, 120))
+    assert image.save(str(torso_path))
+
+    manager = _empty_image_manager()
+    manager.image_paths["torso"]["body"] = str(torso_path)
+    canvas = StepSceneCanvas(manager)
+    canvas.resize(400, 300)
+    canvas.show()
+    canvas.set_scene_state(
+        {
+            "characters": {
+                "A": {
+                    "name": "A",
+                    "torso": "body",
+                    "left": 100.0,
+                    "top": 100.0,
+                    "zoom": 1.0,
+                    "origin": "current",
+                }
+            }
+        }
+    )
+    item = next(item for item in canvas.scene().items() if item.data(0) == "character")
+    item.setSelected(True)
+    APP.processEvents()
+    handles = [item for item in canvas.scene().items() if item.data(0) == "resize_handle"]
+    assert len(handles) == 4
+
+    scaled = []
+    canvas.object_scaled.connect(lambda *args: scaled.append(args))
+    handle = next(item for item in handles if item.data(4) == "bottom_right")
+    start = canvas.mapFromScene(handle.scenePos())
+    center = canvas.mapFromScene(item.sceneBoundingRect().center())
+    end = QPoint(
+        center.x() + int((start.x() - center.x()) * 1.5),
+        center.y() + int((start.y() - center.y()) * 1.5),
+    )
+
+    for event in (
+        QMouseEvent(
+            QEvent.MouseButtonPress,
+            QPointF(start),
+            Qt.LeftButton,
+            Qt.LeftButton,
+            Qt.NoModifier,
+        ),
+        QMouseEvent(
+            QEvent.MouseMove,
+            QPointF(end),
+            Qt.NoButton,
+            Qt.LeftButton,
+            Qt.NoModifier,
+        ),
+        QMouseEvent(
+            QEvent.MouseButtonRelease,
+            QPointF(end),
+            Qt.LeftButton,
+            Qt.NoButton,
+            Qt.NoModifier,
+        ),
+    ):
+        QApplication.sendEvent(canvas.viewport(), event)
+    APP.processEvents()
+
+    assert scaled
+    assert scaled[-1][0] == "A"
+    assert scaled[-1][1] > 1.0
+    canvas.close()
 
 
 def test_final_preview_pixmap_refits_when_tab_gets_smaller():
@@ -590,6 +702,36 @@ def test_step_navigation_stays_in_same_dialog_and_loads_adjacent_step():
     assert dialog.body_input.text() == "second"
     assert dialog.step_outline.currentRow() == 1
     assert "新規step" in dialog.next_step_btn.text()
+
+
+def test_step_editor_can_start_preview_from_its_current_step():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    parent = QWidget()
+    parent.preview_step_entry = QLineEdit()
+    preview_calls = []
+    parent.start_preview = lambda: preview_calls.append(True)
+    dialog = StepEditorDialog(
+        parent,
+        steps[1],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=1,
+        image_manager=manager,
+    )
+    dialog.body_input.setText("edited draft")
+
+    dialog.preview_from_step_btn.click()
+
+    assert steps[1]["body"] == "edited draft"
+    assert parent.preview_step_entry.text() == "2"
+    assert preview_calls == [True]
+    dialog.close()
+    parent.close()
 
 
 def test_unselected_canvas_arrow_pages_the_dialog_step():

@@ -37,6 +37,20 @@
     textBoxHeight: 288,
   });
 
+  function selectCurrentSet(items, maxItems) {
+    if (!items || !items.length || maxItems <= 0) return [];
+    const start = Math.floor((items.length - 1) / maxItems) * maxItems;
+    return items.slice(start, start + maxItems);
+  }
+
+  function appendDialogueSet(currentItems, nextDialogueItems, maxItems) {
+    let result = Array.isArray(currentItems) ? currentItems.slice() : [];
+    const next = Array.isArray(nextDialogueItems) ? nextDialogueItems : [];
+    if (result.length && result.length + next.length > maxItems) result = [];
+    result.push(...next);
+    return result.length > maxItems ? selectCurrentSet(result, maxItems) : result;
+  }
+
   function number(value, fallback) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -311,7 +325,6 @@
         } else {
           state.textBlocks = [block];
         }
-        if (state.textBlocks.length > 3) state.textBlocks = state.textBlocks.slice(-3);
         state.previousText = block;
         state.text = block;
       }
@@ -826,18 +839,19 @@
     }
 
     drawDialogue(blocks) {
-      const lines = [];
+      let lines = [];
       for (const block of blocks || []) {
         if (!block || !block.body) continue;
         const wrapped = this.wrapMarkup(block.body);
-        wrapped.forEach((tokens, index) => lines.push({
+        const blockLines = wrapped.map((tokens, index) => ({
           tokens,
           speaker: block.speaker || "",
           forceFemale: !!block.forceFemale,
           first: index === 0,
         }));
+        lines = appendDialogueSet(lines, blockLines, RENDER_CONFIG.maxDisplayLines);
       }
-      const visible = lines.slice(-RENDER_CONFIG.maxDisplayLines);
+      const visible = lines;
       let previousSpeaker = null;
       let previousForceFemale = null;
       visible.forEach((line, index) => {
@@ -898,6 +912,8 @@
     LAYER_ORDER,
     CHAR_CODES,
     RENDER_CONFIG,
+    selectCurrentSet,
+    appendDialogueSet,
     parseTag,
     parseScenario,
     buildState,

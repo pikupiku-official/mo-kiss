@@ -101,6 +101,10 @@ KSファイル (.ks)
 「セリフ」        ← 本文行（必須）
 ```
 
+`fadeout` / `fadein` / `bgm` / `se` は、直後へ
+`;@standalone-step` を置くことで、本文を持たない独立stepにもできる。
+マーカーがない場合は従来どおり次のセリフstepへ結合する。
+
 解析ロジック（`_parse_steps_from_ks_text`）：
 - `「` で始まる行 → stepの本文行（1step確定）
 - `//xxx//` → speaker行（直後のstepに紐付け）

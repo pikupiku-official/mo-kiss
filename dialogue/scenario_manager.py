@@ -194,6 +194,23 @@ def advance_dialogue_ir(game_state):
             )
         return True
 
+    if isinstance(step, dict) and step.get("standalone"):
+        text_renderer = game_state.get("text_renderer")
+        if text_renderer:
+            active_characters = game_state.get("active_characters", [])
+            if isinstance(active_characters, dict):
+                active_characters = list(active_characters.keys())
+            text_renderer.set_dialogue(
+                "",
+                "",
+                should_scroll=False,
+                background=None,
+                active_characters=active_characters,
+            )
+        if game_state.get("ir_anim_pending"):
+            game_state["ir_waiting_for_anim"] = True
+        return True
+
     if actions and not choice_shown:
         if game_state.get("ir_anim_pending"):
             game_state["ir_waiting_for_anim"] = True

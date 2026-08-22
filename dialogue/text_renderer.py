@@ -15,6 +15,22 @@ from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
 from core.path_utils import get_font_path
 
+
+def select_current_line_set(lines, max_lines):
+    """Return the current fixed-size dialogue page.
+
+    Dialogue rows are shown in sets instead of a rolling window. Once a set
+    is full, the next row starts a fresh page and the previous rows disappear
+    together.
+    """
+    if not lines or max_lines <= 0:
+        return []
+    page_start = ((len(lines) - 1) // max_lines) * max_lines
+    return lines[page_start:page_start + max_lines]
+
+
+PUNCTUATION_CLOSERS = frozenset(")）]］}｝〉》」』】〕〙〗〟'\"’”")
+
 RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
 RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
 SERIF_FONT_FILENAME = "MPLUS1p-Medium.ttf"
@@ -211,17 +227,9 @@ class TextRenderer:
         return get_font_path(SERIF_FONT_FILENAME)
 
     def _get_display_lines_with_scroll(self, display_text_segment):
-        """表示用のテキストをn文字改行して、3行スクロール効果を適用"""
+        """表示用テキストを折り返し、現在の最大3行セットを返す。"""
         wrapped_lines = self._wrap_text(display_text_segment)
-        
-        # 3行以下の場合はそのまま返す
-        if len(wrapped_lines) <= self.max_display_lines:
-            return wrapped_lines
-        
-        # 3行を超える場合は最新の3行のみを返す（スクロール効果）
-        display_lines = wrapped_lines[-self.max_display_lines:]
-        
-        return display_lines
+        return select_current_line_set(wrapped_lines, self.max_display_lines)
 
     def _init_fonts(self):
         """フォントを初期化する（PyQt5 + Pygame混在版）"""
@@ -703,8 +711,15 @@ class TextRenderer:
             if self.debug:
                 print(f"[SCROLL] スクロールモード中 - 無条件で継続: {character_name}")
             
-            # テキストをスクロールに追加（修正点：話者情報も渡す）
-            self.scroll_manager.add_text_to_scroll(text, character_name, force_female)
+            # 完成時の折り返し行数を先に渡し、セリフをページ境界で分断しない。
+            current_line_count = max(1, len(self._wrap_text(self.current_text)))
+            self.scroll_manager.add_text_to_scroll(
+                text,
+                character_name,
+                force_female,
+                current_line_count,
+                self.max_display_lines,
+            )
             self.displayed_chars = 0
             self.last_char_time = pygame.time.get_ticks()
             self.is_text_complete = False
@@ -739,16 +754,38 @@ class TextRenderer:
                         print(f"[BACKLOG] スクロール開始時に重複エントリを削除: {removed_entry['speaker']} - {removed_entry['text'][:30]}...")
 
                 # 前のテキストでスクロール開始（前の話者で）
+                previous_display_text = self.name_manager.substitute_variables(
+                    self.previous_text
+                )
+                previous_line_count = max(
+                    1, len(self._wrap_text(previous_display_text))
+                )
                 self.scroll_manager.start_scroll_mode(
                     self.last_speaker,
                     self.previous_text,
                     getattr(self, 'previous_force_female', False),
+                    previous_line_count,
+                    self.max_display_lines,
                 )
                 # 現在のテキストを追加（現在の話者で）
-                self.scroll_manager.add_text_to_scroll(text, character_name, force_female)
+                current_line_count = max(1, len(self._wrap_text(self.current_text)))
+                self.scroll_manager.add_text_to_scroll(
+                    text,
+                    character_name,
+                    force_female,
+                    current_line_count,
+                    self.max_display_lines,
+                )
             else:
                 # 前のテキストがない場合のみ新しくスクロール開始
-                self.scroll_manager.start_scroll_mode(character_name, text, force_female)
+                current_line_count = max(1, len(self._wrap_text(self.current_text)))
+                self.scroll_manager.start_scroll_mode(
+                    character_name,
+                    text,
+                    force_female,
+                    current_line_count,
+                    self.max_display_lines,
+                )
             
             self.displayed_chars = 0
             self.last_char_time = pygame.time.get_ticks()
@@ -813,12 +850,42 @@ class TextRenderer:
                     next_char = get_logical_char(self._current_tokens, self.displayed_chars)
                     self.displayed_chars += 1
 
-                    # 句読点「。」の場合は追加の遅延を適用（skipモード時は遅延なし）
-                    if next_char == '。' and not self.skip_mode:
+                    # 最終文字を描画した瞬間に入力待機へ移る。以前は次の
+                    # char_delay 判定まで is_text_complete が立たず、見た目が
+                    # 完成しているのにクリックが全文表示へ吸われていた。
+                    if self.displayed_chars >= self._total_base_chars:
+                        self.is_text_complete = True
+                        self.text_complete_time = current_time
+                        self.punctuation_waiting = False
+                        self.last_char_time = current_time
+                        if self.debug:
+                            print("[TEXT] 最終文字表示と同時に入力待機へ移行")
+                        return
+
+                    # 「。）」のような文末では閉じ括弧の前で止めず、括弧まで
+                    # 通常速度で表示する。後続文がある場合だけ括弧の後で待つ。
+                    following_char = get_logical_char(
+                        self._current_tokens, self.displayed_chars
+                    )
+                    previous_char = get_logical_char(
+                        self._current_tokens, self.displayed_chars - 2
+                    )
+                    should_wait_for_period = (
+                        next_char == '。'
+                        and following_char not in PUNCTUATION_CLOSERS
+                    )
+                    should_wait_after_closer = (
+                        next_char in PUNCTUATION_CLOSERS
+                        and previous_char == '。'
+                    )
+                    if (
+                        (should_wait_for_period or should_wait_after_closer)
+                        and not self.skip_mode
+                    ):
                         self.punctuation_waiting = True
                         self.punctuation_wait_start = current_time
                         if self.debug:
-                            print("[DELAY] 句読点「。」を検出、追加遅延開始")
+                            print(f"[DELAY] 文末記号「{next_char}」の後で追加遅延開始")
                         return  # 句読点遅延開始時は処理を中断
                     else:
                         self.last_char_time = current_time
@@ -901,16 +968,15 @@ class TextRenderer:
         # テキストを26文字で自動改行
         all_lines = self._wrap_text(display_text_segment)
         
-        # 3行スクロール効果を適用：表示中の文字数に基づいて動的にスクロール
-        lines_to_draw = []
-        if len(all_lines) <= self.max_display_lines:
-            # 3行以下の場合はそのまま表示
-            lines_to_draw = all_lines
-        else:
-            # 3行を超える場合：文字送り進行に応じて最新3行を表示（スクロール効果）
-            lines_to_draw = all_lines[-self.max_display_lines:]
-            if self.debug and len(all_lines) > self.max_display_lines:
-                print(f"[SCROLL] 単一テキストの3行スクロール適用: {len(all_lines)}行 -> 最新{self.max_display_lines}行表示")
+        # 最大3行を1セットとして表示する。4行目に入った時点で、直前の
+        # 3行をまとめて消し、新しいセットを先頭行から描画する。
+        lines_to_draw = select_current_line_set(all_lines, self.max_display_lines)
+        if self.debug and len(all_lines) > self.max_display_lines:
+            set_number = ((len(all_lines) - 1) // self.max_display_lines) + 1
+            print(
+                f"[SCROLL] 単一テキストを{self.max_display_lines}行単位で表示: "
+                f"{len(all_lines)}行目はセット{set_number}"
+            )
 
         # 話者名と本文に適用する色を決定
         text_color_to_use = self.text_color_female if self.current_force_female else self.text_color
@@ -1029,14 +1095,18 @@ class TextRenderer:
                     'is_latest_block': is_latest_block,
                 })
         
-        # 最大3行表示でスクロール効果を適用
-        if len(all_lines) <= self.max_display_lines:
-            lines_to_draw = all_lines
-            speaker_mapping_to_draw = line_speaker_mapping
+        # 最大3行を1セットとして表示する。次セットへ移る際は、本文と
+        # 話者マッピングを同じ境界で一新する。
+        if all_lines:
+            page_start = (
+                (len(all_lines) - 1) // self.max_display_lines
+            ) * self.max_display_lines
         else:
-            # 3行を超える場合は最新3行のみ表示
-            lines_to_draw = all_lines[-self.max_display_lines:]
-            speaker_mapping_to_draw = line_speaker_mapping[-self.max_display_lines:]
+            page_start = 0
+        lines_to_draw = select_current_line_set(all_lines, self.max_display_lines)
+        speaker_mapping_to_draw = line_speaker_mapping[
+            page_start:page_start + self.max_display_lines
+        ]
         
         # 話者名表示判定：他の話者を挟んだ場合は再表示する
         previous_speaker = None

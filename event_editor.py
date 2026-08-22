@@ -67,6 +67,7 @@ logger.info("=" * 60)
 from dialogue.dialogue_loader import DialogueLoader
 from dialogue.data_normalizer import normalize_dialogue_data
 from dialogue.ir_builder import build_ir_from_normalized, dump_ir_json, get_ir_dump_path
+from dialogue.ir_model import STANDALONE_STEP_MARKER
 from dialogue.controller2 import (
     handle_events as handle_dialogue_events,
     update_game,
@@ -1019,7 +1020,8 @@ class CharaCompositePreviewDialog(QDialog):
                  char_name, is_shift=False, prev_fields=None,
                  char_name_options=None, require_name=False,
                  state_by_name=None, action_overrides=None,
-                 template_store=None):
+                 template_store=None, step_speaker="", step_body="",
+                 step_force_female=False):
         super().__init__(parent)
         self._image_manager = image_manager
         self._fields = {p: initial_fields.get(p, '') for p in self.LAYER_ORDER}
@@ -1047,6 +1049,9 @@ class CharaCompositePreviewDialog(QDialog):
         self._template_store = template_store or CharaPartTemplateStore(
             os.path.join(project_root, "editor_data", "chara_part_templates.json")
         )
+        self._step_speaker = (step_speaker or "").strip()
+        self._step_body = (step_body or "").strip()
+        self._step_force_female = bool(step_force_female)
         self._apply_btn = None
         self._name_combo = None
         self._template_combo = None
@@ -1172,9 +1177,27 @@ class CharaCompositePreviewDialog(QDialog):
         main_layout = QHBoxLayout(self)
         splitter = QSplitter(Qt.Horizontal)
 
-        # --- 左: プレビューキャンバス ---
+        # --- 左: プレビューキャンバス + 現在stepのセリフ ---
+        preview_panel = QWidget()
+        preview_layout = QVBoxLayout(preview_panel)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
         self.canvas = CharaPreviewCanvas()
-        splitter.addWidget(self.canvas)
+        preview_layout.addWidget(self.canvas, 1)
+
+        dialogue_group = QGroupBox("このstepのセリフ")
+        dialogue_layout = QVBoxLayout(dialogue_group)
+        self.dialogue_speaker_label = QLabel(self._step_speaker or "（話者なし）")
+        self.dialogue_speaker_label.setObjectName("charaPreviewSpeaker")
+        self.dialogue_body_label = QLabel(self._step_body or "（セリフなし）")
+        self.dialogue_body_label.setObjectName("charaPreviewBody")
+        self.dialogue_body_label.setWordWrap(True)
+        text_color = "#d00070" if self._step_force_female else "#202020"
+        self.dialogue_speaker_label.setStyleSheet(f"font-weight: bold; color: {text_color};")
+        self.dialogue_body_label.setStyleSheet(f"color: {text_color};")
+        dialogue_layout.addWidget(self.dialogue_speaker_label)
+        dialogue_layout.addWidget(self.dialogue_body_label)
+        preview_layout.addWidget(dialogue_group)
+        splitter.addWidget(preview_panel)
 
         # --- 右: パーツ選択パネル ---
         right = QWidget()
@@ -1627,6 +1650,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     """step編集用ダイアログ"""
 
     CHARA_PREVIEW_PARTS = tuple(CharaCompositePreviewDialog.LAYER_ORDER)
+    STANDALONE_ACTION_TAGS = {"fadeout", "fadein", "bgm", "se"}
 
     TAG_NAMES = [
         "bg",
@@ -1823,12 +1847,17 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.step_position_label.setAlignment(Qt.AlignCenter)
         self.unsaved_label = QLabel()
         self.unsaved_label.setStyleSheet("color: #800000;")
+        self.preview_from_step_btn = QPushButton("▶ このstepからプレビュー")
+        self.preview_from_step_btn.setToolTip(
+            "編集中の内容を適用し、このstepを開始位置にして対話プレビューを起動します"
+        )
         self.next_step_btn = QPushButton("次のstep →")
         self.next_step_btn.setToolTip("現在の編集内容を適用して、次のstep編集へ移動します")
         navigation_layout.addWidget(self.prev_step_btn)
         navigation_layout.addStretch()
         navigation_layout.addWidget(self.step_position_label)
         navigation_layout.addWidget(self.unsaved_label)
+        navigation_layout.addWidget(self.preview_from_step_btn)
         navigation_layout.addStretch()
         navigation_layout.addWidget(self.next_step_btn)
         main_layout.addLayout(navigation_layout)
@@ -1878,7 +1907,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         preview_layout.addWidget(self.preview_tabs)
 
         self.scene_selection_label = QLabel(
-            "オブジェクトをクリックすると選択できます（未選択時 ←/→: step移動）"
+            "選択した立ち絵はドラッグ移動、四隅ドラッグで拡大縮小できます"
         )
         self.scene_selection_label.setStyleSheet("color: #404040;")
         preview_layout.addWidget(self.scene_selection_label)
@@ -1905,6 +1934,13 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.female_checkbox = QCheckBox("female（話者名とセリフを桃色）")
         self.female_checkbox.setChecked(bool(self.step.get("force_female")))
         dialogue_layout.addRow(self.female_checkbox)
+
+        self.standalone_checkbox = QCheckBox("セリフなしの単独stepとして区切る")
+        self.standalone_checkbox.setChecked(bool(self.step.get("standalone")))
+        self.standalone_checkbox.setToolTip(
+            "fadeout / fadein / bgm / se を、次のセリフへ結合せず1stepにします"
+        )
+        dialogue_layout.addRow(self.standalone_checkbox)
 
         self.memo_input = QLineEdit()
         self.memo_input.setText(self.step.get("memo", ""))
@@ -2004,6 +2040,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.preview_refresh_btn.clicked.connect(self._request_preview_update)
         self.prev_step_btn.clicked.connect(lambda: self._navigate_step(-1))
         self.next_step_btn.clicked.connect(lambda: self._navigate_step(1))
+        self.preview_from_step_btn.clicked.connect(self._preview_from_current_step)
         self.insert_before_btn.clicked.connect(lambda: self._create_adjacent_step(-1))
         self.insert_after_btn.clicked.connect(lambda: self._create_adjacent_step(1))
         self.step_outline.currentRowChanged.connect(self._on_outline_step_changed)
@@ -2023,6 +2060,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.body_input.textChanged.connect(self._schedule_preview_update)
         self.scroll_checkbox.stateChanged.connect(self._schedule_preview_update)
         self.female_checkbox.stateChanged.connect(self._schedule_preview_update)
+        self.standalone_checkbox.stateChanged.connect(self._on_edit_state_changed)
         self.memo_input.textChanged.connect(self._on_edit_state_changed)
         self.speaker_input.textChanged.connect(self._on_edit_state_changed)
         self.body_input.textChanged.connect(self._on_edit_state_changed)
@@ -2037,12 +2075,18 @@ class StepEditorDialog(Win2000FramelessDialog):
         action_model.rowsInserted.connect(self._on_edit_state_changed)
         action_model.rowsRemoved.connect(self._on_edit_state_changed)
         action_model.rowsMoved.connect(self._on_edit_state_changed)
+        action_model.dataChanged.connect(self._sync_standalone_control)
+        action_model.rowsInserted.connect(self._sync_standalone_control)
+        action_model.rowsRemoved.connect(self._sync_standalone_control)
+        action_model.rowsMoved.connect(self._sync_standalone_control)
+        self.body_input.textChanged.connect(self._sync_standalone_control)
 
         if self.actions_list.count() > 0:
             self.actions_list.setCurrentRow(0)
         else:
             self._apply_param_template(self.tag_combo.currentText())
         self._refresh_scene_preview()
+        self._sync_standalone_control()
         self._loading_step = False
         self._baseline_signature = self._current_step_signature()
         self._refresh_step_outline()
@@ -2069,6 +2113,20 @@ class StepEditorDialog(Win2000FramelessDialog):
         """備考を取得"""
         return self.memo_input.text().strip()
 
+    def get_standalone(self):
+        return self.standalone_checkbox.isChecked()
+
+    def _sync_standalone_control(self, *args):
+        tags = [parse_step_action(action)[0] for action in self.get_actions()]
+        eligible = (
+            not self.body_input.text().strip()
+            and bool(tags)
+            and all(tag in self.STANDALONE_ACTION_TAGS for tag in tags)
+        )
+        self.standalone_checkbox.setEnabled(eligible)
+        if not eligible and self.standalone_checkbox.isChecked() and not self._loading_step:
+            self.standalone_checkbox.setChecked(False)
+
     def _current_step_signature(self):
         speaker, body, scroll_stop, force_female = self.get_dialogue_values()
         return (
@@ -2078,6 +2136,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             force_female,
             self.get_memo(),
             tuple(self.get_actions()),
+            self.get_standalone(),
         )
 
     def _is_step_dirty(self):
@@ -2095,7 +2154,12 @@ class StepEditorDialog(Win2000FramelessDialog):
             body = body[:27] + "…"
         memo_mark = " ◆" if step.get("memo") else ""
         dirty_mark = " ●" if dirty else ""
-        summary = f"{speaker}｜{body}" if body else speaker
+        if step.get("standalone"):
+            cached_actions = step.get("_actions_cache") or []
+            action_name = cached_actions[0].get("tag", "action") if cached_actions else "action"
+            summary = f"単独｜{action_name}"
+        else:
+            summary = f"{speaker}｜{body}" if body else speaker
         return f"{index:03d}{dirty_mark}{memo_mark}  {summary}"
 
     def _refresh_step_outline(self):
@@ -2137,6 +2201,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.next_step_btn.setEnabled(has_current)
         self.insert_before_btn.setEnabled(has_current)
         self.insert_after_btn.setEnabled(has_current)
+        self.preview_from_step_btn.setEnabled(has_current)
         if not has_current:
             self.prev_step_btn.setText("← 前のstep")
             self.next_step_btn.setText("次のstep →")
@@ -2225,6 +2290,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         speaker, body, scroll_stop, force_female = self.get_dialogue_values()
         actions = self.get_actions()
         memo = self.get_memo()
+        standalone = self.get_standalone()
         parent = self.parent()
         apply_update = getattr(parent, "_apply_step_update", None) if parent else None
         if apply_update:
@@ -2236,7 +2302,9 @@ class StepEditorDialog(Win2000FramelessDialog):
                 force_female,
                 actions,
                 memo,
+                standalone=standalone,
             )
+
             self._sync_steps_from_parent()
             if self._all_steps:
                 current = min(self._step_index, len(self._all_steps) - 1)
@@ -2249,6 +2317,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 "has_scroll_stop": scroll_stop,
                 "force_female": force_female,
                 "memo": memo,
+                "standalone": standalone,
             })
             if self._step_index is not None:
                 while len(self._all_step_actions) <= self._step_index:
@@ -2256,6 +2325,18 @@ class StepEditorDialog(Win2000FramelessDialog):
                 self._all_step_actions[self._step_index] = list(actions)
         self._baseline_signature = self._current_step_signature()
         return True
+
+    def _preview_from_current_step(self):
+        if self._step_index is None:
+            return
+        if self._is_step_dirty() and not self._apply_current_step_to_parent():
+            return
+        parent = self.parent()
+        if parent is None or not hasattr(parent, "start_preview"):
+            QMessageBox.warning(self, "警告", "プレビュー起動先が見つかりません")
+            return
+        parent.preview_step_entry.setText(str(self._step_index + 1))
+        parent.start_preview()
 
     def _load_step_index(self, target_index):
         if target_index < 0 or target_index >= len(self._all_steps):
@@ -2284,6 +2365,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         for checkbox, value in (
             (self.scroll_checkbox, bool(self.step.get("has_scroll_stop"))),
             (self.female_checkbox, bool(self.step.get("force_female"))),
+            (self.standalone_checkbox, bool(self.step.get("standalone"))),
         ):
             checkbox.blockSignals(True)
             checkbox.setChecked(value)
@@ -2304,6 +2386,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             self._apply_param_template(self.tag_combo.currentText())
 
         self._loading_step = False
+        self._sync_standalone_control()
         self._refresh_scene_preview()
         self._baseline_signature = self._current_step_signature()
         self._refresh_step_outline()
@@ -2563,7 +2646,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         )
 
     def _on_scene_object_scaled(self, name, new_zoom, metadata):
-        """Write Shift+wheel scaling to the last effective scale action."""
+        """Write direct scaling to the last effective scale action."""
         name = (name or "").strip()
         if not name:
             return
@@ -3065,6 +3148,9 @@ class StepEditorDialog(Win2000FramelessDialog):
             require_name=not bool(current.get("name", "").strip()),
             state_by_name=name_context.get("states_by_name", {}),
             action_overrides=action_overrides,
+            step_speaker=self.get_dialogue_values()[0],
+            step_body=self.get_dialogue_values()[1],
+            step_force_female=self.get_dialogue_values()[3],
         )
         if dlg.exec_() == QDialog.Accepted:
             result = dlg.get_result_fields()
@@ -3610,15 +3696,16 @@ class EventEditorGUI(Win2000FramelessMainWindow):
 
         toolbar.addSeparator()
 
-        toolbar.addWidget(QLabel("段落:"))
-        self.paragraph_entry = QLineEdit()
-        self.paragraph_entry.setMaximumWidth(80)
-        self.paragraph_entry.setText("1")
-        toolbar.addWidget(self.paragraph_entry)
+        toolbar.addWidget(QLabel("開始step:"))
+        self.preview_step_entry = QLineEdit()
+        self.preview_step_entry.setMaximumWidth(80)
+        self.preview_step_entry.setText("1")
+        self.paragraph_entry = self.preview_step_entry
+        toolbar.addWidget(self.preview_step_entry)
 
-        jump_action = QAction("ジャンプ", self)
-        jump_action.triggered.connect(self.jump_to_paragraph)
-        toolbar.addAction(jump_action)
+        current_step_action = QAction("現在stepを指定", self)
+        current_step_action.triggered.connect(self.set_preview_step_from_cursor)
+        toolbar.addAction(current_step_action)
 
         toolbar.addSeparator()
 
@@ -4169,6 +4256,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             has_scroll_stop=False,
             dialogue_line=None,
             force_female=False,
+            standalone=False,
         ):
             step_index = len(steps)
             steps.append(
@@ -4182,18 +4270,26 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                     "force_female": force_female,
                     "dialogue_line": dialogue_line,
                     "memo": "",
+                    "standalone": bool(standalone),
                 }
             )
 
-        def flush_actions(end_line):
+        def flush_actions(end_line, standalone=False):
             nonlocal pending_action_lines
             if pending_action_lines:
-                add_step(min(pending_action_lines), end_line)
+                add_step(
+                    min(pending_action_lines),
+                    end_line,
+                    standalone=standalone,
+                )
                 pending_action_lines = []
 
         for i, raw_line in enumerate(lines):
             line = raw_line.strip()
             if not line:
+                continue
+            if line.lower() == STANDALONE_STEP_MARKER:
+                flush_actions(i, standalone=True)
                 continue
             if line.startswith(";"):
                 continue
@@ -4389,6 +4485,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             force_female,
             actions,
             memo,
+            standalone=dialog.get_standalone(),
         )
 
     def _insert_step_template(self, step, insert_before=True):
@@ -4468,6 +4565,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         actions,
         warn_scroll_stop=True,
         memo="",
+        standalone=False,
     ):
         if not step:
             return original_text
@@ -4500,6 +4598,8 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 continue
             if is_dialogue_line(stripped):
                 continue
+            if stripped.lower() == STANDALONE_STEP_MARKER:
+                continue
             other_lines.append(line)
 
         new_region = []
@@ -4514,6 +4614,9 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             if tag.lower() == "scroll-stop":
                 continue
             new_region.append(f"[{tag}]")
+
+        if standalone and actions:
+            new_region.append(STANDALONE_STEP_MARKER)
 
         if speaker:
             new_region.append(f"//{speaker}//")
@@ -4599,7 +4702,15 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         return "".join(result)
 
     def _apply_step_update(
-        self, step, speaker, body, scroll_stop, force_female, actions, memo=""
+        self,
+        step,
+        speaker,
+        body,
+        scroll_stop,
+        force_female,
+        actions,
+        memo="",
+        standalone=False,
     ):
         """stepを更新してエディタに反映"""
         old_text = self.text_editor.toPlainText()
@@ -4613,6 +4724,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             force_female,
             actions,
             warn_scroll_stop=True,
+            standalone=standalone,
         )
 
         scrollbar = self.text_editor.verticalScrollBar()
@@ -4882,6 +4994,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             actions,
             warn_scroll_stop=False,
             memo=memo,
+            standalone=dialog.get_standalone(),
         )
         out_dir = os.path.join(project_root, "debug", "step_previews")
         os.makedirs(out_dir, exist_ok=True)
@@ -4975,12 +5088,49 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             print(f"ファイル保存エラー: {e}")
             return False
 
+    def set_preview_step_from_cursor(self):
+        cursor = self.text_editor.textCursor()
+        step = self._find_step_for_line(cursor.blockNumber())
+        if not step:
+            QMessageBox.warning(self, "警告", "カーソル位置にstepがありません")
+            return
+        self.preview_step_entry.setText(str(step["step_index"] + 1))
+
+    def _requested_preview_step(self):
+        try:
+            step_number = int(self.preview_step_entry.text().strip())
+        except ValueError:
+            QMessageBox.warning(self, "警告", "開始stepは整数で指定してください")
+            return None
+        total_steps = len(getattr(self, "current_steps", None) or [])
+        if step_number < 1 or (total_steps and step_number > total_steps):
+            QMessageBox.warning(
+                self,
+                "警告",
+                f"開始stepは1～{total_steps or 1}で指定してください",
+            )
+            return None
+        return step_number
+
+    def _preview_player_command(self, preview_script, start_step):
+        return [
+            sys.executable,
+            preview_script,
+            self.current_file_path,
+            "--step",
+            str(start_step),
+        ]
+
     def start_preview(self):
         """ダイアログプレビューを別プロセスとして起動(macOS専用)"""
         logger.info("start_preview呼び出し(dialogue_preview_player.py起動)")
         try:
             if not self.current_file_path:
                 QMessageBox.warning(self, "警告", "ファイルが選択されていません")
+                return
+
+            start_step = self._requested_preview_step()
+            if start_step is None:
                 return
 
             # 既存のプレビュープロセスがあれば先に終了
@@ -5021,7 +5171,6 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 self.save_file()
 
             # 対話再生専用プレイヤーを別プロセスとして起動
-            import subprocess
             preview_script = os.path.join(
                 project_root, "tools", "dialogue_preview_player.py"
             )
@@ -5035,8 +5184,9 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 return
 
             # プレビュープロセスを起動して保存
+            preview_command = self._preview_player_command(preview_script, start_step)
             if platform.system() == 'Darwin':  # macOS
-                self.preview_process = subprocess.Popen(['python3', preview_script, self.current_file_path])
+                self.preview_process = subprocess.Popen(preview_command)
                 self.preview_running = True
                 self.status_label.setText(f"プレビュー起動中 (PID={self.preview_process.pid})")
                 self.status_label.setStyleSheet("color: green;")
@@ -5050,13 +5200,16 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                     "別ウィンドウでダイアログをプレビューできます。"
                 )
             else:
-                self.preview_process = subprocess.Popen(['python', preview_script, self.current_file_path])
+                self.preview_process = subprocess.Popen(preview_command)
                 self.preview_running = True
                 self.status_label.setText(f"プレビュー起動中 (PID={self.preview_process.pid})")
                 self.status_label.setStyleSheet("color: green;")
                 logger.info(f"プレビュープロセス起動: PID={self.preview_process.pid}")
 
-            print(f"▶ プレビュー起動: {preview_script} {self.current_file_path} (PID={self.preview_process.pid})")
+            print(
+                f"▶ プレビュー起動: {preview_script} {self.current_file_path} "
+                f"--step {start_step} (PID={self.preview_process.pid})"
+            )
 
         except Exception as e:
             logger.error(f"プレビュー起動エラー: {e}", exc_info=True)
@@ -5113,6 +5266,10 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 QMessageBox.warning(self, "警告", "ファイルが選択されていません")
                 return
 
+            start_step = self._requested_preview_step()
+            if start_step is None:
+                return
+
             # 保存確認
             reply = QMessageBox.question(
                 self,
@@ -5143,10 +5300,9 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 project_root, "tools", "dialogue_preview_player.py"
             )
 
-            if platform.system() == 'Darwin':  # macOS
-                self.preview_process = subprocess.Popen(['python3', preview_script, self.current_file_path])
-            else:
-                self.preview_process = subprocess.Popen(['python', preview_script, self.current_file_path])
+            self.preview_process = subprocess.Popen(
+                self._preview_player_command(preview_script, start_step)
+            )
 
             self.preview_running = True
             self.status_label.setText(f"プレビューをリロード (PID={self.preview_process.pid})")

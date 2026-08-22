@@ -129,6 +129,18 @@ test('scroll text keeps the latest blocks until scroll-stop', () => {
   assert.deepEqual(preview.buildState(parsed, 3).textBlocks.map((block) => block.body), ['四行目']);
 });
 
+test('dialogue rows switch as fixed three-line sets instead of rolling', () => {
+  assert.deepEqual(preview.selectCurrentSet(['1', '2', '3'], 3), ['1', '2', '3']);
+  assert.deepEqual(preview.selectCurrentSet(['1', '2', '3', '4'], 3), ['4']);
+  assert.deepEqual(preview.selectCurrentSet(['1', '2', '3', '4', '5', '6'], 3), ['4', '5', '6']);
+  assert.deepEqual(preview.selectCurrentSet(['1', '2', '3', '4', '5', '6', '7'], 3), ['7']);
+});
+
+test('preview carries a whole dialogue to the next set when it will not fit', () => {
+  assert.deepEqual(preview.appendDialogueSet(['old'], ['a', 'b'], 3), ['old', 'a', 'b']);
+  assert.deepEqual(preview.appendDialogueSet(['old'], ['a', 'b', 'c'], 3), ['a', 'b', 'c']);
+});
+
 test('scene jump maps an action-range start to the following dialogue step', () => {
   const parsed = preview.parseScenario(`「前の背景」
 [bg_show storage="test.bg.9901"]

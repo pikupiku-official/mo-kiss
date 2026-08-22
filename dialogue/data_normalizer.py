@@ -310,6 +310,9 @@ def normalize_dialogue_data(raw_data):
 
         elif entry_type in ('event_control', 'seed_answer'):
             normalized_data.append(entry)
+
+        elif entry_type == 'standalone_step':
+            normalized_data.append(entry)
                 
         
         elif entry_type == 'chara_shift':

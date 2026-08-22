@@ -4,7 +4,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from core.services.bgm_manager import BGMManager
 from core.config import *
-from .ir_model import make_action, make_step, make_text
+from .ir_model import STANDALONE_STEP_MARKER, make_action, make_step, make_text
 
 # aiofilesの条件付きインポート
 try:
@@ -257,6 +257,10 @@ class DialogueLoader:
         for line_num, line in enumerate(lines, 1):
             try:
                 line = line.strip()
+
+                if line.lower() == STANDALONE_STEP_MARKER:
+                    dialogue_data.append({'type': 'standalone_step'})
+                    continue
 
                 # 話者の記述を検出 //キャラクター名//
                 speaker_match = re.match(r'//([^/]+)//', line)

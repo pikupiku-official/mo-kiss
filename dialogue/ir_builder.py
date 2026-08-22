@@ -29,17 +29,19 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
         actions: Optional[List[Dict[str, Any]]] = None,
         source_index: Optional[int] = None,
         source_indices: Optional[List[int]] = None,
+        standalone: bool = False,
     ) -> None:
         nonlocal step_counter
         step_id = f"step_{step_counter:04d}"
-        steps.append(
-            make_step(
-                step_id=step_id,
-                text=text,
-                actions=actions,
-                source_index=source_index,
-            )
+        step = make_step(
+            step_id=step_id,
+            text=text,
+            actions=actions,
+            source_index=source_index,
         )
+        if standalone:
+            step["standalone"] = True
+        steps.append(step)
         step_pos = len(steps) - 1
         indices = []
         if source_indices:
@@ -53,6 +55,17 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
     for source_index, entry in enumerate(dialogue_data):
         if isinstance(entry, dict):
             action_type = entry.get("type", "unknown")
+            if action_type == "standalone_step":
+                if pending_actions:
+                    emit_step(
+                        actions=pending_actions,
+                        source_index=pending_sources[-1],
+                        source_indices=pending_sources,
+                        standalone=True,
+                    )
+                    pending_actions = []
+                    pending_sources = []
+                continue
             target = entry.get("name") if action_type == "chara_shift" else None
             params = entry
             if action_type == "chara_shift":

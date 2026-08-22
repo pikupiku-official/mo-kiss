@@ -21,12 +21,18 @@ def main():
         description="Play a KS dialogue interactively in a preview window."
     )
     parser.add_argument("ks_file", help="KS file to play")
+    parser.add_argument(
+        "--step",
+        type=int,
+        default=1,
+        help="1-based step number to start from",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.ks_file):
         parser.error(f"KS file does not exist: {args.ks_file}")
 
-    return 0 if preview_ks_file(args.ks_file) else 1
+    return 0 if preview_ks_file(args.ks_file, start_step=args.step) else 1
 
 
 if __name__ == "__main__":
