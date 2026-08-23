@@ -128,3 +128,26 @@ def test_step_editor_exposes_standalone_control_only_for_supported_actions():
     assert not dialog.standalone_checkbox.isEnabled()
     assert not dialog.standalone_checkbox.isChecked()
     dialog.close()
+
+
+def test_sestop_can_be_marked_as_a_dialogue_free_standalone_step():
+    step = {"step_index": 0, "speaker": "", "body": "", "standalone": True}
+    image_manager = SimpleNamespace(
+        image_paths={
+            key: {}
+            for key in ("bg", "torso", "brow", "cheek", "eye", "mouth", "accessory", "effect")
+        }
+    )
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=["sestop"],
+        all_steps=[step],
+        all_step_actions=[["sestop"]],
+        step_index=0,
+        image_manager=image_manager,
+    )
+
+    assert dialog.standalone_checkbox.isEnabled()
+    assert dialog.standalone_checkbox.isChecked()
+    dialog.close()

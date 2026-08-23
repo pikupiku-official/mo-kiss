@@ -7,31 +7,24 @@
 *scene1|&f.title+"最初のシーン"
 [resetlaypos]
 
+[SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
 [bg_show storage="test.bg.9873" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//ナレ//
 	「＿＿＿」
-
-
-[SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
-//ナレ//
 	「見慣れた中央線の車窓から流れる風景。」
 	「いつだってこんな景色ばかり。」
 	「やっぱりなんか物足りないな。西新宿みたいな高層ビルもないし。」
-	「そんなことを考えていると、いつものアナウンスが響く。」
+	「そんなことを考えていると、停車のアナウンスが響く。」
 	「僕を車内の隅に押し込んでいる周りの人たちも降りる支度をし始める。」
 	「向かいの大学生らしき男がカバンに突っ込んだのはカーグラフィック。表紙はジャガー。」
 	「僕もいつか、日曜洋画劇場で見たジェームズボンドみたいに、流麗なセダンを乗り回してみたい、と思った。」
-	「中央線が国分寺駅のホームに滑り込んでゆき、ゆっくりと止まる。」
-	//ナレ//
-	「＿＿＿」
-;@memo: ここから三連SE、プレイヤーの操作が効かないで、SEだけ聞く時間にしたい。時間間隔大事に。BGMも要検討
 [SE se="電車停車.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
-[SE se="電車の発車ベル.mp3" volume="0.5" frequency="1"]
+[SE se="電車蒸気噴出.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
+[SE se="電車の発車ベル.mp3" volume="0.5" frequency="1"]
 [SE se="電車のドアが開く1.mp3" volume="0.5" frequency="1"]
-	//ナレ//
-	「＿＿＿」
+;@standalone-step
 [bg_show storage="test.bg.9901" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//ナレ//
 	「ドアが開くといつものようにあっという間に車内から押し出される。」
@@ -61,8 +54,10 @@
 
 
 [fadeout color="black"]
+;@standalone-step
 [bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [fadein time="1.5"]
+;@standalone-step
 	//？？//
 	「君に触れたい〜♪君に触れたい〜♪」
 	//純一//

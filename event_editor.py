@@ -1650,7 +1650,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     """step編集用ダイアログ"""
 
     CHARA_PREVIEW_PARTS = tuple(CharaCompositePreviewDialog.LAYER_ORDER)
-    STANDALONE_ACTION_TAGS = {"fadeout", "fadein", "bgm", "se"}
+    STANDALONE_ACTION_TAGS = {"fadeout", "fadein", "bgm", "se", "sestop"}
 
     TAG_NAMES = [
         "bg",
@@ -1938,7 +1938,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.standalone_checkbox = QCheckBox("セリフなしの単独stepとして区切る")
         self.standalone_checkbox.setChecked(bool(self.step.get("standalone")))
         self.standalone_checkbox.setToolTip(
-            "fadeout / fadein / bgm / se を、次のセリフへ結合せず1stepにします"
+            "fadeout / fadein / bgm / se / sestop を、次のセリフへ結合せず1stepにします"
         )
         dialogue_layout.addRow(self.standalone_checkbox)
 
