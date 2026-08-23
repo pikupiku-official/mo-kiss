@@ -8,42 +8,62 @@
 [resetlaypos]
 
 [SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
-[bg_show storage="test.bg.9873" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="車窓①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//ナレ//
 	「＿＿＿」
+	「＿＿＿」
 	「見慣れた中央線の車窓から流れる風景。」
+[bg_show storage="車窓②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	「いつだってこんな景色ばかり。」
 	「やっぱりなんか物足りないな。西新宿みたいな高層ビルもないし。」
+[bg_show storage="車窓テニス" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	「そんなことを考えていると、停車のアナウンスが響く。」
+[bg_show storage="車窓線路" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	「僕を車内の隅に押し込んでいる周りの人たちも降りる支度をし始める。」
 	「向かいの大学生らしき男がカバンに突っ込んだのはカーグラフィック。表紙はジャガー。」
 	「僕もいつか、日曜洋画劇場で見たジェームズボンドみたいに、流麗なセダンを乗り回してみたい、と思った。」
+[bg_show storage="車窓③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+;@standalone-step
+[bg_show storage="車窓④" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+;@standalone-step
+[bg_show storage="車窓⑤" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+;@standalone-step
+[sestop]
+[bg_show storage="車窓⑥" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [SE se="電車停車.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
+[bg_show storage="車窓⑦" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[sestop]
 [SE se="電車蒸気噴出.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
+[sestop]
 [SE se="電車の発車ベル.mp3" volume="0.5" frequency="1"]
 [SE se="電車のドアが開く1.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
-[bg_show storage="test.bg.9901" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[fadeout color="black" time="0"]
+[SE se="衣擦れ3" volume="0.5" frequency="1"]
 	//ナレ//
 	「ドアが開くといつものようにあっという間に車内から押し出される。」
+[sestop]
+[fadein time="0"]
+[bg_show storage="国分寺駅構内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [SE se="休日でごった返す駅構内.mp3" volume="0.5" frequency="5"]
 	//ナレ//
 	「＿＿＿」
-[SE se="短い風の音.mp3" volume="0.5" frequency="5"]
-	//ナレ//
-	「＿＿＿」
-[bg_show storage="test.bg.DSCN3314" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-	//ナレ//
 	「やはり外の空気は最⾼だ。」
 	「緑⾵が僕の周りにまとわりついていたすべての湿気を流し去ってくれる。」
 	「僕は、朝の電⾞にはあるものが充満していると思う。」
 	「それは通勤、通学を“しなければいけない⼈々”のネガティブな感情だ。」
 	「そんな⼈々に流されながら階段を登る。」
 
-[SE 階段を登る足音]
+[fadeout color="black" time="1.0"]
+[SE se="階段を登る" volume="0.5" frequency="5"]
+;@standalone-step
 
+[sestop]
+[bg_show storage="混んでいる国分寺駅改札内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[SE se="station_ticket_gate1" volume="0.5" frequency="5"]
+[fadein time="1.0"]
 	//ナレ//
 	「＿＿＿」
 	「階段を上り切ると、⼈混みの３割ほどは⻄武線の⽅へ吸い込まれていった。」
