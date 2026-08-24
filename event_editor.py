@@ -1650,7 +1650,6 @@ class StepEditorDialog(Win2000FramelessDialog):
     """step編集用ダイアログ"""
 
     CHARA_PREVIEW_PARTS = tuple(CharaCompositePreviewDialog.LAYER_ORDER)
-    STANDALONE_ACTION_TAGS = {"fadeout", "fadein", "bgm", "se", "sestop"}
 
     TAG_NAMES = [
         "bg",
@@ -1938,7 +1937,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.standalone_checkbox = QCheckBox("セリフなしの単独stepとして区切る")
         self.standalone_checkbox.setChecked(bool(self.step.get("standalone")))
         self.standalone_checkbox.setToolTip(
-            "fadeout / fadein / bgm / se / sestop を、次のセリフへ結合せず1stepにします"
+            "すべてのタグを、次のセリフへ結合せず1stepにできます"
         )
         dialogue_layout.addRow(self.standalone_checkbox)
 
@@ -2117,12 +2116,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         return self.standalone_checkbox.isChecked()
 
     def _sync_standalone_control(self, *args):
-        tags = [parse_step_action(action)[0] for action in self.get_actions()]
-        eligible = (
-            not self.body_input.text().strip()
-            and bool(tags)
-            and all(tag in self.STANDALONE_ACTION_TAGS for tag in tags)
-        )
+        eligible = not self.body_input.text().strip() and bool(self.get_actions())
         self.standalone_checkbox.setEnabled(eligible)
         if not eligible and self.standalone_checkbox.isChecked() and not self._loading_step:
             self.standalone_checkbox.setChecked(False)

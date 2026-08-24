@@ -104,7 +104,7 @@ def test_standalone_action_step_waits_for_the_next_advance():
     assert renderer.calls[-1][0][0:2] == ("", "")
 
 
-def test_step_editor_exposes_standalone_control_only_for_supported_actions():
+def test_step_editor_exposes_standalone_control_for_any_action_tag():
     step = {"step_index": 0, "speaker": "", "body": "", "standalone": True}
     image_manager = SimpleNamespace(
         image_paths={
@@ -115,9 +115,9 @@ def test_step_editor_exposes_standalone_control_only_for_supported_actions():
     dialog = StepEditorDialog(
         None,
         step,
-        actions=['se se="door" volume="0.5"'],
+        actions=['chara_move id="A" x="100"'],
         all_steps=[step],
-        all_step_actions=[['se se="door" volume="0.5"']],
+        all_step_actions=[['chara_move id="A" x="100"']],
         step_index=0,
         image_manager=image_manager,
     )

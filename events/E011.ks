@@ -4,29 +4,28 @@
 ;◆メインシナリオ
 ;----------------------------------------------
 
-*scene1|&f.title+"最初のシーン"
+*scene11|
+
 [resetlaypos]
-
-[bg_show storage="school"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[BGM bgm="school" volume="0" loop="true"]
-
-[chara_show name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
-	
-[choice option1="熱が出たりすると気づくんだ" option2="僕には体があるってこと" option3="鼻がつまったりすると解るんだ"]
-
+[bg_show storage="test.bg.schoolGate" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bgm bgm="MokLap1.mp3" volume="0.5" loop="true" fade="0.0"]
+[chara_show name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.5" y="0.9" size="2.3" fade="0.15"]
 	//桃子//
-	「こんにちは。」
-	「これは最初のテキストです。」
-	[scroll-stop]
+	「おまたせーっ！」
+	//純一//
+	「おう。」
+	「それじゃ早速、行きますか。」
+[chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.5" y="0.9" size="2.3" fade="0.15"]
+	//桃子//
+	「よっしゃ！いこいこ～！」
 
 
-[choice option1="今まで呼吸をしていた事" option2="君の存在だって何度も確かめはするけど"]
-
+[fadeout color="black" time="1.0"]
 [chara_move name="桃子" time="400" left="0.1" top="0.02" zoom="3"]
-
-	//桃子//
-	「会話の2番目の部分です。」
-	[scroll-stop]
+[bg_show storage="イタリアン店前" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[fadein time="1.0"]
+//桃子//
+「会話の2番目の部分です。」
 
 
 [bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
