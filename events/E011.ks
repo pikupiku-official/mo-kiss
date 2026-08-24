@@ -21,11 +21,52 @@
 
 
 [fadeout color="black" time="1.0"]
-[chara_move name="桃子" time="400" left="0.1" top="0.02" zoom="3"]
+[chara_shift name="桃子" torso="MMK_T01_ARM06_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" x="0.76548673" y="0.8159292" size="1.73265413" fade="0.15"]
 [bg_show storage="イタリアン店前" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [fadein time="1.0"]
-//桃子//
-「会話の2番目の部分です。」
+	//純一//
+	「着いたな。」
+[chara_shift name="桃子" torso="MMK_T01_ARM06_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_01" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE03_00" x="0.76548673" y="0.8159292" size="1.73265413" fade="0.15"]
+	//桃子//
+	「着いたね。」
+	//純一//
+	「ここであってるよな？」
+[chara_shift name="桃子" torso="MMK_T01_ARM06_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE03_00" x="0.76548673" y="0.8159292" size="1.73265413" fade="0.15"]
+	//桃子//
+	「ここであってるね。」
+	//純一//
+	「あれ、店やってるかな？」
+[chara_shift name="桃子" eye="MMK_F01_EYE04_00" fade="0.15"]
+	//桃子//
+	「やってるね。」
+	//純一//
+	「・・・おいおい、ここ、高校生が入っても大丈夫なの？」
+	「ちょっと、オトナすぎやしないか？」
+[chara_shift name="桃子" torso="MMK_T01_ARM07_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_01" fade="0.15"]
+	//桃子//
+	「大丈夫。ドレスコードもないし、価格もそんなに高くない。」
+[chara_shift name="桃子" eye="MMK_F01_EYE04_00" mouth="MMK_F01_MOU00_02" fade="0.15"]
+	//桃子//
+	「緊張しなくたって全然平気だよ。」
+	//純一//
+	「そう言う割に僕の後ろに隠れてるじゃないか・・・」
+[chara_shift name="桃子" torso="MMK_T01_ARM06_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU00_00" cheek="MMK_F01_CHE01_00" effect="MMK_E01_01" fade="0.15"]
+	//桃子//
+	「・・・。」
+[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" fade="0.15"]
+	//桃子//
+	「だって純一、どこへでも連れてくって言ってたでしょ！」
+[chara_shift name="桃子" torso="MMK_T01_ARM06_CLO00" eye="MMK_F01_EYE00_01" mouth="MMK_F01_MOU02_02" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE01_00" effect="MMK_E01_01" fade="0.15"]
+	//桃子//
+	「いいからほら、早く入ろうよ～！」
+[chara_show name="桃子" torso="MMK_T01_ARM06_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE01_00" effect="MMK_E01_01" blink="true"fade="0.15"]
+	//純一//
+	「わかったわかった。」
+	「・・・よし、じゃあ、行くぜ？」
+[chara_shift name="桃子" eye="MMK_F01_EYE04_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO01_00" fade="0.15"]
+	//桃子//
+	「・・・うん！」
+
 
 
 [bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]

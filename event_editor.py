@@ -2568,17 +2568,19 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.actions_list.setCurrentRow(row)
 
     def _on_scene_object_moved(self, name, delta_x, delta_y, metadata):
-        """Write a direct canvas drag back to this step's explicit action."""
+        """Persist a canvas drag as an absolute ``chara_shift`` placement."""
         name = (name or "").strip()
         if not name:
             return
         relative_x = float(delta_x) / VIRTUAL_WIDTH
         relative_y = float(delta_y) / VIRTUAL_HEIGHT
+        target_x = self._parse_scene_number(metadata.get("x"), 0.5) + relative_x
+        target_y = self._parse_scene_number(metadata.get("y"), 0.5) + relative_y
+        target_size = self._parse_scene_number(metadata.get("zoom"), 1.0)
         self._direct_scene_edit = True
 
-        last_show_row = -1
-        last_move_row = -1
-        last_position_shift_row = -1
+        last_placement_row = -1
+        reusable_shift_row = -1
         parsed_by_row = {}
         for row in range(self.actions_list.count()):
             tag, pairs = self._parse_action(self.actions_list.item(row).text())
@@ -2586,53 +2588,35 @@ class StepEditorDialog(Win2000FramelessDialog):
             parsed_by_row[row] = (tag, params)
             if params.get("name", "").strip() != name:
                 continue
-            if tag == "chara_show":
-                last_show_row = row
-            elif tag == "chara_move":
-                last_move_row = row
-            elif tag == "chara_shift" and ("x" in params or "y" in params):
-                last_position_shift_row = row
+            if tag in ("chara_show", "chara_move") or (
+                tag == "chara_shift"
+                and any(key in params for key in ("x", "y", "size"))
+            ):
+                last_placement_row = row
+                reusable_shift_row = row if tag == "chara_shift" else -1
 
-        latest_absolute_row = max(last_show_row, last_position_shift_row)
-        if last_move_row > latest_absolute_row:
-            tag, params = parsed_by_row[last_move_row]
-            params["left"] = self._format_scene_number(
-                self._parse_scene_number(params.get("left"), 0.0) + relative_x
-            )
-            params["top"] = self._format_scene_number(
-                self._parse_scene_number(params.get("top"), 0.0) + relative_y
-            )
-            params.setdefault(
-                "zoom", self._format_scene_number(metadata.get("zoom", 1.0))
-            )
-            params.setdefault("time", "600")
-            self._set_action_row(last_move_row, tag, params)
-            action_label = "chara_moveを更新"
-        elif last_show_row >= 0 and last_position_shift_row <= last_show_row:
-            tag, params = parsed_by_row[last_show_row]
-            params["x"] = self._format_scene_number(
-                self._parse_scene_number(params.get("x"), 0.5) + relative_x
-            )
-            params["y"] = self._format_scene_number(
-                self._parse_scene_number(params.get("y"), 0.5) + relative_y
-            )
-            self._set_action_row(last_show_row, tag, params)
-            action_label = "chara_showのx/yを更新"
+        placement_params = {
+            "x": self._format_scene_number(target_x),
+            "y": self._format_scene_number(target_y),
+            "size": self._format_scene_number(target_size),
+        }
+        if reusable_shift_row == last_placement_row and reusable_shift_row >= 0:
+            tag, params = parsed_by_row[reusable_shift_row]
+            params.update(placement_params)
+            self._set_action_row(reusable_shift_row, tag, params)
+            action_label = "chara_shiftのx/y/sizeを更新"
         else:
-            move_params = {
-                "name": name,
-                "left": self._format_scene_number(relative_x),
-                "top": self._format_scene_number(relative_y),
-                "zoom": self._format_scene_number(metadata.get("zoom", 1.0)),
-                "time": "600",
-            }
-            action_text = self._build_action("chara_move", list(move_params.items()))
+            shift_params = {"name": name, **placement_params}
+            action_text = self._build_action("chara_shift", list(shift_params.items()))
             self.actions_list.addItem(action_text)
             self.actions_list.setCurrentRow(self.actions_list.count() - 1)
-            action_label = "chara_moveを追加"
+            action_label = "chara_shiftを追加"
 
         self._direct_scene_edit = False
-        self.scene_canvas.mark_character_modified(name)
+        self.scene_canvas.mark_character_modified(
+            name,
+            {"x": target_x, "y": target_y, "zoom": target_size},
+        )
         self.scene_selection_label.setText(
             f"移動: キャラ「{name}」 / {action_label} "
             f"(Δx={self._format_scene_number(relative_x)}, "
@@ -4581,6 +4565,8 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             return text.startswith("[") and text.endswith("]")
 
         other_lines = []
+        speaker_indent = None
+        dialogue_indent = None
         for line in region:
             stripped = line.strip()
             if not stripped:
@@ -4589,8 +4575,12 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             if is_action_line(stripped):
                 continue
             if is_speaker_line(stripped):
+                if speaker_indent is None:
+                    speaker_indent = line[: len(line) - len(line.lstrip())]
                 continue
             if is_dialogue_line(stripped):
+                if dialogue_indent is None:
+                    dialogue_indent = line[: len(line) - len(line.lstrip())]
                 continue
             if stripped.lower() == STANDALONE_STEP_MARKER:
                 continue
@@ -4613,10 +4603,14 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             new_region.append(STANDALONE_STEP_MARKER)
 
         if speaker:
-            new_region.append(f"//{speaker}//")
+            # Rebuilding a step must not discard indentation that was applied
+            # to its speaker/dialogue lines in the source editor.
+            indent = speaker_indent if speaker_indent is not None else (dialogue_indent or "")
+            new_region.append(f"{indent}//{speaker}//")
 
         if body:
-            line_text = f"「{body}」"
+            indent = dialogue_indent if dialogue_indent is not None else (speaker_indent or "")
+            line_text = f"{indent}「{body}」"
             if force_female:
                 line_text += "[female]"
             if scroll_stop:

@@ -775,7 +775,7 @@ class StepSceneCanvas(QGraphicsView):
         self._scale_commit_timer.stop()
         self._pending_scale = None
 
-    def mark_character_modified(self, name):
+    def mark_character_modified(self, name, metadata_updates=None):
         """Update origin metadata without rebuilding all character layers."""
         for item in self._scene.items():
             if item.data(0) != "character" or item.data(1) != name:
@@ -783,6 +783,7 @@ class StepSceneCanvas(QGraphicsView):
             item.setData(2, "modified")
             metadata = dict(item.data(3) or {})
             metadata["origin"] = "modified"
+            metadata.update(metadata_updates or {})
             item.setData(3, metadata)
             label = self._labels_by_key.get(("character", name))
             if label is not None:
