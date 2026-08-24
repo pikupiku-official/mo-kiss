@@ -67,52 +67,61 @@
 	//桃子//
 	「・・・うん！」
 
-
-
 [bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
-[chara_move name="桃子" time="1000" left="-0.2" top="0" zoom="0.3"]
-
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[fadeout color="black" time="1.0"]
+[bg_show storage="イタリアン店内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_shift name="桃子" x="0.5" y="0.85" size="2.1" fade="0.15"]
+;@standalone-step
+[fadein time="1.0"]
+	//店員//
+	「いらっしゃいませ。後ほど注文をお伺いしますね。」
+	//純一//
+	「はいっ、アリガトウゴザイマス。」
+[chara_shift name="桃子" torso="MMK_T00_ARM04_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" fade="0.15"]
 	//桃子//
-	「言葉は想像力を運ぶ電車です。」
-	「日本中どこまでも想像力を運ぶ『私たち』という路線図。」
-	「一個の私は想像力が乗り降りする一つ一つの駅みたいなもので、どんな小さな駅にも止まる各停みたいな言葉もあれば、仕事をしやすくしてくれる、急行みたいな言葉もあるし。」
-	[scroll-stop]
-
-*scene2|&f.title+"教室のシーン"
-[resetlaypos]
-
-[bg_show storage="classroom"  bg_x="0.6" bg_y="0.4" bg_zoom="1.8"]
-[BGM bgm="classroom" volume="0" loop="true"]
-
+	「凄いお洒落なお店だね～！」
+[chara_shift name="桃子" mouth="MMK_F00_MOU00_00" fade="0.15"]
+	//純一//
+	「まったくだな、芸能人も結構来てるらしいって噂は伊達じゃなさそうだ。」
+	「店内は薄暗くてムーディーな感じなのに、店員さんは朗らかで落ち着くね。」
+[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU00_02" fade="0.15"]
 	//桃子//
-	「別の場面に移動しました。」
-	[scroll-stop]
-
-[chara_show name="サナコ"　eye="eye2" mouth="mouth2" x="0.2" y="0.2"]
-
+	「でしょでしょ～！」
+[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO02_00" fade="0.15"]
 	//桃子//
-	「わかる人にしかわからない、快速みたいな言葉もあって、一番言葉の集まる駅にしか止まらない、新幹線みたいな言葉もあります。」
-	「地下の暗闇を走る言葉もあります。」
-	「地下から地下へ受け渡されるよこしまな想像力たち。」
-	[scroll-stop]
+	「お店選びのセンスには自信あるんだ〜！お母さん譲りですから！」
+[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO03_00" fade="0.15"]
+	//桃子//
+	「ずっと来たかったんだけど、家族で来るにはちょっとこぢんまりしてるでしょ？」
+	//純一//
+	「確かに、ふたりくらいが丁度いいかもな。」
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" mouth="MMK_F00_MOU00_00" fade="0.15"]
+	//純一//
+	「実際客も僕らを含めて男女ペアが三組だ。」
+[chara_shift name="桃子" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO00_00" fade="0.15"]
+	//桃子//
+	「そうだねー。」
+[chara_shift name="桃子" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" fade="0.15"]
+	//桃子//
+	「けど、流石に私達と同世代じゃないか、どっちも三十代以上だね～。」
+[chara_shift name="桃子" torso="MMK_T00_ARM04_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU11_00" fade="0.15"]
+	//桃子//
+	「二組とも素敵！」
+	//純一//
+	「ああ。確かに。」
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU11_00" brow="MMK_F00_BRO01_00" size="2.2" fade="0.5"]
+[chara_move left="0.0" top="0.0" zoom="1.4" time="0.5"]
+	//桃子//
+	「ねね、やっぱりカップルなのかな？」
+	//純一//
+	「そりゃこんな店に来るくらいだし、そうでしょう。」
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU02_02" brow="MMK_F00_BRO03_00" size="2.1" fade="0.15"]
+	//桃子//
+	「だよね～、ここはカップルで来るよねー！」
+	「あ・・・」
+	「・・・」
 
-	//サナコ//
-	「でも時折、地下から地上に顔を出してビルの谷間をくぐるとき、不意の太陽が無理矢理たてじまに変えようとするから、想像力は眉をしかめたりします。」
-	[scroll-stop]
-
-[chara_hide name="桃子"]
-
-[bg_move storage="classroom" bg_left="0.0" bg_top="0.0" time="1000" bg_zoom="1.0"]
-[chara_move name="サナコ" time="600" left="0.1" top="0.1" zoom="1.7"]
-
-	//サナコ//
-	「ときどき、届くのが速いほど言葉は便利な、大事なものに思えます。」
-	「だけどほんとうに大事なのは、想像力が降りるべき駅で降りること。」
-	「次に乗り込むべき言葉に乗ること。」
-	「ただそれだけです。」
-	「だから、ダイアグラムの都合から、ぎゅうぎゅう詰めの急行と、すっかすかの各停が同じ時刻に出発して、」
-	「ほんの一瞬同じ速さで走るとき、急行の中の想像力がうらやましげに各停をながめることもあるのです。」
-	「２０１２年には東京メトロ副都心線と東急東横線がつながるみたいに、今まではつながれなかったあれもこれもつながるんだろうか。」
-	「そんなことを想像しています。」
-	「これは最後のテキストです。」
+	//あ//
+	「あ」
 	[scroll-stop]
