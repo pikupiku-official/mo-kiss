@@ -1,4 +1,395 @@
 {
   "version": 1,
-  "templates": []
+  "templates": [
+    {
+      "id": "000a5330a3b74873802a223a2b742a82",
+      "name": "通常・口閉じ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU04_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "e9bb2d38b0c549c990d46081e690075b",
+      "name": "通常・口空き",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU02_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "7d45de66b2b9440d9200362c47ed8d0b",
+      "name": "元気",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE04_00",
+        "mouth": "MMK_F00_MOU00_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "02a81ebff4c747a7a7a2a3bdf0e62cf2",
+      "name": "聞き上手",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU05_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "c539cbab3dca499f84ef5e211993bc1f",
+      "name": "微笑",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE03_00",
+        "mouth": "MMK_F00_MOU04_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "b90b4b56b03a48efa7d95ddcdcea5869",
+      "name": "にっこり",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE04_00",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "11259b978c854298a8b0f5f6b9e1cd5d",
+      "name": "満面の笑み",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE04_00",
+        "mouth": "MMK_F00_MOU00_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "5ffd6a3e6cd84d76a823cb5345c69688",
+      "name": "わくわく",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "ca3f587d271e420092cccc7a99d51e6d",
+      "name": "大はしゃぎ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU00_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "c1005cb7b58c48309faa2c8f7f92116d",
+      "name": "期待キラキラ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "f78e2894720b430bb01d17e5f1b1f455",
+      "name": "おいしそう！",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE03_00",
+        "mouth": "MMK_F00_MOU14_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "e5886bd0f83d45e9ab8ab10d319b6e5d",
+      "name": "安堵",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO03_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU03_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "d5dc570763284b16a3c42c1455b839f4",
+      "name": "自慢げ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE04_00",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "8fc3bff1840e4301986f66dd375ecebb",
+      "name": "ドヤ顔",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "3ca7f0e3dd7c4b6ebd758997c1c534e1",
+      "name": "ニヤニヤ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE03_01",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "5478cfc5601840b2b7a8fb1a3566b974",
+      "name": "小悪魔",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE03_01",
+        "mouth": "MMK_F00_MOU11_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "b97ad4fa5b254014bcc48bd6d7ca1d81",
+      "name": "からかい",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE03_01",
+        "mouth": "MMK_F00_MOU04_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "a52a7e5da2c4452f9fd431cee84f41fa",
+      "name": "拗ねる・ぷくー",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU06_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "fd1f99c712164048b1b9cf9e2bf7f3f4",
+      "name": "むっとする",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU16_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "f356969b8a3c4cccba181e70657a6fad",
+      "name": "明るいツッコミ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU05_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "28108ffd22c0414cb128c0b4e6f42aa2",
+      "name": "怒りツッコミ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU15_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "23063f370019496c99cce888519b35e3",
+      "name": "呆れ笑い",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO03_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "42c1c54a919b46cdbfaaaf53729b05b3",
+      "name": "ジト目",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU05_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "eb8e9b7ed3bd4b02a4ceab8c5692925a",
+      "name": "焦り",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE01_00",
+        "mouth": "MMK_F00_MOU04_02",
+        "accessory": "",
+        "effect": "MMK_E00_01"
+      },
+      "blink": true
+    },
+    {
+      "id": "bf4377f09f224211b2a7d10b23ca7a39",
+      "name": "図星",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE01_01",
+        "mouth": "MMK_F00_MOU13_00",
+        "accessory": "",
+        "effect": "MMK_E00_01"
+      },
+      "blink": true
+    },
+    {
+      "id": "a84b801870c14dfa92b27776e3cc11c4",
+      "name": "強がり",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_02",
+        "mouth": "MMK_F00_MOU15_00",
+        "accessory": "",
+        "effect": "MMK_E00_01"
+      },
+      "blink": true
+    }
+  ]
 }

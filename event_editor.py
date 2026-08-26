@@ -1679,6 +1679,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         "bg_move": [("storage", ""), ("bg_left", "0.0"), ("bg_top", "0.0"), ("bg_zoom", "1.0"), ("time", "600")],
         "chara_show": [
             ("name", ""),
+            ("template", ""),
             ("torso", ""),
             ("eye", ""),
             ("mouth", ""),
@@ -1694,6 +1695,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         ],
         "chara_shift": [
             ("name", ""),
+            ("template", ""),
             ("torso", ""),
             ("eye", ""),
             ("mouth", ""),
@@ -1739,6 +1741,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         ],
         "chara_show": [
             ("name", "name", "text"),
+            ("template", "template", "text"),
             ("torso", "torso", "text"),
             ("eye", "eye", "text"),
             ("mouth", "mouth", "text"),
@@ -1754,6 +1757,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         ],
         "chara_shift": [
             ("name", "name", "text"),
+            ("template", "template", "text"),
             ("torso", "torso", "text"),
             ("eye", "eye", "text"),
             ("mouth", "mouth", "text"),
@@ -3005,7 +3009,29 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _empty_chara_preview_state(self):
         return {part: "" for part in self.CHARA_PREVIEW_PARTS}
 
+    def _expand_chara_template_params(self, params):
+        """Expand a script template for editor-side composite previews."""
+        expanded = dict(params or {})
+        char_name = str(expanded.get("name", "")).strip()
+        template_name = str(expanded.get("template", "")).strip()
+        if not char_name or not template_name:
+            return expanded
+
+        store = CharaPartTemplateStore(
+            os.path.join(project_root, "editor_data", "chara_part_templates.json")
+        )
+        template = store.find(char_name, template_name)
+        if not template:
+            return expanded
+
+        # The template supplies defaults; explicit tag attributes win.
+        resolved = dict(template.get("parts", {}))
+        resolved["blink"] = "true" if template.get("blink", True) else "false"
+        resolved.update(expanded)
+        return resolved
+
     def _apply_chara_preview_action(self, states_by_name, tag, params):
+        params = self._expand_chara_template_params(params)
         char_name = params.get("name", "").strip()
         if not char_name:
             return states_by_name
@@ -3105,6 +3131,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         # 現在のフィールド値を収集
         current = {k: (f.currentText() if isinstance(f, QComboBox) else f.text().strip())
                    for k, f in self.custom_fields.items()}
+        current = self._expand_chara_template_params(current)
         current_tag = self.tag_combo.currentText().strip() or ("chara_shift" if is_shift else "chara_show")
         name_context = self._resolve_chara_preview_name_context(current_tag, current.get('name', ''))
         char_name = name_context["default_name"] or current.get('name', '').strip()

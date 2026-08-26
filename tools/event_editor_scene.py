@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import (
 )
 
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
+from tools.event_editor_part_templates import CharaPartTemplateStore
 
 
 CHARACTER_PARTS = (
@@ -204,14 +205,43 @@ def _to_float(value, default):
 class StepSceneStateBuilder:
     """Replay spatial KS actions into serializable before/after scene states."""
 
-    def __init__(self, image_manager=None, image_size_lookup=None):
+    def __init__(self, image_manager=None, image_size_lookup=None, template_store=None):
         self.image_manager = image_manager
         self._image_size_lookup = image_size_lookup
+        self._template_store = template_store or CharaPartTemplateStore(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "editor_data",
+                "chara_part_templates.json",
+            )
+        )
+        self._template_revision_value = None
         self._size_cache = {}
         self._build_cache = OrderedDict()
         self._build_cache_limit = 96
         self._timeline_signature = ()
         self._timeline_states = []
+
+    def _template_revision(self):
+        try:
+            stat = os.stat(self._template_store.path)
+            return stat.st_mtime_ns, stat.st_size
+        except OSError:
+            return None
+
+    def _expand_chara_template(self, params):
+        expanded = dict(params or {})
+        name = str(expanded.get("name", "")).strip()
+        template_name = str(expanded.get("template", "")).strip()
+        if not name or not template_name:
+            return expanded
+        template = self._template_store.find(name, template_name)
+        if not template:
+            return expanded
+        resolved = dict(template.get("parts", {}))
+        resolved["blink"] = "true" if template.get("blink", True) else "false"
+        resolved.update(expanded)
+        return resolved
 
     def _asset_path(self, image_type, image_key):
         return _resolve_asset_path(self.image_manager, image_type, image_key)
@@ -309,6 +339,9 @@ class StepSceneStateBuilder:
 
     def _apply_action(self, state, tag, params, changes=None):
         changes = changes if changes is not None else {}
+
+        if tag in ("chara_show", "chara_shift"):
+            params = self._expand_chara_template(params)
 
         if tag == "bg":
             background_params = {
@@ -411,6 +444,13 @@ class StepSceneStateBuilder:
 
     def build(self, action_steps, step_index):
         """Return ``before`` and ``after`` states for a visible editor step."""
+
+        template_revision = self._template_revision()
+        if template_revision != self._template_revision_value:
+            self._build_cache.clear()
+            self._timeline_signature = ()
+            self._timeline_states = []
+            self._template_revision_value = template_revision
 
         action_steps = list(action_steps or [])
         target = max(0, min(int(step_index or 0), max(len(action_steps) - 1, 0)))

@@ -4,6 +4,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from core.services.bgm_manager import BGMManager
 from core.config import *
+from tools.event_editor_part_templates import CharaPartTemplateStore
 from .ir_model import STANDALONE_STEP_MARKER, make_action, make_step, make_text
 
 # aiofilesの条件付きインポート
@@ -16,9 +17,13 @@ except ImportError:
         print("aiofiles not available - using ThreadPoolExecutor fallback")
 
 class DialogueLoader:
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, chara_template_path=None):
         self.debug = debug
         self.bgm_manager = BGMManager(debug)
+        if chara_template_path is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            chara_template_path = os.path.join(project_root, "editor_data", "chara_part_templates.json")
+        self.chara_template_store = CharaPartTemplateStore(chara_template_path)
         # CHARACTER_IMAGE_MAPを削除（ファイル名直接使用）
         # self.character_image_map = CHARACTER_IMAGE_MAP
         # 26文字改行設定
@@ -51,6 +56,18 @@ class DialogueLoader:
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loading_tasks = {}  # ファイル読み込み中のタスク管理
         self.ir_data = None  # IR skeleton (optional)
+
+    def _get_chara_template(self, character, template_name):
+        if not template_name:
+            return None
+        template = self.chara_template_store.find(character, template_name)
+        if template is None and self.debug:
+            print(f'character template not found: name="{character}" template="{template_name}"')
+        return template
+
+    def _get_line_chara_template(self, line, character):
+        match = re.search(r'template="([^"]+)"', line)
+        return self._get_chara_template(character, match.group(1) if match else None)
 
     def _wrap_text_and_count_lines(self, text):
         """テキストを26文字で自動改行し、行数を返す"""
@@ -376,18 +393,23 @@ class DialogueLoader:
 
                         if char_name:
                             current_char = char_name.group(1)
+                            template = self._get_line_chara_template(line, current_char)
+                            template_parts = template.get('parts', {}) if template else {}
 
                             # 後方互換性: torsoが指定されていない場合はnameを使用
-                            current_torso = torso_id.group(1) if (torso_id and torso_id.group(1)) else current_char
+                            current_torso = (
+                                torso_id.group(1) if torso_id is not None
+                                else template_parts.get('torso', '') or current_char
+                            )
                             character_torso[current_char] = current_torso
 
                             # 全パーツ一律の更新ルール: 指定されたパーツは上書き、未指定のパーツは空文字""
-                            current_eye = eye_type.group(1) if eye_type is not None else ""
-                            current_mouth = mouth_type.group(1) if mouth_type is not None else ""
-                            current_brow = brow_type.group(1) if brow_type is not None else ""
-                            current_cheek = cheek_type.group(1) if cheek_type is not None else ""
-                            current_effect = effect_type.group(1) if effect_type is not None else ""
-                            current_accessory = accessory_type.group(1) if accessory_type is not None else ""
+                            current_eye = eye_type.group(1) if eye_type is not None else template_parts.get('eye', '')
+                            current_mouth = mouth_type.group(1) if mouth_type is not None else template_parts.get('mouth', '')
+                            current_brow = brow_type.group(1) if brow_type is not None else template_parts.get('brow', '')
+                            current_cheek = cheek_type.group(1) if cheek_type is not None else template_parts.get('cheek', '')
+                            current_effect = effect_type.group(1) if effect_type is not None else template_parts.get('effect', '')
+                            current_accessory = accessory_type.group(1) if accessory_type is not None else template_parts.get('accessory', '')
                             
                             # キャラクターごとのパーツ状態を更新
                             character_face_parts[current_char] = {
@@ -418,7 +440,10 @@ class DialogueLoader:
                             
                             # blink パラメータを処理（デフォルト: true）
                             try:
-                                current_blink = blink.group(1).lower() != "false" if blink else True
+                                current_blink = (
+                                    blink.group(1).lower() != "false"
+                                    if blink else bool(template.get('blink', True)) if template else True
+                                )
                             except (ValueError, AttributeError):
                                 current_blink = True
 
@@ -480,8 +505,14 @@ class DialogueLoader:
 
                         if char_name:
                             current_char = char_name.group(1)
-                            if torso_id is not None and torso_id.group(1):
-                                character_torso[current_char] = torso_id.group(1)
+                            template = self._get_line_chara_template(line, current_char)
+                            template_parts = template.get('parts', {}) if template else {}
+                            resolved_torso = (
+                                torso_id.group(1) if torso_id is not None
+                                else template_parts.get('torso') if template else None
+                            )
+                            if resolved_torso:
+                                character_torso[current_char] = resolved_torso
                             current_torso = character_torso.get(current_char, current_char)
 
                             if current_char not in character_face_parts:
@@ -493,6 +524,10 @@ class DialogueLoader:
                                     'effect': "",
                                     'accessory': ""
                                 }
+
+                            if template:
+                                for part in ('eye', 'mouth', 'brow', 'cheek', 'effect', 'accessory'):
+                                    character_face_parts[current_char][part] = template_parts.get(part, '')
 
 
 
@@ -532,18 +567,18 @@ class DialogueLoader:
                                 'type': 'chara_shift',
                                 'name': current_char
                             }
-                            if torso_id is not None:
+                            if torso_id is not None or template:
                                 shift_entry['torso'] = current_torso
-                            if eye_type is not None:
+                            if eye_type is not None or template:
                                 shift_entry['eye'] = current_eye
-                            if mouth_type is not None:
+                            if mouth_type is not None or template:
                                 shift_entry['mouth'] = current_mouth
-                            if brow_type is not None:
+                            if brow_type is not None or template:
                                 shift_entry['brow'] = current_brow
-                            if cheek_type is not None:
+                            if cheek_type is not None or template:
                                 shift_entry['cheek'] = current_cheek
                             shift_entry['effect'] = current_effect
-                            if accessory_type is not None:
+                            if accessory_type is not None or template:
                                 shift_entry['accessory'] = current_accessory
                             if current_shift_x is not None:
                                 shift_entry['x'] = current_shift_x

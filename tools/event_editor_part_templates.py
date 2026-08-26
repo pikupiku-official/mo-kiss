@@ -54,6 +54,17 @@ class CharaPartTemplateStore:
             if str(item.get("character", "")).strip() == character
         ]
 
+    def find(self, character, name):
+        """Return a character template by its display name."""
+        name = (name or "").strip()
+        if not name:
+            return None
+        return next(
+            (item for item in self.for_character(character)
+             if str(item.get("name", "")).strip() == name),
+            None,
+        )
+
     def create(self, name, character, parts, blink=True):
         item = {
             "id": uuid.uuid4().hex,

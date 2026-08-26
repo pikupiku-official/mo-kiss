@@ -14,6 +14,7 @@ from tools.event_editor_scene import (
     StepSceneCanvas,
     StepSceneStateBuilder,
 )
+from tools.event_editor_part_templates import CharaPartTemplateStore
 
 
 APP = QApplication.instance() or QApplication([])
@@ -52,6 +53,40 @@ def test_scene_builder_distinguishes_before_and_after_objects():
     assert states["after"]["characters"]["桃子"]["left"] == 234.0
     assert states["after"]["characters"]["桃子"]["top"] == -216.0
     assert states["after"]["characters"]["桃子"]["zoom"] == 1.5
+
+
+def test_scene_builder_expands_chara_shift_template(tmp_path):
+    store = CharaPartTemplateStore(tmp_path / "templates.json")
+    store.create(
+        "微笑",
+        "桃子",
+        {
+            "torso": "MMK_T01",
+            "eye": "eye_smile",
+            "mouth": "mouth_smile",
+            "brow": "brow_smile",
+            "cheek": "cheek_smile",
+        },
+        blink=False,
+    )
+    builder = StepSceneStateBuilder(
+        image_size_lookup=_size_lookup,
+        template_store=store,
+    )
+
+    states = builder.build(
+        [
+            ['chara_show name="桃子" torso="MMK_T00" eye="eye_old"'],
+            ['chara_shift name="桃子" template="微笑"'],
+        ],
+        1,
+    )
+    character = states["after"]["characters"]["桃子"]
+
+    assert character["torso"] == "MMK_T01"
+    assert character["eye"] == "eye_smile"
+    assert character["mouth"] == "mouth_smile"
+    assert character["blink"] == "false"
 
 
 def test_scene_builder_removes_hidden_character_from_after_state():
