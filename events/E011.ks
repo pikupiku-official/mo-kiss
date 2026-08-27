@@ -237,8 +237,9 @@
 	「こちらも臨時休業しているんじゃないかと不安だったんです。」
 	//店員//
 	「ははは、そりゃよかった。」
-	「ウチは『皆様の日常に寄り添う』ってのがモットーでね、」
+	「ウチは『皆様の日常に寄り添う』ってのがモットーでね。」
 	「安寧を求める人のため、材料が揃ううちは暖簾を掲げるつもりだよ。」
+[chara_shift name="桃子" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" fade="0.15"]
 	//桃子//
 	「・・・」
 	//純一//
@@ -248,6 +249,7 @@
 	「アルバイトの方にはお休みしてもらって、家内と二人、」
 	「のんびりやっても尚暇なくらいの客足だけどもね？」
 	「おふたりが来てくれて、この時期に営業する甲斐があったってもんだ。」
+[chara_shift name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" fade="0.15"]
 	//純一//
 	「でも、普段は事前予約が必要ですから、そういう意味で僕達はラッキーでした。」
 	//店員//
@@ -256,55 +258,88 @@
 	「・・・おっと、若いお二人にとっては『非日常』かも知れないね！」
 	//純一//
 	「ははは、ありがとうございます。」
-	「・・・」
-	「・・・気さくな方で、なんだか嬉しいな。あんなに構えていたのが馬鹿らしくなる。」
+	//店員//
+	「それではごゆっくり。」
+[se 去る足音]
+	//純一//
+	「・・・気さくな方で、なんだか嬉しいな。」
+	「あんなに構えていたのが馬鹿らしくなる。」
+[chara_shift name="桃子"　torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO02_00" fade="0.15"]
 	//桃子//
 	「・・・うん。そうだね。」
 	//純一//
 	「ん？どうかしたか？」
+[chara_shift name="桃子" mouth="MMK_F01_MOU00_01" fade="0.15"]
 	//桃子//
 	「ううん。なんだかね、あの店員さん、お父さんみたいだなーって！」
+[chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU00_01" fade="0.15"]
+	//桃子//
 	「『日常に寄り添う』って、お父さんの信念も近しいと思うの。」
+[chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU00_00" fade="0.15"]
 	//純一//
 	「なるほど。確かに直樹おじさんも、自分じゃなくて他者の幸福を望んでいる。」
 	「ひいてはそれが自分の幸福に繋がっていって、まさに循環構造だ。」
 	「彼らは職業倫理が高いというか、もはや生きがいなのかもしれないね。」
+[chara_shift name="桃子" template="取り繕った笑み斜め" eye="MMK_F01_EYE00_00" fade="0.15"]
 	//桃子//
 	「うん。そういう人なんだと思う。」
 	//純一//
 	「・・・」
 	「・・・お父さん、格好いいな。」
+[chara_shift name="桃子" template="驚き弱" fade="0.15"]
 	//桃子//
 	「――！」
+[chara_shift name="桃子" template="取り繕った笑み" eye="MMK_F00_EYE01_01" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+	//桃子//
 	「・・・」
+[chara_shift name="桃子" template="取り繕った笑み" fade="0.15"]
 	「・・・」
 	//純一//
 	「・・・」
 	「しかしさ、こんな洒落た店、よく見つけたよな。」
+[chara_shift name="桃子" template="元気" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO03_00" fade="0.15"]
 	//桃子//
 	「あ、実はね、お友達の中村さんが教えてくれたんだ～。」
+[chara_shift name="桃子" template="通常・口空き" fade="0.15"]
+	//桃子//
 	「多分OliveとかHanakoとか読んだんじゃないかな？」
+[chara_shift name="桃子" template="通常・口閉じ" mouth="MMK_F00_MOU00_00" fade="0.15"]
 	//純一//
 	「ハイ・センスな友達だ。」
+[chara_shift name="桃子" template="わくわく" fade="0.15"]
 	//桃子//
 	「なんかさ、私達まだ高校生なのに、相当背伸びしてこういうお店入ったりして・・・」
+[chara_shift name="桃子" template="自慢げ" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE04_00" fade="0.15"]
+	//桃子//
 	「――なんだかワクワクしない？？」
 	//純一//
 	「・・・それ、」
 	「僕も丁度そう言おうと思ってた。」
+[chara_shift name="桃子" template="大はしゃぎ" fade="0.15"]
 	//桃子//
-	「ほんと！？えへへ、純一と来てよかった～。」
+	「ほんと！？」
+[chara_shift name="桃子" template="満面の笑み" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE04_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
+	//桃子//
+	「えへへ、純一と来てよかった～。」
 	//純一//
 	「ははは、僕もだよ。」
+[chara_shift name="桃子" template="拗ねる・ぷくー"　cheek="MMK_F00_CHE01_00" fade="0.15"]
 	//桃子//
 	「あ～、なんか乗っかられた～。」
+[chara_shift name="桃子" eye="MMK_F00_EYE03_01" mouth="MMK_F00_MOU04_02" cheek="MMK_F00_CHE01_00" fade="0.15"]
+	//桃子//
 	「そういうのはちゃんと言葉にしないと信じてもらえませんよー。」
 	//純一//
 	「え？心外だな。」
 	「僕はそういう事ははっきり言葉にして伝えるように心掛けてるぞ。」
+[chara_shift name="桃子" template="疑い照れ斜め" fade="0.15"]
 	//桃子//
 	「そーかなー？」
+[chara_shift name="桃子" template="小悪魔斜め" mouth="MMK_F01_MOU07_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE01_00" fade="0.15"]
+	//桃子//
 	「じゃあね～・・・」
+[chara_shift name="桃子" template="自慢げ" cheek="MMK_F00_CHE01_00" fade="0.15"]
+	//桃子//
 	「・・・私の良いところ！教えて？」
 	//純一//
 	「えっ〜！？いきなりだなぁ・・・」
@@ -317,6 +352,7 @@
 	
 	「う～ん、まずは・・・優しいところ？」
 	「後はそうだなぁ・・・テニスが上手いところ？」
+[chara_shift name="桃子" template="小悪魔" fade="0.15"]
 	//桃子//
 	「・・・他は？」
 	//純一//
@@ -325,11 +361,14 @@
 	
 	ーー収束
 	
+[chara_shift name="桃子" template="怒りツッコミ" fade="0.15"]
 	//桃子//
 	「も～！ぜぇったい言うと思った！」
+[chara_shift name="桃子" template="拗ねる・ぷくー" fade="0.15"]
 	「いいもん、別に。いっつもふざけてばっかし！」
 	//純一//
 	「いやいや、ぼくちん大マジですよ、お嬢さん。」
+[chara_shift name="桃子" template="拗ねる・ぷくー" fade="0.15"]
 	//桃子//
 	「ふんっ、じゃあこのお店の良いところは？」
 	//純一//
@@ -352,6 +391,7 @@
 	//店員//
 	「お待たせしました。」
 	「『ミッドナイト・スパゲティ』、おふたつですね。」
+[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
 	//桃子//
 	「わあ～～！美味しそーー！！」
 	//純一//
@@ -359,12 +399,15 @@
 	//店員//
 	「それでは、ごゆっくり。」
 	
+[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
 	//桃子//
 	「いいにお～い！」
 	//純一//
 	「服に飛ばさないように気をつけろよ？」
+[chara_shift name="桃子" template="明るいツッコミ" fade="0.15"]
 	//桃子//
 	「もー、子供じゃないんだから、大丈夫だよ！」
+[chara_shift name="桃子" template="わくわく" fade="0.15"]
 	「それよりほら、はやくはやくっ。」
 	//純一//
 	「そうだな、それじゃ・・・」
@@ -378,25 +421,33 @@
 	「（その名の通り真夜中に食べたくなるような佇まいを、緑のハーブが締めている。）」
 	//純一//
 	「よし、ではでは早速――」
+[chara_shift name="桃子" template="真剣" fade="0.15"]
 	//桃子//
 	「ちょっと待って、純一。」
 	//純一//
 	「え、なんだ？」
 	「やっぱり紙ナプキン貰うか？」
+[chara_shift name="桃子" template="焦り" fade="0.15"]
 	//桃子//
 	「ううん、違うの。」
+[chara_shift name="桃子" template="緊張" fade="0.15"]
 	「・・・」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	「・・・あのね。」
 	//純一//
 	「・・・うん。」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	//桃子//
 	「・・・折角こんな素敵なところに来たんだし、」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	「何か特別なこと、してみる・・・？」
 	//純一//
 	「・・・」
 	「特別な、こと・・・？」
+[chara_shift name="桃子" template="緊張" fade="0.15"]
 	//桃子//
 	「・・・」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	「・・・あ～ん、とか。」
 	//純一//
 	「・・・」
@@ -413,36 +464,47 @@
 	//純一//
 	「・・・では。」
 	「はい、あ～ん。」
+[chara_shift name="桃子" template="緊張" fade="0.15"]
 	//桃子//
 	「・・・」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	「・・・あ～ん。」
 	//純一//
 	「・・・」
+[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
 	//桃子//
 	「・・・（もぐもぐ）」
 	//純一//
 	「どう、美味しい？」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	//桃子//
 	「・・・ウン、」
+[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
 	「おいひい。・・・ちょっと熱いケド。」
 	//純一//
 	「はは、それはよかった。」
+[chara_shift name="桃子" template="照れ笑い" fade="0.15"]
 	//桃子//
 	「・・・えへへ。」
 	
 	B
+[chara_shift name="桃子" template="緊張" fade="0.15"]
 	//桃子//
 	「・・・」
+[chara_shift name="桃子" template="照れ" fade="0.15"]
 	「はい、あ～ん。」
 	//純一//
 	「・・・あ～ん。」
 	「・・・」
+[chara_shift name="桃子" template="緊張" fade="0.15"]
 	//桃子//
 	「・・・」
+[chara_shift name="桃子" template="緊張" fade="0.15"]
 	「どうですか・・・？」
 	//純一//
 	「・・・（もぐもぐ）」
 	「・・・うん、美味しいよ。」
+[chara_shift name="桃子" template="照れ笑い" fade="0.15"]
 	//桃子//
 	「・・・えへへ、よかったねぇ。」
 	
@@ -450,36 +512,46 @@
 	ーー収束
 	
 	
+[chara_shift name="桃子" template="驚き" fade="0.15"]
 	//桃子//
 	「――あっ、フォーク！」
 	//純一//
 	「え？」
 	「・・・あ。」
+[chara_shift name="桃子" template="気まずい" fade="0.15"]
 	//桃子//
 	「・・・どうしましょうか？」
 	//純一//
 	「・・・」
 	「・・・まあ、僕は全然気にならないけど。」
+[chara_shift name="桃子" template="ニヤニヤ" fade="0.15"]
 	//桃子//
 	「・・・んふっ！」
+[chara_shift name="桃子" template="にっこり" fade="0.15"]
 	「じゃあ～、いっか！」
 	//純一//
 	「いや、君が気にするなら換えてくれて構わな――」
+[chara_shift name="桃子" template="照れ笑い" fade="0.15"]
 	//桃子//
 	「純一だし、別にいいよ！」
+[chara_shift name="桃子" template="元気" fade="0.15"]
 	「それよりほら、スパゲティ伸びちゃうよ～！」
 	//純一//
 	「・・・そうだな。」
 	「食べよう食べよう。あれだな、イカが入ってるな。」
+[chara_shift name="桃子" template="わくわく" fade="0.15"]
 	//桃子//
 	「だね、後はマッシュルームもあるみたい！」
+[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
 	「んー、具沢山で嬉しー！」
 	//純一//
 	「うん、うまい。やはり具材は多いに限る。」
 	「タバスコをちょっと足したらもっと美味しくなりそうだ。」
+[chara_shift name="桃子" template="期待キラキラ" fade="0.15"]
 	//桃子//
 	「あっ、それも食べてみたいかもー！」
 	
+[chara_shift name="桃子" template="通常・口閉じ" fade="0.15"]
 	「・・・」
 	
 	//純一//

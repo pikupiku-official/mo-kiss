@@ -1049,6 +1049,7 @@ class CharaCompositePreviewDialog(QDialog):
         self._template_store = template_store or CharaPartTemplateStore(
             os.path.join(project_root, "editor_data", "chara_part_templates.json")
         )
+        self._applied_template_name = ""
         self._step_speaker = (step_speaker or "").strip()
         self._step_body = (step_body or "").strip()
         self._step_force_female = bool(step_force_female)
@@ -1324,6 +1325,7 @@ class CharaCompositePreviewDialog(QDialog):
 
     def _on_name_changed(self, text):
         self._char_name = text.strip()
+        self._applied_template_name = ""
         self._prev_fields, self._fields = self._compose_fields_for_name(self._char_name)
         self.setWindowTitle(f"立ち絵プレビュー: {self._char_name or '未選択'}")
         self._refresh_all_combos()
@@ -1354,6 +1356,7 @@ class CharaCompositePreviewDialog(QDialog):
         template = self._selected_template()
         if not template:
             return
+        self._applied_template_name = str(template.get('name', '')).strip()
         self._fields = self._sanitize_fields_for_character(template.get('parts', {}))
         self._blink = bool(template.get('blink', True))
         if self._blink_combo is not None:
@@ -1363,6 +1366,19 @@ class CharaCompositePreviewDialog(QDialog):
     def _save_current_template(self):
         if not self._char_name:
             QMessageBox.warning(self, "テンプレート保存", "先にキャラクターを選択してください")
+            return
+        matching = self._template_store.find_matching_parts(
+            self._char_name,
+            self._fields,
+            self._blink,
+        )
+        if matching:
+            QMessageBox.information(
+                self,
+                "テンプレート保存",
+                f"現在のパターンは既存テンプレート「{matching.get('name', '')}」と同じです。\n"
+                "新しいテンプレートは作成されません。",
+            )
             return
         name, accepted = QInputDialog.getText(self, "テンプレート保存", "テンプレート名")
         if not accepted or not name.strip():
@@ -1555,11 +1571,15 @@ class CharaCompositePreviewDialog(QDialog):
                 result['blink'] = 'true' if self._blink else 'false'
             if result_name:
                 result['name'] = result_name
+            if self._is_shift and self._applied_template_name:
+                result['template'] = self._applied_template_name
             return result
         result = dict(self._fields)
         result['blink'] = 'true' if self._blink else 'false'
         if result_name:
             result['name'] = result_name
+        if self._is_shift and self._applied_template_name:
+            result['template'] = self._applied_template_name
         return result
 
 

@@ -65,6 +65,26 @@ class CharaPartTemplateStore:
             None,
         )
 
+    def find_matching_parts(self, character, parts, blink=True):
+        """Return an existing template with the same drawable configuration."""
+        expected_parts = {
+            part: str((parts or {}).get(part, "")).strip()
+            for part in PART_FIELDS
+        }
+        expected_blink = bool(blink)
+        for item in self.for_character(character):
+            item_parts = item.get("parts", {})
+            normalized_parts = {
+                part: str(item_parts.get(part, "")).strip()
+                for part in PART_FIELDS
+            }
+            if (
+                normalized_parts == expected_parts
+                and bool(item.get("blink", True)) == expected_blink
+            ):
+                return item
+        return None
+
     def create(self, name, character, parts, blink=True):
         item = {
             "id": uuid.uuid4().hex,
