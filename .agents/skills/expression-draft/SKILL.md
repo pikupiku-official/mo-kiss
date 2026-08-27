@@ -25,9 +25,14 @@ Use `python tools/expression_status.py get events/<target>.ks` to inspect a targ
 4. Learn links between dialogue context and expressions: preceding and following turns, speaker and listener reactions, character identity, scene mood, and effective prior state. Unchanged turns are negative examples; do not make a change merely to make the draft look busy.
 5. Read the whole target. Inspect relevant character templates, configuration, and assets to verify proposed part IDs. Prefer exact IDs used for that character in confirmed examples.
 6. Build a dialogue-by-dialogue expression decision ledger for every line spoken by each staged character. For each line, explicitly choose one of: show, shift, keep the current expression, or hide. “Keep” is a deliberate decision and produces no tag. Then edit only the target and stay inside the mutation boundary.
-7. Review the diff, validate referenced assets, and confirm that no forbidden tag or text changed.
-8. Only after validation, run `python tools/expression_status.py set events/<target>.ks ai_draft`.
-9. Report the target, confirmed examples read, expression changes, and validation.
+7. Add a template interpretation pass before editing KS:
+   - For each non-keep expression decision, first write the intended acting beat in plain language, then map it to the closest existing character template from `editor_data/chara_part_templates.json` when one matches.
+   - Prefer a named template over manually combining individual parts. If no template fits, choose parts only from confirmed examples or verified assets and mark the ledger entry as a manual expression.
+   - Treat templates as expression/pose presets only. Never let a template change dialogue, background, audio, branching, placement, size, or timing beyond the mutation boundary.
+   - Re-apply the chosen template or manual expression back into the target KS after the full ledger is consistent. This second pass should catch duplicated shifts, stale effective state, and places where "keep" is better than another tag.
+8. Review the diff, validate referenced assets, and confirm that no forbidden tag or text changed.
+9. Only after validation, run `python tools/expression_status.py set events/<target>.ks ai_draft`.
+10. Report the target, confirmed examples read, template mappings used, manual expressions used, expression changes, and validation.
 
 ## Mutation boundary
 
