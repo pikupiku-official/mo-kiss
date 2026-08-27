@@ -349,7 +349,7 @@
 	
 	冗談っぽく伝える（桃子が怒る）
 	本気っぽく伝える（桃子が照れる）
-	
+
 	「う～ん、まずは・・・優しいところ？」
 	「後はそうだなぁ・・・テニスが上手いところ？」
 [chara_shift name="桃子" template="小悪魔" fade="0.15"]
@@ -361,58 +361,78 @@
 	
 	ーー収束
 	
-[chara_shift name="桃子" template="怒りツッコミ" fade="0.15"]
+[chara_shift name="桃子" template="怒りツッコミ" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO02_00" fade="0.15"]
 	//桃子//
 	「も～！ぜぇったい言うと思った！」
-[chara_shift name="桃子" template="拗ねる・ぷくー" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU06_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE03_00" fade="0.15"]
+	//桃子//
 	「いいもん、別に。いっつもふざけてばっかし！」
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU05_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE03_00" fade="0.15"]
 	//純一//
 	「いやいや、ぼくちん大マジですよ、お嬢さん。」
-[chara_shift name="桃子" template="拗ねる・ぷくー" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE00_01" mouth="MMK_F01_MOU04_01" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE03_00" fade="0.15"]
 	//桃子//
-	「ふんっ、じゃあこのお店の良いところは？」
+	「ほんとかなあ？」
+[chara_shift name="桃子" template="拗ねる・ぷくー" torso="MMK_T00_ARM11_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU05_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+	//桃子//
+	「・・・それじゃあ次！このお店の良いところ言ってみて？」
+[chara_shift name="桃子" torso="MMK_T00_ARM11_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU16_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
 	//純一//
-	「僕はまずこの店内の照度が気に入ったかな。明るすぎず暗すぎず、」
-	「お互いの顔はちゃんと見えるけど、細かい所までは見えない位の明るさだから、」
-	「脇目も振らず話に集中できる。人がリラックス出来る明るさであるのもポイントが」
-	「高く、これがあんまり眩しいと脳は活発になるものの、やはり前傾姿勢になりがちで、」「肩の力が入ってしまう。精神的にもね。学校やオフィスのそれが好例だ。次に空調。」
-	「季節は梅雨だし、食事して体温が上がるという人の生理機能を加味し、温度を下げる」
-	「ために冷房をつけたくなるところだが、否。技術は日進進歩しているとは言え、細かな」
-	「調節までオートマティックに出来る段階には達していない。では何が適するのか。」
-	「除湿だよ。先に触れた照度によるトーン・アンド・マナーを維持するためかどうかは」
-	「判然としないが、窓が極端に少ないのはお気づきの通り。この事実はそれすなわち」
-	「換気能力に劣る事を意味する。確かに、冬場なんかは効率的な断熱効果ないし保温効果」
-	「が期待できるが、それは今回脇に置いておこう。ともかく、風通しが悪いのでそもそも」
-	「湿度が高くなりがちなのさ。第二に、人の体感温度を左右する重要なファクターとして」
-	「湿度は温度の次点に位置する、という事実。要は温度は同じでも湿度を下げるだけで」
-	「少し涼しく感じるということ。この二点を抑えてうまく除湿機能を駆使すればこそ、」
-	「あまりに肌寒く会話どころか食事に集中出来ないという不安要素を潰すことが出来――」
-	
+	「僕はまずこの店内の照度が気に入ったかな。明るすぎず暗すぎず、お互いの顔はちゃんと見えるけど、」
+[chara_shift name="桃子" torso="MMK_T00_ARM11_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU16_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+	//純一//
+	「細かい所までは見えない位の明るさだから、脇目も振らず話に集中できる。」
+[chara_shift name="桃子" torso="MMK_T00_ARM11_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU16_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+	//純一//
+	「人がリラックス出来る明るさであるのもポイントが高く、これがあんまり眩しいと脳は活発になるものの、」
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+	//純一//
+	「やはり前傾姿勢になりがちで、肩の力が入ってしまう。精神的にもね。」
+	「学校やオフィスのそれが好例だ。次に空調。」
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+	//純一//
+	「季節は梅雨だし、食事して体温が上がるという人の生理機能を加味し、温度を下げるために冷房をつけたくなるところだが、否。」
+	「技術は日進進歩しているとは言え、細かな調節までオートマティックに出来る段階には達していない。では何が適するのか。」
+	「除湿だよ。先に触れた照度によるトーン・アンド・マナーを維持するためかどうかは判然としないが、窓が極端に少ないのはお気づきの通り。」
+[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU13_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+	//純一//
+	「この事実はそれすなわち換気能力に劣る事を意味する。確かに、冬場なんかは効率的な断熱効果ないし保温効果が期待できるが、それは今回脇に置いておこう。」
+	「ともかく、風通しが悪いのでそもそも湿度が高くなりがちなのさ。」
+[chara_shift name="桃子" torso="MMK_T01_ARM11_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU16_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
+	//純一//
+	「第二に、人の体感温度を左右する重要なファクターとして湿度は温度の次点に位置する、という事実。要は温度は同じでも湿度を下げるだけで少し涼しく感じるということ。」
+[chara_shift name="桃子" torso="MMK_T01_ARM11_CLO00" eye="MMK_F01_EYE00_01" mouth="MMK_F01_MOU17_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" fade="0.15"]
+	//純一//
+	「この二点を抑えてうまく除湿機能を駆使すればこそ、あまりに肌寒く会話どころか食事に集中出来ないという不安要素を潰すことが出来――」
 	//店員//
 	「お待たせしました。」
+[chara_shift name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO00_00" effect="" fade="0.15"]
+	//店員//
 	「『ミッドナイト・スパゲティ』、おふたつですね。」
-[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
+[chara_shift name="桃子" template="大はしゃぎ" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
 	//桃子//
 	「わあ～～！美味しそーー！！」
+[chara_shift name="桃子" template="おいしそう！" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU14_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 	//純一//
 	「おぉ～っ、待ってましたっ。」
 	//店員//
 	「それでは、ごゆっくり。」
-	
-[chara_shift name="桃子" template="おいしそう！" fade="0.15"]
+[se 去る足音]
+[chara_shift name="桃子" template="おいしそう！" torso="MMK_T00_ARM04_CLO00" eye="MMK_F00_EYE04_00" fade="0.15"]
 	//桃子//
 	「いいにお～い！」
 	//純一//
 	「服に飛ばさないように気をつけろよ？」
-[chara_shift name="桃子" template="明るいツッコミ" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 	//桃子//
 	「もー、子供じゃないんだから、大丈夫だよ！」
-[chara_shift name="桃子" template="わくわく" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE03_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO02_00" fade="0.15"]
+	//桃子//
 	「それよりほら、はやくはやくっ。」
 	//純一//
 	「そうだな、それじゃ・・・」
-	//純一 桃子//
-	「「いただきます！！」」
+	//二人//
+	「いただきます！！」
 	//純一//
 	「こりゃ美味そうだなぁ・・・！」
 	「（普通のスパゲッティボウルより幾分か深めの皿の乳白色が、）」
@@ -453,14 +473,8 @@
 	「・・・」
 	「・・・」
 	
-	
-	ーー選択肢
-	
-	
-	あ～んする →A
-	口を開ける →B
-	
-	A
+[choice_1 option1="あ～んする" option2="口を開ける"]
+[if condition="choice_1==1"]
 	//純一//
 	「・・・では。」
 	「はい、あ～ん。」
@@ -486,8 +500,9 @@
 [chara_shift name="桃子" template="照れ笑い" fade="0.15"]
 	//桃子//
 	「・・・えへへ。」
-	
-	B
+[endif]	
+
+[if condition="choice_1==2"]
 [chara_shift name="桃子" template="緊張" fade="0.15"]
 	//桃子//
 	「・・・」
@@ -507,10 +522,7 @@
 [chara_shift name="桃子" template="照れ笑い" fade="0.15"]
 	//桃子//
 	「・・・えへへ、よかったねぇ。」
-	
-	
-	ーー収束
-	
+[endif]
 	
 [chara_shift name="桃子" template="驚き" fade="0.15"]
 	//桃子//
@@ -550,17 +562,12 @@
 [chara_shift name="桃子" template="期待キラキラ" fade="0.15"]
 	//桃子//
 	「あっ、それも食べてみたいかもー！」
-	
 [chara_shift name="桃子" template="通常・口閉じ" fade="0.15"]
 	「・・・」
-	
 	//純一//
 	「（こうして桃子とイタリアンへ赴いた。）」
 	「（家の事情や部活の事で、依然として不安はあるけれど、）」
 	「（少しずつ元気を取り戻している様子だったから、少しホッとした。）」
 	「（なんだか今日はデートみたいだったな。）」
 	「（・・・ていうかデートそのものだったんじゃ・・・！？）」
-
-	//あ//
-	「あ」
 	[scroll-stop]

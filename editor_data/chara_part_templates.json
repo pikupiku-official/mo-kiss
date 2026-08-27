@@ -510,6 +510,66 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "8a5ceb4af0cc4343a59020da39c7cbf9",
+      "name": "拗ねる・ぷくー斜め",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T01_ARM00_CLO00",
+        "brow": "MMK_F01_BRO03_00",
+        "cheek": "MMK_F01_CHE03_00",
+        "eye": "MMK_F01_EYE00_02",
+        "mouth": "MMK_F01_MOU05_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "1b5ca375fe5c4474bc85ca966faca5ce",
+      "name": "本当かなあ？斜め",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T01_ARM01_CLO00",
+        "brow": "MMK_F01_BRO03_00",
+        "cheek": "MMK_F01_CHE03_00",
+        "eye": "MMK_F01_EYE00_01",
+        "mouth": "MMK_F01_MOU04_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "f4f9e45a059f40debf3f42b4e09d91ca",
+      "name": "何言ってんだこいつ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_01",
+        "mouth": "MMK_F00_MOU05_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "bb6ddf022d0a443f9af23f7b54a46984",
+      "name": "ちょい照れツッコミ",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO03_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU05_02",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }
