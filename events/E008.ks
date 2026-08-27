@@ -1,4 +1,5 @@
 ﻿*start
+;@expression-status: human_confirmed
 
 ;----------------------------------------------
 ;◆メインシナリオ

@@ -1,0 +1,4 @@
+interface:
+  display_name: "KS Expression Draft"
+  short_description: "Draft KS expressions from human-confirmed examples"
+  default_prompt: "Use $expression-draft to create an AI expression draft for a specified KS file."
