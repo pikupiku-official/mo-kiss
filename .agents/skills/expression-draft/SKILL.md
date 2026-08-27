@@ -24,7 +24,7 @@ Use `python tools/expression_status.py get events/<target>.ks` to inspect a targ
 3. Run `python tools/expression_status.py list --status human_confirmed` and read every listed KS before drafting.
 4. Learn links between dialogue context and expressions: preceding and following turns, speaker and listener reactions, character identity, scene mood, and effective prior state. Unchanged turns are negative examples; do not make a change merely to make the draft look busy.
 5. Read the whole target. Inspect relevant character templates, configuration, and assets to verify proposed part IDs. Prefer exact IDs used for that character in confirmed examples.
-6. Edit only the target and stay inside the mutation boundary.
+6. Build a dialogue-by-dialogue expression decision ledger for every line spoken by each staged character. For each line, explicitly choose one of: show, shift, keep the current expression, or hide. “Keep” is a deliberate decision and produces no tag. Then edit only the target and stay inside the mutation boundary.
 7. Review the diff, validate referenced assets, and confirm that no forbidden tag or text changed.
 8. Only after validation, run `python tools/expression_status.py set events/<target>.ks ai_draft`.
 9. Report the target, confirmed examples read, expression changes, and validation.
@@ -34,7 +34,9 @@ Use `python tools/expression_status.py get events/<target>.ks` to inspect a targ
 Allowed:
 
 - Change expression/pose attributes on existing `chara_show` and `chara_shift`: `torso`, `eye`, `mouth`, `brow`, `cheek`, `effect`, `accessory`, and `blink`.
+- Insert `chara_show` before a speaking character's first visible line when the scenario has no existing staging tag for that character. Reuse character-specific placement and sizing conventions from human-confirmed examples; the inserted tag may contain `name`, `x`, `y`, `size`, and `fade` only as required to establish that initial staging.
 - Insert `chara_shift` only for a character already visible at that exact point. Use `name` only to identify that character and `fade` only when local convention requires it.
+- Insert `chara_hide` when a visible character leaves the scene, at a scene boundary, or when the dialogue context clearly calls for removal. Use only `name` and locally conventional fade/timing attributes.
 - Change target status from `initial` to `ai_draft` after validation.
 
 Forbidden:
@@ -42,14 +44,16 @@ Forbidden:
 - Never modify background, music, or sound tags, including `bg`, `bg_show`, `bg_move`, `bgm`, `bgmstart`, `bgmstop`, `bgmend`, `se`, `sestop`, and `sewait`.
 - Never modify dialogue, speaker names, choices, branches, labels, event control, scrolling, comments, or unrelated whitespace.
 - Never change `name`, `x`, `y`, `size`, placement, or identity on an existing character tag.
-- Never add, remove, or retime entrances, movement, or hiding. Do not add `chara_show`, `chara_move`, or `chara_hide`.
+- Never add `chara_move`, or alter non-expression staging that already exists. Newly inserted `chara_show`/`chara_hide` must only establish and end the dialogue-driven visibility lifecycle requested for the expression draft.
 - Never edit a `human_confirmed` KS.
 
 ## Drafting rules
 
 - Resolve effective state across partial `chara_shift` updates; omitted attributes retain prior values.
 - Use full conversation context, not isolated-line classification.
+- Make an explicit show/shift/keep/hide decision for every dialogue line of every staged character. Do not skip a line merely because no tag will be emitted; record it as `keep` in the internal review ledger.
+- Prefer `chara_show` only when the character is not currently visible, `chara_shift` only when visible and the expression should change, and no tag when the effective expression should be retained. Never emit redundant shifts solely to demonstrate coverage.
+- Ensure each scene's visibility state is closed deliberately: hide characters who should not carry into the next scene, while respecting any established cross-scene convention in confirmed examples.
 - Consider listener reactions only when confirmed examples support that rhythm.
 - Prefer a small, high-confidence set of changes. Reusing the current expression is valid.
 - Keep the diff surgical for easy human review.
-

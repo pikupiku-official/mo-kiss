@@ -12,7 +12,6 @@
 ; --- new step ---
 [bg_show storage="test.bg.TEUgate"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="subete_no_hajimari.mp3" volume="0.2" loop="true"]
-[chara_show name="桃子" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU08_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE01_00" blink="true" x="0.6" y="1" size="2" fade="0"]
 [fadein time="1.0"]
 //桃子//
 「ねえ、{愛沼|あいぬま}は{boten:ミニスト}寄ってかない？」
@@ -40,14 +39,12 @@
  [endif]
 
 
-[chara_shift name="桃子" eye="MMK_F00_EYE01_01"]
 //桃子//
 「CM見た？ミニストの。」
 	//{苗字}//
 	「え、どんなやつだっけ？覚えてないや」
 
 
-[chara_shift name="桃子" eye="MMK_F00_EYE00_01" x="0.5" y="1.05" size="2.5"]
 //桃子//
 「強がり！ほんとだって！パイナップルソフトくださーい。」
 	//{苗字}//
@@ -92,10 +89,8 @@
 *scene3|&f.title+"教室のシーン"
 [resetlaypos]
 
-[chara_hide name="桃子"]
 [bg_show storage="test.bg.schoolroute02"  bg_x="0.5" bg_y="0.5" bg_zoom="1"]
 [BGM bgm="classroom" volume="0" loop="true"]
-[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.8" y="0.95" size="2"]
 [fadein time="1.5"]
 
 	//{苗字}//
@@ -107,8 +102,6 @@
 	//桃子//
 	「え！」
 
-[chara_move name="桃子" time="500" left="-0.4" top="0" zoom="2.0"]
-
 	//桃子//
 	「あぶなーい、ありがとね{苗字}。」
 	//{苗字}//
@@ -119,11 +112,8 @@
 
 *scene4|&f.title+"教室のシーン"
 [resetlaypos]
-
-[chara_hide name="桃子"]
 [bg_show storage="test.bg.ministop02"  bg_x="0.5" bg_y="0.5" bg_zoom="1"]
 [BGM bgm="classroom" volume="0" loop="true"]
-[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.67" y="0.95" size="2"]
 [fadein time="1.5"]
 
 	//{苗字}//
@@ -142,10 +132,8 @@
 *scene5|&f.title+"教室のシーン"
 [resetlaypos]
 
-[chara_hide name="桃子"]
 [bg_show storage="test.bg.ministop"  bg_x="0.5" bg_y="0.5" bg_zoom="1"]
 [BGM bgm="classroom" volume="0" loop="true"]
-[chara_show name="桃子" torso="T03_00_01" eye="F03_En00_00" mouth="F03_Mh00_00" brow="F03_Bn00_00" cheek="" x="0.67" y="0.95" size="2"]
 [fadein time="1.5"]
 
 	//桃子//
@@ -185,7 +173,6 @@
 	「パイナップルソフトくださーい！」
 	[scroll-stop]
 
-[chara_hide name="桃子"]
 [fadein time="1.5"]
 
 	//　　　//
@@ -194,16 +181,11 @@
 	「　　　　　　　　・」
 	[scroll-stop]
 
-[chara_show name="桃子" torso="T00_02_01" eye="F00_En00_00" mouth="F00_Mh01_01" brow="F00_Bn00_00" cheek="" x="0.78" y="0.6" size="0.4"]
 
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" torso="T00_02_01" eye="F00_En00_00" mouth="F00_Mh01_01" brow="F00_Bn00_00" cheek="" x="0.55" y="0.6" size="0.4"]
 
 	「・・・」
-
-[chara_move name="桃子" time="1500" left="-0.5" top="-0.6" zoom="3"]
-
 
 	//{苗字}//
 	「何だ」
