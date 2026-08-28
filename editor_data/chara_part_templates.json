@@ -570,6 +570,66 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "416068835bed45c8aeea4027213f9f77",
+      "name": "照れ提案斜め",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T01_ARM01_CLO00",
+        "brow": "MMK_F01_BRO02_00",
+        "cheek": "MMK_F01_CHE01_00",
+        "eye": "MMK_F01_EYE00_01",
+        "mouth": "MMK_F01_MOU04_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "70058f1aa2af429b936b4f41c1a77f73",
+      "name": "照れ驚き斜め",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T01_ARM01_CLO00",
+        "brow": "MMK_F01_BRO00_00",
+        "cheek": "MMK_F01_CHE02_00",
+        "eye": "MMK_F01_EYE02_00",
+        "mouth": "MMK_F01_MOU03_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "6117538864dc407b8ac70069c3b6500a",
+      "name": "照れ微笑み斜め",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T01_ARM01_CLO00",
+        "brow": "MMK_F01_BRO02_00",
+        "cheek": "MMK_F01_CHE02_00",
+        "eye": "MMK_F01_EYE00_00",
+        "mouth": "MMK_F01_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "2b9f93e26b5e4995b8e16821cbb5761f",
+      "name": "照れ笑い",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO03_00",
+        "cheek": "MMK_F00_CHE02_00",
+        "eye": "MMK_F00_EYE04_00",
+        "mouth": "MMK_F00_MOU11_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 *start
+;@expression-status: human_confirmed
 
 ;----------------------------------------------
 ;◆メインシナリオ
@@ -278,19 +279,18 @@
 	「（僕らの声は同時だった。突然の⼤声に驚いて、⾜を⽌める。そして辺りを⾒回す。）」
 [chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0004" mouth="MST_F00_MOU_0013" brow="MST_F00_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
-	「純⼀、あそこだ。⾒ろよほら、校⾨の前を！」
+	「純⼀、あそこだ。⾒ろよほら、あっちの前を！」
 	//純一//
-	「（急いで視線を増⽥が指差す校⾨の⽅に向ける。）」
+	「（急いで視線を増⽥が指差す⽅に向ける。）」
 
-[chara_show name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.43030974" y="0.55973452" size="0.76766449" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T03_ARM03_CLO00" eye="MMK_F03_EYE04_00" mouth="MMK_F03_MOU07_00" brow="MMK_F03_BRO00_00" cheek="MMK_F03_CHE03_00" blink="true" x="0.23" y="0.54" size="0.6" fade="0.15"]
 [chara_hide name="増田" fade="0.15"]
 [bg_show storage="通学路③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	//純一//
-	「(視線の先にはとびきりの笑顔で⼿を振る桃⼦がいる。)」
-	「(僕は正直⼾惑いつつも、急いで彼⼥に⼿を振り返す。)」
+	「(視線の先にはとびきりの笑顔の桃⼦がいる。)」
+	「(僕は正直⼾惑いつつも、急いで彼⼥に⼿を振る。)」
 	//増田//
 	「頑張れよ～！」
-
 
 [chara_hide name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
 [bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]

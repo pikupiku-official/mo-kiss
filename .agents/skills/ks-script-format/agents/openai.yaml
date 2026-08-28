@@ -1,0 +1,4 @@
+interface:
+  display_name: "KS Script Format"
+  short_description: "Normalize KS speaker and dialogue layout"
+  default_prompt: "Use $ks-script-format to normalize speaker and dialogue formatting in the specified events/*.ks files."
