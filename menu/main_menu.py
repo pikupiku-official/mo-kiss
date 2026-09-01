@@ -171,20 +171,22 @@ class MainMenu(SubsystemBase):
             text_input.clear_focus()
         self.text_inputs[name].focus()
 
+    def _name_length_error(self):
+        for key, label in (("surname", "苗字"), ("name", "名前")):
+            text_input = self.text_inputs[key]
+            if len(text_input.get_text().strip()) > text_input.max_length:
+                return f"{label}は{text_input.max_length}文字以内で入力してください"
+        return ""
+
     def _confirm_new_game(self):
         surname = self.text_inputs["surname"].get_text().strip()
         name = self.text_inputs["name"].get_text().strip()
         if not surname or not name:
             self._name_error = "苗字と名前を入力してください"
             return None
-        for key, value, label in (
-            ("surname", surname, "苗字"),
-            ("name", name, "名前"),
-        ):
-            max_length = self.text_inputs[key].max_length
-            if len(value) > max_length:
-                self._name_error = f"{label}は{max_length}文字以内で入力してください"
-                return None
+        self._name_error = self._name_length_error()
+        if self._name_error:
+            return None
         if not get_save_manager().reset_current_state():
             self._name_error = "ゲームの初期化に失敗しました"
             return None
@@ -282,7 +284,7 @@ class MainMenu(SubsystemBase):
                 else:
                     self.name_choices.selected_index = 0
             elif field_result == "text_changed":
-                self._name_error = ""
+                self._name_error = self._name_length_error()
 
         if event.type == pygame.MOUSEMOTION:
             self.name_choices.update_hover(event.pos)

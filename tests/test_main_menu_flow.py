@@ -188,30 +188,50 @@ class MainMenuFlowTests(unittest.TestCase):
         finally:
             menu.cleanup()
 
-    def test_name_input_keeps_overlong_committed_name_without_warning(self):
+    def test_name_input_warns_but_keeps_accepting_overlong_text(self):
         self.menu.state = MainMenu.NAME_INPUT
         self.menu._focus_input("surname")
 
         self.menu.handle_events(
             [pygame.event.Event(pygame.TEXTINPUT, text="長い苗字名")]
         )
+        self.menu.handle_events(
+            [pygame.event.Event(pygame.TEXTINPUT, text="追加")]
+        )
+        self.menu.render()
 
-        self.assertEqual(self.menu.text_inputs["surname"].get_text(), "長い苗字名")
+        self.assertEqual(self.menu.text_inputs["surname"].get_text(), "長い苗字名追加")
+        self.assertEqual(self.menu._name_error, "苗字は3文字以内で入力してください")
+
+        self.menu.handle_events(
+            [
+                pygame.event.Event(pygame.KEYDOWN, key=pygame.K_BACKSPACE)
+                for _ in range(4)
+            ]
+        )
+
+        self.assertEqual(self.menu.text_inputs["surname"].get_text(), "長い苗")
         self.assertEqual(self.menu._name_error, "")
 
     def test_confirmation_warns_and_does_not_transition_for_overlong_name(self):
-        self.menu.text_inputs["surname"].set_text("長い苗字名")
-        self.menu.text_inputs["name"].set_text("太郎")
+        for key, overlong_value, expected_error in (
+            ("surname", "長い苗字名", "苗字は3文字以内で入力してください"),
+            ("name", "長い名前", "名前は3文字以内で入力してください"),
+        ):
+            with self.subTest(key=key):
+                self.menu.text_inputs["surname"].set_text("山田")
+                self.menu.text_inputs["name"].set_text("太郎")
+                self.menu.text_inputs[key].set_text(overlong_value)
 
-        with patch("menu.main_menu.get_save_manager") as get_save_manager, patch(
-            "menu.main_menu.get_name_manager"
-        ) as get_name_manager:
-            result = self.menu._confirm_new_game()
+                with patch("menu.main_menu.get_save_manager") as get_save_manager, patch(
+                    "menu.main_menu.get_name_manager"
+                ) as get_name_manager:
+                    result = self.menu._confirm_new_game()
 
-        self.assertIsNone(result)
-        self.assertEqual(self.menu._name_error, "苗字は3文字以内で入力してください")
-        get_save_manager.assert_not_called()
-        get_name_manager.assert_not_called()
+                self.assertIsNone(result)
+                self.assertEqual(self.menu._name_error, expected_error)
+                get_save_manager.assert_not_called()
+                get_name_manager.assert_not_called()
 
 
 class ReusableLoadScreenTests(unittest.TestCase):

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt5.QtCore import QPoint, Qt
+from PyQt5.QtCore import QPoint, QSize, Qt
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtTest import QTest
 from PyQt5.QtWidgets import QApplication, QDialog, QStyleFactory
@@ -12,11 +12,33 @@ from event_editor import (
     EventEditorGUI,
     StepEditorDialog,
     Win2000FramelessMainWindow,
+    Win2000TitleBar,
     apply_windows_2000_style,
 )
 
 
 APP = QApplication.instance() or QApplication([])
+
+
+def test_caption_buttons_grow_on_physically_small_displays():
+    assert Win2000TitleBar.caption_button_size_for_physical_size(344, 194) == 28
+    assert Win2000TitleBar.caption_button_size_for_physical_size(600, 340) == 18
+    assert Win2000TitleBar.caption_button_size_for_physical_size(0, 0) == 24
+
+
+def test_title_bar_applies_new_metrics_when_the_active_screen_changes():
+    window = Win2000FramelessMainWindow()
+    notebook_screen = SimpleNamespace(physicalSize=lambda: QSize(344, 194))
+    desktop_screen = SimpleNamespace(physicalSize=lambda: QSize(600, 340))
+
+    window.title_bar.update_screen_metrics(notebook_screen)
+    assert window.title_bar.close_button.size() == QSize(28, 28)
+    assert window.title_bar.height() == 32
+
+    window.title_bar.update_screen_metrics(desktop_screen)
+    assert window.title_bar.close_button.size() == QSize(18, 18)
+    assert window.title_bar.height() == 22
+    window.close()
 
 
 def test_windows_2000_style_uses_qt_classic_controls_and_palette():

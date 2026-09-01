@@ -5,7 +5,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtCore import QEvent, QPoint, QPointF, Qt
 from PyQt5.QtGui import QColor, QImage, QKeyEvent, QMouseEvent
-from PyQt5.QtWidgets import QApplication, QDialog, QGraphicsItem, QLineEdit, QWidget
+from PyQt5.QtTest import QTest
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QGraphicsItem,
+    QLineEdit,
+    QMessageBox,
+    QWidget,
+)
 
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
 from event_editor import StepEditorDialog
@@ -745,6 +753,58 @@ def test_step_navigation_stays_in_same_dialog_and_loads_adjacent_step():
     assert "新規step" in dialog.next_step_btn.text()
 
 
+def test_dialog_arrow_key_pages_steps_without_requiring_canvas_focus():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+
+    dialog.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Right, Qt.NoModifier))
+
+    assert dialog._step_index == 1
+    assert dialog.body_input.text() == "second"
+
+
+def test_arrow_key_pages_from_outline_but_not_from_text_input():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.show()
+    APP.processEvents()
+
+    dialog.step_outline.setFocus()
+    QTest.keyClick(dialog.step_outline, Qt.Key_Right)
+    assert dialog._step_index == 1
+
+    dialog.body_input.setFocus()
+    dialog.body_input.setCursorPosition(len(dialog.body_input.text()))
+    QTest.keyClick(dialog.body_input, Qt.Key_Left)
+    assert dialog._step_index == 1
+    assert dialog.body_input.cursorPosition() == len(dialog.body_input.text()) - 1
+    dialog.reject()
+
+
 def test_step_editor_can_start_preview_from_its_current_step():
     manager = _empty_image_manager()
     steps = [
@@ -828,6 +888,36 @@ def test_final_preview_is_restored_from_memory_when_paging_back(tmp_path):
     assert not dialog.preview_label._source_pixmap.isNull()
 
 
+def test_step_navigation_defers_final_render_until_final_preview_tab_is_opened():
+    manager = _empty_image_manager()
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    parent = QWidget()
+    preview_requests = []
+    parent._preview_step_from_dialog = (
+        lambda step, dialog: preview_requests.append(step["step_index"])
+    )
+    dialog = StepEditorDialog(
+        parent,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=manager,
+    )
+
+    dialog._navigate_step(1)
+    assert preview_requests == []
+
+    dialog.preview_tabs.setCurrentIndex(1)
+    assert preview_requests == [1]
+    dialog.reject()
+    parent.close()
+
+
 def test_step_navigation_can_apply_dirty_values_before_moving():
     manager = _empty_image_manager()
     steps = [
@@ -844,7 +934,9 @@ def test_step_navigation_can_apply_dirty_values_before_moving():
         image_manager=manager,
     )
     dialog.body_input.setText("edited")
-    dialog._confirm_step_transition = lambda: "apply"
+    dialog._confirm_step_transition = lambda: (_ for _ in ()).throw(
+        AssertionError("step navigation must not prompt")
+    )
 
     dialog._navigate_step(1)
 
@@ -853,7 +945,62 @@ def test_step_navigation_can_apply_dirty_values_before_moving():
     assert not dialog._is_step_dirty()
 
 
-def test_outline_navigation_cancel_keeps_the_current_step_and_draft():
+def test_closing_dirty_step_can_apply_all_remaining_changes(monkeypatch):
+    manager = _empty_image_manager()
+    step = {"step_index": 0, "speaker": "A", "body": "first"}
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=[],
+        all_steps=[step],
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.body_input.setText("edited before close")
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.Save,
+    )
+
+    dialog.reject()
+
+    assert step["body"] == "edited before close"
+    assert dialog.result() == QDialog.Rejected
+
+
+def test_closing_dirty_step_can_return_to_editing_or_discard(monkeypatch):
+    manager = _empty_image_manager()
+    step = {"step_index": 0, "speaker": "A", "body": "first"}
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=[],
+        all_steps=[step],
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.body_input.setText("draft")
+    answers = iter((QMessageBox.Cancel, QMessageBox.Discard))
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: next(answers),
+    )
+
+    dialog.reject()
+    assert dialog.result() == 0
+    assert dialog._is_step_dirty()
+    assert step["body"] == "first"
+
+    dialog.reject()
+    assert dialog.result() == QDialog.Rejected
+    assert step["body"] == "first"
+
+
+def test_outline_navigation_auto_applies_the_current_step_without_prompting():
     manager = _empty_image_manager()
     steps = [
         {"step_index": 0, "speaker": "A", "body": "first"},
@@ -869,14 +1016,17 @@ def test_outline_navigation_cancel_keeps_the_current_step_and_draft():
         image_manager=manager,
     )
     dialog.body_input.setText("draft")
-    dialog._confirm_step_transition = lambda: "cancel"
+    dialog._confirm_step_transition = lambda: (_ for _ in ()).throw(
+        AssertionError("outline navigation must not prompt")
+    )
 
     dialog.step_outline.setCurrentRow(1)
 
-    assert dialog._step_index == 0
-    assert dialog.step_outline.currentRow() == 0
-    assert dialog.body_input.text() == "draft"
-    assert dialog._is_step_dirty()
+    assert steps[0]["body"] == "draft"
+    assert dialog._step_index == 1
+    assert dialog.step_outline.currentRow() == 1
+    assert dialog.body_input.text() == "second"
+    assert not dialog._is_step_dirty()
 
 
 def test_step_navigation_creates_a_new_step_at_the_edge_after_confirmation():
