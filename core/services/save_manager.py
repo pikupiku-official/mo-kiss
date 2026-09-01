@@ -3,8 +3,9 @@ import shutil
 import json
 import csv
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from core.path_utils import get_project_root
+from core.services.time_manager import to_zenkaku
 
 class SaveManager:
     """セーブ・ロード管理システム"""
@@ -22,6 +23,7 @@ class SaveManager:
             "player_name.json",
             "dialogue_state.json",
             "seed_state.json",
+            "resume_state.json",
         ]
         
         # ディレクトリが存在しない場合は作成
@@ -54,7 +56,12 @@ class SaveManager:
                     if os.path.exists(time_state_path):
                         with open(time_state_path, 'r', encoding='utf-8') as f:
                             time_state = json.load(f)
-                            slot_info["description"] = f"{time_state['year']}年{time_state['month']}月{time_state['day']}日 {time_state['period']}"
+                            slot_info["description"] = (
+                                f"{to_zenkaku(time_state['year'])}年"
+                                f"{to_zenkaku(time_state['month'])}月"
+                                f"{to_zenkaku(time_state['day'])}日 "
+                                f"{time_state['period']}"
+                            )
                     
                     # フォルダの更新時刻を取得
                     slot_info["save_time"] = datetime.fromtimestamp(os.path.getmtime(slot_path))
@@ -69,7 +76,6 @@ class SaveManager:
     def has_save(self, slot_name: str) -> bool:
         """指定されたスロットにセーブデータが存在するかチェック"""
         if slot_name.startswith('saveslot_'):
-            slot_number = int(slot_name.split('_')[1])
             slot_path = os.path.join(self.save_dir, slot_name)
             return os.path.exists(slot_path)
         return False
@@ -95,18 +101,53 @@ class SaveManager:
                     if os.path.exists(time_state_path):
                         with open(time_state_path, 'r', encoding='utf-8') as f:
                             time_state = json.load(f)
-                            metadata['game_time'] = f"{time_state['month']}月{time_state['day']}日 {time_state['period']}"
+                            era_year = int(time_state['year']) - 1988
+                            weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
+                            weekday = weekday_names[int(time_state.get('weekday', 0))]
+                            metadata['game_year'] = f"平成{to_zenkaku(era_year)}年"
+                            metadata['game_date_period'] = (
+                                f"{to_zenkaku(time_state['month'])}月"
+                                f"{to_zenkaku(time_state['day'])}日（{weekday}） "
+                                f"{time_state['period']}"
+                            )
+                            metadata['game_time'] = (
+                                f"{metadata['game_year']} "
+                                f"{metadata['game_date_period']}"
+                            )
                     
                     # セーブ日時
                     save_time = datetime.fromtimestamp(os.path.getmtime(slot_path))
-                    metadata['save_date'] = save_time.strftime('%Y年%m月%d日 %H:%M')
+                    metadata['save_date'] = to_zenkaku(
+                        save_time.strftime('%Y年%m月%d日 %H:%M')
+                    )
                     
                 except Exception as e:
                     print(f"メタデータ取得エラー ({slot_name}): {e}")
         
         return metadata
     
-    def save_game(self, slot_name: str) -> bool:
+    def write_resume_state(self, state: Dict[str, Any]) -> bool:
+        """Stage the semantic scene snapshot copied into the next save."""
+        try:
+            path = os.path.join(self.current_state_dir, "resume_state.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(state, handle, ensure_ascii=False, indent=2)
+            return True
+        except Exception as error:
+            print(f"[SAVE] resume_state.json write failed: {error}")
+            return False
+
+    def get_resume_state(self) -> Dict[str, Any]:
+        """Read the currently loaded semantic scene snapshot."""
+        path = os.path.join(self.current_state_dir, "resume_state.json")
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                state = json.load(handle)
+            return state if isinstance(state, dict) else {}
+        except (OSError, ValueError, TypeError):
+            return {}
+
+    def save_game(self, slot_name: str, thumbnail_surface=None) -> bool:
         """現在のゲーム状態を指定スロット名に保存"""
         try:
             slot_path = os.path.join(self.save_dir, slot_name)
@@ -130,7 +171,11 @@ class SaveManager:
             # サムネイル保存
             try:
                 import pygame as _pg
-                screen = _pg.display.get_surface()
+                screen = (
+                    thumbnail_surface
+                    if thumbnail_surface is not None
+                    else _pg.display.get_surface()
+                )
                 if screen:
                     thumbnail = _pg.transform.scale(screen, (320, 240))
                     _pg.image.save(thumbnail, os.path.join(slot_path, "thumbnail.png"))
@@ -212,6 +257,7 @@ class SaveManager:
                 "player_name.json": "player_name_template.json",
                 "dialogue_state.json": "dialogue_state_template.json",
                 "seed_state.json": "seed_state_template.json",
+                "resume_state.json": "resume_state_template.json",
             }
             
             for current_name, template_name in template_mapping.items():

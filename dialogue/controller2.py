@@ -214,10 +214,24 @@ def handle_events(game_state, screen):
     
     for event in pygame.event.get():
         # バックログ関連のイベント処理
-        game_state['backlog_manager'].handle_input(event)
+        backlog_manager = game_state['backlog_manager']
+        backlog_was_open = backlog_manager.is_showing_backlog()
+        backlog_event = event
+        if hasattr(event, "pos"):
+            event_values = dict(event.dict)
+            event_values["pos"] = _to_virtual_mouse_pos(
+                event.pos, screen, game_state
+            )
+            backlog_event = pygame.event.Event(event.type, event_values)
+        backlog_manager.handle_input(backlog_event)
         
         if event.type == pygame.QUIT:
             return False
+
+        # B closes the overlay, and every other gameplay input remains blocked
+        # while it is visible. ESC is intercepted by DialogueSubsystem first.
+        if backlog_was_open or backlog_manager.is_showing_backlog():
+            continue
             
         elif event.type == pygame.MOUSEMOTION:
             # マウス移動の処理（選択肢のハイライト）
@@ -302,22 +316,6 @@ def handle_events(game_state, screen):
     
     return True
 
-def _flush_scroll_line_to_backlog(game_state):
-    """スクロールモード中の現在行をバックログに追加（advance直前に呼ぶ）"""
-    text_renderer = game_state.get('text_renderer')
-    backlog_mgr = game_state.get('backlog_manager')
-    if not (text_renderer and backlog_mgr):
-        return
-    if not text_renderer.scroll_manager.is_scroll_mode():
-        return
-    if not text_renderer.current_text:
-        return
-    backlog_mgr.add_entry(
-        text_renderer.current_character_name or None,
-        text_renderer.current_text,
-        getattr(text_renderer, 'current_force_female', False),
-    )
-
 def handle_enter_key(game_state):
     """Enterキーが押されたときの処理"""
     print("[ENTER] Enterキー処理開始")
@@ -338,7 +336,6 @@ def handle_enter_key(game_state):
         if text_renderer.is_displaying():
             text_renderer.skip_text()
             return
-        _flush_scroll_line_to_backlog(game_state)
         _advance_seed_dialogue(game_state)
         return
 
@@ -363,7 +360,6 @@ def handle_enter_key(game_state):
 
     # テキスト/アニメがidleなら次の段落へ
     print("[ENTER] 次の段落に進む")
-    _flush_scroll_line_to_backlog(game_state)  # スクロール中の現在行をバックログに追加
     can_continue = advance_to_next_dialogue(game_state)
     if not can_continue:
         print("[ENTER] KSファイル終了")
@@ -602,8 +598,9 @@ def update_game(game_state):
         setup_text_renderer_settings(game_state)
         game_state['text_renderer_initialized'] = True
     
-    # テキスト表示の更新（選択肢表示中は停止）
-    if not game_state['choice_renderer'].is_choice_showing():
+    # テキスト表示の更新（選択肢・バックログ表示中は停止）
+    if (not game_state['choice_renderer'].is_choice_showing() and
+            not game_state['backlog_manager'].is_showing_backlog()):
         game_state['text_renderer'].update()
     
     # キャラクターアニメーションの更新
@@ -641,7 +638,6 @@ def update_game(game_state):
         not game_state['backlog_manager'].is_showing_backlog() and
         not game_state['choice_renderer'].is_choice_showing()):
         # 自動的に次の対話に進む
-        _flush_scroll_line_to_backlog(game_state)  # スクロール中の現在行をバックログに追加
         if game_state.get('seed_dialogue_session') is not None:
             success = _advance_seed_dialogue(game_state)
         else:

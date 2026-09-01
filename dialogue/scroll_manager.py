@@ -9,9 +9,6 @@ class ScrollManager:
         # スクロール状態
         self.scroll_mode = False
         self.scroll_lines = []  # 現在のスクロール区間に含まれるテキストブロック
-        self.all_scroll_text = []  # バックログ用：削除されたブロックも含むすべてのテキスト
-        self.all_scroll_speakers = []
-        self.all_scroll_force_female = []
         self.current_set_line_count = 0
         
         # 各行の話者情報を管理（修正点）
@@ -66,9 +63,6 @@ class ScrollManager:
         self.current_speaker = substituted_speaker
         self.last_added_speaker = substituted_speaker
         self.scroll_lines = [substituted_text]  # 最初のテキストで初期化
-        self.all_scroll_text = [substituted_text]  # バックログ用にも記録
-        self.all_scroll_speakers = [substituted_speaker]
-        self.all_scroll_force_female = [bool(force_female)]
         self.current_set_line_count = self._normalized_line_count(display_line_count)
         
         # 話者情報を初期化（修正点）
@@ -114,9 +108,6 @@ class ScrollManager:
             self._clear_visible_set()
 
         self.scroll_lines.append(substituted_text)
-        self.all_scroll_text.append(substituted_text)  # バックログ用にも記録
-        self.all_scroll_speakers.append(substituted_speaker)
-        self.all_scroll_force_female.append(bool(force_female))
         self.current_set_line_count += added_line_count
         
         # 話者情報を追加（修正点）
@@ -131,7 +122,6 @@ class ScrollManager:
         
         if self.debug:
             print(f"[SCROLL] 現在のスクロール区間のブロック数: {len(self.scroll_lines)}")
-            print(f"[SCROLL] バックログ用テキスト数: {len(self.all_scroll_text)}")
             print(f"[SCROLL] 話者情報: {list(zip(self.line_speakers, self.line_is_first))}")
     
     def should_continue_scroll(self, speaker):
@@ -176,44 +166,12 @@ class ScrollManager:
         if self.debug:
             print(f"[SCROLL] scroll-stopコマンドによりスクロール終了、次のテキストから新規表示開始")
         
-        # スクロール中のすべてのテキスト（削除されたものも含む）をバックログに追加
-        if self.scroll_mode and self.text_renderer and self.text_renderer.backlog_manager:
-            backlog = self.text_renderer.backlog_manager
-            expected = [
-                (speaker or "名無し", text, bool(force_female))
-                for speaker, text, force_female in zip(
-                    self.all_scroll_speakers,
-                    self.all_scroll_text,
-                    self.all_scroll_force_female,
-                )
-                if text
-            ]
-            actual_tail = [
-                (
-                    entry.get("speaker"),
-                    entry.get("text"),
-                    bool(entry.get("force_female", False)),
-                )
-                for entry in backlog.entries[-len(expected):]
-            ] if expected else []
-            if actual_tail != expected:
-                for speaker, text, force_female in expected:
-                    backlog.add_entry(speaker, text, force_female)
-            if self.all_scroll_text:
-                # スクロール終了時にフラグを設定
-                self.text_renderer.backlog_added_for_current = True
-                if self.debug:
-                    print(f"[BACKLOG] スクロール終了時に全{len(self.all_scroll_text)}ブロックをバックログに追加")
-        
         if self.scroll_mode and self.text_renderer:
             self.text_renderer.set_scroll_ended_flag()
         
         # スクロール状態をリセットして次のテキストから新しく開始できるようにする
         self.scroll_mode = False
         self.scroll_lines = []
-        self.all_scroll_text = []  # バックログ用リストもリセット
-        self.all_scroll_speakers = []
-        self.all_scroll_force_female = []
         self.current_set_line_count = 0
         self.line_speakers = []  # 話者情報もリセット（修正点）
         self.line_is_first = []  # 最初行情報もリセット（修正点）

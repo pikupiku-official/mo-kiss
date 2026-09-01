@@ -24,7 +24,6 @@ def test_scroll_manager_starts_new_set_before_a_dialogue_that_will_not_fit():
 
     assert manager.get_scroll_lines() == ["three-line"]
     assert manager.get_line_speakers_info()["speakers"] == ["B"]
-    assert manager.all_scroll_text == ["one-line", "three-line"]
 
 
 def test_scroll_manager_keeps_dialogues_together_when_they_fit():
@@ -44,7 +43,6 @@ def test_scroll_manager_bounds_visible_work_to_the_current_set():
         manager.add_text_to_scroll(str(index), "A")
 
     assert manager.get_scroll_lines() == ["99"]
-    assert len(manager.all_scroll_text) == 100
 
 
 def test_text_renderer_reserves_the_completed_dialogue_line_count_up_front():
@@ -64,7 +62,7 @@ def test_text_renderer_reserves_the_completed_dialogue_line_count_up_front():
     )()
     renderer.seed_manager = None
     renderer.seed_event_id = None
-    renderer.backlog_added_for_current = True
+    renderer.backlog_manager = None
     renderer.scroll_manager = ScrollSpy()
     renderer.max_display_lines = 3
     renderer._wrap_text = lambda text: ["a", "b", "c"]
@@ -73,6 +71,59 @@ def test_text_renderer_reserves_the_completed_dialogue_line_count_up_front():
     renderer.set_dialogue("a full three-line dialogue", "A")
 
     assert captured["args"][3:] == (3, 3)
+
+
+def test_text_steps_are_recorded_once_and_empty_steps_do_nothing():
+    recorded = []
+
+    class ScrollSpy:
+        def is_scroll_mode(self):
+            return False
+
+    class BacklogSpy:
+        def add_entry(self, speaker, text, force_female=False, display_lines=None):
+            recorded.append((speaker, text, force_female))
+
+    renderer = TextRenderer.__new__(TextRenderer)
+    renderer.debug = False
+    renderer.name_manager = type(
+        "Names", (), {"substitute_variables": lambda self, value: value or ""}
+    )()
+    renderer.seed_manager = None
+    renderer.seed_event_id = None
+    renderer.backlog_manager = BacklogSpy()
+    renderer.scroll_manager = ScrollSpy()
+    renderer.max_chars_per_line = 20
+    renderer.reset_auto_timer = lambda: None
+
+    renderer.set_dialogue("＿＿＿", "ナレ")
+    renderer.set_dialogue("＿＿＿", "ナレ")
+    for _ in range(5):
+        renderer.set_dialogue("", "")
+
+    assert recorded == [
+        ("ナレ", "＿＿＿", False),
+        ("ナレ", "＿＿＿", False),
+    ]
+
+
+def test_current_scroll_dialogue_reports_its_actual_latest_row_y():
+    renderer = TextRenderer.__new__(TextRenderer)
+    renderer.current_text = "current"
+    renderer.text_start_y = 798
+    renderer.text_line_height = 50
+    renderer.max_display_lines = 3
+    renderer._wrap_text = lambda text: [text]
+    renderer.scroll_manager = type(
+        "Scroll",
+        (),
+        {
+            "is_scroll_mode": lambda self: True,
+            "get_scroll_lines": lambda self: ["old", "current"],
+        },
+    )()
+
+    assert renderer.get_current_dialogue_last_line_y() == 848
 
 
 def test_normal_dialogue_renderer_draws_only_the_new_set():

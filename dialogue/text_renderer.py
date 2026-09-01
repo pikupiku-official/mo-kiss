@@ -168,9 +168,6 @@ class TextRenderer:
         from core.services.settings_manager import get_settings_manager
         get_settings_manager().register_text_renderer(self)
         
-        # バックログ追加フラグの初期化
-        self.backlog_added_for_current = True
-        
         # 名前管理システム
         self.name_manager = get_name_manager()
 
@@ -615,6 +612,21 @@ class TextRenderer:
 
     def set_backlog_manager(self, backlog_manager):
         self.backlog_manager = backlog_manager
+        if backlog_manager is not None and hasattr(backlog_manager, "set_text_renderer"):
+            backlog_manager.set_text_renderer(self)
+
+    def resume_after_backlog(self, paused_ms):
+        """Shift active text timers so backlog time does not count as play time."""
+        paused_ms = max(0, int(paused_ms or 0))
+        for attribute in (
+            "last_char_time",
+            "punctuation_wait_start",
+            "paragraph_transition_start",
+            "text_complete_time",
+        ):
+            value = getattr(self, attribute, 0)
+            if value:
+                setattr(self, attribute, value + paused_ms)
 
     def toggle_auto_mode(self):
         self.auto_mode = not self.auto_mode
@@ -695,9 +707,16 @@ class TextRenderer:
                 if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
                     self.seed_manager.encounter(self.seed_event_id, token.seed_id)
 
-        # 新しいテキストが設定されたのでバックログ追加フラグをリセット
-        self.backlog_added_for_current = False
-        
+        # A text-bearing scenario step has exactly one backlog write path.
+        # Empty/control steps never mutate the history.
+        backlog_manager = getattr(self, "backlog_manager", None)
+        if backlog_manager and self.current_text.strip():
+            backlog_manager.add_entry(
+                self.current_character_name,
+                self.current_text,
+                self.current_force_female,
+                display_lines=self._wrap_text(self.current_text),
+            )
         # 現在の話者を記録
         if not hasattr(self, 'last_speaker'):
             self.last_speaker = None
@@ -728,8 +747,6 @@ class TextRenderer:
             self.last_force_female = bool(force_female)
             self.previous_text = text
             self.previous_force_female = bool(force_female)
-            # スクロールモード中はバックログ追加しないため、フラグは True に設定
-            self.backlog_added_for_current = True
             return
         
         # スクロール表示の処理（新規開始）
@@ -742,16 +759,6 @@ class TextRenderer:
                 hasattr(self, 'last_speaker') and self.last_speaker):
                 if self.debug:
                     print(f"[SCROLL] 前のテキストを含めてスクロール開始: {self.last_speaker} -> {character_name}")
-
-                # 重複防止：前のテキストが既にバックログに単独で存在する場合は削除
-                if (self.backlog_manager and self.backlog_manager.entries and
-                    self.backlog_manager.entries[-1]["speaker"] == self.last_speaker and
-                    self.backlog_manager.entries[-1]["text"] == self.previous_text and
-                    bool(self.backlog_manager.entries[-1].get("force_female")) ==
-                    bool(getattr(self, 'previous_force_female', False))):
-                    removed_entry = self.backlog_manager.entries.pop()
-                    if self.debug:
-                        print(f"[BACKLOG] スクロール開始時に重複エントリを削除: {removed_entry['speaker']} - {removed_entry['text'][:30]}...")
 
                 # 前のテキストでスクロール開始（前の話者で）
                 previous_display_text = self.name_manager.substitute_variables(
@@ -795,8 +802,6 @@ class TextRenderer:
             self.last_force_female = bool(force_female)
             self.previous_text = text
             self.previous_force_female = bool(force_female)
-            # スクロールモード開始時はバックログ追加しないため、フラグは True に設定
-            self.backlog_added_for_current = True
             return
         
         # 通常表示
@@ -810,7 +815,24 @@ class TextRenderer:
         self.last_force_female = bool(force_female)
         self.previous_text = text
         self.previous_force_female = bool(force_female)
-        # 通常表示ではskip_text()でバックログ追加するため、フラグは False のまま
+
+    def get_current_dialogue_last_line_y(self):
+        """Return the Y of the newest row currently visible in the text area."""
+        if not self.current_text:
+            return self.text_start_y
+
+        total_lines = max(1, len(self._wrap_text(self.current_text)))
+        if self.scroll_manager.is_scroll_mode():
+            blocks = self.scroll_manager.get_scroll_lines()
+            line_counts = [max(1, len(self._wrap_text(block))) for block in blocks]
+            if line_counts:
+                total_lines = sum(line_counts)
+
+        page_start = (
+            (total_lines - 1) // self.max_display_lines
+        ) * self.max_display_lines
+        visible_line_count = total_lines - page_start
+        return self.text_start_y + (visible_line_count - 1) * self.text_line_height
     
     def update(self):
         if not self.current_text:
@@ -927,18 +949,6 @@ class TextRenderer:
             self.punctuation_waiting = False
             self.paragraph_transition_waiting = False
             
-            # バックログへの追加処理（重複チェック強化、スクロール中は追加しない）
-            if (self.backlog_manager and not getattr(self, 'backlog_added_for_current', False) and
-                not self.scroll_manager.is_scroll_mode()):
-                # 通常モードの場合のみ（スクロール中は scroll_manager が終了時に処理）
-                char_name = self.current_character_name if self.current_character_name else None
-                self.backlog_manager.add_entry(
-                    char_name, self.current_text, self.current_force_female
-                )
-                self.backlog_added_for_current = True  # バックログに追加済みフラグを設定
-                if self.debug:
-                    print(f"[BACKLOG] スキップ時にテキストをバックログに追加: {char_name} - {self.current_text[:30]}...")
-
     def is_displaying(self):
         return not self.is_text_complete and bool(self.current_text)
 
@@ -1191,6 +1201,9 @@ class TextRenderer:
 
     def render(self):
         if self.backlog_manager and self.backlog_manager.is_showing_backlog():
+            # Date/weather remain part of the scene and are dimmed by the
+            # backlog overlay, while dialogue is redrawn above that overlay.
+            self.render_date()
             return
         self.render_paragraph()
         # 日付表示（バックログ表示時以外）
@@ -1211,11 +1224,6 @@ class TextRenderer:
         """段落切り替え遅延時間を設定"""
         self.paragraph_transition_delay = delay_ms
 
-    def force_add_to_backlog(self):
-        if self.current_text and self.backlog_manager:
-            char_name = self.current_character_name if self.current_character_name else None
-            self.backlog_manager.add_to_backlog(self.current_text, char_name)
-    
     def reset_scroll_state(self):
         """スクロール状態リセット機能を無効化"""
         if self.debug:

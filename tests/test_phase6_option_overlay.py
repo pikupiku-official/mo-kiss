@@ -16,6 +16,7 @@
     python -m pytest tests/test_phase6_option_overlay.py -v
 """
 
+import inspect
 import os, sys
 import unittest.mock as mock
 import types
@@ -296,14 +297,14 @@ class TestOptionImageOverlay:
         ])
         assert result == "go_to_menu"
 
-    def test_enter_on_six_does_nothing(self, overlay):
+    def test_enter_on_six_opens_settings(self, overlay):
         overlay.selected_number = 6
 
         result = overlay.handle_events([
             pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN),
         ])
 
-        assert result is None
+        assert result == "settings"
         assert overlay._closing_started_at_ms is None
 
     def test_cursor_move_dips_30px_in_50ms_steps_and_locks_input(
@@ -400,47 +401,31 @@ class TestGameApplicationOverlay:
         assert isinstance(app.current_overlay, OptionImageOverlay)
         assert app.current_overlay.selected_number == 1
 
-    def test_option_save_writes_auto_slot_and_stays_open(self, monkeypatch):
+    def test_option_save_opens_manual_slot_screen_and_stays_open(self, monkeypatch):
         from core.flow.game_flow import GameFlowController
         from main import GameApplication
-        saved = []
-        manager = types.SimpleNamespace(save_game=saved.append)
         app = GameApplication.__new__(GameApplication)
         app.current_overlay = object()
-        app.game_flow = GameFlowController(
-            app,
-            save_manager_getter=lambda: manager,
-        )
+        app.show_slot_screen = mock.Mock()
+        app.game_flow = GameFlowController(app)
 
         app._handle_overlay_result("save")
 
-        assert saved == ["saveslot_auto"]
+        app.show_slot_screen.assert_called_once_with("save")
         assert app.current_overlay is not None
 
-    def test_option_load_restores_auto_slot_and_resumes_game(self, monkeypatch):
+    def test_option_load_opens_manual_slot_screen_and_stays_open(self, monkeypatch):
         from core.flow.game_flow import GameFlowController
         from main import GameApplication
-        loaded = []
-        manager = types.SimpleNamespace(
-            load_game=lambda slot: loaded.append(slot) or True,
-        )
         app = GameApplication.__new__(GameApplication)
         app.current_overlay = object()
-        app.reload_game_systems = mock.Mock()
-        app.switch_to_map = mock.Mock()
-        app.switch_to_home = mock.Mock()
-        app.game_flow = GameFlowController(
-            app,
-            time_manager_getter=lambda: types.SimpleNamespace(is_night=lambda: False),
-            save_manager_getter=lambda: manager,
-        )
+        app.show_slot_screen = mock.Mock()
+        app.game_flow = GameFlowController(app)
 
         app._handle_overlay_result("load")
 
-        assert loaded == ["saveslot_auto"]
-        assert app.current_overlay is None
-        app.reload_game_systems.assert_called_once_with()
-        app.switch_to_map.assert_called_once_with()
+        app.show_slot_screen.assert_called_once_with("load")
+        assert app.current_overlay is not None
 
     def test_option_return_to_morning_keeps_date_and_switches_to_map(self, monkeypatch):
         from core.flow.game_flow import GameFlowController
@@ -475,7 +460,7 @@ class TestGameApplicationOverlay:
         assert "dialogue_state.json" in manager.state_files
 
     def test_run_handles_overlay(self):
-        """run() が current_overlay を考慮したループを持つ"""
+        """run() が OPTION 対応の GameLoop へ委譲する"""
         def _get_run_src():
             lines = MAIN_SRC.splitlines()
             result, in_m, indent = [], False, None
@@ -490,7 +475,10 @@ class TestGameApplicationOverlay:
                     result.append(line)
             return '\n'.join(result)
         run_src = _get_run_src()
-        assert 'option_subsystem' in run_src
+        from core.runtime.game_loop import GameLoop
+        loop_src = inspect.getsource(GameLoop)
+        assert 'GameLoop(self' in run_src
+        assert 'option_subsystem' in loop_src
 
     def test_overlay_behavior_mock(self):
         """show_option → handle_events → hide_option の流れが動く（Mock）"""

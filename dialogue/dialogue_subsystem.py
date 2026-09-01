@@ -36,6 +36,8 @@ class DialogueSubsystem(SubsystemBase):
         """
         super().__init__(screen)
         self.virtual_screen = virtual_screen
+        self.event_file = event_file
+        self._pending_resume_bgm = None
 
         # 座標系の退避先（on_enter() で設定、None = 未設定）
         self._saved_offset_x: float | None = None
@@ -125,6 +127,19 @@ class DialogueSubsystem(SubsystemBase):
                     from dialogue.model import advance_dialogue
                     advance_dialogue(self.game_state)
                     print("[INFO] DialogueSubsystem on_enter: Dialogue and BGM playback started (Normal mode)")
+
+        if self._pending_resume_bgm:
+            bgm = self._pending_resume_bgm
+            self._pending_resume_bgm = None
+            filename = bgm.get("file")
+            if filename:
+                manager = self.game_state.get("bgm_manager")
+                if manager is not None:
+                    manager.play_bgm(
+                        filename,
+                        bgm.get("volume", 0.5),
+                        bgm.get("loop", True),
+                    )
 
     def cleanup(self):
         """サブシステム終了時: BGM/SE 停止 + 座標系を復元"""
@@ -231,6 +246,201 @@ class DialogueSubsystem(SubsystemBase):
         except Exception as e:
             print(f"⚠️ dialogue_state.json 保存エラー: {e}")
 
+    def export_save_state(self) -> dict:
+        """Return a JSON-safe, settled snapshot of the current dialogue scene."""
+        gs = self.game_state
+        background = dict(gs.get("background_state") or {})
+        background_anim = background.get("anim")
+        if background_anim:
+            background["pos"] = [
+                background_anim.get("target_x", background.get("pos", [0, 0])[0]),
+                background_anim.get("target_y", background.get("pos", [0, 0])[1]),
+            ]
+            background["zoom"] = background_anim.get(
+                "target_zoom", background.get("zoom", 1.0)
+            )
+        background["anim"] = None
+
+        active_characters = list(gs.get("active_characters") or [])
+        pending_hides = set((gs.get("character_hide_pending") or {}).keys())
+        active_characters = [
+            name for name in active_characters if name not in pending_hides
+        ]
+        character_pos = {
+            name: list(position)
+            for name, position in (gs.get("character_pos") or {}).items()
+        }
+        character_zoom = dict(gs.get("character_zoom") or {})
+        for name, animation in (gs.get("character_anim") or {}).items():
+            character_pos[name] = [
+                animation.get("target_x", character_pos.get(name, [0, 0])[0]),
+                animation.get("target_y", character_pos.get(name, [0, 0])[1]),
+            ]
+            character_zoom[name] = animation.get(
+                "target_zoom", character_zoom.get(name, 1.0)
+            )
+
+        fade = dict(gs.get("fade_state") or {})
+        if fade.get("active"):
+            if fade.get("type") == "fadeout":
+                fade["alpha"] = 255
+            else:
+                fade["alpha"] = 0
+                fade["active"] = False
+        fade["start_time"] = 0
+        fade["duration"] = 0
+
+        renderer = gs.get("text_renderer")
+        scroll = getattr(renderer, "scroll_manager", None)
+        choices = gs.get("choice_renderer")
+        backlog = gs.get("backlog_manager")
+        bgm = gs.get("bgm_manager")
+
+        return {
+            "version": 1,
+            "event_file": self.event_file,
+            "event_id": self.current_event_id,
+            "paragraph_index": gs.get("current_paragraph", -1),
+            "ir_step_index": gs.get("ir_step_index", -1),
+            "background": background,
+            "characters": {
+                "active": active_characters,
+                "positions": character_pos,
+                "zoom": character_zoom,
+                "expressions": gs.get("character_expressions") or {},
+                "torso": gs.get("character_torso") or {},
+                "blink_enabled": gs.get("character_blink_enabled") or {},
+            },
+            "fade": fade,
+            "text": {
+                "body": getattr(renderer, "current_text", ""),
+                "speaker": getattr(renderer, "current_character_name", ""),
+                "force_female": bool(
+                    getattr(renderer, "current_force_female", False)
+                ),
+            },
+            "scroll": {
+                "active": bool(scroll and scroll.is_scroll_mode()),
+                "scroll_lines": list(getattr(scroll, "scroll_lines", [])),
+                "current_set_line_count": getattr(
+                    scroll, "current_set_line_count", 0
+                ),
+                "line_speakers": list(getattr(scroll, "line_speakers", [])),
+                "line_is_first": list(getattr(scroll, "line_is_first", [])),
+                "line_force_female": list(
+                    getattr(scroll, "line_force_female", [])
+                ),
+                "current_speaker": getattr(scroll, "current_speaker", None),
+                "last_added_speaker": getattr(scroll, "last_added_speaker", None),
+            },
+            "choices": (
+                list(getattr(choices, "choices", []))
+                if choices and choices.is_choice_showing()
+                else []
+            ),
+            "backlog": list(getattr(backlog, "entries", [])),
+            "bgm": {
+                "file": getattr(bgm, "current_bgm", None),
+                "volume": getattr(bgm, "target_volume", 0.5),
+                "loop": getattr(bgm, "current_loop", True),
+            },
+        }
+
+    def restore_save_state(self, snapshot: dict) -> None:
+        """Apply a semantic snapshot without replaying script side effects."""
+        gs = self.game_state
+        dialogue_data = gs.get("dialogue_data") or []
+        paragraph = int(snapshot.get("paragraph_index", -1))
+        if dialogue_data:
+            paragraph = max(0, min(paragraph, len(dialogue_data) - 1))
+        gs["current_paragraph"] = paragraph
+
+        ir_steps = ((gs.get("ir_data") or {}).get("steps") or [])
+        ir_step = int(snapshot.get("ir_step_index", -1))
+        if ir_steps:
+            ir_step = max(0, min(ir_step, len(ir_steps) - 1))
+        gs["ir_step_index"] = ir_step
+        gs["ir_anim_pending"] = False
+        gs["ir_anim_end_time"] = None
+        gs["ir_active_anims"] = []
+        gs["ir_waiting_for_anim"] = False
+        gs["ks_finished"] = False
+
+        background = snapshot.get("background")
+        if isinstance(background, dict):
+            gs["background_state"] = background
+            gs["background_state"]["anim"] = None
+
+        characters = snapshot.get("characters") or {}
+        gs["active_characters"] = list(characters.get("active") or [])
+        gs["character_pos"] = {
+            name: list(position)
+            for name, position in (characters.get("positions") or {}).items()
+        }
+        gs["character_zoom"] = dict(characters.get("zoom") or {})
+        gs["character_expressions"] = dict(characters.get("expressions") or {})
+        gs["character_torso"] = dict(characters.get("torso") or {})
+        gs["character_blink_enabled"] = dict(
+            characters.get("blink_enabled") or {}
+        )
+        gs["character_anim"] = {}
+        gs["character_part_fades"] = {}
+        gs["character_hide_pending"] = {}
+        gs["character_blink_state"] = {}
+        gs["character_blink_timers"] = {}
+
+        fade = snapshot.get("fade")
+        if isinstance(fade, dict):
+            fade["color"] = tuple(fade.get("color") or (0, 0, 0))
+            gs["fade_state"] = fade
+
+        renderer = gs.get("text_renderer")
+        text = snapshot.get("text") or {}
+        if renderer is not None:
+            renderer.set_dialogue(
+                text.get("body", ""),
+                text.get("speaker", ""),
+                should_scroll=False,
+                force_female=bool(text.get("force_female", False)),
+            )
+            renderer.skip_text()
+            renderer.auto_mode = False
+            renderer.skip_mode = False
+            renderer.is_ready_for_next = False
+
+            scroll_state = snapshot.get("scroll") or {}
+            scroll = renderer.scroll_manager
+            scroll.scroll_mode = bool(scroll_state.get("active", False))
+            scroll.scroll_lines = list(scroll_state.get("scroll_lines") or [])
+            scroll.current_set_line_count = int(
+                scroll_state.get("current_set_line_count", 0)
+            )
+            scroll.line_speakers = list(scroll_state.get("line_speakers") or [])
+            scroll.line_is_first = list(scroll_state.get("line_is_first") or [])
+            scroll.line_force_female = list(
+                scroll_state.get("line_force_female") or []
+            )
+            scroll.current_speaker = scroll_state.get("current_speaker")
+            scroll.last_added_speaker = scroll_state.get("last_added_speaker")
+
+        backlog = gs.get("backlog_manager")
+        if backlog is not None:
+            backlog.entries = list(snapshot.get("backlog") or [])
+            if hasattr(backlog, "is_showing"):
+                backlog.is_showing = False
+
+        choice_renderer = gs.get("choice_renderer")
+        if choice_renderer is not None:
+            choice_renderer.hide_choices()
+            saved_choices = list(snapshot.get("choices") or [])
+            if saved_choices:
+                choice_renderer.show_choices(saved_choices)
+
+        self.current_event_id = snapshot.get("event_id") or self.current_event_id
+        gs["current_event_id"] = self.current_event_id
+        self._last_saved_paragraph = paragraph
+        self._pending_resume_bgm = snapshot.get("bgm") or None
+
     def update(self):
         """ゲームロジック更新"""
         from dialogue.controller2 import update_game
@@ -287,13 +497,16 @@ class DialogueSubsystem(SubsystemBase):
         if seed_answer_overlay is not None:
             seed_answer_overlay.render()
 
-        # バックログ・通知（最上位レイヤー）
-        if 'backlog_manager' in gs:
-            gs['backlog_manager'].render()
+        # 通知や入力ブロック表示も会話文字ではないため、バックログの
+        # 暗幕より先に描画する。
         if 'notification_manager' in gs:
             gs['notification_manager'].render()
 
         draw_input_blocked_notice(gs, self.virtual_screen)
+
+        # バックログはゲーム画面内の最上位レイヤー。
+        if 'backlog_manager' in gs:
+            gs['backlog_manager'].render()
 
         # 仮想画面をフルスクリーンにスケーリングして転送
         # on_enter()でOFFSET_X=0にリセットしているが、スクリーンへの

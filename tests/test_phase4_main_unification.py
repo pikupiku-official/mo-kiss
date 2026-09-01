@@ -305,36 +305,41 @@ class TestSwitchToBehavior:
 class TestMainLoopUnification:
     """メインループが統一インターフェースを使っているか"""
 
+    @staticmethod
+    def _loop_src():
+        from core.runtime.game_loop import GameLoop
+        return inspect.getsource(GameLoop)
+
     def test_run_uses_handle_events_unified(self):
-        """run() のメインループが current_subsystem.handle_events() を呼ぶ"""
-        src = _get_method_src('run')
+        """GameLoop が current_subsystem.handle_events() を呼ぶ"""
+        src = self._loop_src()
         assert 'current_subsystem' in src and 'handle_events' in src, \
-            "run() が current_subsystem.handle_events() を使っていない"
+            "GameLoop が current_subsystem.handle_events() を使っていない"
 
     def test_run_uses_update_unified(self):
-        """run() のメインループが current_subsystem.update() を呼ぶ"""
-        src = _get_method_src('run')
+        """GameLoop が current_subsystem.update() を呼ぶ"""
+        src = self._loop_src()
         assert 'current_subsystem' in src and '.update()' in src, \
-            "run() が current_subsystem.update() を使っていない"
+            "GameLoop が current_subsystem.update() を使っていない"
 
     def test_run_uses_render_unified(self):
-        """run() のメインループが current_subsystem.render() を呼ぶ"""
-        src = _get_method_src('run')
+        """GameLoop が current_subsystem.render() を呼ぶ"""
+        src = self._loop_src()
         assert 'current_subsystem' in src and '.render()' in src, \
-            "run() が current_subsystem.render() を使っていない"
+            "GameLoop が current_subsystem.render() を使っていない"
 
     def test_run_uses_handle_transition(self):
-        """run() が _handle_transition() を呼ぶ"""
-        src = _get_method_src('run')
+        """GameLoop が _handle_transition() を呼ぶ"""
+        src = self._loop_src()
         assert '_handle_transition' in src, \
-            "run() が _handle_transition() を使っていない"
+            "GameLoop が _handle_transition() を使っていない"
 
     def test_no_mode_string_comparison_in_run(self):
-        """run() 内に current_mode == 'dialogue' 等の分岐がない"""
-        src = _get_method_src('run')
+        """GameLoop 内に current_mode == 'dialogue' 等の分岐がない"""
+        src = self._loop_src()
         for mode in ('"dialogue"', '"map"', '"menu"', '"home"'):
             assert f'current_mode == {mode}' not in src, \
-                f"run() に current_mode == {mode} の分岐が残っている"
+                f"GameLoop に current_mode == {mode} の分岐が残っている"
 
 
 # ─────────────────────────────────────────────

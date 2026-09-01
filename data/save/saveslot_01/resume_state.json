@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "mode": "dialogue",
+  "dialogue": {
+    "version": 1,
+    "event_file": "events/E001.ks",
+    "event_id": "E001",
+    "paragraph_index": 6,
+    "ir_step_index": 3,
+    "background": {
+      "current_bg": "車窓②",
+      "pos": [
+        0.0,
+        0.0
+      ],
+      "zoom": 1.0,
+      "anim": null
+    },
+    "characters": {
+      "active": [
+        "ナレ"
+      ],
+      "positions": {},
+      "zoom": {},
+      "expressions": {
+        "ナレ": {
+          "eye": "",
+          "mouth": "",
+          "brow": "",
+          "cheek": "",
+          "effect": "",
+          "accessory": ""
+        }
+      },
+      "torso": {},
+      "blink_enabled": {
+        "ナレ": true
+      }
+    },
+    "fade": {
+      "type": null,
+      "start_time": 0,
+      "duration": 0,
+      "color": [
+        0,
+        0,
+        0
+      ],
+      "alpha": 0,
+      "active": false
+    },
+    "text": {
+      "body": "いつだってこんな景色ばかり。",
+      "speaker": "ナレ",
+      "force_female": false
+    },
+    "scroll": {
+      "active": true,
+      "scroll_lines": [
+        "いつだってこんな景色ばかり。"
+      ],
+      "all_text": [
+        "＿＿＿",
+        "＿＿＿",
+        "見慣れた中央線の車窓から流れる風景。",
+        "いつだってこんな景色ばかり。"
+      ],
+      "all_speakers": [
+        "ナレ",
+        "ナレ",
+        "ナレ",
+        "ナレ"
+      ],
+      "all_force_female": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "current_set_line_count": 1,
+      "line_speakers": [
+        "ナレ"
+      ],
+      "line_is_first": [
+        true
+      ],
+      "line_force_female": [
+        false
+      ],
+      "current_speaker": "ナレ",
+      "last_added_speaker": "ナレ"
+    },
+    "choices": [],
+    "backlog": [
+      {
+        "speaker": "ナレ",
+        "text": "＿＿＿",
+        "force_female": false
+      },
+      {
+        "speaker": "ナレ",
+        "text": "＿＿＿",
+        "force_female": false
+      },
+      {
+        "speaker": "ナレ",
+        "text": "見慣れた中央線の車窓から流れる風景。",
+        "force_female": false
+      },
+      {
+        "speaker": "ナレ",
+        "text": "いつだってこんな景色ばかり。",
+        "force_female": false
+      }
+    ],
+    "bgm": {
+      "file": null,
+      "volume": 0.5,
+      "loop": true
+    }
+  },
+  "completion": null
+}

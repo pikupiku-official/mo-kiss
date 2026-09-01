@@ -812,15 +812,15 @@ class PreviewWindow:
                 if choice_showing:
                     choice_renderer.render()
 
-                if 'backlog_manager' in self.game_state:
-                    backlog_manager = self.game_state['backlog_manager']
-                    backlog_manager.render()
-
                 if 'notification_manager' in self.game_state:
                     notification_manager = self.game_state['notification_manager']
                     notification_manager.render()
 
                 draw_input_blocked_notice(self.game_state, self.virtual_screen)
+
+                if 'backlog_manager' in self.game_state:
+                    backlog_manager = self.game_state['backlog_manager']
+                    backlog_manager.render()
 
             scale, scaled_width, scaled_height, offset_x, offset_y = self.get_scale_and_offset()
             self.window.fill((0, 0, 0))
