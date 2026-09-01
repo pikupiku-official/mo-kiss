@@ -137,11 +137,11 @@
 [fadeout color="black" time="1.0"]
 [bg_show storage="通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [chara_hide name="増田" fade="0"]
-[chara_show name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0"]
+[chara_show name="桃子" torso="MMK_T00_ARM12_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0"]
 [bgmend time="1.0"]
 [fadein time="1.0"]
-	//？？//
-	「つ、疲れたあ・・・いったん休憩・・・」[female]
+//？？//
+「つ、疲れたあ・・・いったん休憩・・・」[female]
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" effect="" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0.15"]
 	//？？//
 	「あれっ、じゅんいちだ。」[female]
