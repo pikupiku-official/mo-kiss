@@ -630,6 +630,21 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "5bade17268164e44a3e9e00777bf64d9",
+      "name": "杏おちゃらけ",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0002",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0014",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }
