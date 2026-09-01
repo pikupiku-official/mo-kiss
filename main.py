@@ -21,7 +21,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 from core.config import *
 from menu.main_menu import MainMenu
-from menu.load_screen import LoadScreen
+from menu.load_screen import LoadScreen, SaveSlotScreen
 from map.map import FieldMap
 from dialogue.dialogue_subsystem import DialogueSubsystem
 from core.ui.title_subsystem import TitleSubsystem
@@ -32,6 +32,7 @@ from core.flow.game_flow import (
     Scene,
     StartDialogue,
 )
+from core.flow.session_flow import SessionFlow
 from core.ui.option_subsystem import (
     MOCK_AWAIT_FRAMES,
     OptionSubsystem,
@@ -41,6 +42,7 @@ from core.services.save_manager import get_save_manager
 from core.ui.loading_screen import show_loading, hide_loading
 from core.flow.scene_manager import SceneManager
 from core.runtime.window_controller import WindowController
+from core.runtime.game_loop import GameLoop
 import pygame
 
 
@@ -61,12 +63,17 @@ class GameApplication:
         self.map_system = None
         self.home_module = None
         self.option_subsystem = None
+        self.slot_screen = None
+        self._option_snapshot = None
+        self._option_notice = ""
+        self._option_notice_until_ms = 0
 
         self.event_progress = EventProgress()
         self.game_flow = GameFlowController(
             self,
             event_progress=self.event_progress,
         )
+        self.session_flow = self._create_session_flow()
 
         # 現在実行中のイベント情報を保持
         self.current_event_id = None
@@ -119,6 +126,25 @@ class GameApplication:
             self.event_progress = event_progress
             flow = GameFlowController(self, event_progress=event_progress)
             self.game_flow = flow
+        return flow
+
+    def _create_session_flow(self):
+        return SessionFlow(
+            self,
+            save_manager_getter=lambda: get_save_manager(),
+            dialogue_factory=lambda event_file: DialogueSubsystem(
+                self.screen,
+                self.virtual_screen,
+                event_file,
+            ),
+            dialogue_type=DialogueSubsystem,
+        )
+
+    def _get_session_flow(self):
+        flow = getattr(self, "session_flow", None)
+        if flow is None:
+            flow = self._create_session_flow()
+            self.session_flow = flow
         return flow
 
     def _gather_normalized_events(self):
@@ -175,7 +201,10 @@ class GameApplication:
             show_loading("ゲームを初期化中...", self.window_surface)
 
             # メインメニューの初期化
-            self.main_menu = MainMenu(self.screen)
+            self.main_menu = MainMenu(
+                self.screen,
+                text_input_rect_transform=virtual_to_window_rect,
+            )
 
             # ローディング画面を隠す
             hide_loading()
@@ -202,6 +231,9 @@ class GameApplication:
     def show_option(self):
         """OPTIONモーダルSubsystemを表示（BGM継続）。"""
         if self.option_subsystem is None:
+            if self.current_subsystem:
+                self.current_subsystem.render()
+            self._option_snapshot = self.screen.copy()
             self.option_subsystem = OptionSubsystem.image_option(
                 self.screen,
                 fullscreen_callback=self._set_fullscreen,
@@ -240,7 +272,77 @@ class GameApplication:
     def hide_option(self):
         """OPTIONオーバーレイを閉じる"""
         self.option_subsystem = None
+        self.slot_screen = None
+        self._option_snapshot = None
         print("[OPTION] オーバーレイ非表示")
+
+    def show_slot_screen(self, mode: str):
+        """Open the reusable manual-slot selector above OPTION."""
+        self.slot_screen = SaveSlotScreen(
+            self.screen,
+            mode=mode,
+            cancel_action="cancel_slot",
+            save_callback=self._save_manual_slot if mode == "save" else None,
+            load_callback=self._load_manual_slot if mode == "load" else None,
+        )
+
+    def _serialize_completion(self):
+        return SessionFlow.serialize_completion(self.dialogue_completion_result)
+
+    @staticmethod
+    def _deserialize_completion(data):
+        return SessionFlow.deserialize_completion(data)
+
+    def _build_resume_state(self, mode=None):
+        return self._get_session_flow().build_resume_state(mode)
+
+    def _save_manual_slot(self, slot_name: str) -> bool:
+        return self._get_session_flow().save_manual_slot(
+            slot_name,
+            thumbnail_surface=self._option_snapshot,
+        )
+
+    @staticmethod
+    def _load_manual_slot(slot_name: str) -> bool:
+        return get_save_manager().load_game(slot_name)
+
+    def _handle_slot_result(self, result: str):
+        if result == "cancel_slot":
+            self.slot_screen = None
+            return
+        if result == "quit":
+            self.running = False
+            return
+        if result.startswith("save_complete:"):
+            slot_name = result.split(":", 1)[1]
+            slot_number = slot_name.rsplit("_", 1)[-1]
+            self.slot_screen = None
+            self._option_notice = f"スロット{slot_number}に保存しました"
+            self._option_notice_until_ms = pygame.time.get_ticks() + 1800
+            return
+        if result.startswith("load_complete:"):
+            self.slot_screen = None
+            self.option_subsystem = None
+            self._option_snapshot = None
+            self._get_game_flow().resume_loaded_game()
+
+    def _render_option_notice(self):
+        if not self._option_notice:
+            return
+        if pygame.time.get_ticks() >= self._option_notice_until_ms:
+            self._option_notice = ""
+            return
+        font_path = os.path.join(
+            os.path.dirname(__file__), "fonts", "MPLUS1p-Medium.ttf"
+        )
+        font = pygame.font.Font(font_path if os.path.exists(font_path) else None, 36)
+        text = font.render(self._option_notice, True, (255, 255, 255))
+        padding = 24
+        rect = text.get_rect(center=(self.screen.get_width() // 2, 80))
+        panel = rect.inflate(padding * 2, padding)
+        pygame.draw.rect(self.screen, (20, 20, 28), panel, border_radius=8)
+        pygame.draw.rect(self.screen, (210, 210, 235), panel, 2, border_radius=8)
+        self.screen.blit(text, rect)
 
     def _handle_overlay_result(self, result: str):
         """Compatibility delegate for modal actions."""
@@ -326,7 +428,7 @@ class GameApplication:
                 hide_loading()
                 self.switch_to_menu()
                 return
-        get_save_manager().save_game("saveslot_auto")
+        self._get_session_flow().autosave("map", "saveslot_auto")
         self.switch_to(self.map_system, "map")
 
     def switch_to_home(self):
@@ -341,8 +443,12 @@ class GameApplication:
                 hide_loading()
                 self.switch_to_menu()
                 return
-        get_save_manager().save_game("saveslot_auto")
+        self._get_session_flow().autosave("home", "saveslot_auto")
         self.switch_to(self.home_module, "home")
+
+    def resume_loaded_state(self):
+        """Compatibility delegate for restoring a loaded semantic snapshot."""
+        self._get_session_flow().resume_loaded_state()
     
     def start_morning_dialogue(self):
         """Consume Home's explicit one-shot morning dialogue request."""
@@ -407,63 +513,12 @@ class GameApplication:
         )
 
     def run(self):
-        """メインゲームループ（フェーズ4: current_subsystem による統一制御）"""
+        """初期化と終了処理の間のフレーム制御をGameLoopへ委譲する。"""
         if not self.initialize():
             return False
 
         print('🎯 メインゲームループ開始（タイトル → メインメニュー → ゲーム）')
-
-        while self.running:
-            try:
-                events = self._gather_normalized_events()
-
-                if self.option_subsystem:
-                    self._poll_mock_overlay_shortcuts(events)
-                    # OPTIONオーバーレイがアクティブ
-                    # update() は意図的に呼ばない = ゲームがポーズ状態になる（⑤）
-                    # BGMはBGMManager側で継続するため別途停止不要
-                    ov_result = self.option_subsystem.handle_events(events)
-                    if ov_result:
-                        self._handle_overlay_result(ov_result)
-                    # ベースシステムを描画してからOPTIONを上に重ねる
-                    if self.current_subsystem:
-                        self.current_subsystem.render()
-                    if self.option_subsystem:  # handle後にNoneになる場合を考慮
-                        self.option_subsystem.render_overlay()
-                elif self.current_subsystem:
-                    if self._poll_mock_overlay_shortcuts(events):
-                        if self.current_subsystem:
-                            self.current_subsystem.render()
-                        if self.option_subsystem:
-                            self.option_subsystem.render_overlay()
-                        self._present_virtual_screen()
-                        pygame.display.flip()
-                        self.clock.tick(60)
-                        continue
-
-                    # 通常モード
-                    if isinstance(self.current_subsystem, DialogueSubsystem):
-                        self._queue_events_for_dialogue(events)
-                        result = self.current_subsystem.handle_events()
-                    else:
-                        result = self.current_subsystem.handle_events(events)
-                    if result:
-                        self._handle_transition(result)
-                    if self.current_subsystem:
-                        self.current_subsystem.update()
-                    if self.current_subsystem:
-                        self.current_subsystem.render()
-
-                self._present_virtual_screen()
-                pygame.display.flip()
-                self.clock.tick(60 if self.option_subsystem else 30)
-
-            except Exception as e:
-                print(f'❌ ゲームループエラー: {e}')
-                if DEBUG:
-                    import traceback
-                    traceback.print_exc()
-                break
+        GameLoop(self, dialogue_type=DialogueSubsystem).run()
 
         self.cleanup()
         return True

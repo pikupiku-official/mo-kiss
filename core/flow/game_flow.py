@@ -174,11 +174,9 @@ class GameFlowController:
         if action_value == "resume":
             self.application.hide_option()
         elif action_value == "save":
-            self._save_manager_getter().save_game("saveslot_auto")
+            self.application.show_slot_screen("save")
         elif action_value == "load":
-            if self._save_manager_getter().load_game("saveslot_auto"):
-                self.application.hide_option()
-                self.resume_loaded_game()
+            self.application.show_slot_screen("load")
         elif action_value == "return_to_morning":
             time_manager = self._time_manager_getter()
             time_manager.current_period = time_manager.time_periods[0]
@@ -194,6 +192,9 @@ class GameFlowController:
             self.handle(QuitApplication())
 
     def resume_loaded_game(self) -> None:
+        if hasattr(self.application, "resume_loaded_state"):
+            self.application.resume_loaded_state()
+            return
         self.application.reload_game_systems()
         if self._time_manager_getter().is_night():
             self._navigate(Scene.HOME)

@@ -13,6 +13,7 @@ KSファイル専用エディタ - PyQt5版(macOS対応)
 import os
 import sys
 import csv
+import math
 import re
 import pygame
 import threading
@@ -156,7 +157,8 @@ class Win2000CaptionButton(QAbstractButton):
     def __init__(self, role, parent=None):
         super().__init__(parent)
         self.role = role
-        self.setFixedSize(18, 18)
+        self._caption_size = 18
+        self.setFixedSize(self._caption_size, self._caption_size)
         self.setFocusPolicy(Qt.NoFocus)
         self.setCursor(Qt.ArrowCursor)
         labels = {
@@ -169,7 +171,16 @@ class Win2000CaptionButton(QAbstractButton):
         self.setAccessibleName(labels.get(role, role))
 
     def sizeHint(self):
-        return QSize(18, 18)
+        return QSize(self._caption_size, self._caption_size)
+
+    def set_caption_size(self, size):
+        size = max(18, int(size))
+        if size == self._caption_size:
+            return
+        self._caption_size = size
+        self.setFixedSize(size, size)
+        self.updateGeometry()
+        self.update()
 
     def set_role(self, role):
         if role == self.role:
@@ -213,6 +224,9 @@ class Win2000CaptionButton(QAbstractButton):
         painter.fillRect(self.rect(), QColor(212, 208, 200))
         self._draw_bevel(painter, self.rect().adjusted(0, 0, -1, -1), self.isDown())
 
+        glyph_scale = min(self.width(), self.height()) / 18.0
+        painter.save()
+        painter.scale(glyph_scale, glyph_scale)
         offset = 1 if self.isDown() else 0
         painter.setPen(QColor(0, 0, 0))
         painter.setBrush(QColor(0, 0, 0))
@@ -240,6 +254,7 @@ class Win2000CaptionButton(QAbstractButton):
                     5 + offset,
                     12 + offset - delta,
                 )
+        painter.restore()
         painter.end()
 
 
@@ -250,31 +265,98 @@ class Win2000TitleBar(QWidget):
         super().__init__(window)
         self._window = window
         self._drag_offset = None
+        self._screen_signal_bound = False
         self.setFixedHeight(22)
         self.setMouseTracking(True)
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 2, 2, 2)
-        layout.setSpacing(2)
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(4, 2, 2, 2)
+        self._layout.setSpacing(2)
         self.title_label = QLabel(window.windowTitle())
         self.title_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         title_font = QFont("MS UI Gothic", 9)
         title_font.setBold(True)
         self.title_label.setFont(title_font)
-        layout.addWidget(self.title_label, 1)
+        self._layout.addWidget(self.title_label, 1)
 
         self.minimize_button = Win2000CaptionButton("minimize", self)
         self.maximize_button = Win2000CaptionButton("maximize", self)
         self.close_button = Win2000CaptionButton("close", self)
-        layout.addWidget(self.minimize_button)
-        layout.addWidget(self.maximize_button)
-        layout.addWidget(self.close_button)
+        self._layout.addWidget(self.minimize_button)
+        self._layout.addWidget(self.maximize_button)
+        self._layout.addWidget(self.close_button)
 
         self.minimize_button.clicked.connect(window.showMinimized)
         self.maximize_button.clicked.connect(self.toggle_maximize)
         close_handler = getattr(window, "reject", window.close)
         self.close_button.clicked.connect(close_handler)
+        self.update_screen_metrics()
         self.sync_window_state()
+
+    @staticmethod
+    def caption_button_size_for_physical_size(width_mm, height_mm):
+        """Choose accessible caption controls from the panel's real diagonal."""
+        try:
+            width_mm = float(width_mm)
+            height_mm = float(height_mm)
+        except (TypeError, ValueError):
+            return 24
+        if width_mm <= 0 or height_mm <= 0:
+            return 24
+        diagonal_inches = math.hypot(width_mm, height_mm) / 25.4
+        if diagonal_inches <= 18.5:
+            return 28
+        if diagonal_inches <= 22.0:
+            return 24
+        return 18
+
+    def _current_screen(self):
+        handle = self._window.windowHandle()
+        if handle is not None and handle.screen() is not None:
+            return handle.screen()
+        app = QApplication.instance()
+        return app.primaryScreen() if app is not None else None
+
+    def update_screen_metrics(self, screen=None):
+        screen = screen or self._current_screen()
+        physical_size = screen.physicalSize() if screen is not None else QSize()
+        button_size = self.caption_button_size_for_physical_size(
+            physical_size.width(),
+            physical_size.height(),
+        )
+        for button in (
+            self.minimize_button,
+            self.maximize_button,
+            self.close_button,
+        ):
+            button.set_caption_size(button_size)
+        vertical_margin = 2
+        side_margin = max(2, round(button_size / 9))
+        self._layout.setContentsMargins(
+            max(4, side_margin * 2),
+            vertical_margin,
+            side_margin,
+            vertical_margin,
+        )
+        self._layout.setSpacing(max(2, round(button_size / 9)))
+        self.setFixedHeight(button_size + vertical_margin * 2)
+        title_font = QFont("MS UI Gothic", 10 if button_size >= 24 else 9)
+        title_font.setBold(True)
+        self.title_label.setFont(title_font)
+
+    def _bind_screen_tracking(self):
+        if self._screen_signal_bound:
+            return
+        handle = self._window.windowHandle()
+        if handle is None:
+            return
+        handle.screenChanged.connect(self.update_screen_metrics)
+        self._screen_signal_bound = True
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._bind_screen_tracking()
+        self.update_screen_metrics()
 
     def set_title(self, title):
         self.title_label.setText(title)
@@ -812,15 +894,15 @@ class PreviewWindow:
                 if choice_showing:
                     choice_renderer.render()
 
-                if 'backlog_manager' in self.game_state:
-                    backlog_manager = self.game_state['backlog_manager']
-                    backlog_manager.render()
-
                 if 'notification_manager' in self.game_state:
                     notification_manager = self.game_state['notification_manager']
                     notification_manager.render()
 
                 draw_input_blocked_notice(self.game_state, self.virtual_screen)
+
+                if 'backlog_manager' in self.game_state:
+                    backlog_manager = self.game_state['backlog_manager']
+                    backlog_manager.render()
 
             scale, scaled_width, scaled_height, offset_x, offset_y = self.get_scale_and_offset()
             self.window.fill((0, 0, 0))
@@ -1924,7 +2006,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.scene_canvas = StepSceneCanvas(self._image_manager)
         self.preview_tabs.addTab(self.scene_canvas, "オブジェクト")
 
-        self.preview_label = FitPixmapLabel("最終確認画像を生成しています...")
+        self.preview_label = FitPixmapLabel("このタブを開くと最終確認画像を生成します")
         self.preview_label.setStyleSheet("border: 1px solid #888; background: #111; color: #ddd;")
         self.preview_tabs.addTab(self.preview_label, "最終確認画像")
         preview_layout.addWidget(self.preview_tabs)
@@ -2044,8 +2126,16 @@ class StepEditorDialog(Win2000FramelessDialog):
         right_splitter.setSizes([240, 520])
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText("保存/適用")
-        buttons.button(QDialogButtonBox.Cancel).setText("キャンセル")
+        apply_button = buttons.button(QDialogButtonBox.Ok)
+        cancel_button = buttons.button(QDialogButtonBox.Cancel)
+        apply_button.setText("保存/適用")
+        cancel_button.setText("キャンセル")
+        # A QDialog clicks its default/auto-default button for an unhandled
+        # Enter key.  Text fields deliberately leave Enter unhandled, so the
+        # old defaults closed the entire step editor while typing.
+        apply_button.setAutoDefault(False)
+        apply_button.setDefault(False)
+        cancel_button.setAutoDefault(False)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         main_layout.addWidget(buttons)
@@ -2071,7 +2161,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.scene_canvas.object_moved.connect(self._on_scene_object_moved)
         self.scene_canvas.object_scaled.connect(self._on_scene_object_scaled)
         self.scene_canvas.context_requested.connect(self._show_scene_context_menu)
-        self.scene_canvas.step_navigation_requested.connect(self._navigate_step)
+        self.scene_canvas.step_navigation_requested.connect(self._page_step)
+        self.preview_tabs.currentChanged.connect(self._on_preview_tab_changed)
 
         # Editing software-style live preview: coalesce a burst of keystrokes into
         # one render instead of launching work for every individual change.
@@ -2114,6 +2205,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._baseline_signature = self._current_step_signature()
         self._refresh_step_outline()
         self._update_navigation_controls()
+        for widget in self.findChildren(QWidget):
+            widget.installEventFilter(self)
 
     def get_dialogue_values(self):
         """セリフ編集の値を取得"""
@@ -2206,6 +2299,28 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.step_outline.blockSignals(False)
             self._outline_navigation = False
 
+    def _select_current_outline_step(self):
+        """Update only the active outline row during lightweight paging."""
+        if self._step_index is None:
+            return
+        if self.step_outline.count() != len(self._all_steps):
+            self._refresh_step_outline()
+            return
+        self._outline_navigation = True
+        self.step_outline.blockSignals(True)
+        try:
+            item = self.step_outline.item(self._step_index)
+            if item is not None:
+                item.setText(self._outline_text(self.step, dirty=self._is_step_dirty()))
+                tooltip = self.step.get("body", "") or "セリフなし"
+                if self.step.get("memo"):
+                    tooltip += f"\n備考: {self.step['memo']}"
+                item.setToolTip(tooltip)
+            self.step_outline.setCurrentRow(self._step_index)
+        finally:
+            self.step_outline.blockSignals(False)
+            self._outline_navigation = False
+
     def _update_navigation_controls(self):
         total_steps = len(self._all_steps)
         has_current = (
@@ -2257,29 +2372,6 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._update_current_outline_item()
         self._update_navigation_controls()
 
-    def _confirm_step_transition(self):
-        if not self._is_step_dirty():
-            return "discard"
-
-        message = QMessageBox(self)
-        message.setIcon(QMessageBox.Question)
-        message.setWindowTitle("stepの変更")
-        message.setText("このstepには未適用の変更があります。")
-        message.setInformativeText("変更を適用してから移動しますか？")
-        apply_button = message.addButton("適用して移動", QMessageBox.AcceptRole)
-        discard_button = message.addButton("破棄して移動", QMessageBox.DestructiveRole)
-        cancel_button = message.addButton("キャンセル", QMessageBox.RejectRole)
-        message.setDefaultButton(apply_button)
-        message.exec_()
-        clicked = message.clickedButton()
-        if clicked == apply_button:
-            return "apply"
-        if clicked == discard_button:
-            return "discard"
-        if clicked == cancel_button:
-            return "cancel"
-        return "cancel"
-
     def _sync_steps_from_parent(self):
         parent = self.parent()
         parent_steps = getattr(parent, "current_steps", None) if parent else None
@@ -2288,9 +2380,13 @@ class StepEditorDialog(Win2000FramelessDialog):
 
         all_actions = []
         extractor = getattr(parent, "_extract_actions_from_step", None) if parent else None
+        source_lines = None
+        parent_editor = getattr(parent, "text_editor", None) if parent else None
+        if extractor and parent_editor is not None:
+            source_lines = parent_editor.toPlainText().splitlines()
         for index, parsed_step in enumerate(self._all_steps):
             if extractor:
-                actions = extractor(parsed_step)
+                actions = extractor(parsed_step, source_lines=source_lines)
             elif index < len(self._all_step_actions):
                 actions = list(self._all_step_actions[index])
             else:
@@ -2407,28 +2503,21 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._sync_standalone_control()
         self._refresh_scene_preview()
         self._baseline_signature = self._current_step_signature()
-        self._refresh_step_outline()
+        self._select_current_outline_step()
         self._update_navigation_controls()
 
         has_cached_preview = self._restore_cached_final_preview()
         if not has_cached_preview:
             self.preview_label.clear()
-            self.preview_label.setText("最終確認画像を生成しています...")
-
-        parent = self.parent()
-        generate_preview = getattr(parent, "_generate_step_preview", None) if parent else None
-        if generate_preview and not has_cached_preview:
-            generate_preview(target_index, self)
+            self.preview_label.setText("このタブを開くと最終確認画像を生成します")
+        if self.preview_tabs.currentIndex() == 1 and not has_cached_preview:
+            self._request_preview_update()
         return True
 
     def _prepare_step_transition(self):
-        decision = self._confirm_step_transition()
-        if decision == "cancel":
-            self._refresh_step_outline()
-            return False
-        if decision == "apply":
-            return self._apply_current_step_to_parent()
-        return True
+        if not self._is_step_dirty():
+            return True
+        return self._apply_current_step_to_parent()
 
     def _change_step(self, target_index, direction):
         if target_index == self._step_index:
@@ -2439,10 +2528,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             self._refresh_step_outline()
             return False
 
-        previous = self.slide_viewport.capture_content()
         if not self._load_step_index(target_index):
             return False
-        self.slide_viewport.slide_in(direction, previous)
         return True
 
     def _on_outline_step_changed(self, row):
@@ -2460,6 +2547,15 @@ class StepEditorDialog(Win2000FramelessDialog):
             self._create_adjacent_step(offset)
             return
         self._change_step(target, offset)
+
+    def _page_step(self, offset):
+        """Move to an existing adjacent step; keyboard paging never creates one."""
+        if offset not in (-1, 1) or self._step_index is None:
+            return False
+        target = self._step_index + offset
+        if target < 0 or target >= len(self._all_steps):
+            return False
+        return self._change_step(target, offset)
 
     def _confirm_create_step(self, offset):
         side = "前" if offset < 0 else "後ろ"
@@ -2480,7 +2576,6 @@ class StepEditorDialog(Win2000FramelessDialog):
         if not self._prepare_step_transition():
             return False
 
-        previous = self.slide_viewport.capture_content()
         current_index = self._step_index
         parent = self.parent()
         insert_step = getattr(parent, "_insert_step_template", None) if parent else None
@@ -2503,7 +2598,6 @@ class StepEditorDialog(Win2000FramelessDialog):
         target_index = current_index if offset < 0 else current_index + 1
         if not self._load_step_index(target_index):
             return False
-        self.slide_viewport.slide_in(offset, previous)
         return True
 
     def accept(self):
@@ -2511,7 +2605,68 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._stop_audio_preview()
         super().accept()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # The scene owns ordinary left/right paging when no object is selected.
+        # Give it the initial focus so paging works immediately after opening.
+        QTimer.singleShot(0, self.scene_canvas.setFocus)
+
+    def eventFilter(self, watched, event):
+        if (
+            event.type() == QEvent.KeyPress
+            and event.key() in (Qt.Key_Left, Qt.Key_Right)
+            and event.modifiers() in (Qt.NoModifier, Qt.KeypadModifier)
+        ):
+            scene_handles_key = (
+                watched is self.scene_canvas
+                or self.scene_canvas.isAncestorOf(watched)
+            )
+            editing_widget = isinstance(
+                watched,
+                (
+                    QLineEdit,
+                    QTextEdit,
+                    QComboBox,
+                    QTableWidget,
+                    QSlider,
+                    QDoubleSpinBox,
+                ),
+            )
+            if not scene_handles_key and not editing_widget:
+                self._page_step(-1 if event.key() == Qt.Key_Left else 1)
+                event.accept()
+                return True
+        return super().eventFilter(watched, event)
+
+    def keyPressEvent(self, event):
+        # QDialog treats Return/Enter as acceptance even when no button is the
+        # default.  In this editor those keys must never apply and close a step
+        # implicitly; saving remains an explicit button action.
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            event.accept()
+            return
+        if (
+            event.key() in (Qt.Key_Left, Qt.Key_Right)
+            and event.modifiers() in (Qt.NoModifier, Qt.KeypadModifier)
+        ):
+            self._page_step(-1 if event.key() == Qt.Key_Left else 1)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
     def reject(self):
+        if self._is_step_dirty():
+            decision = QMessageBox.question(
+                self,
+                "step編集を閉じる",
+                "現在のstepに未保存の変更があります。保存して閉じますか？",
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                QMessageBox.Save,
+            )
+            if decision == QMessageBox.Cancel:
+                return
+            if decision == QMessageBox.Save and not self._apply_current_step_to_parent():
+                return
         self.scene_canvas.discard_pending_scale()
         self._stop_audio_preview()
         super().reject()
@@ -2592,7 +2747,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.actions_list.setCurrentRow(row)
 
     def _on_scene_object_moved(self, name, delta_x, delta_y, metadata):
-        """Persist a canvas drag as an absolute ``chara_shift`` placement."""
+        """Persist a canvas drag without splitting a current-step show."""
         name = (name or "").strip()
         if not name:
             return
@@ -2624,7 +2779,16 @@ class StepEditorDialog(Win2000FramelessDialog):
             "y": self._format_scene_number(target_y),
             "size": self._format_scene_number(target_size),
         }
-        if reusable_shift_row == last_placement_row and reusable_shift_row >= 0:
+        last_placement = parsed_by_row.get(last_placement_row)
+        if last_placement is not None and last_placement[0] == "chara_show":
+            tag, params = last_placement
+            target_x = self._parse_scene_number(params.get("x"), 0.5) + relative_x
+            target_y = self._parse_scene_number(params.get("y"), 0.5) + relative_y
+            params["x"] = self._format_scene_number(target_x)
+            params["y"] = self._format_scene_number(target_y)
+            self._set_action_row(last_placement_row, tag, params)
+            action_label = "chara_showのx/yを更新"
+        elif reusable_shift_row == last_placement_row and reusable_shift_row >= 0:
             tag, params = parsed_by_row[reusable_shift_row]
             params.update(placement_params)
             self._set_action_row(reusable_shift_row, tag, params)
@@ -2920,7 +3084,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.actions_list.item(current_row).setText(text)
 
     def _schedule_preview_update(self, *args):
-        if self._loading_step:
+        if self._loading_step or self.preview_tabs.currentIndex() != 1:
             return
         self._preview_debounce_timer.start()
 
@@ -2939,6 +3103,12 @@ class StepEditorDialog(Win2000FramelessDialog):
             return
         if hasattr(parent, "_preview_step_from_dialog"):
             parent._preview_step_from_dialog(self.step, self)
+
+    def _on_preview_tab_changed(self, index):
+        if self._loading_step or index != 1:
+            return
+        if not self._restore_cached_final_preview():
+            self._request_preview_update()
 
     def _parse_action(self, text):
         return parse_step_action(text)
@@ -4148,9 +4318,19 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             # Discard はそのままロードへ
 
         self.realtime_save_timer.stop()
-        self.load_file(filepath)
+        if not self.load_file(filepath):
+            self._restore_file_list_selection()
+            return
         event_id = os.path.splitext(filename)[0]
         self.load_event_metadata(event_id)
+        self._open_initial_step_editor()
+
+    def _open_initial_step_editor(self):
+        """Open the first parsed step immediately after a KS file is loaded."""
+        if not self.current_steps:
+            return False
+        self.open_step_editor(self.current_steps[0])
+        return True
 
     def load_file(self, filepath):
         """ファイルを読み込んでエディタに表示"""
@@ -4172,10 +4352,12 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             self.status_label.setText(f"読み込み完了: {self.current_file}")
             self.status_label.setStyleSheet("color: green;")
             print(f"📖 ファイル読み込み: {filepath}")
+            return True
 
         except Exception as e:
             QMessageBox.critical(self, "エラー", f"ファイル読み込みエラー:\n{e}")
             print(f"❌ ファイル読み込みエラー: {e}")
+            return False
 
     def build_paragraph_line_map(self):
         """KSファイルの行番号と段落番号のマッピングを構築"""
@@ -4462,8 +4644,12 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         current_step = self.current_steps[target_index]
         try:
             all_step_actions = []
+            source_lines = self.text_editor.toPlainText().splitlines()
             for parsed_step in self.current_steps:
-                parsed_actions = self._extract_actions_from_step(parsed_step)
+                parsed_actions = self._extract_actions_from_step(
+                    parsed_step,
+                    source_lines=source_lines,
+                )
                 all_step_actions.append(parsed_actions)
                 # CharaCompositePreviewDialog consumes this explicit cache
                 # when resolving the selected character's prior state.
@@ -4495,7 +4681,6 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 f'エラーが発生しました：\n{e}\n\n{traceback.format_exc()}')
             return
 
-        self._generate_step_preview(target_index, dialog)
         if dialog.exec_() != QDialog.Accepted:
             return
 
@@ -5044,12 +5229,16 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             temp_path = handle.name
         self._run_step_preview(temp_path, step["step_index"], dialog, temp_path=temp_path)
 
-    def _extract_actions_from_step(self, step):
+    def _extract_actions_from_step(self, step, source_lines=None):
         """step????KS???????"""
         if not step:
             return []
 
-        lines = self.text_editor.toPlainText().splitlines()
+        lines = (
+            source_lines
+            if source_lines is not None
+            else self.text_editor.toPlainText().splitlines()
+        )
         start_line = step.get("start_line", 0)
         end_line = step.get("end_line", start_line)
         if start_line < 0 or start_line >= len(lines):

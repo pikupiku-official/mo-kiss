@@ -7,10 +7,6 @@
 ;----------------------------------------------
 
 *scene1|&f.title+"校門前"
-
-
-	
-; --- new step ---
 [bg_show storage="test.bg.TEUgate"  bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [BGM bgm="subete_no_hajimari.mp3" volume="0.2" loop="true"]
 [fadein time="1.0"]
@@ -291,4 +287,3 @@
 	//　　　//
 	「そのまま桃子と国立まで帰った。」
 	「今度は、僕がコンビニに入ろう。」
-

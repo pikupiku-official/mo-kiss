@@ -1,473 +1,574 @@
-﻿import pygame
-from core.config import *
-from .name_manager import get_name_manager
-from .inline_markup import (
-    parse_inline_markup, wrap_markup_text, has_inline_markup,
-    PlainChar, RubySpan, BotenSpan, SeedSpan,
+import pygame
+
+from core.config import (
+    CHARACTER_GENDERS,
+    FONT_EFFECTS,
+    TEXT_COLOR,
+    TEXT_COLOR_FEMALE,
+    TEXT_MAX_CHARS_PER_LINE,
 )
+from .inline_markup import wrap_markup_text
+from .name_manager import get_name_manager
 
-# ルビ・傍点定数（config.py の TEXT_RENDERER_CONFIG から読み込む）
-RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
-RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
-
-def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int):
-    """ルビ文字列を span_width 内に両端揃えで blit する。
-    1文字のときは中央揃え。ルビ幅がスパン幅を超える場合は左詰め。"""
-    chars = list(ruby_text)
-    n = len(chars)
-    surfs = [render_fn(ch) for ch in chars]
-    total_w = sum(s.get_width() for s in surfs)
-
-    if n == 1:
-        rx = grid_x + (span_width - surfs[0].get_width()) // 2
-        surface.blit(surfs[0], (rx, 0))
-        return
-
-    if total_w >= span_width:
-        rx = float(grid_x)
-        for s in surfs:
-            surface.blit(s, (int(rx), 0))
-            rx += s.get_width()
-        return
-
-    gap = (span_width - total_w) / (n - 1)
-    rx = float(grid_x)
-    for s in surfs:
-        surface.blit(s, (int(rx), 0))
-        rx += s.get_width() + gap
-
-from PyQt5.QtGui import QFont, QImage, QPainter, QColor, QFontMetrics
-from PyQt5.QtCore import QSize
-
-# テキスト描画キャッシュ
-_text_render_cache = {}
-
-def render_text_with_qfont_cached(text, qfont, color):
-    """PyQt5のQFontでテキストを描画し、PygameのSurfaceとして返す（キャッシュ付き）"""
-    # キャッシュキーを作成
-    cache_key = (text, qfont.family(), qfont.pointSize(), qfont.weight(), tuple(color))
-    
-    # キャッシュから取得を試行
-    if cache_key in _text_render_cache:
-        return _text_render_cache[cache_key]
-    
-    # 新しく描画
-    surface = render_text_with_qfont(text, qfont, color)
-    
-    # キャッシュに保存（最大200個まで）
-    if len(_text_render_cache) > 200:
-        # 古いエントリを削除
-        oldest_key = next(iter(_text_render_cache))
-        del _text_render_cache[oldest_key]
-    
-    _text_render_cache[cache_key] = surface
-    return surface
-
-def render_text_with_qfont(text, qfont, color):
-    """PyQt5のQFontでテキストを描画し、PygameのSurfaceとして返す"""
-    metrics = QFontMetrics(qfont)
-    width = metrics.horizontalAdvance(text)
-    height = metrics.height()
-    
-    if width == 0 or height == 0:
-        # 空のSurfaceを返す
-        return pygame.Surface((1, 1), pygame.SRCALPHA)
-
-    # QImageを作成 (ARGB32はアルファチャンネル付き32ビット)
-    qimage = QImage(QSize(width, height), QImage.Format_ARGB32)
-    qimage.fill(QColor(0, 0, 0, 0))  # 透明で塗りつぶし
-
-    # QPainterでテキストを描画
-    painter = QPainter(qimage)
-    painter.setFont(qfont)
-    painter.setPen(QColor(*color))  # Pygameの色(r,g,b)をQColorに設定
-    painter.drawText(0, metrics.ascent(), text)
-    painter.end()
-
-    # QImageのデータをPygameのSurfaceに変換
-    image_data = qimage.bits().asstring(qimage.sizeInBytes())
-    pygame_surface = pygame.image.fromstring(image_data, (width, height), 'RGBA')
-    
-    return pygame_surface
 
 class BacklogManager:
-    def __init__(self, screen, fonts, debug=False):
+    """In-scene dialogue history overlay.
+
+    The newest dialogue keeps the ordinary dialogue position. Older entries
+    are stacked above it, and the whole dialogue plane moves when scrolling.
+    """
+
+    DIM_ALPHA = 140
+
+    # Windows 95/2000 classic palette.
+    CLASSIC_FACE = (212, 208, 200)
+    CLASSIC_LIGHT = (255, 255, 255)
+    CLASSIC_MIDLIGHT = (223, 220, 212)
+    CLASSIC_DARK = (128, 128, 128)
+    CLASSIC_SHADOW = (0, 0, 0)
+    CLASSIC_TRACK = (192, 192, 192)
+
+    SCROLLBAR_WIDTH = 28
+    SCROLLBAR_RIGHT_MARGIN = 24
+    MIN_THUMB_SIZE = 28
+    HUD_GAP = 8
+
+    def __init__(self, screen, fonts=None, debug=False):
         self.screen = screen
-        self.fonts = fonts
+        self.fonts = fonts or {}
         self.debug = debug
-        
-        # 名前管理システム
         self.name_manager = get_name_manager()
-        
-        # 仮想解像度基準のピクセル値設定（1920x1080基準）
-        from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, scale_pos, scale_size
-        
-        # レイアウト設定を先に計算する必要があるため、後でフォントサイズを計算する
-        
-        # バックログデータ
-        self.entries = []  # [{"speaker": "話者名", "text": "テキスト"}]
+
+        self.entries = []
         self.is_showing = False
-        self.scroll_position = 0
-        
-        # 表示設定（text_rendererと同じ）
-        self.bg_color = (0, 0, 0, 180)
-        self.border_color = (100, 100, 100)
+        self.text_renderer = None
+        self._visible_entries = []
+
+        # Pixel scroll: 0 is newest, positive values move the dialogue plane
+        # down to reveal older lines above it.
+        self.scroll_offset = 0.0
+        self.max_scroll_offset = 0.0
+        self._opened_at_ms = None
+
+        self._dragging_thumb = False
+        self._drag_start_y = 0
+        self._drag_start_offset = 0.0
+
         self.default_text_color = TEXT_COLOR
         self.default_name_color = TEXT_COLOR
         self.female_text_color = TEXT_COLOR_FEMALE
         self.female_name_color = TEXT_COLOR_FEMALE
         self.choice_color = TEXT_COLOR
-        
-        # レイアウト設定（仮想解像度1920x1080基準のピクセル値）
-        # 仮想座標でのレイアウト計算
-        virtual_margin = 50  # 1920 * 0.026 = 50px
-        virtual_width = VIRTUAL_WIDTH - virtual_margin * 2
-        virtual_height = VIRTUAL_HEIGHT - virtual_margin * 2 - 50
-        
-        virtual_speaker_width = 200  # 1920 * 0.104 = 200px
-        virtual_text_width = virtual_width - virtual_speaker_width - 60  # 1920 * 0.031 = 60pxの余白
-        virtual_padding = 19  # 1920 * 0.01 = 19px
-        virtual_item_spacing = 15  # 1920 * 0.008 = 15px
 
-        # 実際の画面座標にスケーリング
-        self.margin = scale_size(virtual_margin, 0)[0]
-        self.width, self.height = scale_size(virtual_width, virtual_height)
-        self.x, self.y = scale_pos(virtual_margin, virtual_margin)
-        
-        self.speaker_width = scale_size(virtual_speaker_width, 0)[0]
-        self.text_width = scale_size(virtual_text_width, 0)[0]
-        self.padding = scale_size(virtual_padding, 0)[0]
-        self.item_spacing = scale_size(virtual_item_spacing, 0)[0]
+        self._dim_surface = None
 
-        # フォントはtext_rendererよりも小さくする（バックログ用に調整）
-        from PyQt5.QtGui import QFont, QFontMetrics
-        
-        # text_rendererから元のフォントサイズを取得し、0.7倍に縮小
-        original_text_size = self.fonts["text"].pointSize()
-        original_name_size = self.fonts["name"].pointSize()
-        self.text_font_size = int(original_text_size * 0.7)
-        self.name_font_size = int(original_name_size * 0.7)
-        
-        # 元のフォントファミリー名と設定を取得
-        name_font_family = self.fonts["name"].family()
-        text_font_family = self.fonts["text"].family()
-        name_font_weight = self.fonts["name"].weight()
-        text_font_weight = self.fonts["text"].weight()
-        
-        # バックログ用のフォントを作成（text_rendererと同じサイズ）
-        self.backlog_name_font = QFont(name_font_family, self.name_font_size)
-        self.backlog_name_font.setWeight(name_font_weight)
-        self.backlog_text_font = QFont(text_font_family, self.text_font_size)  
-        self.backlog_text_font.setWeight(text_font_weight)
-        
-        self.name_font_metrics = QFontMetrics(self.backlog_name_font)
-        self.text_font_metrics = QFontMetrics(self.backlog_text_font)
-        self.text_line_height = self.text_font_metrics.height()
+    def set_text_renderer(self, text_renderer):
+        self.text_renderer = text_renderer
 
-        # ルビ・傍点用小フォント（text の RUBY_FONT_RATIO 倍サイズ）
-        ruby_point_size = max(6, int(self.text_font_size * RUBY_FONT_RATIO))
-        self.backlog_ruby_font = QFont(text_font_family, ruby_point_size)
-        self.backlog_ruby_font.setWeight(text_font_weight)
-        self.ruby_h = int(self.text_line_height * RUBY_FONT_RATIO) + RUBY_MARGIN_PX
-
-        if self.debug:
-            print(f"[BACKLOG] バックログ背景高さ: {self.height}px")
-            print(f"[BACKLOG] フォントサイズ: {self.text_font_size}px")
-            print(f"[BACKLOG] 行の高さ: {self.text_line_height}px")
-        
     def get_character_colors(self, char_name, force_female=False):
-        """キャラクター名に基づいて色を決定する（text_rendererと同じ）"""
-        # 選択肢の場合は専用色を使用
         if char_name == "選択":
             return self.choice_color, self.choice_color
-
-        if force_female:
+        if force_female or CHARACTER_GENDERS.get(char_name) == "female":
             return self.female_name_color, self.female_text_color
-        
-        if char_name and char_name in CHARACTER_GENDERS:
-            gender = CHARACTER_GENDERS.get(char_name)
-            if gender == 'female':
-                return self.female_name_color, self.female_text_color
         return self.default_name_color, self.default_text_color
-        
-    def _apply_surface_fx(self, surf):
-        """FONT_EFFECTS（ピクセル化・横引き）を surface に適用する"""
-        if not FONT_EFFECTS:
-            return surf
-        orig_w, orig_h = surf.get_size()
-        stretch = (float(FONT_EFFECTS.get("stretch_factor", 1.0))
-                   if FONT_EFFECTS.get("enable_stretched", False) else 1.0)
-        final_w = max(1, int(round(orig_w * stretch)))
-        if FONT_EFFECTS.get("enable_pixelated", False):
-            pf = max(1.0, float(FONT_EFFECTS.get("pixelate_factor", 2)))
-            sw = max(1, int(orig_w / pf))
-            sh = max(1, int(orig_h / pf))
-            small = pygame.transform.smoothscale(surf, (sw, sh))
-            surf = pygame.transform.smoothscale(small, (final_w, orig_h))
-        elif stretch != 1.0:
-            surf = pygame.transform.smoothscale(surf, (final_w, orig_h))
-        return surf.convert_alpha()
 
-    def _render_with_fx(self, text, qfont, color):
-        """QFont 描画 + FONT_EFFECTS（影・ピクセル化・横引き）を適用して Surface を返す"""
-        text_surf = render_text_with_qfont_cached(text, qfont, color)
-        text_surf = self._apply_surface_fx(text_surf)
-        if FONT_EFFECTS and FONT_EFFECTS.get("enable_shadow", False):
-            shadow_surf = render_text_with_qfont_cached(text, qfont, (0, 0, 0))
-            shadow_surf = self._apply_surface_fx(shadow_surf)
-            offx = int(round(FONT_EFFECTS.get("shadow_offset", (6, 6))[0]))
-            offy = int(round(FONT_EFFECTS.get("shadow_offset", (6, 6))[1]))
-            tw, th = text_surf.get_size()
-            sw, sh = shadow_surf.get_size()
-            combined = pygame.Surface((max(tw, sw + offx), max(th, sh + offy)), pygame.SRCALPHA)
-            combined.blit(shadow_surf, (offx, offy))
-            combined.blit(text_surf,   (0, 0))
-            return combined.convert_alpha()
-        return text_surf
+    def add_entry(self, speaker, text, force_female=False, display_lines=None):
+        if not text or not str(text).strip():
+            return
 
-    def _render_markup_line(self, text_line: str, color) -> 'pygame.Surface':
-        """ルビ・傍点マークアップ対応の1行描画（PyQt5フォント版）"""
-        if not text_line:
-            return pygame.Surface((1, 1), pygame.SRCALPHA)
-
-        tokens = parse_inline_markup(text_line)
-
-        # グリッド幅（QFontMetrics 基準）
-        from PyQt5.QtGui import QFontMetrics
-        metrics = QFontMetrics(self.backlog_text_font)
-        grid_w = metrics.horizontalAdvance("あ") + 1
-
-        base_h = self.text_line_height
-        line_height = base_h + self.ruby_h + 4
-
-        total_base = sum(
-            len(t.base) if isinstance(t, (RubySpan, BotenSpan, SeedSpan)) else 1
-            for t in tokens
+        substituted_speaker = (
+            self.name_manager.substitute_variables(speaker) if speaker else speaker
         )
-        line_width = max(1, grid_w * total_base)
-        surf = pygame.Surface((line_width, line_height), pygame.SRCALPHA)
-        surf.fill((0, 0, 0, 0))
-
-        char_count = 0
-        for token in tokens:
-            if isinstance(token, PlainChar):
-                gx = char_count * grid_w
-                cs = self._render_with_fx(token.char, self.backlog_text_font, color)
-                surf.blit(cs, (gx, self.ruby_h))
-                char_count += 1
-            elif isinstance(token, RubySpan):
-                span_w = grid_w * len(token.base)
-                gx = char_count * grid_w
-                for i, ch in enumerate(token.base):
-                    cs = render_text_with_qfont_cached(ch, self.backlog_text_font, color)
-                    surf.blit(cs, (gx + i * grid_w, self.ruby_h))
-                _blit_ruby_justified(surf, token.ruby,
-                    lambda ch: self._render_with_fx(ch, self.backlog_ruby_font, color),
-                    gx, span_w)
-                char_count += len(token.base)
-            elif isinstance(token, BotenSpan):
-                gx = char_count * grid_w
-                for i, ch in enumerate(token.base):
-                    cs = render_text_with_qfont_cached(ch, self.backlog_text_font, color)
-                    surf.blit(cs, (gx + i * grid_w, self.ruby_h))
-                    dot = self._render_with_fx("·", self.backlog_ruby_font, color)
-                    dx = gx + i * grid_w + (grid_w - dot.get_width()) // 2
-                    surf.blit(dot, (dx, 0))
-                char_count += len(token.base)
-            elif isinstance(token, SeedSpan):
-                gx = char_count * grid_w
-                for i, ch in enumerate(token.base):
-                    cs = render_text_with_qfont_cached(ch, self.backlog_text_font, SEED_TEXT_COLOR)
-                    surf.blit(cs, (gx + i * grid_w, self.ruby_h))
-                char_count += len(token.base)
-
-        return surf
-
-    def add_entry(self, speaker, text, force_female=False):
-        """バックログにエントリを追加"""
-        if not text or text.strip() == "":
-            return
-        
-        # 変数置換を適用
-        substituted_speaker = self.name_manager.substitute_variables(speaker) if speaker else speaker
-        substituted_text = self.name_manager.substitute_variables(text) if text else text
-            
-        # 重複チェック（最後のエントリと同じ場合はスキップ）
-        if (self.entries and
-            self.entries[-1]["speaker"] == substituted_speaker and
-            self.entries[-1]["text"] == substituted_text and
-            bool(self.entries[-1].get("force_female")) == bool(force_female)):
-            return
-            
-        self.entries.append({
+        substituted_text = self.name_manager.substitute_variables(text)
+        entry = {
             "speaker": substituted_speaker or "名無し",
             "text": substituted_text,
             "force_female": bool(force_female),
-        })
-        
-        # デバッグ出力を削除（パフォーマンス向上）
-    
-    def _wrap_text(self, text, max_chars=26):
-        """マークアップ対応折り返し"""
-        return wrap_markup_text(text, max_chars)
-    
-    def toggle_backlog(self):
-        """バックログの表示/非表示を切り替え"""
-        self.is_showing = not self.is_showing
-        if self.is_showing:
-            # バックログを開いた時は最下部（最新テキスト）を表示
-            total_lines = self._count_total_lines()
-            max_lines = self._get_visible_lines()
-            if total_lines > max_lines:
-                self.scroll_position = total_lines - max_lines
-            else:
-                self.scroll_position = 0
-            if self.debug:
-                print(f"[BACKLOG] バックログ表示開始 (全{len(self.entries)}エントリ, スクロール位置: {self.scroll_position})")
-    
-    def is_showing_backlog(self):
-        """バックログが表示中かどうか"""
-        return self.is_showing
-    
-    def scroll_up(self):
-        """上にスクロール（行単位）"""
-        if self.scroll_position > 0:
-            self.scroll_position -= 1
-    
-    def scroll_down(self):
-        """下にスクロール（行単位）"""
-        total_lines = self._count_total_lines()
-        max_lines = self._get_visible_lines()
-        max_scroll = max(0, total_lines - max_lines)
-        if self.scroll_position < max_scroll:
-            self.scroll_position += 1
-    
-    def _count_total_lines(self):
-        """全エントリの総行数を計算"""
-        total_lines = 0
-        for entry in self.entries:
-            text_lines = self._wrap_text(entry["text"], 26)
-            total_lines += len(text_lines)
-        return total_lines
-    
-    def _get_visible_lines(self):
-        """表示可能な最大行数（11行固定）"""
-        return 11
-    
-    def handle_input(self, event):
-        """入力処理"""
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_b:
-                self.toggle_backlog()
-            elif self.is_showing:
-                if event.key == pygame.K_UP:
-                    self.scroll_up()
-                elif event.key == pygame.K_DOWN:
-                    self.scroll_down()
-                # ESC はバックログを閉じない（OPTION オーバーレイに委譲）
-        
-        elif event.type == pygame.MOUSEBUTTONDOWN and self.is_showing:
-            if event.button == 4:  # マウスホイール上
-                self.scroll_up()
-            elif event.button == 5:  # マウスホイール下
-                self.scroll_down()
-        
-        elif event.type == pygame.MOUSEWHEEL and self.is_showing:
-            if event.y > 0:  # 上スクロール
-                self.scroll_up()
-            elif event.y < 0:  # 下スクロール
-                self.scroll_down()
-    
-    def render(self):
-        """バックログを描画"""
+        }
+        if display_lines is not None:
+            entry["display_lines"] = [
+                str(line) for line in display_lines if str(line).strip()
+            ]
+        self.entries.append(entry)
+
+    @staticmethod
+    def _entry_key(entry):
+        return (
+            entry.get("speaker") or "名無し",
+            entry.get("text") or "",
+            bool(entry.get("force_female", False)),
+        )
+
+    def _snapshot_entries(self):
+        """Freeze the text-bearing scenario steps recorded so far."""
+        return [dict(entry) for entry in self.entries]
+
+    def _entry_rows(self, entry):
+        lines = entry.get("display_lines")
+        if lines is None:
+            lines = self._wrap_text(entry.get("text", ""))
+        return [str(line) for line in lines if str(line).strip()]
+
+    def _history_rows(self):
+        rows = []
+        for entry in self._visible_entries:
+            lines = self._entry_rows(entry)
+            for index, line in enumerate(lines):
+                rows.append(
+                    {
+                        "entry": entry,
+                        "line": line,
+                        "show_speaker": index == 0,
+                    }
+                )
+        return rows
+
+    def _newest_row_y(self):
+        """Keep the newest actually displayed row fixed when B is pressed."""
+        base_y = self._text_start_y()
+        if not self._visible_entries or self.text_renderer is None:
+            return base_y
+
+        renderer = self.text_renderer
+        current_text = getattr(renderer, "current_text", "")
+        if not current_text:
+            max_lines = max(1, int(getattr(renderer, "max_display_lines", 3)))
+            return base_y + (max_lines - 1) * self._line_height()
+
+        current = {
+            "speaker": getattr(renderer, "current_character_name", None) or "名無し",
+            "text": current_text,
+            "force_female": bool(getattr(renderer, "current_force_female", False)),
+        }
+        if self._entry_key(self._visible_entries[-1]) != self._entry_key(current):
+            return base_y
+
+        get_y = getattr(renderer, "get_current_dialogue_last_line_y", None)
+        if get_y is None:
+            return base_y
+        return int(round(get_y()))
+
+    def open_backlog(self):
+        renderer = self.text_renderer
+        if renderer is not None:
+            # Opening the log always resolves an in-progress typewriter line.
+            if getattr(renderer, "current_text", ""):
+                renderer.skip_text()
+            renderer.hovered_seed_id = None
+
+        self._visible_entries = self._snapshot_entries()
+        self.scroll_offset = 0.0
+        self._dragging_thumb = False
+        self._opened_at_ms = pygame.time.get_ticks()
+        self.is_showing = True
+        self._refresh_scroll_bounds()
+        if self.debug:
+            print(f"[BACKLOG] opened ({len(self._visible_entries)} entries)")
+
+    def close_backlog(self):
         if not self.is_showing:
             return
-        
-        # 背景
-        bg_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        bg_surface.fill(self.bg_color)
-        self.screen.blit(bg_surface, (self.x, self.y))
-        
-        # 枠線
-        pygame.draw.rect(self.screen, self.border_color, 
-                        (self.x, self.y, self.width, self.height), 2)
-        
-        # 全ての行を作成（話者名とテキスト行を統合）
-        all_lines = []
-        previous_speaker = None
-        previous_force_female = None
-        
-        for entry in self.entries:
-            speaker = entry["speaker"]
-            text = entry["text"]
-            text_lines = self._wrap_text(text, 26)
-            
-            # 話者が変更された場合のみ話者名を表示
-            force_female = bool(entry.get("force_female", False))
-            show_speaker = (
-                speaker != previous_speaker or force_female != previous_force_female
-            )
-            
-            # 各エントリの行情報を作成
-            for i, line in enumerate(text_lines):
-                all_lines.append({
-                    "type": "text",
-                    "speaker": speaker if (i == 0 and show_speaker) else "",  # 話者変更時の最初の行のみ話者名
-                    "text": line,
-                    "entry": entry
-                })
-            
-            previous_speaker = speaker
-            previous_force_female = force_female
-        
-        # スクロール位置に基づいて表示する行を決定（最大11行）
-        max_lines = self._get_visible_lines()
-        start_line = self.scroll_position
-        end_line = min(start_line + max_lines, len(all_lines))
-        
-        # 描画開始位置
-        current_y = self.y + self.padding + 10
-        
-        for i in range(start_line, end_line):
-            if i >= len(all_lines):
-                break
-                
-            line_info = all_lines[i]
-            speaker = line_info["speaker"]
-            text_line = line_info["text"]
-            entry = line_info["entry"]
-            
-            # キャラクター名から色を決定
-            name_color, text_color = self.get_character_colors(
-                entry["speaker"], entry.get("force_female", False)
-            )
-            
-            # 話者名を描画（最初の行のみ）
-            if speaker and speaker.strip():
-                try:
-                    name_surface = render_text_with_qfont_cached(speaker, self.backlog_name_font, name_color)
-                    self.screen.blit(name_surface, (self.x + self.padding, current_y))
-                except Exception as e:
-                    if self.debug:
-                        print(f"話者名描画エラー: {e}, 名前: '{speaker}'")
-            
-            # テキストを描画（話者名と同じ高さ）
-            text_x = self.x + self.padding + self.speaker_width + 60
-            if text_line.strip():
-                try:
-                    if has_inline_markup(text_line):
-                        # ルビ・傍点あり: 1文字ずつトークン描画
-                        # base text はサーフェス内 ruby_h 下にあるので上シフトして Y を固定
-                        text_surface = self._render_markup_line(text_line, text_color)
-                        self.screen.blit(text_surface, (text_x, current_y - self.ruby_h))
-                    else:
-                        # 平文: QFont 一括描画 + FONT_EFFECTS 適用
-                        text_surface = self._render_with_fx(
-                            text_line, self.backlog_text_font, text_color
+        now = pygame.time.get_ticks()
+        if self.text_renderer is not None and self._opened_at_ms is not None:
+            self.text_renderer.resume_after_backlog(now - self._opened_at_ms)
+        self.is_showing = False
+        self._visible_entries = []
+        self._dragging_thumb = False
+        self._opened_at_ms = None
+        if self.debug:
+            print("[BACKLOG] closed")
+
+    def toggle_backlog(self):
+        if self.is_showing:
+            self.close_backlog()
+        else:
+            self.open_backlog()
+
+    def is_showing_backlog(self):
+        return self.is_showing
+
+    def _max_chars_per_line(self):
+        if self.text_renderer is not None:
+            return int(self.text_renderer.max_chars_per_line)
+        return TEXT_MAX_CHARS_PER_LINE
+
+    def _wrap_text(self, text):
+        return wrap_markup_text(text, self._max_chars_per_line())
+
+    def _line_height(self):
+        if self.text_renderer is not None:
+            return max(1, int(self.text_renderer.text_line_height))
+        return 48
+
+    def _text_start_y(self):
+        if self.text_renderer is not None:
+            return int(round(self.text_renderer.text_start_y))
+        return 798
+
+    def _fixed_edge_margin(self):
+        """Margin below a full three-line dialogue, reused at the top."""
+        height = self.screen.get_height()
+        max_lines = (
+            int(self.text_renderer.max_display_lines)
+            if self.text_renderer is not None
+            else 3
+        )
+        full_dialogue_bottom = self._text_start_y() + max_lines * self._line_height()
+        return max(0, height - full_dialogue_bottom)
+
+    def _top_clip_y(self):
+        """Keep backlog dialogue out of the fixed date/weather HUD area."""
+        top = self._fixed_edge_margin()
+        renderer = self.text_renderer
+        if renderer is None or not getattr(renderer, "date_display_enabled", False):
+            return top
+
+        effect_padding = 0
+        if FONT_EFFECTS.get("enable_shadow", False):
+            shadow_offset = FONT_EFFECTS.get("shadow_offset", (6, 6))
+            outline_width = max(
+                2,
+                min(
+                    3,
+                    int(
+                        round(
+                            max(abs(shadow_offset[0]), abs(shadow_offset[1]))
                         )
-                        self.screen.blit(text_surface, (text_x, current_y))
-                except Exception as e:
-                    if self.debug:
-                        print(f"テキスト描画エラー: {e}, テキスト: '{text_line}'")
-            
-            current_y += self.text_line_height
+                    )
+                    // 2,
+                ),
+            )
+            effect_padding = outline_width * 2
+
+        for position_attr, font_attr in (
+            ("date_position", "date_font"),
+            ("weather_position", "weather_font"),
+        ):
+            position = getattr(renderer, position_attr, None)
+            font = getattr(renderer, font_attr, None)
+            if position is None or font is None:
+                continue
+            hud_bottom = int(position[1]) + int(font.get_height()) + effect_padding
+            top = max(top, hud_bottom + self.HUD_GAP)
+        return top
+
+    def _viewport_rect(self):
+        margin = self._fixed_edge_margin()
+        top = self._top_clip_y()
+        return pygame.Rect(
+            0,
+            top,
+            self.screen.get_width(),
+            max(0, self.screen.get_height() - margin - top),
+        )
+
+    def _layout_entries(self):
+        """Return one layout item per non-empty displayed dialogue row."""
+        rows = self._history_rows()
+        if not rows:
+            return []
+
+        line_height = self._line_height()
+        layout = []
+        next_y = self._newest_row_y()
+        for row in reversed(rows):
+            layout.append({**row, "y": next_y})
+            next_y -= line_height
+        layout.reverse()
+        return layout
+
+    def _refresh_scroll_bounds(self):
+        layout = self._layout_entries()
+        if not layout:
+            self.max_scroll_offset = 0.0
+            self.scroll_offset = 0.0
+            return layout
+        oldest_y = layout[0]["y"]
+        self.max_scroll_offset = float(max(0, self._viewport_rect().top - oldest_y))
+        self.scroll_offset = max(0.0, min(self.scroll_offset, self.max_scroll_offset))
+        return layout
+
+    def scroll_up(self, amount=None):
+        self._refresh_scroll_bounds()
+        step = self._line_height() if amount is None else amount
+        self.scroll_offset = min(self.max_scroll_offset, self.scroll_offset + step)
+
+    def scroll_down(self, amount=None):
+        self._refresh_scroll_bounds()
+        step = self._line_height() if amount is None else amount
+        self.scroll_offset = max(0.0, self.scroll_offset - step)
+
+    def page_up(self):
+        self.scroll_up(
+            max(
+                self._line_height(),
+                self._viewport_rect().height - self._line_height(),
+            )
+        )
+
+    def page_down(self):
+        self.scroll_down(
+            max(
+                self._line_height(),
+                self._viewport_rect().height - self._line_height(),
+            )
+        )
+
+    def _scrollbar_geometry(self):
+        self._refresh_scroll_bounds()
+        if self.max_scroll_offset <= 0:
+            return None
+
+        viewport = self._viewport_rect()
+        width = self.SCROLLBAR_WIDTH
+        bar = pygame.Rect(
+            self.screen.get_width() - self.SCROLLBAR_RIGHT_MARGIN - width,
+            viewport.top,
+            width,
+            viewport.height,
+        )
+        up_button = pygame.Rect(bar.x, bar.y, width, width)
+        down_button = pygame.Rect(bar.x, bar.bottom - width, width, width)
+        track = pygame.Rect(
+            bar.x,
+            up_button.bottom,
+            width,
+            max(0, bar.height - 2 * width),
+        )
+
+        scroll_world_height = viewport.height + self.max_scroll_offset
+        thumb_height = max(
+            self.MIN_THUMB_SIZE,
+            int(round(track.height * viewport.height / scroll_world_height)),
+        )
+        thumb_height = min(track.height, thumb_height)
+        travel = max(0, track.height - thumb_height)
+        progress = self.scroll_offset / self.max_scroll_offset
+        thumb_y = track.bottom - thumb_height - int(round(progress * travel))
+        thumb = pygame.Rect(track.x, thumb_y, track.width, thumb_height)
+        return {
+            "bar": bar,
+            "up": up_button,
+            "down": down_button,
+            "track": track,
+            "thumb": thumb,
+            "travel": travel,
+        }
+
+    def handle_input(self, event):
+        """Handle backlog input and return whether the event was consumed."""
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_b:
+            self.toggle_backlog()
+            return True
+        if not self.is_showing:
+            return False
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                self.scroll_up()
+                return True
+            if event.key == pygame.K_DOWN:
+                self.scroll_down()
+                return True
+            if event.key == pygame.K_PAGEUP:
+                self.page_up()
+                return True
+            if event.key == pygame.K_PAGEDOWN:
+                self.page_down()
+                return True
+
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y > 0:
+                self.scroll_up(self._line_height() * abs(event.y))
+            elif event.y < 0:
+                self.scroll_down(self._line_height() * abs(event.y))
+            return True
+
+        geometry = self._scrollbar_geometry()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 4:
+                self.scroll_up()
+                return True
+            if event.button == 5:
+                self.scroll_down()
+                return True
+            if event.button != 1 or geometry is None:
+                return True
+            if geometry["up"].collidepoint(event.pos):
+                self.scroll_up()
+            elif geometry["down"].collidepoint(event.pos):
+                self.scroll_down()
+            elif geometry["thumb"].collidepoint(event.pos):
+                self._dragging_thumb = True
+                self._drag_start_y = event.pos[1]
+                self._drag_start_offset = self.scroll_offset
+            elif geometry["track"].collidepoint(event.pos):
+                if event.pos[1] < geometry["thumb"].top:
+                    self.page_up()
+                elif event.pos[1] > geometry["thumb"].bottom:
+                    self.page_down()
+            return True
+
+        if event.type == pygame.MOUSEMOTION and self._dragging_thumb:
+            if geometry is not None and geometry["travel"] > 0:
+                delta_y = event.pos[1] - self._drag_start_y
+                offset_delta = (
+                    -delta_y * self.max_scroll_offset / geometry["travel"]
+                )
+                self.scroll_offset = max(
+                    0.0,
+                    min(
+                        self.max_scroll_offset,
+                        self._drag_start_offset + offset_delta,
+                    ),
+                )
+            return True
+
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self._dragging_thumb = False
+            return True
+
+        return True
+
+    def _render_dim(self):
+        if (
+            self._dim_surface is None
+            or self._dim_surface.get_size() != self.screen.get_size()
+        ):
+            self._dim_surface = pygame.Surface(
+                self.screen.get_size(), pygame.SRCALPHA
+            )
+            self._dim_surface.fill((0, 0, 0, self.DIM_ALPHA))
+        self.screen.blit(self._dim_surface, (0, 0))
+
+    @staticmethod
+    def _draw_bevel(surface, rect, raised=True):
+        light = (
+            BacklogManager.CLASSIC_LIGHT
+            if raised
+            else BacklogManager.CLASSIC_SHADOW
+        )
+        midlight = (
+            BacklogManager.CLASSIC_MIDLIGHT
+            if raised
+            else BacklogManager.CLASSIC_DARK
+        )
+        dark = (
+            BacklogManager.CLASSIC_DARK
+            if raised
+            else BacklogManager.CLASSIC_MIDLIGHT
+        )
+        shadow = (
+            BacklogManager.CLASSIC_SHADOW
+            if raised
+            else BacklogManager.CLASSIC_LIGHT
+        )
+        pygame.draw.line(surface, light, rect.topleft, (rect.right - 1, rect.top))
+        pygame.draw.line(surface, light, rect.topleft, (rect.left, rect.bottom - 1))
+        pygame.draw.line(
+            surface,
+            midlight,
+            (rect.left + 1, rect.top + 1),
+            (rect.right - 2, rect.top + 1),
+        )
+        pygame.draw.line(
+            surface,
+            dark,
+            (rect.right - 2, rect.top + 1),
+            (rect.right - 2, rect.bottom - 2),
+        )
+        pygame.draw.line(
+            surface,
+            dark,
+            (rect.left + 1, rect.bottom - 2),
+            (rect.right - 2, rect.bottom - 2),
+        )
+        pygame.draw.line(
+            surface,
+            shadow,
+            (rect.right - 1, rect.top),
+            (rect.right - 1, rect.bottom - 1),
+        )
+        pygame.draw.line(
+            surface,
+            shadow,
+            (rect.left, rect.bottom - 1),
+            (rect.right - 1, rect.bottom - 1),
+        )
+
+    def _draw_classic_button(self, rect, direction):
+        pygame.draw.rect(self.screen, self.CLASSIC_FACE, rect)
+        self._draw_bevel(self.screen, rect, raised=True)
+        cx, cy = rect.center
+        if direction == "up":
+            points = [(cx, cy - 4), (cx - 5, cy + 3), (cx + 5, cy + 3)]
+        else:
+            points = [(cx, cy + 4), (cx - 5, cy - 3), (cx + 5, cy - 3)]
+        pygame.draw.polygon(self.screen, self.CLASSIC_SHADOW, points)
+
+    def _render_scrollbar(self):
+        geometry = self._scrollbar_geometry()
+        if geometry is None:
+            return
+
+        track = geometry["track"]
+        pygame.draw.rect(self.screen, self.CLASSIC_TRACK, track)
+        # A tiny checker pattern evokes the classic Windows scrollbar trough.
+        for y in range(track.top, track.bottom, 4):
+            start_x = track.left + (2 if ((y - track.top) // 4) % 2 else 0)
+            for x in range(start_x, track.right, 4):
+                self.screen.set_at((x, y), self.CLASSIC_LIGHT)
+
+        self._draw_classic_button(geometry["up"], "up")
+        self._draw_classic_button(geometry["down"], "down")
+        pygame.draw.rect(self.screen, self.CLASSIC_FACE, geometry["thumb"])
+        self._draw_bevel(self.screen, geometry["thumb"], raised=True)
+
+    def _render_entries(self, layout):
+        renderer = self.text_renderer
+        if renderer is None:
+            return
+
+        viewport = self._viewport_rect()
+        old_clip = self.screen.get_clip()
+        self.screen.set_clip(viewport)
+        try:
+            line_height = self._line_height()
+            offset = int(round(self.scroll_offset))
+            for item in layout:
+                entry = item["entry"]
+                y = item["y"] + offset
+                if y < viewport.top or y >= viewport.bottom:
+                    continue
+
+                name_color, text_color = self.get_character_colors(
+                    entry.get("speaker"), entry.get("force_female", False)
+                )
+                if item["show_speaker"] and entry.get("speaker"):
+                    name_surface = renderer._render_name_with_grid_system(
+                        entry["speaker"], name_color
+                    )
+                    self.screen.blit(
+                        name_surface,
+                        (int(round(renderer.name_start_x)), int(round(y))),
+                    )
+                text_surface = renderer._render_stable_text_line(
+                    item["line"], text_color
+                )
+                self.screen.blit(
+                    text_surface,
+                    (
+                        int(round(renderer.text_start_x)),
+                        int(round(y)) - renderer.ruby_h,
+                    ),
+                )
+        finally:
+            self.screen.set_clip(old_clip)
+
+    def render(self):
+        if not self.is_showing:
+            return
+        layout = self._refresh_scroll_bounds()
+        self._render_dim()
+        self._render_entries(layout)
+        self._render_scrollbar()
