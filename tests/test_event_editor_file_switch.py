@@ -108,16 +108,17 @@ def test_file_switch_prompts_and_stays_on_current_file_when_save_fails(
     assert loaded == []
 
 
-def test_file_select_opens_the_first_step_editor_after_loading(tmp_path):
+def test_file_select_loads_file_without_opening_step_editor(tmp_path):
     opened_steps = []
     first_step = {"step_index": 0, "speaker": "A", "body": "line"}
+    loaded_metadata = []
     harness = SimpleNamespace(
         events_dir=str(tmp_path),
         current_file_path=None,
         realtime_save_timer=_TimerStub(),
         current_steps=[],
         _has_unsaved_changes=lambda: False,
-        load_event_metadata=lambda event_id: None,
+        load_event_metadata=lambda event_id: loaded_metadata.append(event_id),
         open_step_editor=lambda step: opened_steps.append(step),
     )
 
@@ -126,10 +127,9 @@ def test_file_select_opens_the_first_step_editor_after_loading(tmp_path):
         return True
 
     harness.load_file = load_file
-    harness._open_initial_step_editor = (
-        lambda: EventEditorGUI._open_initial_step_editor(harness)
-    )
 
     EventEditorGUI.on_file_select(harness, SimpleNamespace(text=lambda: "new.ks"))
 
-    assert opened_steps == [first_step]
+    assert harness.current_steps == [first_step]
+    assert loaded_metadata == ["new"]
+    assert opened_steps == []

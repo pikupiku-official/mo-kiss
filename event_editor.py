@@ -4323,14 +4323,6 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             return
         event_id = os.path.splitext(filename)[0]
         self.load_event_metadata(event_id)
-        self._open_initial_step_editor()
-
-    def _open_initial_step_editor(self):
-        """Open the first parsed step immediately after a KS file is loaded."""
-        if not self.current_steps:
-            return False
-        self.open_step_editor(self.current_steps[0])
-        return True
 
     def load_file(self, filepath):
         """ファイルを読み込んでエディタに表示"""
