@@ -519,7 +519,10 @@ def test_dragging_current_show_updates_its_absolute_position():
     dialog = StepEditorDialog(
         None,
         steps[0],
-        actions=['chara_show name="桃子" torso="MMK_T00" x="0.5" y="0.6" size="2.3"'],
+        actions=[
+            'chara_show name="桃子" torso="MMK_T00" eye="eye_a" '
+            'mouth="mouth_a" brow="brow_a" x="0.5" y="0.6" size="2.3"'
+        ],
         all_steps=steps,
         all_step_actions=[[]],
         step_index=0,
@@ -533,7 +536,10 @@ def test_dragging_current_show_updates_its_absolute_position():
     assert tag == "chara_show"
     assert params["x"] == "0.6"
     assert params["y"] == "0.5"
-    assert not any(action.startswith("chara_move") for action in dialog.get_actions())
+    assert params["eye"] == "eye_a"
+    assert params["mouth"] == "mouth_a"
+    assert params["brow"] == "brow_a"
+    assert len(dialog.get_actions()) == 1
 
 
 def test_dragging_inherited_character_adds_relative_move():

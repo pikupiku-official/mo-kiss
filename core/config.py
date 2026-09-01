@@ -1,6 +1,8 @@
+import os
+os.environ["SDL_IME_SHOW_UI"] = "1"
+
 import pygame
 import sys
-import os
 import json
 import random
 import time
@@ -362,6 +364,26 @@ def window_to_virtual_pos(pos):
     virtual_x = max(0, min(virtual_x, VIRTUAL_WIDTH - 1))
     virtual_y = max(0, min(virtual_y, VIRTUAL_HEIGHT - 1))
     return virtual_x, virtual_y
+
+
+def virtual_to_window_rect(rect):
+    """仮想画面上の矩形を、IMEなどが使う実ウィンドウ座標へ変換する。"""
+    rect = pygame.Rect(rect)
+    if WINDOW_CONTENT_WIDTH <= 0 or WINDOW_CONTENT_HEIGHT <= 0:
+        return rect.copy()
+
+    scale_x = WINDOW_CONTENT_WIDTH / VIRTUAL_WIDTH
+    scale_y = WINDOW_CONTENT_HEIGHT / VIRTUAL_HEIGHT
+    left = WINDOW_OFFSET_X + round(rect.left * scale_x)
+    top = WINDOW_OFFSET_Y + round(rect.top * scale_y)
+    right = WINDOW_OFFSET_X + round(rect.right * scale_x)
+    bottom = WINDOW_OFFSET_Y + round(rect.bottom * scale_y)
+    return pygame.Rect(
+        left,
+        top,
+        max(1, right - left),
+        max(1, bottom - top),
+    )
 
 # ゲーム初期化時に呼び出す
 def init_game():

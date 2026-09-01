@@ -12,6 +12,10 @@ from core import config
 from core.runtime.window_controller import WindowController
 
 
+def test_native_ime_candidate_ui_is_enabled():
+    assert os.environ["SDL_IME_SHOW_UI"] == "1"
+
+
 def test_normalize_event_converts_position_and_relative_motion(monkeypatch):
     controller = WindowController(pygame.Surface((100, 100)), pygame.Surface((100, 100)))
     monkeypatch.setattr(config, "window_to_virtual_pos", lambda pos: (12, 34))
@@ -28,6 +32,17 @@ def test_normalize_event_converts_position_and_relative_motion(monkeypatch):
 
     assert normalized.pos == (12, 34)
     assert normalized.rel == (20, 16)
+
+
+def test_virtual_to_window_rect_uses_current_letterbox_metrics(monkeypatch):
+    monkeypatch.setattr(config, "WINDOW_CONTENT_WIDTH", 720)
+    monkeypatch.setattr(config, "WINDOW_CONTENT_HEIGHT", 540)
+    monkeypatch.setattr(config, "WINDOW_OFFSET_X", 25)
+    monkeypatch.setattr(config, "WINDOW_OFFSET_Y", 40)
+
+    actual = config.virtual_to_window_rect(pygame.Rect(200, 300, 300, 60))
+
+    assert actual == pygame.Rect(125, 190, 150, 30)
 
 
 def test_gather_events_consumes_f11_and_toggles_once(monkeypatch):

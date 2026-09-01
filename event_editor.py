@@ -2044,8 +2044,16 @@ class StepEditorDialog(Win2000FramelessDialog):
         right_splitter.setSizes([240, 520])
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText("保存/適用")
-        buttons.button(QDialogButtonBox.Cancel).setText("キャンセル")
+        apply_button = buttons.button(QDialogButtonBox.Ok)
+        cancel_button = buttons.button(QDialogButtonBox.Cancel)
+        apply_button.setText("保存/適用")
+        cancel_button.setText("キャンセル")
+        # A QDialog clicks its default/auto-default button for an unhandled
+        # Enter key.  Text fields deliberately leave Enter unhandled, so the
+        # old defaults closed the entire step editor while typing.
+        apply_button.setAutoDefault(False)
+        apply_button.setDefault(False)
+        cancel_button.setAutoDefault(False)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         main_layout.addWidget(buttons)
@@ -2511,6 +2519,15 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._stop_audio_preview()
         super().accept()
 
+    def keyPressEvent(self, event):
+        # QDialog treats Return/Enter as acceptance even when no button is the
+        # default.  In this editor those keys must never apply and close a step
+        # implicitly; saving remains an explicit button action.
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
     def reject(self):
         self.scene_canvas.discard_pending_scale()
         self._stop_audio_preview()
@@ -2592,7 +2609,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.actions_list.setCurrentRow(row)
 
     def _on_scene_object_moved(self, name, delta_x, delta_y, metadata):
-        """Persist a canvas drag as an absolute ``chara_shift`` placement."""
+        """Persist a canvas drag without splitting a current-step show."""
         name = (name or "").strip()
         if not name:
             return
@@ -2624,7 +2641,16 @@ class StepEditorDialog(Win2000FramelessDialog):
             "y": self._format_scene_number(target_y),
             "size": self._format_scene_number(target_size),
         }
-        if reusable_shift_row == last_placement_row and reusable_shift_row >= 0:
+        last_placement = parsed_by_row.get(last_placement_row)
+        if last_placement is not None and last_placement[0] == "chara_show":
+            tag, params = last_placement
+            target_x = self._parse_scene_number(params.get("x"), 0.5) + relative_x
+            target_y = self._parse_scene_number(params.get("y"), 0.5) + relative_y
+            params["x"] = self._format_scene_number(target_x)
+            params["y"] = self._format_scene_number(target_y)
+            self._set_action_row(last_placement_row, tag, params)
+            action_label = "chara_showのx/yを更新"
+        elif reusable_shift_row == last_placement_row and reusable_shift_row >= 0:
             tag, params = parsed_by_row[reusable_shift_row]
             params.update(placement_params)
             self._set_action_row(reusable_shift_row, tag, params)
@@ -4148,9 +4174,19 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             # Discard はそのままロードへ
 
         self.realtime_save_timer.stop()
-        self.load_file(filepath)
+        if not self.load_file(filepath):
+            self._restore_file_list_selection()
+            return
         event_id = os.path.splitext(filename)[0]
         self.load_event_metadata(event_id)
+        self._open_initial_step_editor()
+
+    def _open_initial_step_editor(self):
+        """Open the first parsed step immediately after a KS file is loaded."""
+        if not self.current_steps:
+            return False
+        self.open_step_editor(self.current_steps[0])
+        return True
 
     def load_file(self, filepath):
         """ファイルを読み込んでエディタに表示"""
@@ -4172,10 +4208,12 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             self.status_label.setText(f"読み込み完了: {self.current_file}")
             self.status_label.setStyleSheet("color: green;")
             print(f"📖 ファイル読み込み: {filepath}")
+            return True
 
         except Exception as e:
             QMessageBox.critical(self, "エラー", f"ファイル読み込みエラー:\n{e}")
             print(f"❌ ファイル読み込みエラー: {e}")
+            return False
 
     def build_paragraph_line_map(self):
         """KSファイルの行番号と段落番号のマッピングを構築"""

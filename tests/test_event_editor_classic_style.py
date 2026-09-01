@@ -5,6 +5,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QColor, QPalette
+from PyQt5.QtTest import QTest
 from PyQt5.QtWidgets import QApplication, QDialog, QStyleFactory
 
 from event_editor import (
@@ -80,6 +81,39 @@ def test_step_editor_uses_win2000_frame_and_caption_controls():
     assert dialog._frame_layout.contentsMargins().left() == dialog.FRAME_WIDTH
     dialog.title_bar.close_button.click()
     assert dialog.result() == QDialog.Rejected
+
+
+def test_enter_in_step_editor_input_does_not_close_the_dialog():
+    manager = SimpleNamespace(
+        image_paths={
+            key: {}
+            for key in (
+                "bg", "torso", "brow", "cheek", "eye", "mouth",
+                "accessory", "effect",
+            )
+        }
+    )
+    step = {"step_index": 0, "speaker": "A", "body": "line"}
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=[],
+        all_steps=[step],
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=manager,
+    )
+    dialog.show()
+    dialog.body_input.setFocus()
+    APP.processEvents()
+
+    for enter_key in (Qt.Key_Return, Qt.Key_Enter):
+        QTest.keyClick(dialog.body_input, enter_key)
+        APP.processEvents()
+
+        assert dialog.isVisible()
+        assert dialog.result() == 0
+    dialog.reject()
 
 
 def test_event_editor_main_window_uses_the_reusable_win2000_frame():

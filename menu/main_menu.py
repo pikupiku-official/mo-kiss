@@ -26,7 +26,7 @@ class MainMenu(SubsystemBase):
     NAME_INPUT = "name_input"
     QUIT_CONFIRM = "quit_confirm"
 
-    def __init__(self, screen=None):
+    def __init__(self, screen=None, *, text_input_rect_transform=None):
         if screen is None:
             from core.config import init_game
 
@@ -75,6 +75,7 @@ class MainMenu(SubsystemBase):
                 input_font,
                 max_length=3,
                 placeholder="苗字",
+                input_rect_transform=text_input_rect_transform,
             ),
             "name": TextInput(
                 input_x,
@@ -84,6 +85,7 @@ class MainMenu(SubsystemBase):
                 input_font,
                 max_length=3,
                 placeholder="名前",
+                input_rect_transform=text_input_rect_transform,
             ),
         }
 
@@ -165,10 +167,9 @@ class MainMenu(SubsystemBase):
         self._focus_input("surname")
 
     def _focus_input(self, name):
-        for field_name, text_input in self.text_inputs.items():
+        for text_input in self.text_inputs.values():
             text_input.clear_focus()
-            text_input.is_focused = field_name == name
-        pygame.key.start_text_input()
+        self.text_inputs[name].focus()
 
     def _confirm_new_game(self):
         surname = self.text_inputs["surname"].get_text().strip()
@@ -176,6 +177,14 @@ class MainMenu(SubsystemBase):
         if not surname or not name:
             self._name_error = "苗字と名前を入力してください"
             return None
+        for key, value, label in (
+            ("surname", surname, "苗字"),
+            ("name", name, "名前"),
+        ):
+            max_length = self.text_inputs[key].max_length
+            if len(value) > max_length:
+                self._name_error = f"{label}は{max_length}文字以内で入力してください"
+                return None
         if not get_save_manager().reset_current_state():
             self._name_error = "ゲームの初期化に失敗しました"
             return None

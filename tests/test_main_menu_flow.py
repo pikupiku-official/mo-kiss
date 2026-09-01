@@ -101,6 +101,118 @@ class MainMenuFlowTests(unittest.TestCase):
         self.assertFalse(field.is_composing)
         self.assertEqual(field.composition_text, "")
 
+    def test_text_input_keeps_long_uncommitted_ime_composition(self):
+        field = TextInput(0, 0, 300, 60, pygame.font.Font(None, 40), max_length=3)
+        field.is_focused = True
+
+        result = field.handle_event(
+            pygame.event.Event(
+                pygame.TEXTEDITING,
+                text="わたなべ",
+                start=4,
+                length=0,
+            )
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(field.composition_text, "わたなべ")
+        self.assertTrue(field.is_composing)
+        self.assertEqual(field.get_text(), "")
+
+    def test_text_input_leaves_composition_editing_keys_to_ime(self):
+        for key in (pygame.K_BACKSPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
+            with self.subTest(key=key):
+                field = TextInput(
+                    0,
+                    0,
+                    300,
+                    60,
+                    pygame.font.Font(None, 40),
+                    max_length=3,
+                )
+                field.is_focused = True
+                field.is_composing = True
+                field.composition_text = "わたなべ"
+
+                result = field.handle_event(
+                    pygame.event.Event(pygame.KEYDOWN, key=key)
+                )
+
+                self.assertIsNone(result)
+                self.assertTrue(field.is_focused)
+                self.assertTrue(field.is_composing)
+                self.assertEqual(field.composition_text, "わたなべ")
+
+    def test_text_input_accepts_overlong_commit_without_truncating(self):
+        field = TextInput(0, 0, 300, 60, pygame.font.Font(None, 40), max_length=3)
+        field.is_focused = True
+        field.is_composing = True
+        field.composition_text = "ながいなまえ"
+
+        result = field.handle_event(
+            pygame.event.Event(pygame.TEXTINPUT, text="長い名前")
+        )
+
+        self.assertEqual(result, "text_changed")
+        self.assertEqual(field.get_text(), "長い名前")
+        self.assertFalse(field.is_composing)
+        self.assertEqual(field.composition_text, "")
+
+    def test_set_text_keeps_overlong_value_until_confirmation(self):
+        field = TextInput(0, 0, 300, 60, pygame.font.Font(None, 40), max_length=3)
+
+        field.set_text("長い名前")
+
+        self.assertEqual(field.get_text(), "長い名前")
+
+    def test_focusing_name_field_positions_ime_at_transformed_input_rect(self):
+        transformed_rect = pygame.Rect(410, 320, 200, 42)
+        menu = MainMenu(
+            self.screen,
+            text_input_rect_transform=lambda rect: transformed_rect,
+        )
+        try:
+            calls = []
+            with patch(
+                "pygame.key.set_text_input_rect",
+                side_effect=lambda rect: calls.append(("rect", rect)),
+            ) as set_ime_rect, patch(
+                "pygame.key.start_text_input",
+                side_effect=lambda: calls.append(("start",)),
+            ) as start_text_input:
+                menu._focus_input("name")
+
+            set_ime_rect.assert_called_once_with(transformed_rect)
+            start_text_input.assert_called_once_with()
+            self.assertEqual(calls, [("rect", transformed_rect), ("start",)])
+        finally:
+            menu.cleanup()
+
+    def test_name_input_keeps_overlong_committed_name_without_warning(self):
+        self.menu.state = MainMenu.NAME_INPUT
+        self.menu._focus_input("surname")
+
+        self.menu.handle_events(
+            [pygame.event.Event(pygame.TEXTINPUT, text="長い苗字名")]
+        )
+
+        self.assertEqual(self.menu.text_inputs["surname"].get_text(), "長い苗字名")
+        self.assertEqual(self.menu._name_error, "")
+
+    def test_confirmation_warns_and_does_not_transition_for_overlong_name(self):
+        self.menu.text_inputs["surname"].set_text("長い苗字名")
+        self.menu.text_inputs["name"].set_text("太郎")
+
+        with patch("menu.main_menu.get_save_manager") as get_save_manager, patch(
+            "menu.main_menu.get_name_manager"
+        ) as get_name_manager:
+            result = self.menu._confirm_new_game()
+
+        self.assertIsNone(result)
+        self.assertEqual(self.menu._name_error, "苗字は3文字以内で入力してください")
+        get_save_manager.assert_not_called()
+        get_name_manager.assert_not_called()
+
 
 class ReusableLoadScreenTests(unittest.TestCase):
     @classmethod

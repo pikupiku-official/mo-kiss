@@ -1151,7 +1151,7 @@
           "action": "chara_show",
           "target": "桃子",
           "params": {
-            "torso": "MMK_T00_ARM05_CLO00",
+            "torso": "MMK_T00_ARM12_CLO00",
             "name": "桃子",
             "x": 0.42841648,
             "y": 0.63882864,

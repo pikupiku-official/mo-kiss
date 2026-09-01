@@ -201,7 +201,10 @@ class GameApplication:
             show_loading("ゲームを初期化中...", self.window_surface)
 
             # メインメニューの初期化
-            self.main_menu = MainMenu(self.screen)
+            self.main_menu = MainMenu(
+                self.screen,
+                text_input_rect_transform=virtual_to_window_rect,
+            )
 
             # ローディング画面を隠す
             hide_loading()

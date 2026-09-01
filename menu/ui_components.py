@@ -193,11 +193,22 @@ class ToggleButton:
 
 class TextInput:
     """テキスト入力フィールド"""
-    def __init__(self, x, y, width, height, font, max_length=3, placeholder=""):
+    def __init__(
+        self,
+        x,
+        y,
+        width,
+        height,
+        font,
+        max_length=3,
+        placeholder="",
+        input_rect_transform=None,
+    ):
         self.rect = pygame.Rect(x, y, width, height)
         self.font = font
         self.max_length = max_length
         self.placeholder = placeholder
+        self.input_rect_transform = input_rect_transform or (lambda rect: rect)
         self.text = ""
         self.is_focused = False
         self.cursor_visible = True
@@ -222,10 +233,7 @@ class TextInput:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
                 if not self.is_focused:
-                    self.is_focused = True
-                    self.cursor_visible = True
-                    # テキスト入力を有効にする
-                    pygame.key.start_text_input()
+                    self.focus()
                     result = 'focus'
             else:
                 if self.is_focused:
@@ -238,36 +246,23 @@ class TextInput:
         
         elif self.is_focused:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_BACKSPACE:
-                    if self.is_composing:
-                        # IME変換中の場合は変換をクリア
-                        self.composition_text = ""
-                        self.is_composing = False
-                    elif self.text:
-                        # 通常のバックスペース処理
+                # 変換中の編集・確定キーはIMEに処理させる。結果は
+                # TEXTEDITING/TEXTINPUTイベントとして受け取る。
+                if not self.is_composing:
+                    if event.key == pygame.K_BACKSPACE and self.text:
                         self.text = self.text[:-1]
                         result = 'text_changed'
-                elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
-                    self.is_focused = False
-                    self.composition_text = ""
-                    self.is_composing = False
-                    pygame.key.stop_text_input()
-                    result = 'enter'
-                elif event.key == pygame.K_ESCAPE:
-                    # ESCキーで変換をキャンセル
-                    if self.is_composing:
+                    elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                        self.is_focused = False
                         self.composition_text = ""
                         self.is_composing = False
+                        pygame.key.stop_text_input()
+                        result = 'enter'
             
             elif event.type == pygame.TEXTINPUT:
                 # テキスト入力イベント（IME確定後の文字）
-                if len(self.text) < self.max_length:
-                    input_text = event.text
-                    # 文字数制限を考慮して追加
-                    remaining_length = self.max_length - len(self.text)
-                    if len(input_text) <= remaining_length:
-                        self.text += input_text
-                        result = 'text_changed'
+                self.text += event.text
+                result = 'text_changed'
                 # TEXTINPUT はIMEの確定通知なので、変換表示を必ず終了する
                 self.composition_text = ""
                 self.is_composing = False
@@ -287,11 +282,23 @@ class TextInput:
     
     def set_text(self, text):
         """テキストを設定"""
-        self.text = text[:self.max_length] if text else ""
+        self.text = text or ""
     
     def get_text(self):
         """テキストを取得"""
         return self.text
+
+    def focus(self):
+        """入力欄へフォーカスし、IME候補の基準位置を設定する。"""
+        self.is_focused = True
+        self.cursor_visible = True
+        self.update_ime_rect()
+        pygame.key.start_text_input()
+
+    def update_ime_rect(self):
+        """現在のウィンドウ寸法に合わせてIME候補位置を更新する。"""
+        input_rect = pygame.Rect(self.input_rect_transform(self.rect.copy()))
+        pygame.key.set_text_input_rect(input_rect)
     
     def clear_focus(self):
         """フォーカスをクリアしてIME入力を停止"""
@@ -303,6 +310,9 @@ class TextInput:
     
     def draw(self, screen):
         """描画"""
+        if self.is_focused:
+            self.update_ime_rect()
+
         # 背景色を決定
         if self.is_focused:
             bg_color = COLORS['btn_hover']
