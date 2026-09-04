@@ -645,6 +645,21 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "b49e8cf01aad4b178b623f6497988bce",
+      "name": "桃子困惑２",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM17_CLO00",
+        "brow": "MMK_F00_BRO03_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU17_00",
+        "accessory": "",
+        "effect": "MMK_E00_01"
+      },
+      "blink": true
     }
   ]
 }
