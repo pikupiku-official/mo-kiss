@@ -206,56 +206,69 @@
 	//純一//
 	「（なッ・・・！下着だぞ！？）」
 	「（いくら幼馴染とはいえ――）」
-[chara_shift name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0010" mouth="SZK_F01_MOU_0005" brow="SZK_F01_BRO_0004" cheek="SZK_F01_CHE_0001" effect="SZK_E01_0001" fade="0.15"]
+[chara_shift name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0010" mouth="SZK_F01_MOU_0005" brow="SZK_F01_BRO_0004" cheek="SZK_F01_CHE_0001" effect="" fade="0.15"]
 	//静//
 	「やぁねぇ、あんた。いくら私でもそれはしないわよ！」
-[chara_shift name="静" mouth="SZK_F01_MOU_0003" effect="" fade="0.15"]
+[chara_shift name="静" eye="SZK_F01_EYE_0001" mouth="SZK_F01_MOU_0001" brow="SZK_F01_BRO_0003" fade="0.15"]
+	//静//
 	「そっちじゃなくて、服のほう。」
-[chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" effect="" blink="true" fade="0.15"]
+[chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0004" brow="ANZ_F00_BRO_0003" cheek="ANZ_F00_CHE_0001" fade="0.15"]
+[chara_shift name="桃子" template="照れ笑い" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU04_01" brow="MMK_F00_BRO05_00" effect="MMK_E00_01" fade="0.15"]
 	//杏//
 	「あっ、そっちね！」
 	//純一//
 	「（・・・）」
 	「（・・・ん？）」
-[chara_shift name="静" torso="SZK_T01_0004" eye="SZK_F01_EYE_0001" mouth="SZK_F01_MOU_0003" brow="SZK_F01_BRO_0002" cheek="SZK_F01_CHE_0001" effect="" blink="true" fade="0.15"]
+[chara_shift name="静" torso="SZK_T01_0004" eye="SZK_F01_EYE_0001" mouth="SZK_F01_MOU_0001" brow="SZK_F01_BRO_0001" cheek="SZK_F01_CHE_0001" fade="0.15"]
+[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" fade="0.15"]
 	//静//
 	「さっきまでね、桃子も夏服を選んでたのよ。」
-[chara_shift name="静" mouth="SZK_F01_MOU_0001" fade="0.15"]
+[chara_shift name="静" eye="SZK_F01_EYE_0003" mouth="SZK_F01_MOU_0003" brow="SZK_F01_BRO_0003" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F00_EYE01_01" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO00_00" fade="0.15"]
+	//静//
 	「でも全然決まらなくって、ちょっと他の所に目が行っちゃってたんだけど・・・」
-[chara_shift name="静" mouth="SZK_F01_MOU_0003" fade="0.15"]
-	「折角だし桃子の服、選んであげてくれない？」
+[chara_shift name="静" torso="SZK_T00_0002" eye="SZK_F00_EYE_0001" mouth="SZK_F00_MOU_0001" brow="SZK_F00_BRO_0001" cheek="SZK_F00_CHE_0001" fade="0.15"]
+	//静//
+	「そうだわ。折角だし桃子の服、選んであげてくれない？」
+[chara_shift name="桃子" torso="MMK_T00_ARM17_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU13_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE02_00" fade="0.15"]
 	//純一//
 	「・・・はぁ。」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" blink="true" fade="0.15"]
+[chara_shift name="桃子" mouth="MMK_F00_MOU01_02" fade="0.15"]
 	//桃子//
 	「えっー！いいよっお母さん、自分で選ぶから！」
+[chara_shift name="杏" torso="ANZ_T01_0005" eye="ANZ_F01_EYE_0002" mouth="ANZ_F01_MOU_0004" brow="ANZ_F01_BRO_0001" cheek="ANZ_F01_CHE_0001" effect="" fade="0.15"]
 	//杏//
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0012" fade="0.15"]
-	「こうは言ってますが、おねぇ、全然決めないので困ってたんです。」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU15_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" blink="true" fade="0.15"]
+	「こうは言ってますが、おねぇ、全然決めないので困ってたんです。ね？おねぇ。」
+[chara_shift name="桃子" torso="MMK_T00_ARM18_CLO00" eye="MMK_F00_EYE02_01" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「あ、あんずっ。」
-[chara_shift name="桃子" mouth="MMK_F00_MOU04_02" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU04_02" fade="0.15"]
+	//桃子//
 	「仕方ないでしょー！どれも同じ位素敵だから迷っちゃうんだもん。」
-[chara_shift name="静" torso="SZK_T01_0004" eye="SZK_F01_EYE_0004" mouth="SZK_F01_MOU_0002" brow="SZK_F01_BRO_0004" cheek="SZK_F01_CHE_0001" effect="" blink="true" fade="0.15"]
+[chara_shift name="静" torso="SZK_T01_0004" eye="SZK_F01_EYE_0010" mouth="SZK_F01_MOU_0004" brow="SZK_F01_BRO_0004" cheek="SZK_F01_CHE_0001" effect="SZK_E01_0001" fade="0.15"]
 	//静//
-	「あんた待ってたら日が暮れるっちゅーの・・・」💦
-[chara_shift name="静" mouth="SZK_F01_MOU_0003" fade="0.15"]
+	「あんた待ってたら日が暮れるっちゅーの・・・」
+[chara_shift name="静" eye="SZK_F01_EYE_0001" mouth="SZK_F01_MOU_0001" brow="SZK_F01_BRO_0002" fade="0.15"]
+	//静//
 	「こういう訳だから、何か、見繕ってあげて頂戴な。」
 	//純一//
 	「・・・」
 	「まぁ、それ位なら喜んで！」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="" blink="true" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU13_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 	//桃子//
 	「ちょっ、純一まで！」
+[chara_shift name="杏" torso="ANZ_T01_0005" eye="ANZ_F01_EYE_0008" mouth="ANZ_F01_MOU_0004" brow="ANZ_F01_BRO_0001" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	//杏//
-[chara_shift name="杏" torso="ANZ_T00_0002" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0003" cheek="ANZ_F00_CHE_0001" effect="" blink="true" fade="0.15"]
 	「おねぇ、ちょっとそこに立ってみて！」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU05_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE03_00" effect="" blink="true" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE02_00" fade="0.15"]
 	//桃子//
 	「えぇー！？」
-[chara_shift name="桃子" mouth="MMK_F01_MOU04_01" fade="0.15"]
-	「もぉ・・・わかったよお。」
+[chara_shift name="杏" torso="ANZ_T01_0005" eye="ANZ_F01_EYE_0004" mouth="ANZ_F01_MOU_0011" brow="ANZ_F01_BRO_0001" cheek="ANZ_F01_CHE_0001" x="0.75" fade="0.15"]
+	//杏//
+	「いーからいーから。ホラ早く！」
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU04_02" fade="0.15"]
+	//杏//
+	「も、もぉ・・・わかったよお。」
 
 ＜コスト度外視なら3パターンの全く違う服がいいが、現実的なのは形は同じだけど色や模様が違う2パターンかな？＞
 ＜というのも、ここでPlayerが選んだ服を遊園地で実際に着てくる想定なので、立ち絵やスチルのパターンが増えてしまう＞
