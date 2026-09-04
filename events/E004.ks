@@ -559,41 +559,59 @@
 	//純一//
 	「いないよ。」
 	「非常に残念な事にね。」
-[chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" fade="0.15"]
+[chara_shift name="杏" template="杏反応" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	//杏//
 	「ふ～～ん、そうでしたか！」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0005" fade="0.15"]
+[chara_shift name="杏" template="杏おちゃらけ" mouth="ANZ_F00_MOU_0014" fade="0.15"]
+[chara_shift]
+	//杏//
 	「それはそれは失礼いたしました。」
 	//純一//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="通常・口閉じ" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" fade="0.15"]
 	//桃子//
 	「・・・」
 	//純一//
-	「杏ちゃんこそ、そこんとこ、どうなんだい！？」
+	「あー・・・」
+	「むしろ杏ちゃんの方こそ、どうなんだい！？」
 	「ハンサムでイケてる男子達と沢山知り合ったろ？いいねぇ～ﾌﾚｯｼｭﾌﾚｯｼｭ!!」
+[chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	//杏//
-[chara_shift name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	「あ、私はまだ１２歳なので。まだそういうのよく分かりません。」
-[chara_shift name="杏" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0002" fade="0.15"]
+[chara_shift name="杏" template="杏おちゃらけ" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" fade="0.15"]
+	//杏//
 	「それに、おにぃと違って夏になると人恋しくなったりしません。」
 	//純一//
 	「・・・」
+[chara_shift name="杏" template="杏会話" torso="ANZ_T00_0001" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0001" fade="0.15"]
 	//杏//
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" fade="0.15"]
 	「五つも年下の女に傷口に塩を塗られて悔しいからって、」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0005" fade="0.15"]
+[chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" fade="0.15"]
+	//杏//
 	「そうは問屋が卸しませんよ？」
+[chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" fade="0.15"]
 	//純一//
 	「・・・」
-	「・・・おい桃子よ、」
-	「お前の妹はいつからこんなに可愛くなくなっちまったんだ。」
+	「おい桃子」
+[chara_shift name="杏" fade="0.15"]
+	//純一//
+	「お前の妹はいつからこんなになっちまったんだ・・・」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="杏" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0004" fade="0.15"]
 	//桃子//
-	「え？杏は今もずっと可愛いよ！」
+	「えー杏はかわってないよぉ～！」
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO01_00" fade="0.15"]
+	//桃子//
+	「ねー杏？」
+	//杏//
+	「えへへ」
+	「らしいですよ、おにぃ。」
 	//純一//
-	「・・・」
-	「あ違う違うそうじゃな――」
+	「そ、そっか。」
+	「きみたち本当に仲いいね・・・」
+[chara_shift name="桃子" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
+	
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0011" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
 	//杏//
 	「丁度よかった！！」

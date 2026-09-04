@@ -645,6 +645,81 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "87d4ed23fa0648d68613461ad5d4d4a3",
+      "name": "杏反応",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0002",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0005",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "9f27b71773c549248c06941741e7b9a2",
+      "name": "杏おちゃらけ2",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0002",
+        "mouth": "ANZ_F00_MOU_0011",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "45bd9b84065b45879d06c7a2d74766eb",
+      "name": "杏会話聞き上手",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0001",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0001",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "928397be671f426c82a7fa07a60599f4",
+      "name": "杏会話",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0001",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0005",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "7ed49627077a44458b62dd72bf2b5fc2",
+      "name": "杏笑顔",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0008",
+        "mouth": "ANZ_F00_MOU_0004",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }
