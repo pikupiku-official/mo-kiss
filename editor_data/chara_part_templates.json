@@ -735,6 +735,21 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "e27e2d01c5ea47cb8e5d67d64f735ce6",
+      "name": "桃子恥ずかしがる",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM08_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU01_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }

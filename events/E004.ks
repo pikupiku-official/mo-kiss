@@ -593,30 +593,51 @@
 [chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" fade="0.15"]
 	//純一//
 	「・・・」
+[chara_shift name="杏" fade="0.15"]
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" fade="0.15"]
+	//純一//
 	「おい桃子」
 [chara_shift name="杏" fade="0.15"]
 	//純一//
 	「お前の妹はいつからこんなになっちまったんだ・・・」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
-[chara_shift name="杏" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0004" fade="0.15"]
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" fade="0.15"]
+[chara_shift]
 	//桃子//
 	「えー杏はかわってないよぉ～！」
-[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO01_00" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO01_00" fade="0.15"]
 	//桃子//
 	「ねー杏？」
+[chara_shift name="杏" template="杏笑顔" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0004" fade="0.15"]
 	//杏//
 	「えへへ」
+[chara_shift name="杏" template="杏おちゃらけ" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" fade="0.15"]
+	//杏//
 	「らしいですよ、おにぃ。」
+[chara_shift name="桃子" template="通常・口閉じ" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" fade="0.15"]
 	//純一//
 	「そ、そっか。」
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" fade="0.15"]
+	//純一//
 	「きみたち本当に仲いいね・・・」
-[chara_shift name="桃子" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
+	「そういやきみたちだけじゃなくておじさんとおばさんも仲いいよな。」
+	「こないだの日曜日に立川の伊勢丹にいったんだけど、おばさんたちが仲良く買い物しているところを見かけたよ。」
+[chara_shift name="桃子" template="桃子恥ずかしがる" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE00_00" fade="0.15"]
+	//桃子//
+	「えーそうなの？」
+[chara_shift name="杏" template="杏笑顔" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0009" mouth="ANZ_F00_MOU_0013" fade="0.15"]
+	//杏//
+	「初耳です！」
+	//桃子//
+	「話しかけてくれれば良かったのにぃ。」
+	「ママたち喜ぶよ？」
 	
+[chara_shift name="桃子" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0011" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
 	//杏//
-	「丁度よかった！！」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0004" fade="0.15"]
-	「おにぃ！折角だし、ウチへ寄っていきませんか？」
+	「あっ・・・そうだ！」
+[chara_shift name="杏" mouth=ANZ_F00_MOU_0004" fade="0.15"]
+	「おにぃ、ちょうどいい機会"だし、ウチへ寄っていきませんか？」
 	//純一//
 	「・・・ん？」
 	//杏//
