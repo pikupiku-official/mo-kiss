@@ -750,6 +750,36 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "b13c8922127749489077f9766c37e1de",
+      "name": "爆笑斜め",
+      "character": "静",
+      "parts": {
+        "torso": "SZK_T01_0005",
+        "brow": "SZK_F01_BRO_0001",
+        "cheek": "SZK_F01_CHE_0001",
+        "eye": "SZK_F01_EYE_0010",
+        "mouth": "SZK_F01_MOU_0012",
+        "accessory": "",
+        "effect": "SZK_E01_0002"
+      },
+      "blink": true
+    },
+    {
+      "id": "8008796e7296438e887c1743bda6af92",
+      "name": "爆笑斜め",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T01_0005",
+        "brow": "ANZ_F01_BRO_0002",
+        "cheek": "ANZ_F01_CHE_0001",
+        "eye": "ANZ_F01_EYE_0008",
+        "mouth": "ANZ_F01_MOU_0012",
+        "accessory": "",
+        "effect": "ANZ_E01_0002"
+      },
+      "blink": true
     }
   ]
 }
