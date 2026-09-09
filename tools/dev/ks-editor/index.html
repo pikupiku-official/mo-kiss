@@ -81,6 +81,8 @@ body { font-family:"Segoe UI","Meiryo UI",sans-serif; background:var(--bg); colo
 #list-toolbar { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
 #search-box { flex:1; max-width:240px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:4px 8px; outline:none; font-family:inherit; }
 #search-box:focus { border-color:var(--blue); }
+#event-search { flex:1 1 220px; min-width:120px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:5px 8px; outline:none; font-family:inherit; }
+#event-search:focus { border-color:var(--blue); }
 #file-count { font-size:11px; color:var(--comment); }
 #file-table { width:100%; border-collapse:collapse; }
 #file-table th { text-align:left; font-size:11px; font-weight:normal; color:var(--comment); padding:3px 8px; border-bottom:1px solid var(--border); background:var(--panel2); position:sticky; top:0; z-index:10; }
@@ -262,6 +264,46 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   #step-save-github{order:21;flex:1 1 100%;font-size:14px;min-height:48px !important;}
 }
 </style>
+<style id="ks-editor-layout-v2">
+/* Layout v2: preview, document, and step editor are separate flow regions. */
+#main-view { height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+#content-area { flex:1 1 auto; min-height:0; overflow:hidden; display:flex; }
+#file-panel { min-height:0; min-width:0; display:flex !important; flex:1 1 auto; flex-direction:column; overflow:hidden; }
+#mobile-preview-dock { display:flex !important; flex:0 0 auto; flex-direction:column; order:1; background:#111; border-bottom:2px solid var(--blue); }
+#mobile-preview-head { display:flex; align-items:center; gap:6px; min-height:36px; padding:5px 10px; background:var(--panel2); }
+#mobile-preview-title { color:var(--blue); font-size:12px; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#mobile-preview-stage { display:flex; align-items:center; justify-content:center; min-height:0; max-height:34dvh; overflow:hidden; background:#111; }
+#mobile-preview-canvas { display:block; width:100%; height:auto; aspect-ratio:4/3; object-fit:contain; }
+#mobile-preview-controls { display:flex; align-items:center; gap:6px; padding:5px 8px; background:var(--panel2); }
+#mobile-preview-controls .smbtn { min-width:44px; min-height:34px; }
+#mobile-preview-status { flex:1; text-align:center; font-size:11px; color:var(--comment); }
+#outline-sidebar { order:2; width:100%; max-height:72px; flex:0 0 auto; border-right:0; border-bottom:1px solid var(--border); overflow:auto; }
+#outline-title { display:none; }
+#outline-list { display:flex; overflow-x:auto; }
+#ks-wrap { order:3; flex:1 1 auto; min-height:0; overflow:auto; }
+#step-panel { position:static; left:auto; right:auto; bottom:auto; z-index:auto; flex:0 0 auto; width:100%; max-height:min(38dvh,500px); overflow-y:auto; transform:none; pointer-events:auto; border-top:2px solid var(--blue); box-shadow:0 -3px 14px rgba(0,0,0,.35); }
+#step-panel.sp-closed { display:none; transform:none; pointer-events:none; }
+#step-panel-head { position:sticky; top:0; z-index:4; }
+#step-btns { position:sticky; bottom:0; z-index:4; }
+#statusbar { flex:0 0 auto; }
+#list-panel { min-height:0; }
+@media (min-width:701px) {
+  #mobile-preview-stage { max-height:30vh; }
+  #mobile-preview-canvas { max-height:30vh; }
+  #step-panel { max-height:38vh; }
+  #step-panel .sp-body { grid-template-columns:repeat(4,minmax(180px,1fr)); }
+}
+@media (max-width:700px) {
+  #content-area { overflow:hidden; }
+  #file-panel { flex-direction:column !important; }
+  #mobile-preview-stage { max-height:30dvh; }
+  #mobile-preview-canvas { max-height:30dvh; }
+  #step-panel { max-height:38dvh; }
+  #step-panel .sp-body { display:block; }
+  #step-panel .sp-field { padding:7px 9px; }
+  #step-panel-head { min-height:42px; }
+}
+</style>
 </head>
 <body>
 
@@ -321,6 +363,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <div id="list-panel">
       <div id="list-toolbar">
         <span id="breadcrumb" style="font-size:11px;color:var(--comment);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">/</span>
+        <input id="event-search" type="search" placeholder="KSを検索（名前・パス）" autocomplete="off">
         <span id="file-count"></span>
         <button class="smbtn" id="btn-new2" style="margin-left:6px">＋ 新規</button>
       </div>
@@ -725,7 +768,7 @@ registerOfflineSupport();
 if (isLoggedIn()) {
   $("login-view").classList.add("hidden");
   $("main-view").classList.remove("hidden");
-  init();
+  setTimeout(() => init(), 0);
 }
 
 // ============================================================
@@ -998,6 +1041,93 @@ $("metadata-save").addEventListener("click", saveMetadata);
 //  ディレクトリブラウザ
 // ============================================================
 let currentDir = '';
+let allFiles = [];
+let allKSFiles = [];
+const allKSContents = new Map();
+let allKSLoading = false;
+
+function eventRootItems(entries) {
+  const result = new Map();
+  (entries || []).forEach(entry => {
+    const relative = entry.path.replace(/^events\//, '');
+    if (!relative || relative === entry.path) return;
+    const parts = relative.split('/');
+    const name = parts[0];
+    if (parts.length > 1) {
+      if (!result.has(name)) result.set(name, {name, path:'events/' + name, type:'dir', size:0});
+    } else {
+      result.set(name, {name, path:entry.path, type:'file', size:entry.size || 0, sha:entry.sha});
+    }
+  });
+  return [...result.values()];
+}
+
+async function loadAllKSScripts() {
+  if (allKSLoading) return;
+  allKSLoading = true;
+  const setStatus = message => {
+    $('sb-file').textContent = message;
+    sbMsg('<span class="spinner"></span> ' + message);
+  };
+  try {
+    setStatus('events/ のKS一覧を取得中…');
+    let entries = [];
+    try {
+      const response = await fetch(GH_API + '/git/trees/' + encodeURIComponent(BRANCH) + '?recursive=1', {
+        headers:{Accept:'application/vnd.github+json'}, cache:'no-store'
+      });
+      if (!response.ok) throw new Error('tree HTTP ' + response.status);
+      const tree = await response.json();
+      if (tree.truncated) throw new Error('Git tree is truncated');
+      entries = (tree.tree || []).filter(item => item.type === 'blob' && /^events\/.*\.ks$/i.test(item.path));
+    } catch (error) {
+      const cached = await KSOfflineStore.list('files').catch(() => []);
+      entries = cached.map(row => row.data).filter(item => item && /^events\/.*\.ks$/i.test(item.path));
+      if (!entries.length) throw error;
+    }
+
+    allKSFiles = entries.map(entry => ({
+      name:entry.path.split('/').pop(), path:entry.path, type:'file', size:entry.size || 0, sha:entry.sha || ''
+    })).sort((a,b) => a.path.localeCompare(b.path));
+    allFiles = eventRootItems(entries);
+    renderDirTable(allFiles, 'events');
+    const total = allKSFiles.length;
+    let loaded = 0;
+    for (let start = 0; start < allKSFiles.length; start += 6) {
+      const chunk = allKSFiles.slice(start, start + 6);
+      await Promise.all(chunk.map(async file => {
+        const rawUrl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + file.path;
+        try {
+          const response = await fetch(rawUrl, {cache:'no-store'});
+          if (!response.ok) throw new Error('raw HTTP ' + response.status);
+          const text = await response.text();
+          const meta = Object.assign({}, file, {content:toB64(text)});
+          allKSContents.set(file.path, meta);
+          await KSOfflineStore.putFile(file.path, meta).catch(() => {});
+        } catch (error) {
+          const cached = await KSOfflineStore.getFile(file.path).catch(() => null);
+          if (cached && cached.data && cached.data.content) {
+            allKSContents.set(file.path, cached.data);
+          } else {
+            console.warn('KS preload failed', file.path, error);
+          }
+        } finally {
+          loaded += 1;
+          setStatus('KS本文を読み込み中… ' + loaded + '/' + total);
+        }
+      }));
+    }
+    $('file-count').textContent = total + ' KS loaded';
+    $('sb-file').textContent = 'events/ (' + total + ' KS)';
+    sbMsg('全' + total + '件のKSを読み込み済み', 5000);
+    await KSOfflineStore.setMeta('allKSLoaded', {at:Date.now(), count:total}).catch(() => {});
+  } catch (error) {
+    sbMsg('KS全件読み込み失敗: ' + error.message, 8000);
+    console.error(error);
+  } finally {
+    allKSLoading = false;
+  }
+}
 
 async function browseDir(dirPath) {
   currentDir = dirPath;
@@ -1030,6 +1160,7 @@ async function browseDir(dirPath) {
 
 function init() {
   history.replaceState({page:'list', dir:'events'}, '');
+  loadAllKSScripts();
   browseDir('events');  // デフォルトはevents/から開始
 }
 
@@ -1077,6 +1208,14 @@ function renderDirTable(items, dirPath) {
     tbody.appendChild(tr);
   });
 }
+
+$('event-search').addEventListener('input', event => {
+  const query = event.target.value.trim().toLowerCase();
+  if (!allKSFiles.length) return;
+  const filtered = allKSFiles.filter(file => !query || file.path.toLowerCase().includes(query));
+  renderDirTable(filtered, 'events');
+  $('file-count').textContent = filtered.length + ' / ' + allKSFiles.length + ' KS';
+});
 
 $("btn-reload").addEventListener("click", () => {
   if (currentFile) {
@@ -1345,7 +1484,7 @@ async function openFile(f, push=true) {
   try {
     // 本文とSHAは同じGitHub Contentsレスポンスから取得する。
     // raw CDNとAPIを並列取得すると、更新直後に世代がずれて競合の原因になる。
-    const meta = await ghGet(f.path);
+    const meta = allKSContents.get(f.path) || await ghGet(f.path);
     if(!meta||Array.isArray(meta)||!meta.content||!meta.sha)throw new Error('GitHubから本文とSHAを取得できません');
     const remoteText = fromB64(meta.content);
     const draft = await KSOfflineStore.getDraft(f.path).catch(() => null);
