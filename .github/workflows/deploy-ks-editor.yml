@@ -17,6 +17,7 @@ jobs:
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_PASS: ${{ secrets.SSH_PASS }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,65 +25,67 @@ jobs:
       - name: Install sshpass + rsync
         run: sudo apt-get install -y sshpass rsync
 
-      - name: Find correct web path via SSH
+      - name: Find existing public web root
         run: |
-          sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
+          export SSHPASS="$SSH_PASS"
+          sshpass -e ssh \
+            -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            "echo '=== home ===' && pwd && echo '=== ls ~/ ===' && ls ~/ && echo '=== find mokiss ===' && find ~/ -maxdepth 3 -name 'wp-config.php' 2>/dev/null | head -5"
-        continue-on-error: true
+            "$SSH_USER@$SSH_HOST" \
+            'printf "home=%s\\n" "$HOME"; printf "existing_editor_roots=\\n"; find "$HOME" -type f -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null | sed "s#/dev/ks-editor$##" | head -10'
 
-      - name: Create remote directory and deploy
+      - name: Deploy
         run: |
+          export SSHPASS="$SSH_PASS"
           printf '%s\n' "$GITHUB_SHA" > ./tools/dev/ks-editor/deploy-version.txt
 
-          # mokiss の実際のパスを検出して使う（xargs -r: 空入力時は実行しない）
-          WEB_PATH=$(sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
+          # Use the root that already serves the public editor. wp-config.php can belong to another site.
+          WEB_PATH=$(sshpass -e ssh \
+            -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            'find $HOME -maxdepth 4 -name "wp-config.php" 2>/dev/null | grep mokiss | head -1 | xargs -r dirname')
-
-          echo "Detected mokiss path: $WEB_PATH"
+            "$SSH_USER@$SSH_HOST" \
+            'find "$HOME" -type f -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null | sed "s#/dev/ks-editor$##" | head -1' 2>/dev/null)
 
           if [ -z "$WEB_PATH" ]; then
-            # リモートの $HOME を取得してフォールバック（ローカルの $HOME は使わない）
-            REMOTE_HOME=$(sshpass -p "$SSH_PASS" ssh \
-              -p $SSH_PORT \
+            # First deployment fallback. Only accept a candidate that has a dev directory.
+            WEB_PATH=$(sshpass -e ssh \
+              -p "${SSH_PORT:-22}" \
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              $SSH_USER@$SSH_HOST \
-              'echo $HOME')
-            echo "WARNING: Could not detect path, fallback with remote HOME=$REMOTE_HOME"
-            WEB_PATH="$REMOTE_HOME/pikupikutai.pinoko.jp/mokiss"
+              "$SSH_USER@$SSH_HOST" \
+              'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp"; do
+                 if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; break; fi
+               done')
           fi
 
-          DEPLOY_TO="${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
-          echo "Deploying to: $DEPLOY_TO"
+          if [ -z "$WEB_PATH" ]; then
+            echo "ERROR: Could not find the public web root on the SSH host"
+            exit 1
+          fi
 
-          sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
+          echo "Deploying to: ${WEB_PATH}/dev/"
+          sshpass -e ssh \
+            -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            "mkdir -p ${WEB_PATH}/dev/ks-editor"
+            "$SSH_USER@$SSH_HOST" \
+            "mkdir -p \"${WEB_PATH}/dev/ks-editor\""
 
-          sshpass -p "$SSH_PASS" rsync -avz \
+          sshpass -e rsync -avz \
             --ignore-times \
             --exclude=api_config.php \
-            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            -e "ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
             ./tools/dev/ \
             "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
 
-          REMOTE_SHA=$(sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
+          REMOTE_SHA=$(sshpass -e ssh \
+            -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            "cat ${WEB_PATH}/dev/ks-editor/deploy-version.txt")
+            "$SSH_USER@$SSH_HOST" \
+            "cat \"${WEB_PATH}/dev/ks-editor/deploy-version.txt\"")
 
           if [ "$REMOTE_SHA" != "$GITHUB_SHA" ]; then
             echo "Remote deploy verification failed: expected $GITHUB_SHA, got $REMOTE_SHA"
@@ -91,14 +94,17 @@ jobs:
 
       - name: Verify public deployment
         run: |
-          for attempt in 1 2 3 4 5; do
-            PUBLIC_SHA=$(curl -fsS "https://mokiss.jp/dev/ks-editor/deploy-version.txt?sha=${GITHUB_SHA}&attempt=${attempt}" || true)
+          # Shared hosting may need a short time before Apache serves the new file.
+          for attempt in $(seq 1 20); do
+            PUBLIC_SHA=$(curl --fail --silent --show-error --location \
+              -H 'Cache-Control: no-cache' \
+              "https://mokiss.jp/dev/ks-editor/deploy-version.txt?deploy=${GITHUB_SHA}&attempt=${attempt}&ts=$(date +%s%N)" || true)
             if [ "$PUBLIC_SHA" = "$GITHUB_SHA" ]; then
               echo "Public deployment verified: $PUBLIC_SHA"
               exit 0
             fi
             echo "Attempt ${attempt}: expected $GITHUB_SHA, got ${PUBLIC_SHA:-<empty>}"
-            sleep 3
+            sleep 5
           done
 
           echo "Public deployment verification failed"
