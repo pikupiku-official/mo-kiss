@@ -27,7 +27,7 @@ jobs:
           timeout 5m sudo env DEBIAN_FRONTEND=noninteractive \
             apt-get install -y --no-install-recommends sshpass rsync
 
-      - name: Find existing public web root
+      - name: Find existing public web roots
         run: |
           export SSHPASS="$SSH_PASS"
           sshpass -e ssh \
@@ -35,20 +35,37 @@ jobs:
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "$SSH_USER@$SSH_HOST" \
-            'printf "home=%s\\n" "$HOME"; printf "existing_editor_roots=\\n"; find "$HOME" -type f -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null | sed "s#/dev/ks-editor$##" | head -10'
+            'printf "home=%s\\n" "$HOME"; printf "existing_editor_roots=\\n"; {
+               find "$HOME" -path "*/dev/ks-editor/deploy-version.txt" -exec dirname {} \; 2>/dev/null;
+               find "$HOME" -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null;
+             } | sed "s#/dev/ks-editor$##" | sort -u | head -20'
 
       - name: Deploy
         run: |
           export SSHPASS="$SSH_PASS"
           printf '%s\n' "$GITHUB_SHA" > ./tools/dev/ks-editor/deploy-version.txt
 
-          # Deploy to every existing editor root. A shared host can contain several site roots.
+          # Deploy to every root that already contains the editor marker or index.
           WEB_PATHS=$(sshpass -e ssh \
             -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "$SSH_USER@$SSH_HOST" \
-            'find "$HOME" -type f -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null | sed "s#/dev/ks-editor$##" | sort -u' 2>/dev/null)
+            '{
+               find "$HOME" -path "*/dev/ks-editor/deploy-version.txt" -exec dirname {} \; 2>/dev/null;
+               find "$HOME" -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null;
+             } | sed "s#/dev/ks-editor$##" | sort -u' 2>/dev/null)
+
+          # Also include the known Lolipop site-root candidates when they already have dev/.
+          CANDIDATE_PATHS=$(sshpass -e ssh \
+            -p "${SSH_PORT:-22}" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$SSH_USER@$SSH_HOST" \
+            'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp" "$HOME/www" "$HOME/public_html"; do
+               if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; fi
+             done')
+          WEB_PATHS=$(printf "%s\\n%s\\n" "$WEB_PATHS" "$CANDIDATE_PATHS" | sed "/^$/d" | sort -u)
 
           if [ -z "$WEB_PATHS" ]; then
             # First deployment fallback. Include every candidate that has a dev directory.
