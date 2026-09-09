@@ -18,6 +18,24 @@
 #menubar > #btn-reload,#menubar > #btn-sync,#menubar > #btn-new,#menubar > #btn-delete,#menubar > #btn-copy,#menubar > #btn-find,#menubar > #btn-outline,#menubar > #btn-preview,#menubar > #btn-undo,#menubar > #btn-redo,#menubar > #btn-metadata,#menubar > #btn-settings,#menubar > #btn-logout,#menubar > #sep-file,#menubar > #sep-view{display:none!important}
 #statusbar{display:none!important}#step-btns{display:none!important}#mobile-preview-canvas{position:relative;z-index:1}#mobile-preview-overlay{z-index:2}
 .preview-selection-bar{display:flex;align-items:center;gap:5px;min-height:34px;padding:4px 6px;background:var(--panel);border-top:1px solid #000}.preview-selection-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.preview-selection-bar button{min-height:28px;padding:3px 7px}
+#file-panel{position:relative}
+#file-panel #outline-sidebar{position:absolute;z-index:20;top:0;bottom:0;left:0;width:min(300px,86vw);max-height:none;overflow:auto;border-right:2px outset #fff;border-bottom:0;box-shadow:3px 0 8px rgba(0,0,0,.35);transform:translateX(-105%);transition:transform .18s ease}
+#file-panel #outline-sidebar.drawer-open{max-height:none;transform:translateX(0)}
+#outline-title{display:flex;align-items:center;gap:6px;position:sticky;top:0;z-index:1}
+#outline-title span{flex:1}
+#outline-close{min-height:24px;padding:2px 7px}
+#outline-list .para-item.selected{background:var(--blue);color:#fff}
+#outline-list .para-item.selected:hover{background:#0000a0}
+.chara-stage{position:relative;overflow:hidden;min-height:0}
+.chara-stage canvas{transform-origin:center center;touch-action:none}
+.chara-zoom-controls{position:absolute;right:6px;bottom:6px;left:6px;display:flex;align-items:center;gap:5px;padding:4px;background:rgba(0,0,0,.72)}
+.chara-zoom-controls button{min-width:28px;min-height:26px;padding:2px 6px}
+#chara-zoom-range{flex:1;min-width:80px}
+#chara-zoom-value{min-width:42px;color:#fff;text-align:center;font-size:11px}
+#preview-action-menu .character-only{display:none}
+#preview-action-menu.character-mode .character-only{display:grid;grid-column:1/-1;grid-template-columns:repeat(2,1fr);gap:5px}
+#preview-action-menu.character-mode [data-preview-tag]{display:none}
+#preview-action-menu.character-mode .menu-title{grid-column:1/-1}
 @media(max-width:700px){#menubar{position:relative;overflow-x:auto}}
 </style></head>
 <body>
@@ -93,6 +111,7 @@
     <div id="file-panel" style="display:none">
       <div id="mobile-preview-dock" aria-label="モバイルプレビュー">
         <div id="mobile-preview-head">
+          <button class="smbtn" id="mobile-step-drawer-toggle" aria-expanded="false">Steps</button>
           <span id="mobile-preview-title">プレビュー</span>
           <button class="smbtn" id="mobile-preview-open" style="margin-left:auto">全画面</button>
         </div>
@@ -105,7 +124,7 @@
         </div>
       </div>
       <div id="outline-sidebar" class="hidden">
-        <div id="outline-title">アウトライン</div>
+        <div id="outline-title"><span>Steps</span><button class="smbtn" id="outline-close">閉じる</button></div>
         <div id="outline-list"></div>
       </div>
       <div id="ks-wrap">
@@ -266,7 +285,16 @@
 <!-- 立ち絵合成・パーツ選択 -->
 <div id="chara-modal" class="modal-overlay hidden">
   <div class="modal-box chara-box">
-    <div class="chara-stage"><canvas id="chara-canvas" width="1440" height="1080"></canvas></div>
+    <div class="chara-stage">
+      <canvas id="chara-canvas" width="1440" height="1080"></canvas>
+      <div class="chara-zoom-controls" aria-label="立ち絵ズーム">
+        <button class="smbtn" id="chara-zoom-out" type="button">−</button>
+        <input id="chara-zoom-range" type="range" min="0.5" max="2.5" step="0.1" value="1" aria-label="ズーム倍率">
+        <span id="chara-zoom-value">100%</span>
+        <button class="smbtn" id="chara-zoom-in" type="button">＋</button>
+        <button class="smbtn" id="chara-zoom-reset" type="button">リセット</button>
+      </div>
+    </div>
     <div class="chara-form">
       <h3 id="chara-title">立ち絵プレビュー</h3>
       <div class="chara-field"><label>キャラクター名</label><input id="chara-name" type="text" list="chara-name-options" placeholder="先に入力または候補から選択"><datalist id="chara-name-options"></datalist></div>
@@ -959,6 +987,9 @@ function showList(push=true) {
   closeFindBar();
   exitEditMode(false);
   $("mobile-preview-dock").style.display = "none";
+  $("outline-sidebar").classList.add("hidden");
+  $("outline-sidebar").classList.remove("drawer-open");
+  $("mobile-step-drawer-toggle").setAttribute("aria-expanded", "false");
   currentFile = null;
   $("sb-file").textContent = DIR+"/";
   $("sb-lines").textContent = "";
@@ -971,6 +1002,7 @@ function showFilePanel() {
   $("file-panel").style.display = "flex";
   $("file-panel").classList.remove("step-workspace", "raw-workspace");
   $("outline-sidebar").classList.remove("drawer-open");
+  $("mobile-step-drawer-toggle").setAttribute("aria-expanded", "false");
   ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-undo","btn-redo","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
   $("sep-file").style.display = "";
   $("sep-view").style.display = "";
@@ -1045,7 +1077,8 @@ function buildOutline(text) {
   const steps = parseStepsFromKS(text);
   steps.forEach((s, index) => {
     const div = document.createElement("div");
-    div.className = "para-item step-drawer-item";
+    div.className = "para-item step-drawer-item" + (selectedStepIdx === index ? " selected" : "");
+    if (selectedStepIdx === index) div.setAttribute("aria-current", "step");
     const summary = s.body ? `${s.speaker ? s.speaker + '：' : ''}${s.body}` : (s.actions?.[0] || 'タグのみのStep');
     div.innerHTML = `<strong>Step ${index + 1}</strong><span>${esc(summary.slice(0, 48))}</span>`;
     div.title = summary;
@@ -1053,7 +1086,7 @@ function buildOutline(text) {
       // スクロール
       if (currentFile && currentSteps[index]) {
         openStepEditor(index);
-        $("outline-sidebar").classList.remove("drawer-open");
+        setStepDrawerOpen(false);
       } else {
         const linesTotal = text.split("\n").length;
         const ratio = s.line / Math.max(linesTotal-1,1);
@@ -1224,6 +1257,7 @@ async function openFile(f, push=true) {
     const lines = text.split("\n");
     const isKSFile = f.name.endsWith('.ks');
     $("mobile-preview-dock").style.display = isKSFile ? "" : "none";
+    $("outline-sidebar").classList.toggle("hidden", !isKSFile);
     $("ks-tbody").innerHTML = isKSFile ? renderWithSteps(text) : renderGeneric(text);
     if (isKSFile) attachStepClicks();
     // Step編集ボタンはKSのみ表示
@@ -1677,6 +1711,7 @@ function openStepEditor(idx){
   updateStepSaveState();
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();
+  buildOutline(currentText);
   const sel=$('ks-tbody').querySelector('.step-line[data-step="'+idx+'"]');
   if(sel)sel.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
@@ -1686,7 +1721,7 @@ function closeStepPanel(){
   $('btn-step-panel').classList.remove('active');
   $('file-panel').classList.remove('step-workspace');
   selectedStepIdx=-1;
-  if(currentText){$('ks-tbody').innerHTML=renderWithSteps(currentText);attachStepClicks();}
+  if(currentText){$('ks-tbody').innerHTML=renderWithSteps(currentText);attachStepClicks();buildOutline(currentText);}
 }
 function openStepPanel(){
   if (editMode) {
@@ -1968,6 +2003,21 @@ function sourceLineToPreviewStep(line){
   return KSPreview.findStepForSourceLine(previewScenario,line);
 }
 
+function selectPreviewStep(index, syncEditor=true){
+  if(!previewScenario||!previewScenario.steps.length)return;
+  const next=Math.max(0,Math.min(Number(index)||0,previewScenario.steps.length-1));
+  if(syncEditor&&currentFile&&currentSteps.length&&!editMode){
+    const editorIndex=Math.min(next,currentSteps.length-1);
+    if(selectedStepIdx>=0&&selectedStepIdx!==editorIndex&&!applyStepEditorChanges())return;
+    if(selectedStepIdx!==editorIndex||$('step-panel').classList.contains('sp-closed')){
+      openStepEditor(editorIndex);
+      return;
+    }
+  }
+  previewStep=next;
+  drawPreview();
+}
+
 async function drawPreview(){
   directPreviewToken+=1;
   if(!previewScenario||!previewScenario.steps.length){
@@ -2007,7 +2057,7 @@ function openPreviewAtLine(line=0){
   previewStep=sourceLineToPreviewStep(line);
   $('preview-range').max=previewScenario.steps.length-1;
   $('preview-modal').classList.remove('hidden');
-  drawPreview();
+  selectPreviewStep(previewStep);
 }
 
 $('btn-preview').addEventListener('click',()=>{
@@ -2018,17 +2068,17 @@ $('step-preview').addEventListener('click',()=>{
   const step=currentSteps[selectedStepIdx];
   openPreviewAtLine(step?(step.dialogue_line??step.start_line):0);
 });
-$('preview-first').addEventListener('click',()=>{previewStep=0;drawPreview();});
-$('preview-last').addEventListener('click',()=>{previewStep=Math.max(0,previewScenario.steps.length-1);drawPreview();});
-$('preview-prev').addEventListener('click',()=>{previewStep-=1;drawPreview();});
-$('preview-next').addEventListener('click',()=>{previewStep+=1;drawPreview();});
-$('preview-range').addEventListener('input',()=>{previewStep=parseInt($('preview-range').value);drawPreview();});
-$('preview-canvas').addEventListener('click',()=>{previewStep+=1;drawPreview();});
-$('mobile-preview-prev').addEventListener('click',()=>{previewStep-=1;drawPreview();});
-$('mobile-preview-next').addEventListener('click',()=>{previewStep+=1;drawPreview();});
+$('preview-first').addEventListener('click',()=>selectPreviewStep(0));
+$('preview-last').addEventListener('click',()=>selectPreviewStep(previewScenario.steps.length-1));
+$('preview-prev').addEventListener('click',()=>selectPreviewStep(previewStep-1));
+$('preview-next').addEventListener('click',()=>selectPreviewStep(previewStep+1));
+$('preview-range').addEventListener('input',()=>selectPreviewStep(parseInt($('preview-range').value,10)));
+$('preview-canvas').addEventListener('click',()=>selectPreviewStep(previewStep+1));
+$('mobile-preview-prev').addEventListener('click',()=>selectPreviewStep(previewStep-1));
+$('mobile-preview-next').addEventListener('click',()=>selectPreviewStep(previewStep+1));
 $('mobile-preview-open').addEventListener('click',()=>{
   $('preview-modal').classList.remove('hidden');
-  drawPreview();
+  selectPreviewStep(previewStep);
 });
 $('preview-sound').addEventListener('click',()=>{
   previewAudioEnabled=!previewAudioEnabled;
@@ -2096,7 +2146,7 @@ function currentStepActionCursorLine(){
   return textarea.value.slice(0,caret).split('\n').length-1;
 }
 
-function findCharaActionContext(lines){
+function findCharaActionContext(lines,targetName=''){
   const candidates=[];
   lines.forEach((line,index)=>{
     const tag=KSPreview.parseTag(line);
@@ -2104,6 +2154,16 @@ function findCharaActionContext(lines){
   });
   if(!candidates.length)return null;
   const cursorLine=currentStepActionCursorLine();
+  if(targetName){
+    const matching=candidates.filter(item=>String(item.tag.params?.name||'').trim()===targetName);
+    if(matching.length){
+      return matching.find(item=>item.lineIndex===cursorLine)
+        || [...matching].reverse().find(item=>item.lineIndex<cursorLine)
+        || matching[matching.length-1];
+    }
+    const unnamedShift=candidates.find(item=>item.tag.type==='chara_shift'&&!String(item.tag.params?.name||'').trim());
+    if(unnamedShift)return unnamedShift;
+  }
   return candidates.find(item=>item.lineIndex===cursorLine)
     || [...candidates].reverse().find(item=>item.lineIndex<cursorLine)
     || candidates.find(item=>item.tag.type==='chara_shift')
@@ -2242,16 +2302,16 @@ async function refreshCharaAssetOptions(){
   }
 }
 
-async function openCharaPreview(){
+async function openCharaPreview(targetName=''){
   const lines=currentStepActionLines();
-  const context=findCharaActionContext(lines);
+  const context=findCharaActionContext(lines,targetName);
   if(!context){sbMsg('⚠ Step内に chara_show / chara_shift がありません',3000);return;}
   charaActionLine=context.lineIndex;
   charaAction=context.tag;
   charaBaseFields={};
   charaPreviewContext=collectCharaPreviewContext(charaActionLine,charaAction,lines);
   updateCharaNameOptions(charaPreviewContext.candidates);
-  let fallbackName=(charaAction.params.name||charaPreviewContext.defaultName||'').trim();
+  let fallbackName=(targetName||charaAction.params.name||charaPreviewContext.defaultName||'').trim();
   const resolved=resolveCharaBaseFields(charaPreviewContext,charaAction,fallbackName);
   charaBaseFields=resolved.fields;
   fallbackName=fallbackName||resolved.target||'';
@@ -2264,6 +2324,7 @@ async function openCharaPreview(){
   $('chara-title').textContent=`立ち絵プレビュー: ${character.name||'未選択'} / ${charaAction.type}`;
   $('chara-part-fields').innerHTML=KSPreview.LAYER_ORDER.map(part=>`<div class="chara-field"><label>${PART_LABELS[part]}</label><select id="chara-${part}"></select></div>`).join('');
   $('chara-modal').classList.remove('hidden');
+  setCharaZoom(1);
   charaAllItems=[];
   KSPreview.LAYER_ORDER.forEach(part=>populatePartSelect(part,fields[part]));
   $('chara-torso').addEventListener('change',()=>{
@@ -2276,7 +2337,46 @@ async function openCharaPreview(){
   await refreshCharaAssetOptions();
 }
 
-$('step-chara-preview').addEventListener('click',openCharaPreview);
+let charaZoom=1;
+function setCharaZoom(value){
+  charaZoom=Math.max(.5,Math.min(2.5,Number(value)||1));
+  $('chara-canvas').style.transform=`scale(${charaZoom})`;
+  $('chara-zoom-range').value=charaZoom.toFixed(1);
+  $('chara-zoom-value').textContent=`${Math.round(charaZoom*100)}%`;
+}
+function changeCharaZoom(delta){setCharaZoom(charaZoom+delta);}
+$('chara-zoom-out').addEventListener('click',()=>changeCharaZoom(-.1));
+$('chara-zoom-in').addEventListener('click',()=>changeCharaZoom(.1));
+$('chara-zoom-reset').addEventListener('click',()=>setCharaZoom(1));
+$('chara-zoom-range').addEventListener('input',event=>setCharaZoom(event.target.value));
+$('chara-canvas').addEventListener('wheel',event=>{
+  event.preventDefault();
+  changeCharaZoom(event.deltaY<0?.1:-.1);
+},{passive:false});
+const charaZoomPointers=new Map();
+let charaPinch=null;
+function charaPointerDistance(){
+  const points=[...charaZoomPointers.values()];
+  return points.length<2?0:Math.hypot(points[0].clientX-points[1].clientX,points[0].clientY-points[1].clientY);
+}
+$('chara-canvas').addEventListener('pointerdown',event=>{
+  charaZoomPointers.set(event.pointerId,event);
+  $('chara-canvas').setPointerCapture?.(event.pointerId);
+  if(charaZoomPointers.size===2)charaPinch={distance:charaPointerDistance(),zoom:charaZoom};
+});
+$('chara-canvas').addEventListener('pointermove',event=>{
+  if(!charaZoomPointers.has(event.pointerId))return;
+  charaZoomPointers.set(event.pointerId,event);
+  if(charaPinch&&charaPinch.distance){
+    setCharaZoom(charaPinch.zoom*charaPointerDistance()/charaPinch.distance);
+  }
+});
+['pointerup','pointercancel','pointerleave'].forEach(type=>$('chara-canvas').addEventListener(type,event=>{
+  charaZoomPointers.delete(event.pointerId);
+  if(charaZoomPointers.size<2)charaPinch=null;
+}));
+
+$('step-chara-preview').addEventListener('click',()=>openCharaPreview());
 $('chara-cancel').addEventListener('click',()=>$('chara-modal').classList.add('hidden'));
 $('chara-name').addEventListener('input',refreshCharaAssetOptions);
 $('chara-apply').addEventListener('click',()=>{
@@ -2495,16 +2595,33 @@ function setMobileLabels() {
 }
 setMobileLabels();
 
+function setStepDrawerOpen(open){
+  const sidebar=$('outline-sidebar');
+  if(!sidebar||sidebar.classList.contains('hidden'))return;
+  const next=!!open;
+  sidebar.classList.toggle('drawer-open',next);
+  $('mobile-step-drawer-toggle').setAttribute('aria-expanded',String(next));
+}
+$('mobile-step-drawer-toggle').addEventListener('click',()=>{
+  setStepDrawerOpen(!$('outline-sidebar').classList.contains('drawer-open'));
+});
+$('outline-close').addEventListener('click',()=>setStepDrawerOpen(false));
+document.addEventListener('pointerdown',event=>{
+  const sidebar=$('outline-sidebar'),toggle=$('mobile-step-drawer-toggle');
+  if(sidebar.classList.contains('drawer-open')&&!sidebar.contains(event.target)&&!toggle.contains(event.target)){
+    setStepDrawerOpen(false);
+  }
+});
+
 const previewHint = document.createElement('div');
 previewHint.id = 'preview-hint';
-previewHint.textContent = 'タップ:選択　ドラッグ:移動　ピンチ:立ち絵の拡縮　長押し:タグ追加　左右スワイプ:Step移動';
+previewHint.textContent = 'タップ:選択　ドラッグ:移動　ピンチ:立ち絵の拡縮　キャラ長押し:編集　空白長押し:タグ追加　左右スワイプ:Step移動';
 if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewHint);
 const previewSelectionBar = document.createElement('div');
 previewSelectionBar.className = 'preview-selection-bar';
 previewSelectionBar.innerHTML = `
   <span class="preview-selection-label" id="preview-selection-label">キャラ未選択</span>
   <button class="smbtn" data-preview-tool="scene">位置・サイズ</button>
-  <button class="smbtn" data-preview-tool="chara">表情・差分</button>
   <button class="smbtn" data-preview-tool="tags">タグ追加</button>`;
 if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewSelectionBar);
 const previewOverlay = document.createElement('canvas');
@@ -2517,7 +2634,6 @@ function updatePreviewSelection(name='') {
   if (label) label.textContent = name ? `選択中: ${name}　ドラッグ / ピンチで編集` : 'キャラ未選択　タップして選択';
 }
 previewSelectionBar.querySelector('[data-preview-tool="scene"]').addEventListener('click', openSceneEditor);
-previewSelectionBar.querySelector('[data-preview-tool="chara"]').addEventListener('click', openCharaPreview);
 previewSelectionBar.querySelector('[data-preview-tool="tags"]').addEventListener('click', event => {
   const rect = event.currentTarget.getBoundingClientRect();
   showPreviewActionMenu(rect.left, rect.bottom);
@@ -2528,6 +2644,10 @@ previewActionMenu.id = 'preview-action-menu';
 previewActionMenu.className = 'hidden';
 previewActionMenu.innerHTML = `
   <div class="menu-title">現在のStepにタグを追加</div>
+  <div id="preview-menu-chara-tools" class="character-only">
+    <button class="smbtn" id="preview-menu-chara">キャラ編集</button>
+    <button class="smbtn" id="preview-menu-scene">位置・サイズ</button>
+  </div>
   <button class="smbtn" data-preview-tag="chara_move">キャラ移動</button>
   <button class="smbtn" data-preview-tag="chara_shift">表情・差分</button>
   <button class="smbtn" data-preview-tag="chara_hide">キャラ非表示</button>
@@ -2541,8 +2661,13 @@ previewActionMenu.innerHTML = `
 document.body.appendChild(previewActionMenu);
 
 function closePreviewActionMenu() { previewActionMenu.classList.add('hidden'); }
-function showPreviewActionMenu(x, y) {
+function showPreviewActionMenu(x, y, characterName='') {
   if (!currentFile || selectedStepIdx < 0) return;
+  const characterMode=!!characterName;
+  previewActionMenu.classList.toggle('character-mode', characterMode);
+  previewActionMenu.querySelector('.menu-title').textContent=characterMode
+    ? `${characterName}を編集`
+    : '現在のStepにタグを追加';
   previewActionMenu.classList.remove('hidden');
   const width = Math.min(300, window.innerWidth - 24);
   previewActionMenu.style.left = `${Math.max(12, Math.min(x - width / 2, window.innerWidth - width - 12))}px`;
@@ -2562,6 +2687,15 @@ function addPreviewTag(type) {
 previewActionMenu.querySelectorAll('[data-preview-tag]').forEach(button => {
   button.addEventListener('click', () => addPreviewTag(button.dataset.previewTag));
 });
+previewActionMenu.querySelector('#preview-menu-chara').addEventListener('click', () => {
+  const name=sceneSelectedName;
+  closePreviewActionMenu();
+  openCharaPreview(name);
+});
+previewActionMenu.querySelector('#preview-menu-scene').addEventListener('click', () => {
+  closePreviewActionMenu();
+  openSceneEditor();
+});
 previewActionMenu.querySelector('.menu-cancel').addEventListener('click', closePreviewActionMenu);
 document.addEventListener('pointerdown', event => {
   if (!previewActionMenu.contains(event.target)) closePreviewActionMenu();
@@ -2570,7 +2704,7 @@ document.addEventListener('pointerdown', event => {
 function navigateMobileStep(delta) {
   if (!currentSteps.length) return;
   const base = selectedStepIdx >= 0 ? selectedStepIdx : previewStep;
-  openStepEditor(Math.max(0, Math.min(currentSteps.length - 1, base + delta)));
+  selectPreviewStep(Math.max(0, Math.min(currentSteps.length - 1, base + delta)));
 }
 
 // Step編集画面のプレビュー以外でも、左右スワイプで前後Stepへ移動する。
@@ -2673,16 +2807,20 @@ mobilePreviewCanvas.addEventListener('pointerdown', event => {
     sceneSelectedName=name || sceneSelectedName;
     updatePreviewSelection(name || '');
     drawDirectPreview(state);
-    previewGesture={start:point,last:point,name,moved:false,dragState:state};
+    previewGesture={start:point,last:point,name,moved:false,stepSwipe:false,dragState:state};
     clearPreviewLongPress();
     previewLongPress=setTimeout(() => {
       previewGesture.longPressed=true;
-      showPreviewActionMenu(event.clientX,event.clientY);
+      if(previewGesture.name){
+        sceneSelectedName=previewGesture.name;
+        showPreviewActionMenu(event.clientX,event.clientY,previewGesture.name);
+      }else showPreviewActionMenu(event.clientX,event.clientY);
     },650);
   } else {
     clearPreviewLongPress();
-    const name=previewGesture?.name||sceneSelectedName||previewCharacterAt(point,state);
-    previewGesture={pinchName:name,pinchState:state,pinchSize:name ? Number(state.characters[name]?.size)||1 : 1,pinchDistance:distanceBetweenPointers(),moved:true};
+    const candidate=previewGesture?.name||sceneSelectedName||previewCharacterAt(point,state);
+    const name=candidate&&state.characters[candidate]?candidate:'';
+    previewGesture={pinchName:name,pinchState:state,pinchSize:name ? Number(state.characters[name]?.size)||1 : 1,pinchCurrentSize:name ? Number(state.characters[name]?.size)||1 : 1,pinchDistance:distanceBetweenPointers(),moved:true};
   }
 });
 mobilePreviewCanvas.addEventListener('pointermove', event => {
@@ -2693,15 +2831,21 @@ mobilePreviewCanvas.addEventListener('pointermove', event => {
     const factor=previewGesture.pinchDistance ? distance/previewGesture.pinchDistance : 1;
     const state=previewGesture.pinchState;
     const character=state.characters[previewGesture.pinchName];
-    if (character) { character.size=Math.max(.2,Math.min(3,previewGesture.pinchSize*factor)); drawDirectPreview(state); }
+    if (character) {
+      previewGesture.pinchCurrentSize=Math.max(.2,Math.min(3,previewGesture.pinchSize*factor));
+      character.size=previewGesture.pinchCurrentSize;
+      drawDirectPreview(state);
+    }
     return;
   }
   if (!previewGesture.start || previewGesture.longPressed) return;
   const point=previewCoordinate(event);
   const dx=point.x-previewGesture.start.x, dy=point.y-previewGesture.start.y;
+  const isStepSwipe=!previewGesture.name&&Math.abs(dx)>.08&&Math.abs(dx)>Math.abs(dy)*1.35;
   if (Math.hypot(dx,dy)>0.025) { previewGesture.moved=true; clearPreviewLongPress(); }
+  if (isStepSwipe) previewGesture.stepSwipe=true;
   previewGesture.last=point;
-  if (previewGesture.name && previewGesture.moved) {
+  if (previewGesture.name && previewGesture.moved && !previewGesture.stepSwipe) {
     const state=KSPreview.buildState(previewScenario,previewStep);
     const character=state.characters[previewGesture.name];
     if (character) {
@@ -2714,13 +2858,11 @@ mobilePreviewCanvas.addEventListener('pointermove', event => {
 });
 mobilePreviewCanvas.addEventListener('pointerup', event => {
   if (!previewPointers.has(event.pointerId) || !previewGesture) return;
-  const finalDistance=previewPointers.size>=2 ? distanceBetweenPointers() : 0;
   previewPointers.delete(event.pointerId); clearPreviewLongPress();
   if (previewPointers.size>0) return;
   const gesture=previewGesture; previewGesture=null;
   if (gesture.pinchName && gesture.pinchDistance) {
-    const factor=finalDistance ? finalDistance/gesture.pinchDistance : 1;
-    const size=Math.max(.2,Math.min(3,gesture.pinchSize*factor));
+    const size=gesture.pinchCurrentSize||gesture.pinchSize;
     writeSceneAction('chara_shift',gesture.pinchName,{size:size.toFixed(3)});
     sceneSelectedName=gesture.pinchName;
     commitPreviewInteraction();
@@ -2728,7 +2870,7 @@ mobilePreviewCanvas.addEventListener('pointerup', event => {
   }
   if (gesture.longPressed) return;
   const dx=gesture.last.x-gesture.start.x, dy=gesture.last.y-gesture.start.y;
-  if (!gesture.moved && Math.abs(dx)>0.08 && Math.abs(dx)>Math.abs(dy)*1.35) {
+  if (gesture.stepSwipe || (!gesture.name&&Math.abs(dx)>.08&&Math.abs(dx)>Math.abs(dy)*1.35)) {
     navigateMobileStep(dx<0 ? 1 : -1);
     return;
   }
