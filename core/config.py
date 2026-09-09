@@ -6,6 +6,21 @@ import sys
 import json
 import random
 import time
+
+# On Windows, importing PyQt5 first loads native DLLs that can make a later
+# onnxruntime import fail with DLL initialization error.  Preloading only the
+# runtime module (not the model) establishes the safe order.  Missing optional
+# semantic dependencies remain non-fatal and are reported by the seed HUD.
+_onnxruntime_preload = None
+_onnxruntime_preload_error = None
+if os.name == "nt":
+    try:
+        import onnxruntime as _onnxruntime_preload
+    except Exception as exc:
+        # The game remains launchable without the optional seed judge. Its
+        # normal Dialogue error path and F8 HUD report the unavailable model.
+        _onnxruntime_preload_error = str(exc)
+
 from PyQt5.QtWidgets import QApplication
 
 # PyQt5アプリケーションのグローバル変数
@@ -132,6 +147,36 @@ TEXT_COLOR = (255, 255, 255)
 TEXT_COLOR_FEMALE = (255, 200, 255)  # 女性キャラ用テキスト色（ピンク系）
 SEED_TEXT_COLOR = (105, 210, 255)
 SEED_TEXT_HOVER_COLOR = (170, 235, 255)
+SEED_INPUT_CONFIG = {
+    # Dialogue-grid layout. The first row is the fixed prompt; the following
+    # rows are an auto-scrolling input viewport.
+    "max_length": 120,
+    "prompt_lines": 1,
+    "input_lines": 2,
+    "chars_per_line": 20,
+    "cursor_blink_ms": 500,
+    "composition_underline_width": 2,
+    "debug_debounce_ms": 500,
+    "seed_list_key": "f9",
+    "debug_toggle_key": "f8",
+    # Bare B must remain available to the romanized Japanese IME while the
+    # answer field is focused. The ordinary dialogue shortcut stays B; seed
+    # input uses Ctrl+B for the same backlog.
+    "input_backlog_key": "b",
+    "input_backlog_requires_ctrl": True,
+    "seed_list_dim_alpha": 190,
+    "masked_color": (135, 145, 155),
+    "debug_color": (125, 225, 150),
+}
+
+
+def get_configured_key(key_name):
+    """Resolve a config key name to pygame's mixed-case constant spelling."""
+    name = str(key_name).strip()
+    suffix = name.upper() if name[:1].lower() == "f" and name[1:].isdigit() else name.lower()
+    return getattr(pygame, f"K_{suffix}")
+
+
 TEXT_BG_COLOR = (0, 0, 0, 50)
 TEXT_START_X = 298
 TEXT_START_Y = 798

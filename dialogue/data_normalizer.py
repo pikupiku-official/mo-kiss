@@ -308,7 +308,7 @@ def normalize_dialogue_data(raw_data):
             normalized_data.append(entry)
             print(f"[NORMALIZE] event_unlock追加: {entry}")
 
-        elif entry_type in ('event_control', 'seed_answer'):
+        elif entry_type in ('event_control', 'seed_answer', 'seed_retry'):
             normalized_data.append(entry)
 
         elif entry_type == 'standalone_step':

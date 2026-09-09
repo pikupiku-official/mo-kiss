@@ -70,7 +70,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             params = entry
             if action_type == "chara_shift":
                 params = _normalize_chara_shift_params(entry)
-            if action_type in ("chara_shift", "chara_show", "chara_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer"):
+            if action_type in ("chara_shift", "chara_show", "chara_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer", "seed_retry"):
                 if pending_actions:
                     emit_step(
                         actions=pending_actions,

@@ -10,6 +10,7 @@ from core.path_utils import get_project_root
 from core.runtime.subsystem_base import SubsystemBase
 from core.services.save_manager import get_save_manager
 from dialogue.choice_renderer import ChoiceRenderer
+from dialogue.font_effects import get_grid_char_width
 from dialogue.name_manager import get_name_manager
 from menu.dialogue_choice_list import DialogueChoiceList, draw_dialogue_text_centered
 from menu.ui_components import TextInput
@@ -63,29 +64,36 @@ class MainMenu(SubsystemBase):
         )
 
         input_font = self.renderer.pygame_fonts["text"]
-        input_width = 300
-        input_height = 62
-        input_x = screen.get_width() // 2 - input_width // 2
+        input_grid_width = get_grid_char_width(
+            input_font, self.renderer.normal_color, self.renderer.char_spacing
+        )
+        # Invisible hit targets; the fields themselves are rendered as plain
+        # Dialogue lines below (no card/box widgets).
+        input_width = int(screen.get_width() * 0.62)
+        input_height = self.renderer.text_line_height
+        input_x = self.renderer.text_start_x + int(screen.get_width() * 0.16)
         self.text_inputs = {
             "surname": TextInput(
                 input_x,
-                int(screen.get_height() * 0.35),
+                int(screen.get_height() * 0.54),
                 input_width,
                 input_height,
                 input_font,
-                max_length=3,
+                max_length=8,
                 placeholder="苗字",
                 input_rect_transform=text_input_rect_transform,
+                grid_width=input_grid_width,
             ),
             "name": TextInput(
                 input_x,
-                int(screen.get_height() * 0.49),
+                int(screen.get_height() * 0.64),
                 input_width,
                 input_height,
                 input_font,
-                max_length=3,
+                max_length=8,
                 placeholder="名前",
                 input_rect_transform=text_input_rect_transform,
+                grid_width=input_grid_width,
             ),
         }
 
@@ -174,8 +182,8 @@ class MainMenu(SubsystemBase):
     def _name_length_error(self):
         for key, label in (("surname", "苗字"), ("name", "名前")):
             text_input = self.text_inputs[key]
-            if len(text_input.get_text().strip()) > text_input.max_length:
-                return f"{label}は{text_input.max_length}文字以内で入力してください"
+            if len(text_input.get_text().strip()) > 3:
+                return f"{label}は3文字以内で入力してください"
         return ""
 
     def _confirm_new_game(self):
@@ -263,6 +271,19 @@ class MainMenu(SubsystemBase):
             self._focus_input(target)
             return None
 
+        # Move between the two logical lines.  While an IME composition is
+        # active, leave these keys to the IME instead of disrupting conversion.
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_DOWN):
+            focused = next(
+                (key for key, field in self.text_inputs.items() if field.is_focused),
+                None,
+            )
+            if focused is not None and not self.text_inputs[focused].is_composing:
+                target = "name" if event.key == pygame.K_DOWN else "surname"
+                if target != focused:
+                    self._focus_input(target)
+                return None
+
         focused_before = next(
             (key for key, field in self.text_inputs.items() if field.is_focused), None
         )
@@ -282,8 +303,12 @@ class MainMenu(SubsystemBase):
                 if key == "surname":
                     self._focus_input("name")
                 else:
-                    self.name_choices.selected_index = 0
+                    # The name line is the only action needed here; there is
+                    # no hidden "決定" button to focus after the second field.
+                    return self._activate_name_choice(0)
             elif field_result == "text_changed":
+                if len(text_input.get_text()) > 8:
+                    text_input.set_text(text_input.get_text()[:8])
                 self._name_error = self._name_length_error()
 
         if event.type == pygame.MOUSEMOTION:
@@ -334,7 +359,7 @@ class MainMenu(SubsystemBase):
         else:
             self._render_quit_confirm()
 
-    def _render_name_input(self):
+    def _render_name_input_legacy(self):
         self.screen.fill((0, 0, 0))
         draw_dialogue_text_centered(
             self.screen, self.renderer, "主人公の名前を入力してください", int(self.screen.get_height() * 0.19)
@@ -364,6 +389,39 @@ class MainMenu(SubsystemBase):
         )
         self.quit_choices.render()
 
+
+    def _render_name_input(self):
+        """Render name entry in the same restrained, text-first style as Dialogue."""
+        self.screen.fill((0, 0, 0))
+        draw_dialogue_text_centered(
+            self.screen, self.renderer, "主人公の名前を入力してください",
+            int(self.screen.get_height() * 0.40),
+        )
+        labels = {"surname": "苗字", "name": "名前"}
+        for key, field in self.text_inputs.items():
+            active = field.is_focused
+            color = self.renderer.highlight_color if active else self.renderer.normal_color
+            label = self.renderer._render_text_with_effects(
+                self.renderer.pygame_fonts["text"], labels[key], color
+            )
+            label_x = self.renderer.text_start_x
+            label_y = field.rect.y + (field.rect.height - label.get_height()) // 2
+            if active:
+                marker = self.renderer._render_text_with_effects(
+                    self.renderer.pygame_fonts["text"], ">", color
+                )
+                self.screen.blit(marker, (label_x - marker.get_width() - 12, label_y))
+            self.screen.blit(label, (label_x, label_y))
+            field.draw(
+                self.screen, frame=False, text_color=color,
+                selection_color=self.renderer.highlight_color,
+            )
+        if self._name_error:
+            draw_dialogue_text_centered(
+                self.screen, self.renderer, self._name_error,
+                int(self.screen.get_height() * 0.78),
+                color=self.renderer.highlight_color,
+            )
 
 def main():
     menu = MainMenu()

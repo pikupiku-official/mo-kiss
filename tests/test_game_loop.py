@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pygame
 
 from core.runtime.game_loop import GameLoop
+from core.ui.debug_hud import get_debug_hud
 
 
 class _DialogueMarker:
@@ -142,3 +143,68 @@ def test_dialogue_frame_requeues_events_for_legacy_input(monkeypatch):
         "dialogue.update",
         "dialogue.render",
     ]
+
+
+def test_f8_toggles_global_debug_hud_and_is_consumed(monkeypatch):
+    calls = []
+
+    class Subsystem:
+        def handle_events(self, events):
+            calls.append(events)
+
+        def update(self):
+            pass
+
+        def render(self):
+            pass
+
+    app = _application(calls, Subsystem())
+    app._gather_normalized_events = lambda: [
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_F8, mod=0)
+    ]
+    hud = get_debug_hud()
+    hud.enabled = False
+    monkeypatch.setattr(pygame.display, "flip", lambda: None)
+
+    GameLoop(app, dialogue_type=_DialogueMarker).run_frame()
+
+    assert hud.enabled is True
+    assert calls[0] == []
+    hud.enabled = False
+
+
+def test_f9_is_routed_before_dialogue_legacy_event_queue(monkeypatch):
+    calls = []
+
+    class SeedList:
+        def __init__(self):
+            self.is_showing = False
+
+        def toggle(self):
+            self.is_showing = not self.is_showing
+            return self.is_showing
+
+    class Dialogue(_DialogueMarker):
+        def __init__(self):
+            self.seed_list = SeedList()
+            self.game_state = {"seed_list_overlay": self.seed_list}
+
+        def handle_events(self):
+            calls.append("dialogue.handle")
+
+        def update(self):
+            pass
+
+        def render(self):
+            pass
+
+    app = _application(calls, Dialogue())
+    app._gather_normalized_events = lambda: [
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_F9, mod=0)
+    ]
+    monkeypatch.setattr(pygame.display, "flip", lambda: None)
+
+    GameLoop(app, dialogue_type=_DialogueMarker).run_frame()
+
+    assert app.current_subsystem.seed_list.is_showing is True
+    assert ("queue", []) in calls

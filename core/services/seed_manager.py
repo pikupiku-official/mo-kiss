@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+import threading
 import unicodedata
 from copy import deepcopy
 from typing import Any
@@ -56,6 +57,9 @@ class SeedManager:
         self.state = self._load_state()
         self._pending_by_event: dict[str, set[str]] = {}
         self._answer_judge = None
+        self._answer_judge_lock = threading.Lock()
+        self._answer_judge_run_lock = threading.Lock()
+        self._preload_thread = None
 
     @staticmethod
     def _load_json(path: str, fallback: dict[str, Any]) -> dict[str, Any]:
@@ -232,11 +236,10 @@ class SeedManager:
             return {"result": "error", "judge_version": "seed-rule-v1"}
         semantic_config = definition.get("semantic_judge") or {}
         if semantic_config.get("enabled", False):
-            if self._answer_judge is None:
-                from .semantic_answer_judge import SemanticAnswerJudge
-
-                self._answer_judge = SemanticAnswerJudge(self.project_root)
-            return self._answer_judge.judge(definition, answer_text)
+            # The live F8 preview and an Enter submission can arrive together.
+            # Keep the shared inference session/cache single-threaded.
+            with self._answer_judge_run_lock:
+                return self._get_answer_judge().judge(definition, answer_text)
 
         normalized = self._normalize_answer(answer_text)
         accepted = {
@@ -249,6 +252,41 @@ class SeedManager:
             "confidence": 1.0 if result == "correct" else 0.0,
             "judge_version": "seed-rule-v1",
         }
+
+    def _get_answer_judge(self):
+        if self._answer_judge is None:
+            with self._answer_judge_lock:
+                if self._answer_judge is None:
+                    from .semantic_answer_judge import SemanticAnswerJudge
+
+                    self._answer_judge = SemanticAnswerJudge(self.project_root)
+        return self._answer_judge
+
+    def preload_answer_model(self) -> None:
+        """Start a one-shot background load when a seed-answer event begins."""
+        if self._preload_thread is not None and self._preload_thread.is_alive():
+            return
+        if self.model_status() in ("ready", "loading"):
+            return
+
+        def load():
+            try:
+                self._get_answer_judge().preload()
+            except Exception as exc:
+                print(f"[SEED][MODEL] preload failed: {exc}")
+
+        self._preload_thread = threading.Thread(
+            target=load,
+            name="seed-model-preload",
+            daemon=True,
+        )
+        self._preload_thread.start()
+
+    def model_status(self) -> str:
+        judge = self._answer_judge
+        if judge is None:
+            return "not_loaded"
+        return str(getattr(judge, "status", "not_loaded"))
 
     def record_turning_point_result(
         self,
@@ -264,6 +302,8 @@ class SeedManager:
             "resolved_game_date": game_date,
             "answer_text": answer_text,
             "judge_version": verdict.get("judge_version", "unknown"),
+            "confidence": float(verdict.get("confidence", 0.0) or 0.0),
+            "reason_codes": list(verdict.get("reason_codes", ())),
         }
         self.save()
 

@@ -21,8 +21,19 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 import pygame
 
 from core.path_utils import get_font_path
+from core.config import (
+    TEXT_COLOR,
+    TEXT_START_X,
+    TEXT_START_Y,
+    NAME_START_X,
+    NAME_START_Y,
+    TEXT_LINE_HEIGHT_MULTIPLIER,
+    TEXT_CHAR_SPACING,
+    TEXT_RENDERER_CONFIG,
+)
 from core.services.seed_manager import SeedManager
 from dialogue.seed_answer_overlay import SeedAnswerOverlay
+from dialogue.seed_list_overlay import SeedListOverlay
 
 
 TURNING_POINT_ID = "MASUDA_TP1"
@@ -38,6 +49,42 @@ class StandaloneTextRenderer:
             "name": pygame.font.Font(get_font_path("MPLUS1p-Bold.ttf"), 42),
             "text": pygame.font.Font(get_font_path("MPLUS1p-Medium.ttf"), 36),
         }
+        self.text_start_x = TEXT_START_X
+        self.text_start_y = TEXT_START_Y
+        self.name_start_x = NAME_START_X
+        self.name_start_y = NAME_START_Y
+        self.ruby_h = 0
+        self.text_line_height = int(
+            self.pygame_fonts["text"].get_height() * TEXT_LINE_HEIGHT_MULTIPLIER
+        )
+        self.name_manager = type(
+            "StandaloneNameManager",
+            (),
+            {"substitute_variables": staticmethod(lambda value: "主人公")},
+        )()
+
+    def _wrap_text(self, text):
+        text = str(text)
+        columns = 26
+        return [text[index : index + columns] for index in range(0, len(text), columns)] or [""]
+
+    def resume_after_backlog(self, _elapsed_ms):
+        """Standalone launcher has no typewriter clock to resume."""
+        return None
+
+    def text_grid_width(self):
+        sample = self.pygame_fonts["text"].render("あ", True, TEXT_COLOR)
+        margin = TEXT_RENDERER_CONFIG.get("grid_char_width_margin", 1.0)
+        return int(sample.get_width() * margin) + TEXT_CHAR_SPACING
+
+    def _render_text_with_effects(self, font, text, color, is_name=False):
+        return font.render(text, True, color)
+
+    def _render_stable_text_line(self, text, color):
+        return self.pygame_fonts["text"].render(text, True, color)
+
+    def _render_name_with_grid_system(self, text, color):
+        return self.pygame_fonts["name"].render(text, True, color)
 
 
 def assume_all_turning_point_seeds(manager, turning_point_id=TURNING_POINT_ID):
@@ -110,6 +157,7 @@ def run_gui(manager):
         manager,
         renderer,
     )
+    seed_list = SeedListOverlay(screen, manager, renderer)
 
     warmup = judge_once(manager, "増田は真性包茎なんだ")
     if warmup.get("result") == "error":
@@ -124,6 +172,21 @@ def run_gui(manager):
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
                 continue
+            if (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_F9
+                and not getattr(event, "repeat", False)
+                and not overlay.is_composing
+            ):
+                showing = seed_list.toggle()
+                if showing:
+                    overlay.suspend()
+                else:
+                    overlay.resume()
+                continue
+            if seed_list.is_showing:
+                seed_list.handle_event(event)
+                continue
             answer = overlay.handle_event(event)
             if answer:
                 verdict = judge_once(manager, answer)
@@ -134,6 +197,7 @@ def run_gui(manager):
 
         screen.fill((12, 17, 25))
         overlay.render()
+        seed_list.render()
         pygame.display.flip()
         clock.tick(60)
 

@@ -927,13 +927,20 @@ class DialogueLoader:
                             r'turning_point="([^"]+)"', line
                         )
                         if turning_point_match:
-                            dialogue_data.append({
+                            entry = {
                                 'type': 'seed_answer',
                                 'turning_point_id': turning_point_match.group(1),
-                            })
+                            }
+                            prompt_match = re.search(r'prompt="([^"]+)"', line)
+                            if prompt_match:
+                                entry['prompt'] = prompt_match.group(1)
+                            dialogue_data.append(entry)
                     except Exception as e:
                         if self.debug:
                             print(f"seed_answer解析エラー（行 {line_num}）: {e} - {line}")
+
+                elif "[seed_retry]" in line:
+                    dialogue_data.append({'type': 'seed_retry'})
 
                 # [event_control]????? - ???????/???
                 elif "[event_control" in line:

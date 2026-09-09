@@ -39,6 +39,72 @@ def test_seed_answer_and_event_control_survive_loader_normalizer_and_ir(tmp_path
     assert actions == ["seed_answer", "event_control"]
 
 
+def test_seed_prompt_and_retry_survive_loader_normalizer_and_ir(tmp_path):
+    ks_path = tmp_path / "seed_retry.ks"
+    ks_path.write_text(
+        '[seed_answer turning_point="MASUDA_TP1" prompt="何を隠している？"]\n'
+        '[seed_retry]\n',
+        encoding="utf-8",
+    )
+
+    raw = DialogueLoader(debug=False).load_dialogue_from_ks(str(ks_path))
+    assert raw == [
+        {
+            "type": "seed_answer",
+            "turning_point_id": "MASUDA_TP1",
+            "prompt": "何を隠している？",
+        },
+        {"type": "seed_retry"},
+    ]
+    normalized = normalize_dialogue_data(raw)
+    assert normalized == raw
+    ir = build_ir_from_normalized(normalized)
+    assert [step["actions"][0]["action"] for step in ir["steps"]] == [
+        "seed_answer",
+        "seed_retry",
+    ]
+
+
+def test_seed_retry_reopens_latest_prompt_with_previous_answer(monkeypatch):
+    from dialogue import scenario_manager
+
+    created = {}
+
+    class Overlay:
+        def __init__(self, screen, turning_point_id, seed_manager, renderer, prompt, initial_text):
+            created.update(
+                turning_point_id=turning_point_id,
+                prompt=prompt,
+                initial_text=initial_text,
+            )
+
+    monkeypatch.setattr("dialogue.seed_answer_overlay.SeedAnswerOverlay", Overlay)
+    game_state = {
+        "screen": object(),
+        "seed_manager": object(),
+        "text_renderer": object(),
+        "use_ir": True,
+        "current_paragraph": 9,
+        "ir_step_index": 9,
+        "last_seed_answer_source_index": 3,
+        "last_seed_answer_ir_index": 3,
+        "last_seed_answer_command": {
+            "turning_point_id": "MASUDA_TP1",
+            "prompt": "何を隠している？",
+        },
+        "seed_retry_text": "前回の推理",
+    }
+
+    assert scenario_manager._handle_seed_retry(game_state) is True
+    assert game_state["current_paragraph"] == 3
+    assert game_state["ir_step_index"] == 3
+    assert created == {
+        "turning_point_id": "MASUDA_TP1",
+        "prompt": "何を隠している？",
+        "initial_text": "前回の推理",
+    }
+
+
 def test_tutorial_ks_files_form_explicit_authored_event_sequence():
     expected = [
         ("TANE_MASUDA_01.ks", "MASUDA_TP1_001", "TANE_MASUDA_02"),
@@ -54,7 +120,10 @@ def test_tutorial_ks_files_form_explicit_authored_event_sequence():
     turning_point = (
         PROJECT_ROOT / "events" / "TANE_MASUDA_TP1.ks"
     ).read_text(encoding="utf-8")
-    assert '[seed_answer turning_point="MASUDA_TP1"]' in turning_point
+    assert '[seed_answer turning_point="MASUDA_TP1"' in turning_point
+    assert 'prompt="増田が温泉を拒む本当の理由は何だろう？"' in turning_point
+    assert 'MASUDA_TP1_RESULT==borderline' in turning_point
+    assert '[seed_retry]' in turning_point
     assert 'MASUDA_TP1_RESULT==correct' in turning_point
     assert 'MASUDA_TP1_RESULT==incorrect' in turning_point
     assert "増田は真性包茎なんだ" in turning_point
@@ -282,20 +351,25 @@ def test_save_manager_includes_seed_state_and_old_save_fallback(tmp_path):
     assert "TANE_MASUDA_01,,0,TRUE" in completed
 
 
-def test_seed_answer_uses_textinput_and_does_not_submit_plain_ime_enter():
+def test_seed_answer_submits_plain_enter_only_outside_ime_composition():
+    from core.ui.text_edit import TextEditBuffer
+
     overlay = SeedAnswerOverlay.__new__(SeedAnswerOverlay)
-    overlay.text = "増田は真性包茎である"
-    overlay.composition = ""
+    overlay.editor = TextEditBuffer("増田は真性包茎である", max_length=120)
+    overlay.suspended = False
+    overlay.cursor_visible = True
+    overlay.last_blink = 0
 
     plain_enter = pygame.event.Event(
         pygame.KEYDOWN, {"key": pygame.K_RETURN, "mod": 0}
     )
-    ctrl_enter = pygame.event.Event(
-        pygame.KEYDOWN, {"key": pygame.K_RETURN, "mod": pygame.KMOD_CTRL}
-    )
+    assert overlay.handle_event(plain_enter) == "増田は真性包茎である"
 
-    assert overlay.handle_event(plain_enter) is None
-    assert overlay.handle_event(ctrl_enter) == "増田は真性包茎である"
+    overlay.editor.composition = "ますだ"
+    ime_enter = pygame.event.Event(
+        pygame.KEYDOWN, {"key": pygame.K_RETURN, "mod": 0}
+    )
+    assert overlay.handle_event(ime_enter) is None
 
 
 def test_submitted_answer_is_echoed_by_protagonist_and_sets_result_flag(monkeypatch):
@@ -361,8 +435,7 @@ def test_submitted_answer_is_echoed_by_protagonist_and_sets_result_flag(monkeypa
     assert seeds.recorded[-1] == "1999-06-02"
 
 
-@pytest.mark.parametrize("result", ["borderline", "error"])
-def test_unresolved_semantic_answer_keeps_overlay_open(monkeypatch, result):
+def test_borderline_answer_enters_authored_retry_branch(monkeypatch):
     from dialogue.controller2 import _submit_seed_answer
 
     class Overlay:
@@ -372,9 +445,6 @@ def test_unresolved_semantic_answer_keeps_overlay_open(monkeypatch, result):
             self.feedback = None
             self.closed = False
 
-        def show_judge_feedback(self, verdict, message):
-            self.feedback = (verdict, message)
-
         def close(self):
             self.closed = True
 
@@ -383,26 +453,126 @@ def test_unresolved_semantic_answer_keeps_overlay_open(monkeypatch, result):
             self.recorded = False
 
         def judge_answer(self, turning_point_id, answer):
-            return {"result": result, "judge_version": "semantic-test-v1"}
+            return {"result": "borderline", "judge_version": "semantic-test-v1"}
 
         def record_turning_point_result(self, *args):
             self.recorded = True
 
     overlay = Overlay()
     seeds = Seeds()
+    class Renderer:
+        def __init__(self):
+            self.dialogue = None
+
+        def set_dialogue(self, text, speaker):
+            self.dialogue = (text, speaker)
+
+    renderer = Renderer()
+    loader = type("Loader", (), {"set_story_flag": lambda self, name, value: setattr(self, "flag", (name, value))})()
     game_state = {
         "seed_answer_overlay": overlay,
         "seed_manager": seeds,
-        "dialogue_loader": None,
-        "text_renderer": None,
+        "dialogue_loader": loader,
+        "text_renderer": renderer,
     }
 
     _submit_seed_answer(game_state, "惜しい推理")
 
-    assert overlay.closed is False
-    assert overlay.feedback[0] == result
-    assert game_state["seed_answer_overlay"] is overlay
+    assert overlay.closed is True
+    assert game_state["seed_answer_overlay"] is None
+    assert game_state["seed_retry_text"] == "惜しい推理"
+    assert loader.flag == ("MASUDA_TP1_RESULT", "borderline")
+    assert renderer.dialogue == ("惜しい推理", "{苗字}")
     assert seeds.recorded is False
+
+
+def test_model_unavailable_shows_dialogue_message_then_next_submit_fails_open(monkeypatch):
+    from dialogue.controller2 import _submit_seed_answer
+
+    class Overlay:
+        turning_point_id = "MASUDA_TP1"
+
+        def __init__(self):
+            self.suspended = False
+            self.fallback_armed = False
+            self.closed = False
+
+        def suspend(self):
+            self.suspended = True
+
+        def arm_model_fallback(self):
+            self.fallback_armed = True
+
+        def close(self):
+            self.closed = True
+
+        @staticmethod
+        def fallback_verdict():
+            return {
+                "result": "correct",
+                "confidence": 0.0,
+                "judge_version": "model-unavailable-fallback-v1",
+                "reason_codes": ("model_unavailable_fallback",),
+            }
+
+    class Seeds:
+        def __init__(self):
+            self.judge_calls = 0
+            self.recorded = None
+
+        def judge_answer(self, turning_point_id, answer):
+            self.judge_calls += 1
+            return {
+                "result": "error",
+                "error_kind": "model_unavailable",
+                "reason_codes": ("model_unavailable",),
+            }
+
+        def record_turning_point_result(self, *args):
+            self.recorded = args
+
+    class Renderer:
+        def set_dialogue(self, text, speaker):
+            self.dialogue = (text, speaker)
+
+    overlay = Overlay()
+    seeds = Seeds()
+    renderer = Renderer()
+    loader = type(
+        "Loader",
+        (),
+        {"set_story_flag": lambda self, name, value: setattr(self, "flag", (name, value))},
+    )()
+    game_state = {
+        "seed_answer_overlay": overlay,
+        "seed_manager": seeds,
+        "text_renderer": renderer,
+        "dialogue_loader": loader,
+    }
+
+    _submit_seed_answer(game_state, "推理")
+
+    assert overlay.suspended is True
+    assert overlay.fallback_armed is True
+    assert game_state["seed_system_message"] in renderer.dialogue[0]
+
+    fake_time = type(
+        "FakeTime",
+        (),
+        {"current_year": 1999, "current_month": 6, "current_day": 2},
+    )()
+    monkeypatch.setattr(
+        "core.services.time_manager.get_time_manager", lambda: fake_time
+    )
+    overlay.suspended = False
+    game_state["seed_system_message"] = None
+    _submit_seed_answer(game_state, "推理")
+
+    assert seeds.judge_calls == 1
+    assert overlay.closed is True
+    assert loader.flag == ("MASUDA_TP1_RESULT", "correct")
+    assert seeds.recorded[2]["confidence"] == 0.0
+    assert seeds.recorded[2]["reason_codes"] == ("model_unavailable_fallback",)
 
 
 def test_home_diary_adds_one_visible_line_per_new_seed(monkeypatch):

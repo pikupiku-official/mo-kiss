@@ -380,6 +380,25 @@ class TextRenderer:
         # 各文字を固定されたグリッド位置に配置することで揺れを完全に解消
         
         return self._render_text_with_grid_system(displayed_line, color)
+
+    def text_grid_width(self, color=None):
+        """Return the fixed advance used by ordinary dialogue glyphs."""
+        if color is None:
+            color = getattr(self, "text_color", TEXT_COLOR)
+        sample_surface = self.pygame_fonts["text"].render("あ", True, color)
+        stretch_factor = (
+            FONT_EFFECTS.get("stretch_factor", 1.0)
+            if FONT_EFFECTS.get("enable_stretched", False)
+            else 1.0
+        )
+        return (
+            int(
+                sample_surface.get_width()
+                * stretch_factor
+                * TEXT_RENDERER_CONFIG["grid_char_width_margin"]
+            )
+            + self.char_spacing
+        )
     
     def _render_text_with_grid_system(self, text_line, color):
         """絶対座標グリッドシステムで文字を描画（ルビ・傍点対応）"""
@@ -389,16 +408,7 @@ class TextRenderer:
         tokens = parse_inline_markup(text_line)
 
         # グリッド幅計算
-        sample_surface = self.pygame_fonts["text"].render("あ", True, color)
-        base_char_width = sample_surface.get_width()
-        stretch_factor = (
-            FONT_EFFECTS.get("stretch_factor", 1.0)
-            if FONT_EFFECTS.get("enable_stretched", False) else 1.0
-        )
-        grid_char_width = (
-            int(base_char_width * stretch_factor * TEXT_RENDERER_CONFIG["grid_char_width_margin"])
-            + self.char_spacing
-        )
+        grid_char_width = self.text_grid_width(color)
 
         # サーフェス高さ: ruby領域 + base領域 + 余裕
         # base text は常に ruby_h 下に描画し、blit側で ruby_h 分上にシフトする
