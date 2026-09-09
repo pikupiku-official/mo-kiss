@@ -56,13 +56,19 @@ jobs:
                find "$HOME" -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null;
              } | sed "s#/dev/ks-editor$##" | sort -u' 2>/dev/null)
 
-          # Also include the known Lolipop site-root candidates when they already have dev/.
+          # Lolipop exposes browser-visible files below the SSH account's web/
+          # directory.  The mokiss.jp control panel maps the domain to the
+          # "mokiss" upload folder, so prefer $HOME/web/mokiss.
+          # Keep the legacy layouts as fallbacks for older account structures.
           CANDIDATE_PATHS=$(sshpass -e ssh \
             -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "$SSH_USER@$SSH_HOST" \
-            'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp" "$HOME/www" "$HOME/public_html"; do
+            'for candidate in "$HOME/web/mokiss" "$HOME/mokiss"; do
+               if [ -d "$candidate" ]; then printf "%s\\n" "$candidate"; fi
+             done
+             for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/pikupikutai.pinoko.jp" "$HOME/www" "$HOME/public_html"; do
                if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; fi
              done')
           WEB_PATHS=$(printf "%s\\n%s\\n" "$WEB_PATHS" "$CANDIDATE_PATHS" | sed "/^$/d" | sort -u)
@@ -74,8 +80,8 @@ jobs:
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
               "$SSH_USER@$SSH_HOST" \
-              'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp"; do
-                 if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; fi
+              'for candidate in "$HOME/web/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/pikupikutai.pinoko.jp"; do
+                 if [ -d "$candidate" ]; then printf "%s\\n" "$candidate"; fi
                done')
           fi
 
@@ -116,9 +122,13 @@ jobs:
 
       - name: Verify public deployment
         run: |
-          # Shared hosting may need a short time before Apache serves the new file.
-          for attempt in $(seq 1 20); do
+          # Static files are normally visible immediately. Retry briefly for a
+          # transient edge cache, but do not hide a wrong document root for two minutes.
+          PUBLIC_SHA=""
+          for attempt in $(seq 1 5); do
             PUBLIC_SHA=$(curl --fail --silent --show-error --location \
+              --connect-timeout 10 \
+              --max-time 20 \
               -H 'Cache-Control: no-cache' \
               "https://mokiss.jp/dev/ks-editor/deploy-version.txt?deploy=${GITHUB_SHA}&attempt=${attempt}&ts=$(date +%s%N)" || true)
             if [ "$PUBLIC_SHA" = "$GITHUB_SHA" ]; then
@@ -126,8 +136,9 @@ jobs:
               exit 0
             fi
             echo "Attempt ${attempt}: expected $GITHUB_SHA, got ${PUBLIC_SHA:-<empty>}"
-            sleep 5
+            sleep 3
           done
 
-          echo "Public deployment verification failed"
+          echo "::error::SSH upload succeeded, but mokiss.jp is serving ${PUBLIC_SHA:-<empty>} instead of $GITHUB_SHA"
+          echo "::error::Expected Lolipop document root: \$HOME/web/mokiss (upload folder: mokiss)"
           exit 1
