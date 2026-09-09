@@ -6,7 +6,7 @@
 #main-view{width:100%;height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}#menubar{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:3px 5px;min-height:36px;background:var(--blue);color:#fff;overflow-x:auto}#menubar h1{margin:0 10px 0 3px;font-size:13px;color:#fff;white-space:nowrap}#menubar .msep{width:1px;height:24px;background:#8080c0}#menubar .mbtn{color:#000;min-height:28px;white-space:nowrap;flex:0 0 auto}#menubar .mbtn.active{background:var(--blue);color:#fff;border-style:inset}#menubar #btn-logout{margin-left:auto}
 #find-bar{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--shadow)}#content-area{min-height:0;flex:1 1 auto;display:flex;overflow:hidden}
 #list-panel{flex:1;min-width:0;min-height:0;overflow:auto;padding:8px;background:var(--bg)}#list-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px;padding:4px;background:var(--panel);border:2px inset #fff}#event-search{flex:1 1 220px;min-width:150px}#event-search,#find-input,.sp-input,.sp-textarea,#login-box input,.modal-box input,.chara-field input,.chara-field select,.scene-properties input{background:#fff;color:#000;border:2px inset #fff;border-radius:0;padding:5px}#file-table{width:100%;border-collapse:collapse;background:#fff;border:2px inset #fff}#file-table th{position:sticky;top:0;padding:5px;text-align:left;color:#fff;background:var(--blue)}#file-table td{padding:6px;border-bottom:1px solid #d0d0d0}#file-table tr.file-row:hover td{background:#dfefff}.td-name{font-family:"Courier New",monospace}
-#file-panel{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--bg)}#file-panel[style*="display: none"]{display:none!important}#mobile-preview-dock{order:1;display:flex;flex:0 0 auto;flex-direction:column;background:#000;border:2px inset #fff}#mobile-preview-head,#mobile-preview-controls{display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--panel)}#mobile-preview-title{overflow:hidden;flex:1;white-space:nowrap;text-overflow:ellipsis;font-weight:bold}#mobile-preview-stage{display:flex;align-items:center;justify-content:center;height:min(38dvh,420px);min-height:170px;overflow:hidden;background:#000}#mobile-preview-canvas{display:block;width:100%;height:100%;object-fit:contain;touch-action:none}#mobile-preview-status{flex:1;text-align:center}#preview-hint{padding:3px 6px;color:#fff;background:#000;font-size:11px}
+#file-panel{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--bg)}#file-panel[style*="display: none"]{display:none!important}#mobile-preview-dock{order:1;display:flex;flex:0 0 auto;flex-direction:column;background:#000;border:2px inset #fff}#mobile-preview-head,#mobile-preview-controls{display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--panel)}#mobile-preview-title{overflow:hidden;flex:1;white-space:nowrap;text-overflow:ellipsis;font-weight:bold}#mobile-preview-stage{position:relative;display:flex;align-items:center;justify-content:center;height:min(38dvh,420px);min-height:170px;overflow:hidden;background:#000}#mobile-preview-canvas{display:block;width:100%;height:100%;object-fit:contain;touch-action:none}#mobile-preview-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#mobile-preview-status{flex:1;text-align:center}#preview-hint{padding:3px 6px;color:#fff;background:#000;font-size:11px}
 #outline-sidebar{order:2;flex:0 0 auto;width:100%;max-height:0;overflow:hidden;background:var(--panel);border-bottom:1px solid var(--shadow)}#outline-sidebar.drawer-open{max-height:42dvh;overflow:auto}#outline-title{padding:4px 6px;color:#fff;background:var(--blue);font-weight:bold}#outline-list{display:flex;flex-direction:column}.para-item{padding:7px 9px;border-bottom:1px solid #aaa;background:var(--panel);cursor:pointer}.para-item:hover{background:#dfefff}
 #ks-wrap{order:3;flex:1;min-height:0;overflow:auto;background:#fff;border:2px inset #fff}#ks-table{width:100%;border-collapse:collapse;font-family:"Courier New",monospace;white-space:pre-wrap}#ks-table td{vertical-align:top;padding:2px 6px;line-height:1.45}.ln-col{width:4em;color:#666;text-align:right;user-select:none;background:#e4e4e4;border-right:1px solid #aaa}.code-col{color:#000}.step-line{cursor:pointer}.step-line:hover td{background:#dfefff}#edit-textarea{display:block;width:100%;height:100%;resize:none;border:0;outline:0;font-family:"Courier New",monospace;white-space:pre}
 #file-panel.step-workspace #ks-wrap{display:none}#file-panel.raw-workspace #mobile-preview-dock,#file-panel.raw-workspace #outline-sidebar,#file-panel.raw-workspace #step-panel{display:none!important}#file-panel.raw-workspace #ks-wrap{display:block}
@@ -14,6 +14,11 @@
 .modal-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.45)}.modal-box{width:min(560px,96vw);max-height:96dvh;overflow:auto;padding:4px 8px 10px;background:var(--panel);border:2px outset #fff;box-shadow:2px 2px var(--dark)}.modal-box h3,.preview-head{margin:0 -4px 10px;padding:5px 7px;color:#fff;background:var(--blue);font-size:13px}.modal-note{margin:6px 0;font-size:11px;line-height:1.5}.modal-row,.chara-actions,.scene-actions,.preview-controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;margin-top:10px}.preview-box{width:min(1120px,98vw);padding:0}.preview-stage,.chara-stage,.scene-stage{background:#000}.preview-stage canvas,.chara-stage canvas,.scene-stage canvas{display:block;width:100%;height:auto;max-height:78dvh;object-fit:contain}.preview-controls{align-items:center;padding:6px;margin:0;background:var(--panel)}#preview-range{flex:1;min-width:130px}.chara-box{width:min(1120px,98vw);display:grid;grid-template-columns:1.6fr .9fr;padding:0;overflow:hidden}.chara-form,.scene-inspector{padding:8px;overflow:auto}.chara-field{margin:6px 0}.chara-field label,.scene-properties label{display:block;font-size:11px}.chara-field input,.chara-field select,.scene-properties input{width:100%}.scene-box{width:min(1240px,98vw);padding:0;overflow:hidden}.scene-layout{display:grid;grid-template-columns:1.6fr .9fr;max-height:calc(96dvh - 45px)}.scene-properties{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.scene-properties .sp-label,.scene-properties button{grid-column:1/-1}.scene-object{width:100%;margin-bottom:4px;padding:6px;text-align:left;background:var(--panel);border:2px outset #fff}.scene-object.selected{background:var(--blue);color:#fff}
 #preview-action-menu{position:fixed;z-index:1200;display:grid;grid-template-columns:repeat(2,1fr);gap:5px;width:min(320px,calc(100vw - 20px));padding:7px;background:var(--panel);border:2px outset #fff;box-shadow:3px 3px var(--dark)}#preview-action-menu .menu-title,#preview-action-menu .menu-cancel{grid-column:1/-1}
 @media(max-width:700px){html,body{font-size:14px}#menubar{min-height:42px}#menubar h1{display:none}#menubar .mbtn{min-height:34px;padding:5px 8px}#mobile-preview-stage{height:30dvh;min-height:150px}#step-panel{flex:1}.sp-body{display:block}.sp-field{padding:8px}#step-btns .smbtn{min-height:38px}#step-save-state{width:100%;margin-left:0}#step-save-github{flex:1 1 100%;min-height:44px}.chara-box,.scene-layout{grid-template-columns:1fr}.chara-box{grid-template-rows:38dvh 1fr}.scene-layout{grid-template-rows:42dvh 1fr;max-height:none}.chara-stage canvas,.scene-stage canvas{max-height:38dvh}}
+</style><style id="compact-header-style">
+#menubar > #btn-reload,#menubar > #btn-sync,#menubar > #btn-new,#menubar > #btn-delete,#menubar > #btn-copy,#menubar > #btn-find,#menubar > #btn-outline,#menubar > #btn-preview,#menubar > #btn-undo,#menubar > #btn-redo,#menubar > #btn-metadata,#menubar > #btn-settings,#menubar > #btn-logout,#menubar > #sep-file,#menubar > #sep-view{display:none!important}
+#statusbar{display:none!important}#step-btns{display:none!important}#mobile-preview-canvas{position:relative;z-index:1}#mobile-preview-overlay{z-index:2}
+.preview-selection-bar{display:flex;align-items:center;gap:5px;min-height:34px;padding:4px 6px;background:var(--panel);border-top:1px solid #000}.preview-selection-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.preview-selection-bar button{min-height:28px;padding:3px 7px}
+@media(max-width:700px){#menubar{position:relative;overflow-x:auto}}
 </style></head>
 <body>
 
@@ -1276,6 +1281,7 @@ function enterEditMode(push=true, jumpLine=null) {
   $("edit-textarea").value = currentText;
   $("btn-edit-toggle").classList.add("hidden");
   $("btn-edit-toggle").classList.add("active");
+  $("btn-step-panel").classList.remove("hidden");
   $("btn-save").classList.remove("hidden");
   $("sb-mode").textContent = "【Raw編集中】";
   $("edit-textarea").focus();
@@ -1643,6 +1649,8 @@ function openStepEditor(idx){
   $('file-panel').classList.add('step-workspace');
   $('file-panel').classList.remove('raw-workspace');
   editMode = false;
+  $('btn-step-panel').classList.add('hidden');
+  $('btn-edit-toggle').classList.remove('hidden');
   selectedStepIdx=idx;
   if (previewScenario && previewScenario.steps.length) {
     previewStep=Math.max(0,Math.min(idx,previewScenario.steps.length-1));
@@ -1919,7 +1927,7 @@ const previewRenderer = new KSPreview.CanvasRenderer($('preview-canvas'),preview
 const mobilePreviewRenderer = new KSPreview.CanvasRenderer($('mobile-preview-canvas'),previewAssets);
 const charaRenderer = new KSPreview.CanvasRenderer($('chara-canvas'),previewAssets);
 const sceneRenderer = new KSPreview.CanvasRenderer($('scene-canvas'),previewAssets);
-let previewScenario=null,previewStep=0,previewDrawToken=0;
+let previewScenario=null,previewStep=0,previewDrawToken=0,directPreviewToken=0;
 let previewAudioEnabled=false,previewBgmAudio=null,previewBgmName='',previewLastSeKey='';
 
 function setPreviewAudioLabel(){
@@ -1961,6 +1969,7 @@ function sourceLineToPreviewStep(line){
 }
 
 async function drawPreview(){
+  directPreviewToken+=1;
   if(!previewScenario||!previewScenario.steps.length){
     $('preview-status').textContent='プレビュー対象なし';return;
   }
@@ -1977,6 +1986,7 @@ async function drawPreview(){
     await Promise.all(draws);
     syncPreviewAudio(state);
     if(token===previewDrawToken){
+      drawMobileSelection(state);
       $('preview-assets').textContent=state.warnings.length?state.warnings.join(' / '):'';
       $('mobile-preview-title').textContent=`${currentFile?.name||'KS'} / Step ${previewStep+1}`;
       $('mobile-preview-status').textContent=`Step ${previewStep+1} / ${previewScenario.steps.length}`;
@@ -2480,7 +2490,7 @@ function setMobileLabels() {
   if ($('btn-edit-toggle')) $('btn-edit-toggle').textContent = 'KSテキスト';
   if ($('btn-step-panel')) $('btn-step-panel').textContent = 'Step編集';
   if ($('btn-outline')) $('btn-outline').textContent = 'Steps';
-  if ($('btn-save')) $('btn-save').textContent = 'GitHubへPush';
+  if ($('btn-save')) $('btn-save').textContent = '保存';
   if ($('btn-sync')) $('btn-sync').textContent = 'オフライン同期';
 }
 setMobileLabels();
@@ -2489,6 +2499,29 @@ const previewHint = document.createElement('div');
 previewHint.id = 'preview-hint';
 previewHint.textContent = 'タップ:選択　ドラッグ:移動　ピンチ:立ち絵の拡縮　長押し:タグ追加　左右スワイプ:Step移動';
 if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewHint);
+const previewSelectionBar = document.createElement('div');
+previewSelectionBar.className = 'preview-selection-bar';
+previewSelectionBar.innerHTML = `
+  <span class="preview-selection-label" id="preview-selection-label">キャラ未選択</span>
+  <button class="smbtn" data-preview-tool="scene">位置・サイズ</button>
+  <button class="smbtn" data-preview-tool="chara">表情・差分</button>
+  <button class="smbtn" data-preview-tool="tags">タグ追加</button>`;
+if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewSelectionBar);
+const previewOverlay = document.createElement('canvas');
+previewOverlay.id = 'mobile-preview-overlay';
+previewOverlay.width = 1440;
+previewOverlay.height = 1080;
+if ($('mobile-preview-stage')) $('mobile-preview-stage').appendChild(previewOverlay);
+function updatePreviewSelection(name='') {
+  const label = $('preview-selection-label');
+  if (label) label.textContent = name ? `選択中: ${name}　ドラッグ / ピンチで編集` : 'キャラ未選択　タップして選択';
+}
+previewSelectionBar.querySelector('[data-preview-tool="scene"]').addEventListener('click', openSceneEditor);
+previewSelectionBar.querySelector('[data-preview-tool="chara"]').addEventListener('click', openCharaPreview);
+previewSelectionBar.querySelector('[data-preview-tool="tags"]').addEventListener('click', event => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  showPreviewActionMenu(rect.left, rect.bottom);
+});
 
 const previewActionMenu = document.createElement('div');
 previewActionMenu.id = 'preview-action-menu';
@@ -2540,6 +2573,24 @@ function navigateMobileStep(delta) {
   openStepEditor(Math.max(0, Math.min(currentSteps.length - 1, base + delta)));
 }
 
+// Step編集画面のプレビュー以外でも、左右スワイプで前後Stepへ移動する。
+const mobileStepSwipeTarget = $('step-panel');
+let mobileStepSwipe = null;
+if (mobileStepSwipeTarget) {
+  mobileStepSwipeTarget.addEventListener('pointerdown', event => {
+    if (event.target.closest('input,textarea,select,button') || event.target.closest('#mobile-preview-stage')) return;
+    mobileStepSwipe = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  });
+  mobileStepSwipeTarget.addEventListener('pointerup', event => {
+    if (!mobileStepSwipe || mobileStepSwipe.id !== event.pointerId) return;
+    const dx = event.clientX - mobileStepSwipe.x;
+    const dy = event.clientY - mobileStepSwipe.y;
+    mobileStepSwipe = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.35) navigateMobileStep(dx < 0 ? 1 : -1);
+  });
+  mobileStepSwipeTarget.addEventListener('pointercancel', () => { mobileStepSwipe = null; });
+}
+
 const mobilePreviewCanvas = $('mobile-preview-canvas');
 const previewPointers = new Map();
 let previewGesture = null;
@@ -2569,7 +2620,43 @@ function distanceBetweenPointers() {
 }
 function drawDirectPreview(state) {
   if (!state) return;
-  mobilePreviewRenderer.draw(state).catch(() => {});
+  const token=++directPreviewToken;
+  drawMobileSelection(state);
+  mobilePreviewRenderer.draw(state).then(() => {
+    if (token===directPreviewToken) drawMobileSelection(state);
+  }).catch(() => {});
+}
+function drawMobileSelection(state) {
+  const canvas = $('mobile-preview-overlay');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 1440, 1080);
+  const name = sceneSelectedName;
+  const character = name && state?.characters?.[name];
+  updatePreviewSelection(name && character ? name : '');
+  if (!character) return;
+  const size = Number(character.size) || 1;
+  const left = character.x * 1440 - 270 * size;
+  const top = character.y * 1080 - 540 * size;
+  const width = 540 * size;
+  const height = 1080 * size;
+  ctx.save();
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 6;
+  ctx.setLineDash([18, 10]);
+  ctx.strokeRect(left, top, width, height);
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffff00';
+  [[left,top],[left+width,top],[left,top+height],[left+width,top+height]].forEach(([x,y]) => ctx.fillRect(x-10,y-10,20,20));
+  ctx.font = '28px sans-serif';
+  ctx.fillText(name, Math.max(8,left+8), Math.max(30,top+30));
+  ctx.restore();
+}
+function commitPreviewInteraction() {
+  if (!applyStepEditorChanges()) return;
+  directPreviewToken+=1;
+  previewScenario = KSPreview.parseScenario(currentText);
+  previewStep = Math.max(0, Math.min(selectedStepIdx, previewScenario.steps.length - 1));
+  drawPreview();
 }
 function clearPreviewLongPress() {
   if (previewLongPress) clearTimeout(previewLongPress);
@@ -2583,6 +2670,9 @@ mobilePreviewCanvas.addEventListener('pointerdown', event => {
   const state=KSPreview.buildState(previewScenario, previewStep);
   if (previewPointers.size===1) {
     const name=previewCharacterAt(point,state);
+    sceneSelectedName=name || sceneSelectedName;
+    updatePreviewSelection(name || '');
+    drawDirectPreview(state);
     previewGesture={start:point,last:point,name,moved:false,dragState:state};
     clearPreviewLongPress();
     previewLongPress=setTimeout(() => {
@@ -2611,6 +2701,16 @@ mobilePreviewCanvas.addEventListener('pointermove', event => {
   const dx=point.x-previewGesture.start.x, dy=point.y-previewGesture.start.y;
   if (Math.hypot(dx,dy)>0.025) { previewGesture.moved=true; clearPreviewLongPress(); }
   previewGesture.last=point;
+  if (previewGesture.name && previewGesture.moved) {
+    const state=KSPreview.buildState(previewScenario,previewStep);
+    const character=state.characters[previewGesture.name];
+    if (character) {
+      character.x=point.x;
+      character.y=point.y;
+      sceneSelectedName=previewGesture.name;
+      drawDirectPreview(state);
+    }
+  }
 });
 mobilePreviewCanvas.addEventListener('pointerup', event => {
   if (!previewPointers.has(event.pointerId) || !previewGesture) return;
@@ -2622,7 +2722,8 @@ mobilePreviewCanvas.addEventListener('pointerup', event => {
     const factor=finalDistance ? finalDistance/gesture.pinchDistance : 1;
     const size=Math.max(.2,Math.min(3,gesture.pinchSize*factor));
     writeSceneAction('chara_shift',gesture.pinchName,{size:size.toFixed(3)});
-    drawPreview();
+    sceneSelectedName=gesture.pinchName;
+    commitPreviewInteraction();
     return;
   }
   if (gesture.longPressed) return;
@@ -2635,9 +2736,14 @@ mobilePreviewCanvas.addEventListener('pointerup', event => {
     const state=KSPreview.buildState(previewScenario,previewStep);
     sceneState=state; sceneScenario=previewScenario; sceneStepNumber=previewStep; sceneSelectedName=gesture.name;
     applyScenePosition(gesture.last.x,gesture.last.y,Number(state.characters[gesture.name]?.size)||1);
-    drawPreview();
+    commitPreviewInteraction();
   } else if (!gesture.moved) {
     sceneSelectedName=gesture.name||'';
+    sceneState=KSPreview.buildState(previewScenario,previewStep);
+    sceneScenario=previewScenario;
+    sceneStepNumber=previewStep;
+    updatePreviewSelection(sceneSelectedName);
+    drawDirectPreview(sceneState);
     sbMsg(gesture.name ? `${gesture.name}を選択中` : 'Previewを選択中', 1800);
   }
 });
