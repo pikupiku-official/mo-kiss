@@ -371,16 +371,15 @@
 	「その調子でプールの件も忘れて下さい！もぉ〜。」
 	//純一//
 	「はいはい、忘れますよ。」
-[chara_shift name="桃子" torso="MMK_T01_ARM23_CLO00" eye="MMK_F01_EYE05_00" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE03_00" fade="0.15"]
 	//桃子//
 	「・・・そういえば、さっきふと思ったんだけどね？私たちの付き合いの話。」
 	//純一//
 	「うん。・・・ん？」
 	「・・・えーと、どうしたんですかな？」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU01_00" brow="MMK_F01_BRO04_00" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM18_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU01_00" brow="MMK_F01_BRO04_00" fade="0.15"]
 	//桃子//
 	「う〜ん、なんて言えばいいのかなぁ」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_01" mouth="MMK_F01_MOU04_01" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM19_CLO00" eye="MMK_F01_EYE00_01" mouth="MMK_F01_MOU04_01" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「えっと〜・・・私たち・・・」
 	//純一//
@@ -454,10 +453,9 @@
 	//桃子//
 	「え！なにそれー。」
 
-[chara_hide name="桃子" fade="0.15"]
-[chara_show name="桃子" x="0.25" y="1.0" size="2.3" fade="0.15"]
-[chara_show name="杏" x="0.75" y="0.75" size="1.6" fade="0.15"]
+[chara_show name="杏" blink="true" x="0.75" y="0.9" size="2.3" fade="0.15"]
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0011" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
+[chara_shift name="桃子" x="0.3" y="0.9" size="2.3" fade="0.15"]
 	//？？//
 	「おねぇちゃ～～ん！！」
 	//純一//
@@ -467,28 +465,33 @@
 	「わ～！杏、おかえりー！！」
 	//杏//
 	「おにぃもいるー！」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" fade="0.15"]
+[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" x="0.7" y="0.9" size="2.3" fade="0.15"]
+	//杏//
 	「お久し振りですっ！」
 	//純一//
 	「おぉ～、年頃になって見違えるようになったなぁ！」
 	「セーラー服だと一層大人びて見えるね。」
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0002" blink="true" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU00_00" fade="0.15"]
 	//杏//
 	「うふふ、いいでしょう。」
 [chara_shift name="杏" mouth="ANZ_F00_MOU_0005" fade="0.15"]
 	「似合ってる？似合ってます？」
+[chara_shift name="桃子" eye="MMK_F00_EYE04_00" fade="0.15"]
 	//純一//
 	「バッチグー！」
 	「改めて、中学入学おめでとう。」
 [chara_shift name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
 	//杏//
 	「キョーシュクです、ありがとうございます！」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0004" fade="0.15"]
+[chara_shift name="杏" torso="ANZ_T01_0004" eye="ANZ_F01_EYE_0009" mouth="ANZ_F01_MOU_0006" brow="ANZ_F01_BRO_0001" cheek="ANZ_F01_CHE_0002" fade="0.15"]
+	//杏//
 	「おねぇ、今日は帰りがはやいね。」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
 	//桃子//
 	「部活なくなっちゃったの。」
-[chara_shift name="桃子" mouth="MMK_F00_MOU02_00" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F00_EYE05_00" mouth="MMK_F00_MOU17_00" fade="0.15"]
+	//桃子//
 	「なんかね、コートにコブラが出たんだってー。」
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0002" blink="true" fade="0.15"]
 	//杏//
@@ -500,7 +503,7 @@
 [chara_shift name="杏" torso="ANZ_T00_0002" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
 	//杏//
 	「お父さんにいっぱい教えてもらったんです！」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM19_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
 	//桃子//
 	「あれ、なんで私は覚えてないんだろ？」
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0002" blink="true" fade="0.15"]
@@ -514,6 +517,8 @@
 	//杏//
 [chara_shift name="杏" eye="ANZ_F00_EYE_0003" mouth="ANZ_F00_MOU_0002" brow="ANZ_F00_BRO_0002" fade="0.15"]
 	「褒めてないよ。」
+[chara_shift name="桃子" template="通常・口閉じ" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+[chara_shift name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	//純一//
 	「あ、杏ちゃんの部活は？」
 	「いろんな部活に体験入部してるって桃子から聞いてたけど。」
@@ -540,7 +545,7 @@
 	//純一//
 	「う～～ん、相変わらずかな。」
 	「ぼちぼち、ぼちぼちとね。」
-[chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0002" blink="true" fade="0.15"]
+[chara_shift name="杏" torso="ANZ_T01_0006" eye="ANZ_F01_EYE_0004" mouth="ANZ_F01_MOU_0011" brow="ANZ_F01_BRO_0002" cheek="ANZ_F01_CHE_0001" fade="0.15"]
 	//杏//
 	「えー、彼女とか、まだいらっしゃらないんですか？」
 	//純一//
@@ -548,52 +553,91 @@
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU15_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
 	//桃子//
 	「――こら、純一を困らせないのっ！」
-[chara_shift name="杏" torso="ANZ_T00_0002" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0003" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
+[chara_shift name="杏" torso="ANZ_T01_0006" eye="ANZ_F01_EYE_0004" mouth="ANZ_F01_MOU_0009" brow="ANZ_F01_BRO_0003" fade="0.15"]
 	//杏//
 	「え？なんで困るの？」
 	//純一//
 	「いないよ。」
 	「非常に残念な事にね。」
-[chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0002" blink="true" fade="0.15"]
+[chara_shift name="杏" template="杏反応" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	//杏//
 	「ふ～～ん、そうでしたか！」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0005" fade="0.15"]
+[chara_shift name="杏" template="杏おちゃらけ" mouth="ANZ_F00_MOU_0014" fade="0.15"]
+[chara_shift]
+	//杏//
 	「それはそれは失礼いたしました。」
 	//純一//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="通常・口閉じ" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
+[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" fade="0.15"]
 	//桃子//
 	「・・・」
 	//純一//
-	「杏ちゃんこそ、そこんとこ、どうなんだい！？」
+	「あー・・・」
+	「むしろ杏ちゃんの方こそ、どうなんだい！？」
 	「ハンサムでイケてる男子達と沢山知り合ったろ？いいねぇ～ﾌﾚｯｼｭﾌﾚｯｼｭ!!」
+[chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	//杏//
-[chara_shift name="杏" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" fade="0.15"]
 	「あ、私はまだ１２歳なので。まだそういうのよく分かりません。」
-[chara_shift name="杏" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0002" fade="0.15"]
+[chara_shift name="杏" template="杏おちゃらけ" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" fade="0.15"]
+	//杏//
 	「それに、おにぃと違って夏になると人恋しくなったりしません。」
 	//純一//
 	「・・・」
+[chara_shift name="杏" template="杏会話" torso="ANZ_T00_0001" mouth="ANZ_F00_MOU_0005" brow="ANZ_F00_BRO_0001" fade="0.15"]
 	//杏//
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0001" fade="0.15"]
 	「五つも年下の女に傷口に塩を塗られて悔しいからって、」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0005" fade="0.15"]
+[chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" fade="0.15"]
+	//杏//
 	「そうは問屋が卸しませんよ？」
+[chara_shift name="杏" template="杏おちゃらけ2" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0002" mouth="ANZ_F00_MOU_0011" fade="0.15"]
 	//純一//
 	「・・・」
-	「・・・おい桃子よ、」
-	「お前の妹はいつからこんなに可愛くなくなっちまったんだ。」
+[chara_shift name="杏" fade="0.15"]
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" fade="0.15"]
+	//純一//
+	「おい桃子」
+[chara_shift name="杏" fade="0.15"]
+	//純一//
+	「お前の妹はいつからこんなになっちまったんだ・・・」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" fade="0.15"]
+[chara_shift]
 	//桃子//
-	「え？杏は今もずっと可愛いよ！」
+	「えー杏はかわってないよぉ～！」
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO01_00" fade="0.15"]
+	//桃子//
+	「ねー杏？」
+[chara_shift name="杏" template="杏笑顔" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0004" fade="0.15"]
+	//杏//
+	「えへへ」
+[chara_shift name="杏" template="杏おちゃらけ" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" fade="0.15"]
+	//杏//
+	「らしいですよ、おにぃ。」
+[chara_shift name="桃子" template="通常・口閉じ" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" fade="0.15"]
 	//純一//
-	「・・・」
-	「あ違う違うそうじゃな――」
+	「そ、そっか。」
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" fade="0.15"]
+	//純一//
+	「きみたち本当に仲いいね・・・」
+	「そういやきみたちだけじゃなくておじさんとおばさんも仲いいよな。」
+	「こないだの日曜日に立川の伊勢丹にいったんだけど、おばさんたちが仲良く買い物しているところを見かけたよ。」
+[chara_shift name="桃子" template="桃子恥ずかしがる" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE00_00" fade="0.15"]
+	//桃子//
+	「えーそうなの？」
+[chara_shift name="杏" template="杏笑顔" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0009" mouth="ANZ_F00_MOU_0013" fade="0.15"]
+	//杏//
+	「初耳です！」
+	//桃子//
+	「話しかけてくれれば良かったのにぃ。」
+	「ママたち喜ぶよ？」
+	
+[chara_shift name="桃子" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU01_01" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 [chara_shift name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0008" mouth="ANZ_F00_MOU_0011" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" blink="true" fade="0.15"]
 	//杏//
-	「丁度よかった！！」
-[chara_shift name="杏" mouth="ANZ_F00_MOU_0004" fade="0.15"]
-	「おにぃ！折角だし、ウチへ寄っていきませんか？」
+	「あっ・・・そうだ！」
+[chara_shift name="杏" mouth=ANZ_F00_MOU_0004" fade="0.15"]
+	「おにぃ、ちょうどいい機会"だし、ウチへ寄っていきませんか？」
 	//純一//
 	「・・・ん？」
 	//杏//
