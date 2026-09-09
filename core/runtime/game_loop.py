@@ -4,7 +4,8 @@ import traceback
 
 import pygame
 
-from core.config import DEBUG
+from core.config import DEBUG, SEED_INPUT_CONFIG, get_configured_key
+from core.ui.debug_hud import get_debug_hud
 
 
 class GameLoop:
@@ -27,6 +28,8 @@ class GameLoop:
     def run_frame(self) -> None:
         app = self.application
         events = app._gather_normalized_events()
+        self._handle_debug_shortcut(events)
+        self._handle_seed_list_shortcut(events)
 
         if getattr(app, "slot_screen", None):
             self._run_slot_frame(events)
@@ -37,10 +40,87 @@ class GameLoop:
                 return
             self._run_subsystem_frame(events)
 
+        virtual_screen = getattr(app, "virtual_screen", None)
+        if virtual_screen is not None:
+            get_debug_hud().render(virtual_screen, app)
         app._present_virtual_screen()
         pygame.display.flip()
         has_modal = app.option_subsystem or getattr(app, "slot_screen", None)
         app.clock.tick(60 if has_modal else 30)
+
+    def _handle_debug_shortcut(self, events) -> None:
+        """F8 is global, except while an IME composition owns that key."""
+        app = self.application
+        subsystem = getattr(app, "current_subsystem", None)
+        game_state = getattr(subsystem, "game_state", {})
+        seed_input = (
+            game_state.get("seed_answer_overlay")
+            if isinstance(game_state, dict)
+            else None
+        )
+        composing = bool(seed_input and getattr(seed_input, "is_composing", False))
+        if (
+            not composing
+            and getattr(subsystem, "state", None)
+            == getattr(subsystem, "NAME_INPUT", None)
+        ):
+            composing = any(
+                field.is_composing
+                for field in getattr(subsystem, "text_inputs", {}).values()
+            )
+
+        remaining = []
+        for event in events:
+            if (
+                not composing
+                and getattr(event, "type", None) == pygame.KEYDOWN
+                and getattr(event, "key", None)
+                == get_configured_key(SEED_INPUT_CONFIG['debug_toggle_key'])
+                and not getattr(event, "repeat", False)
+            ):
+                get_debug_hud().toggle()
+                continue
+            remaining.append(event)
+        events[:] = remaining
+
+    def _handle_seed_list_shortcut(self, events) -> None:
+        """Route F9 before the legacy Dialogue event queue can consume it."""
+        app = self.application
+        subsystem = getattr(app, "current_subsystem", None)
+        game_state = getattr(subsystem, "game_state", None)
+        if not isinstance(game_state, dict):
+            return
+        seed_list = game_state.get("seed_list_overlay")
+        if seed_list is None:
+            return
+        seed_input = game_state.get("seed_answer_overlay")
+        composing = bool(seed_input and getattr(seed_input, "is_composing", False))
+        composing = composing or any(
+            getattr(event, "type", None) == pygame.TEXTEDITING
+            and bool(getattr(event, "text", ""))
+            for event in events
+        )
+        remaining = []
+        for event in events:
+            if (
+                not composing
+                and getattr(event, "type", None) == pygame.KEYDOWN
+                and getattr(event, "key", None)
+                == get_configured_key(SEED_INPUT_CONFIG["seed_list_key"])
+                and not getattr(event, "repeat", False)
+            ):
+                showing = seed_list.toggle()
+                backlog = game_state.get("backlog_manager")
+                if showing and backlog is not None and backlog.is_showing_backlog():
+                    backlog.toggle_backlog()
+                if seed_input is not None:
+                    if showing:
+                        seed_input.suspend()
+                    elif not game_state.get("seed_system_message"):
+                        seed_input.resume()
+                continue
+            remaining.append(event)
+        events[:] = remaining
 
     def _run_slot_frame(self, events) -> None:
         app = self.application
@@ -83,6 +163,9 @@ class GameLoop:
             app.current_subsystem.render()
         if app.option_subsystem:
             app.option_subsystem.render_overlay()
+        virtual_screen = getattr(app, "virtual_screen", None)
+        if virtual_screen is not None:
+            get_debug_hud().render(virtual_screen, app)
         app._present_virtual_screen()
         pygame.display.flip()
         app.clock.tick(60)

@@ -81,6 +81,18 @@ class DialogueSubsystem(SubsystemBase):
                 self.current_event_id,
                 getattr(dialogue_loader, "seed_annotations", {}),
             )
+            from dialogue.seed_list_overlay import SeedListOverlay
+
+            self.game_state["seed_list_overlay"] = SeedListOverlay(
+                self.game_state["screen"],
+                self.seed_manager,
+                text_renderer,
+            )
+        if any(
+            isinstance(item, dict) and item.get("type") == "seed_answer"
+            for item in self.game_state.get("dialogue_data", [])
+        ):
+            self.seed_manager.preload_answer_model()
 
         from dialogue.event_datetime import apply_event_datetime
         if text_renderer is not None:
@@ -145,6 +157,9 @@ class DialogueSubsystem(SubsystemBase):
         """サブシステム終了時: BGM/SE 停止 + 座標系を復元"""
         # BGM / SE 停止
         try:
+            seed_input = self.game_state.get("seed_answer_overlay")
+            if seed_input is not None:
+                seed_input.close()
             if self.game_state.get('bgm_manager'):
                 self.game_state['bgm_manager'].stop_bgm()
             if self.game_state.get('se_manager'):
@@ -451,6 +466,11 @@ class DialogueSubsystem(SubsystemBase):
             update_game(self.game_state)
             update_background_animation(self.game_state)
             update_character_animations(self.game_state)
+            seed_input = self.game_state.get("seed_answer_overlay")
+            if seed_input is not None:
+                from core.ui.debug_hud import get_debug_hud
+
+                seed_input.update(get_debug_hud().enabled)
         except Exception as e:
             print(f"⚠️ DialogueSubsystem update エラー: {e}")
 
@@ -459,7 +479,6 @@ class DialogueSubsystem(SubsystemBase):
         from dialogue.background_manager import draw_background
         from dialogue.character_manager import draw_characters
         from dialogue.fade_manager import draw_fade_overlay
-        from dialogue.controller2 import draw_input_blocked_notice
         from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
 
         gs = self.game_state
@@ -483,8 +502,15 @@ class DialogueSubsystem(SubsystemBase):
         if 'choice_renderer' in gs:
             choice_showing = gs['choice_renderer'].is_choice_showing()
 
+        seed_answer_overlay = gs.get("seed_answer_overlay")
+        seed_input_active = bool(
+            seed_answer_overlay is not None
+            and not getattr(seed_answer_overlay, "suspended", False)
+        )
         if 'text_renderer' in gs:
-            if not choice_showing:
+            if seed_input_active:
+                gs['text_renderer'].render_date()
+            elif not choice_showing:
                 gs['text_renderer'].render_text_window(gs)
             else:
                 # 選択肢表示中はトーク文を隠し、日付時刻だけ表示
@@ -493,16 +519,17 @@ class DialogueSubsystem(SubsystemBase):
         if choice_showing:
             gs['choice_renderer'].render()
 
-        seed_answer_overlay = gs.get("seed_answer_overlay")
-        if seed_answer_overlay is not None:
+        if seed_input_active:
             seed_answer_overlay.render()
+
+        seed_list_overlay = gs.get("seed_list_overlay")
+        if seed_list_overlay is not None:
+            seed_list_overlay.render()
 
         # 通知や入力ブロック表示も会話文字ではないため、バックログの
         # 暗幕より先に描画する。
         if 'notification_manager' in gs:
             gs['notification_manager'].render()
-
-        draw_input_blocked_notice(gs, self.virtual_screen)
 
         # バックログはゲーム画面内の最上位レイヤー。
         if 'backlog_manager' in gs:
@@ -535,7 +562,14 @@ class DialogueSubsystem(SubsystemBase):
 
         gs['screen'] = self.virtual_screen
 
-        for key in ('text_renderer', 'choice_renderer', 'backlog_manager', 'notification_manager'):
+        for key in (
+            'text_renderer',
+            'choice_renderer',
+            'backlog_manager',
+            'notification_manager',
+            'seed_answer_overlay',
+            'seed_list_overlay',
+        ):
             if key in gs and hasattr(gs[key], 'screen'):
                 gs[key].screen = self.virtual_screen
 

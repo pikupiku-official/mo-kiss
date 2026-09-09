@@ -40,6 +40,8 @@ class SemanticAnswerJudge:
         self._np = None
         self._load_lock = threading.Lock()
         self._embedding_cache: dict[str, Any] = {}
+        self.status = "not_loaded"
+        self.load_error = ""
 
     @staticmethod
     def normalize(text: str) -> str:
@@ -138,12 +140,22 @@ class SemanticAnswerJudge:
                 (self._cosine(answer_vector, self._encode(text)) for text in hard_negatives),
                 default=0.0,
             )
-        except Exception as exc:
+        except SemanticJudgeUnavailable as exc:
             return {
                 "result": "error",
                 "confidence": 0.0,
                 "judge_version": version,
                 "reason_codes": ("model_unavailable",),
+                "error_kind": "model_unavailable",
+                "error_detail": str(exc),
+            }
+        except Exception as exc:
+            return {
+                "result": "error",
+                "confidence": 0.0,
+                "judge_version": version,
+                "reason_codes": ("judge_error",),
+                "error_kind": "judge_error",
                 "error_detail": str(exc),
             }
 
@@ -200,37 +212,57 @@ class SemanticAnswerJudge:
         with self._load_lock:
             if self._session is not None:
                 return
-            if not os.path.isfile(self.model_path):
-                raise SemanticJudgeUnavailable(f"ONNX model not found: {self.model_path}")
-            if not os.path.isfile(self.tokenizer_path):
-                raise SemanticJudgeUnavailable(
-                    f"tokenizer not found: {self.tokenizer_path}"
-                )
+            self.status = "loading"
             try:
+                if not os.path.isfile(self.model_path):
+                    raise SemanticJudgeUnavailable(
+                        f"ONNX model not found: {self.model_path}"
+                    )
+                if not os.path.isfile(self.tokenizer_path):
+                    raise SemanticJudgeUnavailable(
+                        f"tokenizer not found: {self.tokenizer_path}"
+                    )
                 import numpy as np
                 import onnxruntime as ort
                 import sentencepiece as spm
+                options = ort.SessionOptions()
+                options.graph_optimization_level = (
+                    ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                )
+                session = ort.InferenceSession(
+                    self.model_path,
+                    sess_options=options,
+                    providers=["CPUExecutionProvider"],
+                )
+                # SentencePiece's Windows extension cannot open paths containing
+                # Japanese characters reliably. Serialized bytes avoid its native
+                # filesystem API.
+                with open(self.tokenizer_path, "rb") as handle:
+                    tokenizer_proto = handle.read()
+                tokenizer = spm.SentencePieceProcessor(model_proto=tokenizer_proto)
             except ImportError as exc:
+                self.status = "unavailable"
+                self.load_error = "onnxruntime, sentencepiece, and numpy are required"
+                raise SemanticJudgeUnavailable(self.load_error) from exc
+            except SemanticJudgeUnavailable as exc:
+                self.status = "unavailable"
+                self.load_error = str(exc)
+                raise
+            except (OSError, RuntimeError, ValueError) as exc:
+                self.status = "unavailable"
+                self.load_error = str(exc)
                 raise SemanticJudgeUnavailable(
-                    "onnxruntime, sentencepiece, and numpy are required"
+                    f"failed to initialize bundled semantic model: {exc}"
                 ) from exc
 
-            options = ort.SessionOptions()
-            options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            self._session = ort.InferenceSession(
-                self.model_path,
-                sess_options=options,
-                providers=["CPUExecutionProvider"],
-            )
-            # SentencePiece's Windows extension cannot open paths containing
-            # Japanese characters reliably. Loading serialized bytes keeps the
-            # workspace path out of the native filesystem API.
-            with open(self.tokenizer_path, "rb") as handle:
-                tokenizer_proto = handle.read()
-            self._tokenizer = spm.SentencePieceProcessor(
-                model_proto=tokenizer_proto
-            )
+            self._session = session
+            self._tokenizer = tokenizer
             self._np = np
+            self.status = "ready"
+            self.load_error = ""
+
+    def preload(self) -> None:
+        self._load()
 
     def _encode(self, text: str):
         cached = self._embedding_cache.get(text)
