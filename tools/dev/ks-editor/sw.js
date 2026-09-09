@@ -1,4 +1,4 @@
-const CACHE_NAME = "mo-kiss-ks-editor-v1";
+const CACHE_NAME = "mo-kiss-ks-editor-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -32,7 +32,9 @@ self.addEventListener("fetch", (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     try {
-      const response = await fetch(request);
+      // App shell updates must not be hidden by the browser's HTTP cache.
+      const networkRequest = isAppAsset ? new Request(request, { cache: "no-store" }) : request;
+      const response = await fetch(networkRequest);
       if (response.ok || response.type === "opaque") {
         cache.put(request, response.clone()).catch(() => {});
       }
