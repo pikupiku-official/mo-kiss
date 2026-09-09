@@ -20,105 +20,66 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install sshpass + rsync
         run: |
           timeout 5m sudo env DEBIAN_FRONTEND=noninteractive \
             apt-get install -y --no-install-recommends sshpass rsync
 
-      - name: Find existing public web roots
-        run: |
-          export SSHPASS="$SSH_PASS"
-          sshpass -e ssh \
-            -p "${SSH_PORT:-22}" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$SSH_USER@$SSH_HOST" \
-            'printf "home=%s\\n" "$HOME"; printf "existing_editor_roots=\\n"; {
-               find "$HOME" -path "*/dev/ks-editor/deploy-version.txt" -exec dirname {} \; 2>/dev/null;
-               find "$HOME" -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null;
-             } | sed "s#/dev/ks-editor$##" | sort -u | head -20'
-
       - name: Deploy
         run: |
+          set -euo pipefail
+
+          for required in SSH_HOST SSH_USER SSH_PASS; do
+            if [ -z "${!required:-}" ]; then
+              echo "::error::Repository secret ${required} is not configured"
+              exit 1
+            fi
+          done
+
           export SSHPASS="$SSH_PASS"
           printf '%s\n' "$GITHUB_SHA" > ./tools/dev/ks-editor/deploy-version.txt
 
-          # Deploy to every root that already contains the editor marker or index.
-          WEB_PATHS=$(sshpass -e ssh \
-            -p "${SSH_PORT:-22}" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$SSH_USER@$SSH_HOST" \
-            '{
-               find "$HOME" -path "*/dev/ks-editor/deploy-version.txt" -exec dirname {} \; 2>/dev/null;
-               find "$HOME" -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null;
-             } | sed "s#/dev/ks-editor$##" | sort -u' 2>/dev/null)
+          # Lolipop serves the configured "mokiss" upload folder from
+          # $HOME/web/mokiss. Use rsync's one SSH session both to create the
+          # destination and upload, avoiding repeated connections that the
+          # shared SSH host can close with exit code 255.
+          echo "Deploying to Lolipop upload folder: web/mokiss/dev/"
+          DEPLOYED=false
+          for attempt in 1 2 3; do
+            if sshpass -e rsync -avz \
+              --ignore-times \
+              --timeout=60 \
+              --exclude=api_config.php \
+              --rsync-path='printf "remote_home=%s\\n" "$HOME" >&2; mkdir -p "$HOME/web/mokiss/dev" && exec rsync' \
+              -e "ssh -p ${SSH_PORT:-2222} -o ConnectTimeout=20 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              ./tools/dev/ \
+              "${SSH_USER}@${SSH_HOST}:web/mokiss/dev/"; then
+              DEPLOYED=true
+              break
+            fi
 
-          # Also include the known Lolipop site-root candidates when they already have dev/.
-          CANDIDATE_PATHS=$(sshpass -e ssh \
-            -p "${SSH_PORT:-22}" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$SSH_USER@$SSH_HOST" \
-            'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp" "$HOME/www" "$HOME/public_html"; do
-               if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; fi
-             done')
-          WEB_PATHS=$(printf "%s\\n%s\\n" "$WEB_PATHS" "$CANDIDATE_PATHS" | sed "/^$/d" | sort -u)
+            echo "::warning::SSH/rsync attempt ${attempt} failed"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
 
-          if [ -z "$WEB_PATHS" ]; then
-            # First deployment fallback. Include every candidate that has a dev directory.
-            WEB_PATHS=$(sshpass -e ssh \
-              -p "${SSH_PORT:-22}" \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              "$SSH_USER@$SSH_HOST" \
-              'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp"; do
-                 if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; fi
-               done')
-          fi
-
-          if [ -z "$WEB_PATHS" ]; then
-            echo "ERROR: Could not find the public web root on the SSH host"
+          if [ "$DEPLOYED" != true ]; then
+            echo "::error::Lolipop closed all three SSH/rsync attempts"
             exit 1
           fi
 
-          while IFS= read -r WEB_PATH; do
-            [ -z "$WEB_PATH" ] && continue
-            echo "Deploying to: ${WEB_PATH}/dev/"
-            sshpass -e ssh \
-              -p "${SSH_PORT:-22}" \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              "$SSH_USER@$SSH_HOST" \
-              "mkdir -p \"${WEB_PATH}/dev/ks-editor\""
-
-            sshpass -e rsync -avz \
-              --ignore-times \
-              --exclude=api_config.php \
-              -e "ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-              ./tools/dev/ \
-              "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
-
-            REMOTE_SHA=$(sshpass -e ssh \
-              -p "${SSH_PORT:-22}" \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              "$SSH_USER@$SSH_HOST" \
-              "cat \"${WEB_PATH}/dev/ks-editor/deploy-version.txt\"")
-
-            if [ "$REMOTE_SHA" != "$GITHUB_SHA" ]; then
-              echo "Remote deploy verification failed for ${WEB_PATH}: expected $GITHUB_SHA, got $REMOTE_SHA"
-              exit 1
-            fi
-          done <<< "$WEB_PATHS"
-
       - name: Verify public deployment
         run: |
-          # Shared hosting may need a short time before Apache serves the new file.
-          for attempt in $(seq 1 20); do
+          # Static files are normally visible immediately. Retry briefly for a
+          # transient edge cache, but do not hide a wrong document root for two minutes.
+          PUBLIC_SHA=""
+          for attempt in $(seq 1 5); do
             PUBLIC_SHA=$(curl --fail --silent --show-error --location \
+              --connect-timeout 10 \
+              --max-time 20 \
               -H 'Cache-Control: no-cache' \
               "https://mokiss.jp/dev/ks-editor/deploy-version.txt?deploy=${GITHUB_SHA}&attempt=${attempt}&ts=$(date +%s%N)" || true)
             if [ "$PUBLIC_SHA" = "$GITHUB_SHA" ]; then
@@ -126,8 +87,9 @@ jobs:
               exit 0
             fi
             echo "Attempt ${attempt}: expected $GITHUB_SHA, got ${PUBLIC_SHA:-<empty>}"
-            sleep 5
+            sleep 3
           done
 
-          echo "Public deployment verification failed"
+          echo "::error::SSH upload succeeded, but mokiss.jp is serving ${PUBLIC_SHA:-<empty>} instead of $GITHUB_SHA"
+          echo "::error::Expected Lolipop document root: \$HOME/web/mokiss (upload folder: mokiss)"
           exit 1

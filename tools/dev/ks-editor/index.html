@@ -1,268 +1,25 @@
 <!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>mo-kiss KSエディタ</title>
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#3c3f41">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<!-- build: 2026-06-09 -->
-<style>
-*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-:root {
-  --bg:      #2b2b2b;
-  --panel:   #313335;
-  --panel2:  #3c3f41;
-  --border:  #555;
-  --text:    #bbbbbb;
-  --text2:   #e0e0e0;
-  --sel:     #214283;
-  --blue:    #3592c4;
-  --accent:  #cc7832;
-  --green:   #6a8759;
-  --comment: #808080;
-  --match-bg:#614a00;
-  --match-fg:#ffdd57;
-  --cur-bg:  #994500;
-  --cur-fg:  #ffffff;
-  --btn:     #3c3f41;
-  --bord:    #666;
-  --hover:   #4e5254;
-  --press:   #282a2c;
-  --danger:  #c75450;
-  --warn:    #e6b422;
-}
-html,body { height:100%; font-size:13px; }
-body { font-family:"Segoe UI","Meiryo UI",sans-serif; background:var(--bg); color:var(--text); -webkit-text-size-adjust:100%; }
-
-/* ===== ログイン ===== */
-#login-view { display:flex; justify-content:center; align-items:center; min-height:100vh; background:linear-gradient(180deg, #c0c0c0 0%, #a8a8a8 100%); }
-#login-box { background:#e0e0e0; border:2px solid #808080; padding:28px 24px; width:280px; box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #404040; }
-#login-box h2 { font-size:14px; font-weight:normal; color:#000000; text-align:center; margin-bottom:16px; border-bottom:1px solid #808080; padding-bottom:10px; }
-.flabel { font-size:11px; color:#000000; margin-bottom:3px; }
-#login-box input { display:block; width:100%; padding:6px 8px; margin-bottom:12px; background:#ffffff; border:2px inset #ffffff; color:#000000; font-size:13px; outline:none; font-family:inherit; }
-#login-box input:focus { border-color:#000080; }
-#login-btn { width:100%; padding:7px; background:#e0e0e0; border:2px outset #ffffff; color:#000000; font-size:13px; cursor:pointer; font-family:inherit; }
-#login-btn:hover { background:#d0d0d0; }
-#login-err { color:#a52a2a; font-size:11px; text-align:center; margin-top:8px; }
-
-/* ===== 共通ボタン ===== */
-.hidden { display:none !important; }
-.mbtn { background:transparent; border:1px solid transparent; color:var(--text); font-size:12px; padding:3px 9px; cursor:pointer; font-family:inherit; white-space:nowrap; }
-.mbtn:hover  { background:var(--hover); border-color:var(--border); }
-.mbtn:active { background:var(--press); }
-.mbtn.danger { color:var(--danger); }
-.mbtn.danger:hover { background:#4a2020; border-color:var(--danger); }
-.mbtn.active { background:var(--sel); border-color:var(--blue); color:#fff; }
-.smbtn { background:var(--btn); border:1px solid var(--bord); color:var(--text); font-size:11px; padding:2px 8px; cursor:pointer; font-family:inherit; }
-.smbtn:hover { background:var(--hover); }
-.msep { width:1px; height:16px; background:var(--border); margin:0 3px; }
-
-/* ===== レイアウト ===== */
-#main-view { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-
-/* メニューバー */
-#menubar { background:var(--panel2); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:2px; padding:3px 6px; flex-shrink:0; flex-wrap:wrap; }
-#menubar h1 { font-size:12px; font-weight:normal; color:var(--comment); margin-right:6px; white-space:nowrap; }
-
-/* 検索バー */
-#find-bar { background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:4px; padding:3px 8px; flex-shrink:0; }
-#find-input { width:180px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:3px 7px; outline:none; font-family:inherit; }
-#find-input:focus { border-color:var(--blue); }
-#find-count { font-size:11px; color:var(--comment); min-width:70px; }
-
-/* コンテンツ */
-#content-area { flex:1; display:flex; overflow:hidden; min-height:0; }
-
-/* ===== 一覧 ===== */
-#list-panel { flex:1; overflow:auto; padding:8px; }
-#list-toolbar { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
-#search-box { flex:1; max-width:240px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:4px 8px; outline:none; font-family:inherit; }
-#search-box:focus { border-color:var(--blue); }
-#file-count { font-size:11px; color:var(--comment); }
-#file-table { width:100%; border-collapse:collapse; }
-#file-table th { text-align:left; font-size:11px; font-weight:normal; color:var(--comment); padding:3px 8px; border-bottom:1px solid var(--border); background:var(--panel2); position:sticky; top:0; z-index:10; }
-#file-table td { padding:4px 8px; font-size:12px; border-bottom:1px solid #3a3a3a; }
-tr.file-row { cursor:pointer; }
-tr.file-row:hover td { background:var(--panel2); }
-.td-name { color:var(--text2); font-family:"Courier New",monospace; }
-.td-size { color:var(--comment); text-align:right; white-space:nowrap; }
-#no-result { color:var(--comment); padding:20px 8px; font-size:12px; }
-
-/* ===== ファイルビュー ===== */
-#file-panel { flex:1; display:flex; overflow:hidden; min-width:0; }
-#mobile-preview-dock { display:none; }
-
-/* アウトラインサイドバー */
-#outline-sidebar { width:160px; flex-shrink:0; border-right:1px solid var(--border); overflow:auto; background:var(--panel); }
-#outline-title { font-size:10px; color:var(--comment); padding:4px 8px; border-bottom:1px solid var(--border); background:var(--panel2); text-transform:uppercase; letter-spacing:1px; }
-.para-item { padding:4px 8px; font-size:11px; color:var(--blue); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:"Courier New",monospace; border-bottom:1px solid #3a3a3a; }
-.para-item:hover { background:var(--panel2); }
-
-/* KSコード（行番号つき） */
-#ks-wrap { flex:1; overflow:auto; background:#1e1e1e; font-family:"Courier New",monospace; min-width:0; }
-#ks-table { border-collapse:collapse; min-width:100%; }
-#ks-table td { vertical-align:top; padding:0; }
-.ln-col { background:#2b2b2b; color:#606366; font-size:12px; line-height:1.6; padding:1px 6px 1px 8px; text-align:right; user-select:none; border-right:1px solid #3a3a3a; white-space:nowrap; position:sticky; left:0; z-index:5; vertical-align:top; }
-.code-col { padding:1px 12px; font-size:12px; line-height:1.6; white-space:pre-wrap; word-break:break-all; color:#a9b7c6; min-width:0; }
-#ks-tbody tr:first-child td { padding-top:8px; }
-#ks-tbody tr:last-child td  { padding-bottom:8px; }
-
-/* 編集モードtextarea */
-#edit-textarea { width:100%; min-height:100%; padding:8px 12px; font-size:12px; line-height:1.6; font-family:"Courier New",monospace; background:#1e1e1e; color:#a9b7c6; border:none; outline:none; resize:none; white-space:pre; }
-
-/* KS構文色 */
-.k-label   { color:var(--accent); font-weight:bold; }
-.k-tag     { color:var(--blue); }
-.k-comment { color:var(--comment); font-style:italic; }
-.k-dialog  { color:var(--green); }
-mark.hit   { background:var(--match-bg); color:var(--match-fg); }
-mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
-
-/* ===== Stepパネル (オーバーレイ） ===== */
-#step-panel{
-  position:fixed; left:0; right:0; bottom:0; z-index:500;
-  max-height:60vh; overflow-y:auto;
-  background:var(--panel); border-top:2px solid var(--blue);
-  display:flex; flex-direction:column;
-  box-shadow:0 -4px 20px rgba(0,0,0,.5);
-  transition:transform .2s ease;
-}
-#step-panel.sp-closed{ transform:translateY(100%); pointer-events:none; }
-#step-panel-head{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:6px 12px;background:var(--panel2);border-bottom:1px solid var(--border);
-  flex-shrink:0; position:sticky; top:0;
-}
-#step-panel-title{font-size:12px;color:var(--blue);font-weight:bold;}
-#step-panel-nav{display:flex;gap:4px;margin-left:auto;}
-.sp-body{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0; }
-.sp-field{padding:6px 10px;border-bottom:1px solid #3a3a3a;}
-.sp-label{font-size:10px;color:var(--comment);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
-.sp-input,.sp-textarea{
-  width:100%;background:#1e1e1e;border:1px solid var(--border);
-  color:var(--text2);font-size:13px;padding:5px 7px;outline:none;font-family:inherit;
-}
-.sp-textarea{font-family:"Courier New",monospace;resize:vertical;}
-.sp-input:focus,.sp-textarea:focus{border-color:var(--blue);}
-.sp-check{font-size:13px;color:var(--text);cursor:pointer;line-height:2;}
-.sp-check input{margin-right:6px;transform:scale(1.2);}
-#step-action-tools{display:flex;gap:5px;margin-top:5px;}
-#step-tag-select{flex:1;min-width:0;background:#1e1e1e;border:1px solid var(--border);color:var(--text2);padding:5px;font-size:12px;}
-#step-add-tag{white-space:nowrap;}
-#step-btns{padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--panel2);border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;z-index:3;box-shadow:0 -3px 10px rgba(0,0,0,.35);}
-#step-save-state{font-size:11px;color:var(--comment);margin-left:auto;white-space:nowrap;}
-#step-save-state.unsaved{color:#ffd866;font-weight:bold;}
-#step-save-github{background:#287a36;color:#fff;font-weight:bold;border-color:#45a958;}
-#step-save-github.saved{background:#3c3f41;color:#9ca3a8;border-color:#666;}
-#step-save-github.busy{opacity:.65;pointer-events:none;}
-#metadata-fields{max-height:65vh;overflow:auto;}
-.metadata-field{margin-bottom:9px;}
-.metadata-field label{display:block;color:var(--comment);font-size:10px;margin-bottom:3px;}
-.metadata-field input{margin-bottom:0;}
-/* ビューモードのコード行 */
-.step-line{cursor:pointer;}
-.step-line:hover{filter:brightness(1.3);}
-/* ===== ステータスバー ===== */
-#statusbar { background:var(--panel2); border-top:1px solid var(--border); display:flex; align-items:center; gap:16px; padding:2px 10px; flex-shrink:0; font-size:11px; color:var(--comment); }
-#statusbar span { white-space:nowrap; }
-#sb-mode { color:var(--warn); font-weight:bold; }
-#sb-connection { color:var(--green); }
-#sb-connection.offline { color:var(--warn); }
-#sb-connection.pending { color:var(--accent); }
-.spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
-/* ===== モーダル ===== */
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; justify-content:center; align-items:center; z-index:1000; }
-.modal-box { background:var(--panel); border:1px solid var(--border); padding:20px; min-width:280px; max-width:90vw; }
-.modal-box h3 { font-size:13px; font-weight:normal; color:var(--text2); margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:8px; }
-.modal-box input { display:block; width:100%; padding:6px 8px; margin-bottom:10px; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); font-size:13px; outline:none; font-family:inherit; }
-.modal-box input:focus { border-color:var(--blue); }
-.modal-row { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
-.modal-note { font-size:11px; color:var(--comment); margin-bottom:8px; line-height:1.5; }
-
-/* ===== ゲームプレビュー ===== */
-.preview-modal { padding:10px; }
-.preview-box { width:min(1180px,96vw); max-height:96vh; padding:0; display:flex; flex-direction:column; }
-.preview-head { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--panel2); border-bottom:1px solid var(--border); }
-.preview-title { color:var(--blue); font-size:12px; font-weight:bold; }
-.preview-stage { background:#111; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; touch-action:pan-y; }
-.preview-stage canvas { display:block; width:100%; height:auto; max-height:calc(96vh - 90px); aspect-ratio:4/3; object-fit:contain; }
-.preview-controls { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:7px 10px; background:var(--panel2); border-top:1px solid var(--border); }
-#preview-range { flex:1; min-width:140px; accent-color:var(--blue); }
-#preview-status { font-size:11px; color:var(--comment); min-width:110px; text-align:center; }
-.chara-box { width:min(1120px,96vw); max-height:96vh; padding:0; display:grid; grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr); overflow:hidden; }
-.chara-stage { background:#1e1e1e; display:flex; align-items:center; min-height:0; }
-.chara-stage canvas { width:100%; height:auto; max-height:96vh; aspect-ratio:4/3; object-fit:contain; }
-.chara-form { padding:12px; overflow:auto; background:var(--panel); }
-.chara-form h3 { margin-bottom:10px; }
-.chara-field { margin-bottom:7px; }
-.chara-field label { display:block; color:var(--comment); font-size:10px; margin-bottom:2px; }
-.chara-field input,.chara-field select { width:100%; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); padding:5px; font-size:12px; }
-.chara-field.mismatch select { border-color:#ffcc00; background:#4a3a00; }
-.chara-field.changed select { border-color:#6a8759; background:#263d26; }
-.chara-actions { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
-.scene-box { width:min(1240px,98vw); max-height:96vh; padding:0; overflow:hidden; }
-.scene-layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(260px,.7fr); min-height:0; max-height:calc(96vh - 44px); }
-.scene-stage { background:#111; display:flex; align-items:center; justify-content:center; min-width:0; overflow:hidden; }
-.scene-stage canvas { display:block; width:100%; height:auto; max-height:calc(96vh - 44px); aspect-ratio:4/3; object-fit:contain; touch-action:none; }
-.scene-inspector { padding:10px; overflow:auto; background:var(--panel); }
-.scene-objects { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
-.scene-object { width:100%; text-align:left; padding:6px 8px; background:var(--btn); border:1px solid var(--border); color:var(--text2); cursor:pointer; font:12px inherit; }
-.scene-object.selected { border-color:var(--blue); background:var(--sel); color:#fff; }
-.scene-properties { border-top:1px solid var(--border); padding-top:9px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
-.scene-properties .sp-label, .scene-properties button { grid-column:1/-1; }
-.scene-properties label { color:var(--comment); font-size:10px; }
-.scene-properties input { width:100%; box-sizing:border-box; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); padding:5px; font:12px inherit; }
-.scene-actions { display:flex; flex-wrap:wrap; gap:5px; margin:12px 0; }
-.scene-actions button { flex:1 1 30%; min-width:75px; }
-@media (max-width:700px) {
-  #menubar { padding:4px; gap:3px; overflow-x:auto; flex-wrap:nowrap; }
-  #menubar h1 { display:none; }
-  #menubar .mbtn { min-height:40px; padding:7px 10px; }
-  #content-area { overflow:hidden; }
-  #file-panel { flex-direction:column; }
-  #mobile-preview-dock { display:flex; flex:0 0 auto; flex-direction:column; background:#111; border-bottom:2px solid var(--blue); }
-  #mobile-preview-head { display:flex; align-items:center; gap:6px; min-height:34px; padding:4px 8px; background:var(--panel2); }
-  #mobile-preview-title { color:var(--blue); font-size:11px; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #mobile-preview-stage { display:flex; align-items:center; justify-content:center; min-height:0; max-height:38dvh; overflow:hidden; background:#111; }
-  #mobile-preview-canvas { display:block; width:100%; height:auto; aspect-ratio:4/3; object-fit:contain; }
-  #mobile-preview-controls { display:flex; align-items:center; gap:5px; padding:4px 6px; background:var(--panel2); }
-  #mobile-preview-controls .smbtn { min-width:42px; min-height:36px; }
-  #mobile-preview-status { flex:1; text-align:center; font-size:10px; color:var(--comment); }
-  #outline-sidebar { width:100%; max-height:72px; border-right:0; border-bottom:1px solid var(--border); }
-  #outline-title { display:none; }
-  #outline-list { display:flex; overflow-x:auto; }
-  .para-item { min-width:130px; border-right:1px solid #3a3a3a; border-bottom:0; }
-  #ks-wrap { min-height:0; }
-  #list-panel { padding:6px; }
-  #list-toolbar { position:sticky; top:0; z-index:20; padding:4px 0; background:var(--bg); }
-  #file-table th, #file-table td { padding:9px 8px; }
-  #statusbar { min-height:28px; padding:4px 8px; gap:8px; overflow:hidden; }
-  #sb-file { overflow:hidden; text-overflow:ellipsis; }
-  #sb-lines, #sb-size { display:none; }
-  #sb-connection { margin-left:auto; }
-  .preview-modal { padding:0; align-items:stretch; }
-  .preview-box { width:100vw; max-height:100dvh; height:100dvh; border:0; }
-  .preview-stage { flex:1; }
-  .preview-stage canvas { max-height:none; }
-  .chara-box { width:100vw; max-height:100dvh; height:100dvh; grid-template-columns:1fr; grid-template-rows:minmax(220px,42vh) 1fr; border:0; }
-  .chara-stage canvas { max-height:42vh; }
-  .chara-form { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
-  .scene-box { width:100vw; max-height:100dvh; height:100dvh; border:0; }
-  .scene-layout { grid-template-columns:1fr; grid-template-rows:minmax(0,48dvh) 1fr; max-height:none; height:calc(100dvh - 44px); }
-  .scene-stage canvas { max-height:48dvh; }
-  .scene-inspector { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
-  #step-panel{max-height:88dvh;}
-  #step-btns .smbtn{min-height:42px;padding:8px 10px;}
-  #step-save-state{order:20;width:100%;margin-left:0;text-align:right;}
-  #step-save-github{order:21;flex:1 1 100%;font-size:14px;min-height:48px !important;}
-}
-</style>
-</head>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>mo-kiss KSエディタ</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#000080"><style>
+:root{--bg:#c0c0c0;--panel:#d4d0c8;--blue:#000080;--dark:#404040;--shadow:#808080;--green:#008000}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font:13px "MS Sans Serif",Tahoma,"Yu Gothic UI",sans-serif;color:#000;background:var(--bg)}button,input,select,textarea{font:inherit}button{color:#000;cursor:pointer}.hidden{display:none!important}
+#login-view{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#008080}#login-box{width:min(360px,calc(100vw - 28px));padding:4px 10px 12px;background:var(--panel);border:2px outset #fff;box-shadow:2px 2px var(--dark)}#login-box h2{margin:0 -6px 12px;padding:4px 7px;background:var(--blue);color:#fff;font-size:13px}#login-box input{width:100%;background:#fff;border:2px inset #fff;padding:5px}#login-btn,.mbtn,.smbtn{min-height:28px;padding:4px 10px;background:var(--panel);border:2px outset #fff;border-radius:0}#login-btn:active,.mbtn:active,.smbtn:active{border-style:inset}#login-btn{width:100%;margin-top:8px}
+#main-view{width:100%;height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}#menubar{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:3px 5px;min-height:36px;background:var(--blue);color:#fff;overflow-x:auto}#menubar h1{margin:0 10px 0 3px;font-size:13px;color:#fff;white-space:nowrap}#menubar .msep{width:1px;height:24px;background:#8080c0}#menubar .mbtn{color:#000;min-height:28px;white-space:nowrap;flex:0 0 auto}#menubar .mbtn.active{background:var(--blue);color:#fff;border-style:inset}#menubar #btn-logout{margin-left:auto}
+#find-bar{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--shadow)}#content-area{min-height:0;flex:1 1 auto;display:flex;overflow:hidden}
+#list-panel{flex:1;min-width:0;min-height:0;overflow:auto;padding:8px;background:var(--bg)}#list-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px;padding:4px;background:var(--panel);border:2px inset #fff}#event-search{flex:1 1 220px;min-width:150px}#event-search,#find-input,.sp-input,.sp-textarea,#login-box input,.modal-box input,.chara-field input,.chara-field select,.scene-properties input{background:#fff;color:#000;border:2px inset #fff;border-radius:0;padding:5px}#file-table{width:100%;border-collapse:collapse;background:#fff;border:2px inset #fff}#file-table th{position:sticky;top:0;padding:5px;text-align:left;color:#fff;background:var(--blue)}#file-table td{padding:6px;border-bottom:1px solid #d0d0d0}#file-table tr.file-row:hover td{background:#dfefff}.td-name{font-family:"Courier New",monospace}
+#file-panel{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--bg)}#file-panel[style*="display: none"]{display:none!important}#mobile-preview-dock{order:1;display:flex;flex:0 0 auto;flex-direction:column;background:#000;border:2px inset #fff}#mobile-preview-head,#mobile-preview-controls{display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--panel)}#mobile-preview-title{overflow:hidden;flex:1;white-space:nowrap;text-overflow:ellipsis;font-weight:bold}#mobile-preview-stage{position:relative;display:flex;align-items:center;justify-content:center;height:min(38dvh,420px);min-height:170px;overflow:hidden;background:#000}#mobile-preview-canvas{display:block;width:100%;height:100%;object-fit:contain;touch-action:none}#mobile-preview-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#mobile-preview-status{flex:1;text-align:center}#preview-hint{padding:3px 6px;color:#fff;background:#000;font-size:11px}
+#outline-sidebar{order:2;flex:0 0 auto;width:100%;max-height:0;overflow:hidden;background:var(--panel);border-bottom:1px solid var(--shadow)}#outline-sidebar.drawer-open{max-height:42dvh;overflow:auto}#outline-title{padding:4px 6px;color:#fff;background:var(--blue);font-weight:bold}#outline-list{display:flex;flex-direction:column}.para-item{padding:7px 9px;border-bottom:1px solid #aaa;background:var(--panel);cursor:pointer}.para-item:hover{background:#dfefff}
+#ks-wrap{order:3;flex:1;min-height:0;overflow:auto;background:#fff;border:2px inset #fff}#ks-table{width:100%;border-collapse:collapse;font-family:"Courier New",monospace;white-space:pre-wrap}#ks-table td{vertical-align:top;padding:2px 6px;line-height:1.45}.ln-col{width:4em;color:#666;text-align:right;user-select:none;background:#e4e4e4;border-right:1px solid #aaa}.code-col{color:#000}.step-line{cursor:pointer}.step-line:hover td{background:#dfefff}#edit-textarea{display:block;width:100%;height:100%;resize:none;border:0;outline:0;font-family:"Courier New",monospace;white-space:pre}
+#file-panel.step-workspace #ks-wrap{display:none}#file-panel.raw-workspace #mobile-preview-dock,#file-panel.raw-workspace #outline-sidebar,#file-panel.raw-workspace #step-panel{display:none!important}#file-panel.raw-workspace #ks-wrap{display:block}
+#step-panel{order:4;display:flex;flex:1;flex-direction:column;min-height:0;overflow:hidden;background:var(--panel);border:2px inset #fff}#step-panel.sp-closed{display:none}#step-panel-head{display:flex;align-items:center;gap:7px;flex:0 0 auto;padding:5px 7px;color:#fff;background:var(--blue)}#step-panel-title{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#step-panel-head>span:nth-child(2){flex:1;color:#fff!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#step-panel-nav{display:flex;gap:4px}.sp-body{display:grid;grid-template-columns:minmax(160px,.7fr) minmax(260px,1.3fr);flex:1 1 auto;min-height:0;overflow:auto}.sp-field{padding:7px;border-bottom:1px solid #aaa}.sp-textarea{width:100%;resize:vertical;min-height:72px}#step-actions{min-height:104px;font-family:"Courier New",monospace}#step-action-tools{display:flex;gap:5px;margin-top:5px}#step-tag-select{flex:1;min-width:0;background:#fff;border:2px inset #fff}#step-btns{display:flex;flex-wrap:wrap;gap:5px;padding:6px;background:var(--panel);border-top:2px groove #fff;flex:0 0 auto}#step-save-state{margin-left:auto;align-self:center;font-size:11px}#step-save-github{background:var(--green);color:#fff;font-weight:bold}#statusbar{flex:0 0 auto;display:flex;gap:12px;min-height:25px;align-items:center;padding:3px 6px;background:var(--panel);border-top:2px groove #fff;font-size:11px}#sb-msg{margin-left:auto}
+.modal-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.45)}.modal-box{width:min(560px,96vw);max-height:96dvh;overflow:auto;padding:4px 8px 10px;background:var(--panel);border:2px outset #fff;box-shadow:2px 2px var(--dark)}.modal-box h3,.preview-head{margin:0 -4px 10px;padding:5px 7px;color:#fff;background:var(--blue);font-size:13px}.modal-note{margin:6px 0;font-size:11px;line-height:1.5}.modal-row,.chara-actions,.scene-actions,.preview-controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;margin-top:10px}.preview-box{width:min(1120px,98vw);padding:0}.preview-stage,.chara-stage,.scene-stage{background:#000}.preview-stage canvas,.chara-stage canvas,.scene-stage canvas{display:block;width:100%;height:auto;max-height:78dvh;object-fit:contain}.preview-controls{align-items:center;padding:6px;margin:0;background:var(--panel)}#preview-range{flex:1;min-width:130px}.chara-box{width:min(1120px,98vw);display:grid;grid-template-columns:1.6fr .9fr;padding:0;overflow:hidden}.chara-form,.scene-inspector{padding:8px;overflow:auto}.chara-field{margin:6px 0}.chara-field label,.scene-properties label{display:block;font-size:11px}.chara-field input,.chara-field select,.scene-properties input{width:100%}.scene-box{width:min(1240px,98vw);padding:0;overflow:hidden}.scene-layout{display:grid;grid-template-columns:1.6fr .9fr;max-height:calc(96dvh - 45px)}.scene-properties{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.scene-properties .sp-label,.scene-properties button{grid-column:1/-1}.scene-object{width:100%;margin-bottom:4px;padding:6px;text-align:left;background:var(--panel);border:2px outset #fff}.scene-object.selected{background:var(--blue);color:#fff}
+#preview-action-menu{position:fixed;z-index:1200;display:grid;grid-template-columns:repeat(2,1fr);gap:5px;width:min(320px,calc(100vw - 20px));padding:7px;background:var(--panel);border:2px outset #fff;box-shadow:3px 3px var(--dark)}#preview-action-menu .menu-title,#preview-action-menu .menu-cancel{grid-column:1/-1}
+@media(max-width:700px){html,body{font-size:14px}#menubar{min-height:42px}#menubar h1{display:none}#menubar .mbtn{min-height:34px;padding:5px 8px}#mobile-preview-stage{height:30dvh;min-height:150px}#step-panel{flex:1}.sp-body{display:block}.sp-field{padding:8px}#step-btns .smbtn{min-height:38px}#step-save-state{width:100%;margin-left:0}#step-save-github{flex:1 1 100%;min-height:44px}.chara-box,.scene-layout{grid-template-columns:1fr}.chara-box{grid-template-rows:38dvh 1fr}.scene-layout{grid-template-rows:42dvh 1fr;max-height:none}.chara-stage canvas,.scene-stage canvas{max-height:38dvh}}
+</style><style id="compact-header-style">
+#menubar > #btn-reload,#menubar > #btn-sync,#menubar > #btn-new,#menubar > #btn-delete,#menubar > #btn-copy,#menubar > #btn-find,#menubar > #btn-outline,#menubar > #btn-preview,#menubar > #btn-undo,#menubar > #btn-redo,#menubar > #btn-metadata,#menubar > #btn-settings,#menubar > #btn-logout,#menubar > #sep-file,#menubar > #sep-view{display:none!important}
+#statusbar{display:none!important}#step-btns{display:none!important}#mobile-preview-canvas{position:relative;z-index:1}#mobile-preview-overlay{z-index:2}
+.preview-selection-bar{display:flex;align-items:center;gap:5px;min-height:34px;padding:4px 6px;background:var(--panel);border-top:1px solid #000}.preview-selection-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.preview-selection-bar button{min-height:28px;padding:3px 7px}
+@media(max-width:700px){#menubar{position:relative;overflow-x:auto}}
+</style></head>
 <body>
 
 <!-- ログイン -->
@@ -321,6 +78,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <div id="list-panel">
       <div id="list-toolbar">
         <span id="breadcrumb" style="font-size:11px;color:var(--comment);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">/</span>
+        <input id="event-search" type="search" placeholder="KSを検索（名前・パス）" autocomplete="off">
         <span id="file-count"></span>
         <button class="smbtn" id="btn-new2" style="margin-left:6px">＋ 新規</button>
       </div>
@@ -361,7 +119,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     </div>
   </div><!-- /content-area -->
 
-  <!-- Step編集オーバーレイ（モードが明確なパネル）-->
+  <!-- Step編集ワークスペース（実行時にfile-panel内へ配置）-->
   <div id="step-panel" class="sp-closed">
     <div id="step-panel-head">
       <span id="step-panel-title">Step #0</span>
@@ -725,7 +483,7 @@ registerOfflineSupport();
 if (isLoggedIn()) {
   $("login-view").classList.add("hidden");
   $("main-view").classList.remove("hidden");
-  init();
+  setTimeout(() => init(), 0);
 }
 
 // ============================================================
@@ -998,6 +756,93 @@ $("metadata-save").addEventListener("click", saveMetadata);
 //  ディレクトリブラウザ
 // ============================================================
 let currentDir = '';
+let allFiles = [];
+let allKSFiles = [];
+const allKSContents = new Map();
+let allKSLoading = false;
+
+function eventRootItems(entries) {
+  const result = new Map();
+  (entries || []).forEach(entry => {
+    const relative = entry.path.replace(/^events\//, '');
+    if (!relative || relative === entry.path) return;
+    const parts = relative.split('/');
+    const name = parts[0];
+    if (parts.length > 1) {
+      if (!result.has(name)) result.set(name, {name, path:'events/' + name, type:'dir', size:0});
+    } else {
+      result.set(name, {name, path:entry.path, type:'file', size:entry.size || 0, sha:entry.sha});
+    }
+  });
+  return [...result.values()];
+}
+
+async function loadAllKSScripts() {
+  if (allKSLoading) return;
+  allKSLoading = true;
+  const setStatus = message => {
+    $('sb-file').textContent = message;
+    sbMsg('<span class="spinner"></span> ' + message);
+  };
+  try {
+    setStatus('events/ のKS一覧を取得中…');
+    let entries = [];
+    try {
+      const response = await fetch(GH_API + '/git/trees/' + encodeURIComponent(BRANCH) + '?recursive=1', {
+        headers:{Accept:'application/vnd.github+json'}, cache:'no-store'
+      });
+      if (!response.ok) throw new Error('tree HTTP ' + response.status);
+      const tree = await response.json();
+      if (tree.truncated) throw new Error('Git tree is truncated');
+      entries = (tree.tree || []).filter(item => item.type === 'blob' && /^events\/.*\.ks$/i.test(item.path));
+    } catch (error) {
+      const cached = await KSOfflineStore.list('files').catch(() => []);
+      entries = cached.map(row => row.data).filter(item => item && /^events\/.*\.ks$/i.test(item.path));
+      if (!entries.length) throw error;
+    }
+
+    allKSFiles = entries.map(entry => ({
+      name:entry.path.split('/').pop(), path:entry.path, type:'file', size:entry.size || 0, sha:entry.sha || ''
+    })).sort((a,b) => a.path.localeCompare(b.path));
+    allFiles = eventRootItems(entries);
+    renderDirTable(allFiles, 'events');
+    const total = allKSFiles.length;
+    let loaded = 0;
+    for (let start = 0; start < allKSFiles.length; start += 6) {
+      const chunk = allKSFiles.slice(start, start + 6);
+      await Promise.all(chunk.map(async file => {
+        const rawUrl = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + file.path;
+        try {
+          const response = await fetch(rawUrl, {cache:'no-store'});
+          if (!response.ok) throw new Error('raw HTTP ' + response.status);
+          const text = await response.text();
+          const meta = Object.assign({}, file, {content:toB64(text)});
+          allKSContents.set(file.path, meta);
+          await KSOfflineStore.putFile(file.path, meta).catch(() => {});
+        } catch (error) {
+          const cached = await KSOfflineStore.getFile(file.path).catch(() => null);
+          if (cached && cached.data && cached.data.content) {
+            allKSContents.set(file.path, cached.data);
+          } else {
+            console.warn('KS preload failed', file.path, error);
+          }
+        } finally {
+          loaded += 1;
+          setStatus('KS本文を読み込み中… ' + loaded + '/' + total);
+        }
+      }));
+    }
+    $('file-count').textContent = total + ' KS loaded';
+    $('sb-file').textContent = 'events/ (' + total + ' KS)';
+    sbMsg('全' + total + '件のKSを読み込み済み', 5000);
+    await KSOfflineStore.setMeta('allKSLoaded', {at:Date.now(), count:total}).catch(() => {});
+  } catch (error) {
+    sbMsg('KS全件読み込み失敗: ' + error.message, 8000);
+    console.error(error);
+  } finally {
+    allKSLoading = false;
+  }
+}
 
 async function browseDir(dirPath) {
   currentDir = dirPath;
@@ -1030,6 +875,7 @@ async function browseDir(dirPath) {
 
 function init() {
   history.replaceState({page:'list', dir:'events'}, '');
+  loadAllKSScripts();
   browseDir('events');  // デフォルトはevents/から開始
 }
 
@@ -1078,6 +924,14 @@ function renderDirTable(items, dirPath) {
   });
 }
 
+$('event-search').addEventListener('input', event => {
+  const query = event.target.value.trim().toLowerCase();
+  if (!allKSFiles.length) return;
+  const filtered = allKSFiles.filter(file => !query || file.path.toLowerCase().includes(query));
+  renderDirTable(filtered, 'events');
+  $('file-count').textContent = filtered.length + ' / ' + allKSFiles.length + ' KS';
+});
+
 $("btn-reload").addEventListener("click", () => {
   if (currentFile) {
     if (editMode) currentText = $("edit-textarea").value;
@@ -1098,6 +952,7 @@ function showList(push=true) {
   if (editMode) currentText = $("edit-textarea").value;
   persistCurrentDraftNow();
   $("file-panel").style.display = "none";
+  $("file-panel").classList.remove("step-workspace", "raw-workspace");
   $("list-panel").style.display = "";
   ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-step-panel","btn-preview","btn-undo","btn-redo","btn-metadata","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
   $("btn-new2").style.display = "";
@@ -1114,7 +969,9 @@ function showList(push=true) {
 function showFilePanel() {
   $("list-panel").style.display = "none";
   $("file-panel").style.display = "flex";
-  ["btn-back","btn-edit-toggle","btn-delete","btn-copy","btn-find","btn-outline","btn-undo","btn-redo","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
+  $("file-panel").classList.remove("step-workspace", "raw-workspace");
+  $("outline-sidebar").classList.remove("drawer-open");
+  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-undo","btn-redo","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
   $("sep-file").style.display = "";
   $("sep-view").style.display = "";
   $("btn-new2").style.display = "none";
@@ -1185,18 +1042,24 @@ function parseSteps(text) {
 function buildOutline(text) {
   const list = $("outline-list");
   list.innerHTML = "";
-  const steps = parseSteps(text);
-  steps.forEach(s => {
+  const steps = parseStepsFromKS(text);
+  steps.forEach((s, index) => {
     const div = document.createElement("div");
-    div.className = "para-item";
-    div.textContent = s.label;
-    div.title = s.label;
+    div.className = "para-item step-drawer-item";
+    const summary = s.body ? `${s.speaker ? s.speaker + '：' : ''}${s.body}` : (s.actions?.[0] || 'タグのみのStep');
+    div.innerHTML = `<strong>Step ${index + 1}</strong><span>${esc(summary.slice(0, 48))}</span>`;
+    div.title = summary;
     div.addEventListener("click", () => {
       // スクロール
-      const linesTotal = text.split("\n").length;
-      const ratio = s.line / Math.max(linesTotal-1,1);
-      const wrap = $("ks-wrap");
-      wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight);
+      if (currentFile && currentSteps[index]) {
+        openStepEditor(index);
+        $("outline-sidebar").classList.remove("drawer-open");
+      } else {
+        const linesTotal = text.split("\n").length;
+        const ratio = s.line / Math.max(linesTotal-1,1);
+        const wrap = $("ks-wrap");
+        wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight);
+      }
     });
     list.appendChild(div);
   });
@@ -1345,7 +1208,7 @@ async function openFile(f, push=true) {
   try {
     // 本文とSHAは同じGitHub Contentsレスポンスから取得する。
     // raw CDNとAPIを並列取得すると、更新直後に世代がずれて競合の原因になる。
-    const meta = await ghGet(f.path);
+    const meta = allKSContents.get(f.path) || await ghGet(f.path);
     if(!meta||Array.isArray(meta)||!meta.content||!meta.sha)throw new Error('GitHubから本文とSHAを取得できません');
     const remoteText = fromB64(meta.content);
     const draft = await KSOfflineStore.getDraft(f.path).catch(() => null);
@@ -1374,6 +1237,8 @@ async function openFile(f, push=true) {
       previewStep = 0;
       $("preview-range").max = Math.max(0, previewScenario.steps.length - 1);
       drawPreview();
+      // KSを開いたら、まず最初のStepをスマホ向け編集画面として表示する。
+      if (currentSteps.length) openStepEditor(0);
     }
     if (usingDraft) sbMsg("↶ 未送信のローカル下書きを復元しました", 6000);
     else sbMsg("");
@@ -1386,7 +1251,10 @@ async function openFile(f, push=true) {
 //  編集モード
 // ============================================================
 $("btn-edit-toggle").addEventListener("click", toggleEdit);
-$("btn-save").addEventListener("click", saveFile);
+$("btn-save").addEventListener("click", () => {
+  if (editMode) saveFile();
+  else if (currentFile && currentFile.name.endsWith('.ks')) saveStepChangesToGitHub(`KSエディタ: ${currentFile.name}を保存`);
+});
 $("edit-textarea").addEventListener("input", () => {
   if (!editMode) return;
   const before = historyText;
@@ -1405,12 +1273,15 @@ function enterEditMode(push=true, jumpLine=null) {
   // Stepパネルを閉じる
   $('step-panel').classList.add('sp-closed');
   $('btn-step-panel').classList.remove('active');
+  $('file-panel').classList.add('raw-workspace');
+  $('file-panel').classList.remove('step-workspace');
   editMode = true;
   $("ks-table").classList.add("hidden");
   $("edit-textarea").classList.remove("hidden");
   $("edit-textarea").value = currentText;
-  $("btn-edit-toggle").textContent = "表示に戻る";
+  $("btn-edit-toggle").classList.add("hidden");
   $("btn-edit-toggle").classList.add("active");
+  $("btn-step-panel").classList.remove("hidden");
   $("btn-save").classList.remove("hidden");
   $("sb-mode").textContent = "【Raw編集中】";
   $("edit-textarea").focus();
@@ -1432,12 +1303,17 @@ function exitEditMode(confirm_unsaved=true, push=true) {
   }
   if(push && currentFile) history.pushState({file:currentFile,mode:'view'},'',' #'+encodeURIComponent(currentFile.name));
   editMode = false;
+  $('file-panel').classList.remove('raw-workspace');
   $("edit-textarea").classList.add("hidden");
   $("ks-table").classList.remove("hidden");
-  $("btn-edit-toggle").textContent = "編集";
+  $("btn-edit-toggle").textContent = "KSテキスト";
   $("btn-edit-toggle").classList.remove("active");
+  if ($('file-panel').style.display !== 'none') $("btn-edit-toggle").classList.remove("hidden");
   $("btn-save").classList.add("hidden");
   $("sb-mode").textContent = "";
+  if (currentFile && currentText && currentFile.name.endsWith('.ks') && currentSteps.length && $('file-panel').style.display !== 'none') {
+    openStepEditor(selectedStepIdx >= 0 ? selectedStepIdx : 0);
+  }
 }
 
 async function saveFile() {
@@ -1560,7 +1436,7 @@ $("btn-copy").addEventListener("click", async ()=>{
 //  アウトライン
 // ============================================================
 $("btn-outline").addEventListener("click", ()=>{
-  $("outline-sidebar").classList.toggle("hidden");
+  $("outline-sidebar").classList.toggle("drawer-open");
 });
 
 // ============================================================
@@ -1770,7 +1646,16 @@ function attachStepClicks(){
 
 function openStepEditor(idx){
   const step=currentSteps[idx];if(!step)return;
+  $('file-panel').classList.add('step-workspace');
+  $('file-panel').classList.remove('raw-workspace');
+  editMode = false;
+  $('btn-step-panel').classList.add('hidden');
+  $('btn-edit-toggle').classList.remove('hidden');
   selectedStepIdx=idx;
+  if (previewScenario && previewScenario.steps.length) {
+    previewStep=Math.max(0,Math.min(idx,previewScenario.steps.length-1));
+    drawPreview();
+  }
   $('step-panel-title').textContent=`Step #${idx}  L${step.start_line+1}-${step.end_line+1}`;
   $('step-speaker').value=step.speaker||'';
   $('step-body').value=step.body||'';
@@ -1799,16 +1684,33 @@ function openStepEditor(idx){
 function closeStepPanel(){
   $('step-panel').classList.add('sp-closed');
   $('btn-step-panel').classList.remove('active');
+  $('file-panel').classList.remove('step-workspace');
   selectedStepIdx=-1;
   if(currentText){$('ks-tbody').innerHTML=renderWithSteps(currentText);attachStepClicks();}
 }
 function openStepPanel(){
+  if (editMode) {
+    currentText = $('edit-textarea').value;
+    $('edit-textarea').classList.add('hidden');
+    $('ks-table').classList.remove('hidden');
+    $('btn-edit-toggle').classList.remove('active');
+    $('btn-edit-toggle').classList.remove('hidden');
+    $('sb-mode').textContent = '';
+    editMode = false;
+    scheduleCurrentDraftSave();
+    currentSteps=parseStepsFromKS(currentText);
+    $('ks-tbody').innerHTML=renderWithSteps(currentText);
+    attachStepClicks(); buildOutline(currentText);
+  }
   $('step-panel').classList.remove('sp-closed');
   $('btn-step-panel').classList.add('active');
+  $('file-panel').classList.add('step-workspace');
+  $('file-panel').classList.remove('raw-workspace');
+  if (selectedStepIdx < 0 && currentSteps.length) openStepEditor(0);
 }
 $('step-close').addEventListener('click',closeStepPanel);
 $('btn-step-panel').addEventListener('click',()=>{
-  $('step-panel').classList.contains('sp-closed')?openStepPanel():closeStepPanel();
+  openStepPanel();
 });
 
 const STEP_TAG_TEMPLATES = {
@@ -2025,7 +1927,7 @@ const previewRenderer = new KSPreview.CanvasRenderer($('preview-canvas'),preview
 const mobilePreviewRenderer = new KSPreview.CanvasRenderer($('mobile-preview-canvas'),previewAssets);
 const charaRenderer = new KSPreview.CanvasRenderer($('chara-canvas'),previewAssets);
 const sceneRenderer = new KSPreview.CanvasRenderer($('scene-canvas'),previewAssets);
-let previewScenario=null,previewStep=0,previewDrawToken=0;
+let previewScenario=null,previewStep=0,previewDrawToken=0,directPreviewToken=0;
 let previewAudioEnabled=false,previewBgmAudio=null,previewBgmName='',previewLastSeKey='';
 
 function setPreviewAudioLabel(){
@@ -2067,6 +1969,7 @@ function sourceLineToPreviewStep(line){
 }
 
 async function drawPreview(){
+  directPreviewToken+=1;
   if(!previewScenario||!previewScenario.steps.length){
     $('preview-status').textContent='プレビュー対象なし';return;
   }
@@ -2083,6 +1986,7 @@ async function drawPreview(){
     await Promise.all(draws);
     syncPreviewAudio(state);
     if(token===previewDrawToken){
+      drawMobileSelection(state);
       $('preview-assets').textContent=state.warnings.length?state.warnings.join(' / '):'';
       $('mobile-preview-title').textContent=`${currentFile?.name||'KS'} / Step ${previewStep+1}`;
       $('mobile-preview-status').textContent=`Step ${previewStep+1} / ${previewScenario.steps.length}`;
@@ -2571,6 +2475,289 @@ $('scene-add-hide').addEventListener('click', () => {
   const lines = currentStepActionLines(); lines.push(serializeTag({type:'chara_hide', params:{name:sceneSelectedName, fade:'0.3'}}));
   $('step-actions').value = lines.join('\n'); refreshSceneState();
 });
+
+// ============================================================
+//  Mobile Step workspace interactions
+// ============================================================
+// StepEditorDialogをスマホの縦長ワークスペースへ移し、常に同じ領域で表示する。
+const mobileFilePanel = $('file-panel');
+if (mobileFilePanel && $('step-panel') && $('step-panel').parentElement !== mobileFilePanel) {
+  mobileFilePanel.appendChild($('step-panel'));
+}
+
+function setMobileLabels() {
+  if ($('btn-back')) $('btn-back').textContent = 'KS選択';
+  if ($('btn-edit-toggle')) $('btn-edit-toggle').textContent = 'KSテキスト';
+  if ($('btn-step-panel')) $('btn-step-panel').textContent = 'Step編集';
+  if ($('btn-outline')) $('btn-outline').textContent = 'Steps';
+  if ($('btn-save')) $('btn-save').textContent = '保存';
+  if ($('btn-sync')) $('btn-sync').textContent = 'オフライン同期';
+}
+setMobileLabels();
+
+const previewHint = document.createElement('div');
+previewHint.id = 'preview-hint';
+previewHint.textContent = 'タップ:選択　ドラッグ:移動　ピンチ:立ち絵の拡縮　長押し:タグ追加　左右スワイプ:Step移動';
+if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewHint);
+const previewSelectionBar = document.createElement('div');
+previewSelectionBar.className = 'preview-selection-bar';
+previewSelectionBar.innerHTML = `
+  <span class="preview-selection-label" id="preview-selection-label">キャラ未選択</span>
+  <button class="smbtn" data-preview-tool="scene">位置・サイズ</button>
+  <button class="smbtn" data-preview-tool="chara">表情・差分</button>
+  <button class="smbtn" data-preview-tool="tags">タグ追加</button>`;
+if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewSelectionBar);
+const previewOverlay = document.createElement('canvas');
+previewOverlay.id = 'mobile-preview-overlay';
+previewOverlay.width = 1440;
+previewOverlay.height = 1080;
+if ($('mobile-preview-stage')) $('mobile-preview-stage').appendChild(previewOverlay);
+function updatePreviewSelection(name='') {
+  const label = $('preview-selection-label');
+  if (label) label.textContent = name ? `選択中: ${name}　ドラッグ / ピンチで編集` : 'キャラ未選択　タップして選択';
+}
+previewSelectionBar.querySelector('[data-preview-tool="scene"]').addEventListener('click', openSceneEditor);
+previewSelectionBar.querySelector('[data-preview-tool="chara"]').addEventListener('click', openCharaPreview);
+previewSelectionBar.querySelector('[data-preview-tool="tags"]').addEventListener('click', event => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  showPreviewActionMenu(rect.left, rect.bottom);
+});
+
+const previewActionMenu = document.createElement('div');
+previewActionMenu.id = 'preview-action-menu';
+previewActionMenu.className = 'hidden';
+previewActionMenu.innerHTML = `
+  <div class="menu-title">現在のStepにタグを追加</div>
+  <button class="smbtn" data-preview-tag="chara_move">キャラ移動</button>
+  <button class="smbtn" data-preview-tag="chara_shift">表情・差分</button>
+  <button class="smbtn" data-preview-tag="chara_hide">キャラ非表示</button>
+  <button class="smbtn" data-preview-tag="chara_show">キャラ表示</button>
+  <button class="smbtn" data-preview-tag="bg_show">背景</button>
+  <button class="smbtn" data-preview-tag="bgm">BGM</button>
+  <button class="smbtn" data-preview-tag="se">SE</button>
+  <button class="smbtn" data-preview-tag="fadein">フェードイン</button>
+  <button class="smbtn" data-preview-tag="fadeout">フェードアウト</button>
+  <button class="smbtn menu-cancel">キャンセル</button>`;
+document.body.appendChild(previewActionMenu);
+
+function closePreviewActionMenu() { previewActionMenu.classList.add('hidden'); }
+function showPreviewActionMenu(x, y) {
+  if (!currentFile || selectedStepIdx < 0) return;
+  previewActionMenu.classList.remove('hidden');
+  const width = Math.min(300, window.innerWidth - 24);
+  previewActionMenu.style.left = `${Math.max(12, Math.min(x - width / 2, window.innerWidth - width - 12))}px`;
+  previewActionMenu.style.top = `${Math.max(12, Math.min(y + 10, window.innerHeight - previewActionMenu.offsetHeight - 12))}px`;
+}
+function addPreviewTag(type) {
+  if (selectedStepIdx < 0) return;
+  const template = STEP_TAG_TEMPLATES[type];
+  if (!template) return;
+  const existing = $('step-actions').value.trim();
+  $('step-actions').value = existing ? `${existing}\n${template}` : template;
+  applyStepEditorChanges();
+  openStepEditor(selectedStepIdx);
+  closePreviewActionMenu();
+  sbMsg(`✓ ${type}を現在のStepへ追加しました`, 2500);
+}
+previewActionMenu.querySelectorAll('[data-preview-tag]').forEach(button => {
+  button.addEventListener('click', () => addPreviewTag(button.dataset.previewTag));
+});
+previewActionMenu.querySelector('.menu-cancel').addEventListener('click', closePreviewActionMenu);
+document.addEventListener('pointerdown', event => {
+  if (!previewActionMenu.contains(event.target)) closePreviewActionMenu();
+});
+
+function navigateMobileStep(delta) {
+  if (!currentSteps.length) return;
+  const base = selectedStepIdx >= 0 ? selectedStepIdx : previewStep;
+  openStepEditor(Math.max(0, Math.min(currentSteps.length - 1, base + delta)));
+}
+
+// Step編集画面のプレビュー以外でも、左右スワイプで前後Stepへ移動する。
+const mobileStepSwipeTarget = $('step-panel');
+let mobileStepSwipe = null;
+if (mobileStepSwipeTarget) {
+  mobileStepSwipeTarget.addEventListener('pointerdown', event => {
+    if (event.target.closest('input,textarea,select,button') || event.target.closest('#mobile-preview-stage')) return;
+    mobileStepSwipe = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  });
+  mobileStepSwipeTarget.addEventListener('pointerup', event => {
+    if (!mobileStepSwipe || mobileStepSwipe.id !== event.pointerId) return;
+    const dx = event.clientX - mobileStepSwipe.x;
+    const dy = event.clientY - mobileStepSwipe.y;
+    mobileStepSwipe = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.35) navigateMobileStep(dx < 0 ? 1 : -1);
+  });
+  mobileStepSwipeTarget.addEventListener('pointercancel', () => { mobileStepSwipe = null; });
+}
+
+const mobilePreviewCanvas = $('mobile-preview-canvas');
+const previewPointers = new Map();
+let previewGesture = null;
+let previewLongPress = null;
+function previewCoordinate(event) {
+  const rect = mobilePreviewCanvas.getBoundingClientRect();
+  return {
+    x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),
+    y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))
+  };
+}
+function previewCharacterAt(point, state) {
+  if (!state) return '';
+  const names = Object.keys(state.characters || {});
+  for (let i=names.length-1;i>=0;i--) {
+    const character = state.characters[names[i]], size=Number(character.size)||1;
+    const left=character.x*1440-270*size, right=character.x*1440+270*size;
+    const top=character.y*1080-540*size, bottom=character.y*1080+540*size;
+    if (point.x*1440>=left&&point.x*1440<=right&&point.y*1080>=top&&point.y*1080<=bottom) return names[i];
+  }
+  return '';
+}
+function distanceBetweenPointers() {
+  const values=[...previewPointers.values()];
+  if (values.length<2) return 0;
+  return Math.hypot(values[0].clientX-values[1].clientX, values[0].clientY-values[1].clientY);
+}
+function drawDirectPreview(state) {
+  if (!state) return;
+  const token=++directPreviewToken;
+  drawMobileSelection(state);
+  mobilePreviewRenderer.draw(state).then(() => {
+    if (token===directPreviewToken) drawMobileSelection(state);
+  }).catch(() => {});
+}
+function drawMobileSelection(state) {
+  const canvas = $('mobile-preview-overlay');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 1440, 1080);
+  const name = sceneSelectedName;
+  const character = name && state?.characters?.[name];
+  updatePreviewSelection(name && character ? name : '');
+  if (!character) return;
+  const size = Number(character.size) || 1;
+  const left = character.x * 1440 - 270 * size;
+  const top = character.y * 1080 - 540 * size;
+  const width = 540 * size;
+  const height = 1080 * size;
+  ctx.save();
+  ctx.strokeStyle = '#ffff00';
+  ctx.lineWidth = 6;
+  ctx.setLineDash([18, 10]);
+  ctx.strokeRect(left, top, width, height);
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffff00';
+  [[left,top],[left+width,top],[left,top+height],[left+width,top+height]].forEach(([x,y]) => ctx.fillRect(x-10,y-10,20,20));
+  ctx.font = '28px sans-serif';
+  ctx.fillText(name, Math.max(8,left+8), Math.max(30,top+30));
+  ctx.restore();
+}
+function commitPreviewInteraction() {
+  if (!applyStepEditorChanges()) return;
+  directPreviewToken+=1;
+  previewScenario = KSPreview.parseScenario(currentText);
+  previewStep = Math.max(0, Math.min(selectedStepIdx, previewScenario.steps.length - 1));
+  drawPreview();
+}
+function clearPreviewLongPress() {
+  if (previewLongPress) clearTimeout(previewLongPress);
+  previewLongPress=null;
+}
+mobilePreviewCanvas.addEventListener('pointerdown', event => {
+  if (!currentFile || selectedStepIdx < 0 || !previewScenario) return;
+  previewPointers.set(event.pointerId, event);
+  mobilePreviewCanvas.setPointerCapture?.(event.pointerId);
+  const point=previewCoordinate(event);
+  const state=KSPreview.buildState(previewScenario, previewStep);
+  if (previewPointers.size===1) {
+    const name=previewCharacterAt(point,state);
+    sceneSelectedName=name || sceneSelectedName;
+    updatePreviewSelection(name || '');
+    drawDirectPreview(state);
+    previewGesture={start:point,last:point,name,moved:false,dragState:state};
+    clearPreviewLongPress();
+    previewLongPress=setTimeout(() => {
+      previewGesture.longPressed=true;
+      showPreviewActionMenu(event.clientX,event.clientY);
+    },650);
+  } else {
+    clearPreviewLongPress();
+    const name=previewGesture?.name||sceneSelectedName||previewCharacterAt(point,state);
+    previewGesture={pinchName:name,pinchState:state,pinchSize:name ? Number(state.characters[name]?.size)||1 : 1,pinchDistance:distanceBetweenPointers(),moved:true};
+  }
+});
+mobilePreviewCanvas.addEventListener('pointermove', event => {
+  if (!previewPointers.has(event.pointerId) || !previewGesture) return;
+  previewPointers.set(event.pointerId,event);
+  if (previewPointers.size>=2 && previewGesture.pinchName) {
+    const distance=distanceBetweenPointers();
+    const factor=previewGesture.pinchDistance ? distance/previewGesture.pinchDistance : 1;
+    const state=previewGesture.pinchState;
+    const character=state.characters[previewGesture.pinchName];
+    if (character) { character.size=Math.max(.2,Math.min(3,previewGesture.pinchSize*factor)); drawDirectPreview(state); }
+    return;
+  }
+  if (!previewGesture.start || previewGesture.longPressed) return;
+  const point=previewCoordinate(event);
+  const dx=point.x-previewGesture.start.x, dy=point.y-previewGesture.start.y;
+  if (Math.hypot(dx,dy)>0.025) { previewGesture.moved=true; clearPreviewLongPress(); }
+  previewGesture.last=point;
+  if (previewGesture.name && previewGesture.moved) {
+    const state=KSPreview.buildState(previewScenario,previewStep);
+    const character=state.characters[previewGesture.name];
+    if (character) {
+      character.x=point.x;
+      character.y=point.y;
+      sceneSelectedName=previewGesture.name;
+      drawDirectPreview(state);
+    }
+  }
+});
+mobilePreviewCanvas.addEventListener('pointerup', event => {
+  if (!previewPointers.has(event.pointerId) || !previewGesture) return;
+  const finalDistance=previewPointers.size>=2 ? distanceBetweenPointers() : 0;
+  previewPointers.delete(event.pointerId); clearPreviewLongPress();
+  if (previewPointers.size>0) return;
+  const gesture=previewGesture; previewGesture=null;
+  if (gesture.pinchName && gesture.pinchDistance) {
+    const factor=finalDistance ? finalDistance/gesture.pinchDistance : 1;
+    const size=Math.max(.2,Math.min(3,gesture.pinchSize*factor));
+    writeSceneAction('chara_shift',gesture.pinchName,{size:size.toFixed(3)});
+    sceneSelectedName=gesture.pinchName;
+    commitPreviewInteraction();
+    return;
+  }
+  if (gesture.longPressed) return;
+  const dx=gesture.last.x-gesture.start.x, dy=gesture.last.y-gesture.start.y;
+  if (!gesture.moved && Math.abs(dx)>0.08 && Math.abs(dx)>Math.abs(dy)*1.35) {
+    navigateMobileStep(dx<0 ? 1 : -1);
+    return;
+  }
+  if (gesture.name && gesture.moved) {
+    const state=KSPreview.buildState(previewScenario,previewStep);
+    sceneState=state; sceneScenario=previewScenario; sceneStepNumber=previewStep; sceneSelectedName=gesture.name;
+    applyScenePosition(gesture.last.x,gesture.last.y,Number(state.characters[gesture.name]?.size)||1);
+    commitPreviewInteraction();
+  } else if (!gesture.moved) {
+    sceneSelectedName=gesture.name||'';
+    sceneState=KSPreview.buildState(previewScenario,previewStep);
+    sceneScenario=previewScenario;
+    sceneStepNumber=previewStep;
+    updatePreviewSelection(sceneSelectedName);
+    drawDirectPreview(sceneState);
+    sbMsg(gesture.name ? `${gesture.name}を選択中` : 'Previewを選択中', 1800);
+  }
+});
+mobilePreviewCanvas.addEventListener('pointercancel', () => { previewPointers.clear(); clearPreviewLongPress(); previewGesture=null; });
+
+let mobileStepApplyTimer=null;
+function scheduleMobileStepApply() {
+  if (editMode || selectedStepIdx<0) return;
+  clearTimeout(mobileStepApplyTimer);
+  mobileStepApplyTimer=setTimeout(() => {
+    if (selectedStepIdx>=0 && !editMode) applyStepEditorChanges();
+  }, 280);
+}
+['step-speaker','step-body','step-actions','step-memo'].forEach(id => $(id).addEventListener('input', scheduleMobileStepApply));
+['step-scroll-stop','step-female'].forEach(id => $(id).addEventListener('change', scheduleMobileStepApply));
 </script>
-</body>
 </html>
