@@ -304,6 +304,123 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   #step-panel-head { min-height:42px; }
 }
 </style>
+<style id="ks-editor-mobile-workspace">
+/* The mobile workspace is a translation of the PC editor: preview, fields,
+   and actions own separate space in one vertical flow. Nothing is overlaid. */
+#file-panel {
+  position:relative;
+  min-height:0;
+  flex-direction:column !important;
+  background:var(--bg);
+}
+#file-panel #mobile-preview-dock {
+  order:1;
+  flex:0 0 auto;
+  display:flex !important;
+  border:0;
+  border-bottom:1px solid var(--border);
+}
+#file-panel #mobile-preview-dock[style*="display: none"] { display:none !important; }
+#file-panel #mobile-preview-stage {
+  height:min(39dvh, 430px);
+  max-height:none;
+  min-height:190px;
+}
+#file-panel #mobile-preview-canvas { max-height:100%; width:100%; }
+#file-panel #outline-sidebar {
+  order:2;
+  width:100%;
+  max-height:0;
+  flex:0 0 auto;
+  overflow:hidden;
+  border:0;
+  background:var(--panel);
+  transition:max-height .2s ease;
+  display:none;
+}
+#file-panel #outline-sidebar.drawer-open { display:block !important; max-height:42dvh; overflow:auto; border-bottom:1px solid var(--border); }
+#file-panel #outline-title { display:block; }
+#file-panel #outline-list { display:flex; flex-direction:column; overflow:auto; }
+#file-panel .para-item { min-width:0; padding:10px 12px; border:0; border-bottom:1px solid #3a3a3a; }
+#file-panel #ks-wrap {
+  order:3;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+}
+#file-panel #step-panel {
+  order:4;
+  position:static;
+  inset:auto;
+  z-index:auto;
+  flex:1 1 auto;
+  width:100%;
+  max-height:none;
+  min-height:0;
+  overflow:hidden;
+  transform:none;
+  pointer-events:auto;
+  border:0;
+  border-top:1px solid var(--border);
+  box-shadow:none;
+  transition:none;
+}
+#file-panel #step-panel.sp-closed { display:none; }
+#file-panel.step-workspace #ks-wrap { display:none; }
+#file-panel.step-workspace #step-panel { display:flex; }
+#file-panel #step-panel-head { position:static; min-height:46px; padding:7px 10px; }
+#file-panel #step-panel-head > span:first-child { font-size:14px; }
+#file-panel #step-panel-nav .smbtn { min-width:42px; min-height:34px; }
+#file-panel #step-panel .sp-body {
+  display:grid;
+  grid-template-columns:1fr;
+  align-content:start;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+}
+#file-panel #step-panel .sp-field { padding:10px 12px; }
+#file-panel #step-panel .sp-field:nth-child(2) { grid-column:auto !important; }
+#file-panel #step-body { min-height:84px; }
+#file-panel #step-actions { min-height:100px; }
+#file-panel #step-btns {
+  position:static;
+  flex:0 0 auto;
+  padding:8px 10px max(8px, env(safe-area-inset-bottom));
+  box-shadow:none;
+}
+#file-panel #step-btns .smbtn { min-height:38px; }
+#file-panel #step-save-state { width:100%; margin-left:0; order:20; }
+#file-panel #step-save-github { flex:1 1 100%; order:21; min-height:44px; }
+#file-panel.raw-workspace #mobile-preview-dock,
+#file-panel.raw-workspace #outline-sidebar,
+#file-panel.raw-workspace #step-panel { display:none !important; }
+#file-panel.raw-workspace #ks-wrap { display:block; order:1; }
+#file-panel.raw-workspace #edit-textarea { display:block; }
+#step-panel-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#preview-hint { color:var(--comment); font-size:10px; padding:3px 10px; background:#111; }
+#preview-action-menu {
+  position:fixed;
+  z-index:1200;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(120px,1fr));
+  gap:6px;
+  width:min(300px,calc(100vw - 24px));
+  padding:10px;
+  background:var(--panel2);
+  border:1px solid var(--blue);
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+#preview-action-menu .menu-title { grid-column:1/-1; color:var(--text2); font-size:12px; padding-bottom:3px; }
+#preview-action-menu button { min-height:40px; }
+#preview-action-menu .menu-cancel { grid-column:1/-1; }
+@media (min-width:701px) {
+  #file-panel #mobile-preview-dock { display:flex !important; }
+  #file-panel #mobile-preview-stage { height:min(36vh,420px); }
+  #file-panel #step-panel .sp-body { grid-template-columns:minmax(220px, .8fr) minmax(280px, 1.2fr); }
+  #file-panel #step-panel .sp-field:nth-child(2) { grid-column:span 1 !important; }
+}
+</style>
 </head>
 <body>
 
@@ -404,7 +521,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     </div>
   </div><!-- /content-area -->
 
-  <!-- Step編集オーバーレイ（モードが明確なパネル）-->
+  <!-- Step編集ワークスペース（実行時にfile-panel内へ配置）-->
   <div id="step-panel" class="sp-closed">
     <div id="step-panel-head">
       <span id="step-panel-title">Step #0</span>
@@ -1237,6 +1354,7 @@ function showList(push=true) {
   if (editMode) currentText = $("edit-textarea").value;
   persistCurrentDraftNow();
   $("file-panel").style.display = "none";
+  $("file-panel").classList.remove("step-workspace", "raw-workspace");
   $("list-panel").style.display = "";
   ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-step-panel","btn-preview","btn-undo","btn-redo","btn-metadata","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
   $("btn-new2").style.display = "";
@@ -1253,7 +1371,9 @@ function showList(push=true) {
 function showFilePanel() {
   $("list-panel").style.display = "none";
   $("file-panel").style.display = "flex";
-  ["btn-back","btn-edit-toggle","btn-delete","btn-copy","btn-find","btn-outline","btn-undo","btn-redo","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
+  $("file-panel").classList.remove("step-workspace", "raw-workspace");
+  $("outline-sidebar").classList.remove("drawer-open");
+  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-undo","btn-redo","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
   $("sep-file").style.display = "";
   $("sep-view").style.display = "";
   $("btn-new2").style.display = "none";
@@ -1324,18 +1444,24 @@ function parseSteps(text) {
 function buildOutline(text) {
   const list = $("outline-list");
   list.innerHTML = "";
-  const steps = parseSteps(text);
-  steps.forEach(s => {
+  const steps = parseStepsFromKS(text);
+  steps.forEach((s, index) => {
     const div = document.createElement("div");
-    div.className = "para-item";
-    div.textContent = s.label;
-    div.title = s.label;
+    div.className = "para-item step-drawer-item";
+    const summary = s.body ? `${s.speaker ? s.speaker + '：' : ''}${s.body}` : (s.actions?.[0] || 'タグのみのStep');
+    div.innerHTML = `<strong>Step ${index + 1}</strong><span>${esc(summary.slice(0, 48))}</span>`;
+    div.title = summary;
     div.addEventListener("click", () => {
       // スクロール
-      const linesTotal = text.split("\n").length;
-      const ratio = s.line / Math.max(linesTotal-1,1);
-      const wrap = $("ks-wrap");
-      wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight);
+      if (currentFile && currentSteps[index]) {
+        openStepEditor(index);
+        $("outline-sidebar").classList.remove("drawer-open");
+      } else {
+        const linesTotal = text.split("\n").length;
+        const ratio = s.line / Math.max(linesTotal-1,1);
+        const wrap = $("ks-wrap");
+        wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight);
+      }
     });
     list.appendChild(div);
   });
@@ -1513,6 +1639,8 @@ async function openFile(f, push=true) {
       previewStep = 0;
       $("preview-range").max = Math.max(0, previewScenario.steps.length - 1);
       drawPreview();
+      // KSを開いたら、まず最初のStepをスマホ向け編集画面として表示する。
+      if (currentSteps.length) openStepEditor(0);
     }
     if (usingDraft) sbMsg("↶ 未送信のローカル下書きを復元しました", 6000);
     else sbMsg("");
@@ -1525,7 +1653,10 @@ async function openFile(f, push=true) {
 //  編集モード
 // ============================================================
 $("btn-edit-toggle").addEventListener("click", toggleEdit);
-$("btn-save").addEventListener("click", saveFile);
+$("btn-save").addEventListener("click", () => {
+  if (editMode) saveFile();
+  else if (currentFile && currentFile.name.endsWith('.ks')) saveStepChangesToGitHub(`KSエディタ: ${currentFile.name}を保存`);
+});
 $("edit-textarea").addEventListener("input", () => {
   if (!editMode) return;
   const before = historyText;
@@ -1544,11 +1675,13 @@ function enterEditMode(push=true, jumpLine=null) {
   // Stepパネルを閉じる
   $('step-panel').classList.add('sp-closed');
   $('btn-step-panel').classList.remove('active');
+  $('file-panel').classList.add('raw-workspace');
+  $('file-panel').classList.remove('step-workspace');
   editMode = true;
   $("ks-table").classList.add("hidden");
   $("edit-textarea").classList.remove("hidden");
   $("edit-textarea").value = currentText;
-  $("btn-edit-toggle").textContent = "表示に戻る";
+  $("btn-edit-toggle").classList.add("hidden");
   $("btn-edit-toggle").classList.add("active");
   $("btn-save").classList.remove("hidden");
   $("sb-mode").textContent = "【Raw編集中】";
@@ -1571,12 +1704,17 @@ function exitEditMode(confirm_unsaved=true, push=true) {
   }
   if(push && currentFile) history.pushState({file:currentFile,mode:'view'},'',' #'+encodeURIComponent(currentFile.name));
   editMode = false;
+  $('file-panel').classList.remove('raw-workspace');
   $("edit-textarea").classList.add("hidden");
   $("ks-table").classList.remove("hidden");
-  $("btn-edit-toggle").textContent = "編集";
+  $("btn-edit-toggle").textContent = "KSテキスト";
   $("btn-edit-toggle").classList.remove("active");
+  if ($('file-panel').style.display !== 'none') $("btn-edit-toggle").classList.remove("hidden");
   $("btn-save").classList.add("hidden");
   $("sb-mode").textContent = "";
+  if (currentFile && currentText && currentFile.name.endsWith('.ks') && currentSteps.length && $('file-panel').style.display !== 'none') {
+    openStepEditor(selectedStepIdx >= 0 ? selectedStepIdx : 0);
+  }
 }
 
 async function saveFile() {
@@ -1699,7 +1837,7 @@ $("btn-copy").addEventListener("click", async ()=>{
 //  アウトライン
 // ============================================================
 $("btn-outline").addEventListener("click", ()=>{
-  $("outline-sidebar").classList.toggle("hidden");
+  $("outline-sidebar").classList.toggle("drawer-open");
 });
 
 // ============================================================
@@ -1909,7 +2047,14 @@ function attachStepClicks(){
 
 function openStepEditor(idx){
   const step=currentSteps[idx];if(!step)return;
+  $('file-panel').classList.add('step-workspace');
+  $('file-panel').classList.remove('raw-workspace');
+  editMode = false;
   selectedStepIdx=idx;
+  if (previewScenario && previewScenario.steps.length) {
+    previewStep=Math.max(0,Math.min(idx,previewScenario.steps.length-1));
+    drawPreview();
+  }
   $('step-panel-title').textContent=`Step #${idx}  L${step.start_line+1}-${step.end_line+1}`;
   $('step-speaker').value=step.speaker||'';
   $('step-body').value=step.body||'';
@@ -1938,16 +2083,33 @@ function openStepEditor(idx){
 function closeStepPanel(){
   $('step-panel').classList.add('sp-closed');
   $('btn-step-panel').classList.remove('active');
+  $('file-panel').classList.remove('step-workspace');
   selectedStepIdx=-1;
   if(currentText){$('ks-tbody').innerHTML=renderWithSteps(currentText);attachStepClicks();}
 }
 function openStepPanel(){
+  if (editMode) {
+    currentText = $('edit-textarea').value;
+    $('edit-textarea').classList.add('hidden');
+    $('ks-table').classList.remove('hidden');
+    $('btn-edit-toggle').classList.remove('active');
+    $('btn-edit-toggle').classList.remove('hidden');
+    $('sb-mode').textContent = '';
+    editMode = false;
+    scheduleCurrentDraftSave();
+    currentSteps=parseStepsFromKS(currentText);
+    $('ks-tbody').innerHTML=renderWithSteps(currentText);
+    attachStepClicks(); buildOutline(currentText);
+  }
   $('step-panel').classList.remove('sp-closed');
   $('btn-step-panel').classList.add('active');
+  $('file-panel').classList.add('step-workspace');
+  $('file-panel').classList.remove('raw-workspace');
+  if (selectedStepIdx < 0 && currentSteps.length) openStepEditor(0);
 }
 $('step-close').addEventListener('click',closeStepPanel);
 $('btn-step-panel').addEventListener('click',()=>{
-  $('step-panel').classList.contains('sp-closed')?openStepPanel():closeStepPanel();
+  openStepPanel();
 });
 
 const STEP_TAG_TEMPLATES = {
@@ -2710,6 +2872,194 @@ $('scene-add-hide').addEventListener('click', () => {
   const lines = currentStepActionLines(); lines.push(serializeTag({type:'chara_hide', params:{name:sceneSelectedName, fade:'0.3'}}));
   $('step-actions').value = lines.join('\n'); refreshSceneState();
 });
+
+// ============================================================
+//  Mobile Step workspace interactions
+// ============================================================
+// StepEditorDialogをスマホの縦長ワークスペースへ移し、常に同じ領域で表示する。
+const mobileFilePanel = $('file-panel');
+if (mobileFilePanel && $('step-panel') && $('step-panel').parentElement !== mobileFilePanel) {
+  mobileFilePanel.appendChild($('step-panel'));
+}
+
+function setMobileLabels() {
+  if ($('btn-back')) $('btn-back').textContent = 'KS選択';
+  if ($('btn-edit-toggle')) $('btn-edit-toggle').textContent = 'KSテキスト';
+  if ($('btn-step-panel')) $('btn-step-panel').textContent = 'Step編集';
+  if ($('btn-outline')) $('btn-outline').textContent = 'Steps';
+  if ($('btn-save')) $('btn-save').textContent = 'GitHubへPush';
+  if ($('btn-sync')) $('btn-sync').textContent = 'オフライン同期';
+}
+setMobileLabels();
+
+const previewHint = document.createElement('div');
+previewHint.id = 'preview-hint';
+previewHint.textContent = 'タップ:選択　ドラッグ:移動　ピンチ:立ち絵の拡縮　長押し:タグ追加　左右スワイプ:Step移動';
+if ($('mobile-preview-dock')) $('mobile-preview-dock').appendChild(previewHint);
+
+const previewActionMenu = document.createElement('div');
+previewActionMenu.id = 'preview-action-menu';
+previewActionMenu.className = 'hidden';
+previewActionMenu.innerHTML = `
+  <div class="menu-title">現在のStepにタグを追加</div>
+  <button class="smbtn" data-preview-tag="chara_move">キャラ移動</button>
+  <button class="smbtn" data-preview-tag="chara_shift">表情・差分</button>
+  <button class="smbtn" data-preview-tag="chara_hide">キャラ非表示</button>
+  <button class="smbtn" data-preview-tag="chara_show">キャラ表示</button>
+  <button class="smbtn" data-preview-tag="bg_show">背景</button>
+  <button class="smbtn" data-preview-tag="bgm">BGM</button>
+  <button class="smbtn" data-preview-tag="se">SE</button>
+  <button class="smbtn" data-preview-tag="fadein">フェードイン</button>
+  <button class="smbtn" data-preview-tag="fadeout">フェードアウト</button>
+  <button class="smbtn menu-cancel">キャンセル</button>`;
+document.body.appendChild(previewActionMenu);
+
+function closePreviewActionMenu() { previewActionMenu.classList.add('hidden'); }
+function showPreviewActionMenu(x, y) {
+  if (!currentFile || selectedStepIdx < 0) return;
+  previewActionMenu.classList.remove('hidden');
+  const width = Math.min(300, window.innerWidth - 24);
+  previewActionMenu.style.left = `${Math.max(12, Math.min(x - width / 2, window.innerWidth - width - 12))}px`;
+  previewActionMenu.style.top = `${Math.max(12, Math.min(y + 10, window.innerHeight - previewActionMenu.offsetHeight - 12))}px`;
+}
+function addPreviewTag(type) {
+  if (selectedStepIdx < 0) return;
+  const template = STEP_TAG_TEMPLATES[type];
+  if (!template) return;
+  const existing = $('step-actions').value.trim();
+  $('step-actions').value = existing ? `${existing}\n${template}` : template;
+  applyStepEditorChanges();
+  openStepEditor(selectedStepIdx);
+  closePreviewActionMenu();
+  sbMsg(`✓ ${type}を現在のStepへ追加しました`, 2500);
+}
+previewActionMenu.querySelectorAll('[data-preview-tag]').forEach(button => {
+  button.addEventListener('click', () => addPreviewTag(button.dataset.previewTag));
+});
+previewActionMenu.querySelector('.menu-cancel').addEventListener('click', closePreviewActionMenu);
+document.addEventListener('pointerdown', event => {
+  if (!previewActionMenu.contains(event.target)) closePreviewActionMenu();
+});
+
+function navigateMobileStep(delta) {
+  if (!currentSteps.length) return;
+  const base = selectedStepIdx >= 0 ? selectedStepIdx : previewStep;
+  openStepEditor(Math.max(0, Math.min(currentSteps.length - 1, base + delta)));
+}
+
+const mobilePreviewCanvas = $('mobile-preview-canvas');
+const previewPointers = new Map();
+let previewGesture = null;
+let previewLongPress = null;
+function previewCoordinate(event) {
+  const rect = mobilePreviewCanvas.getBoundingClientRect();
+  return {
+    x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),
+    y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))
+  };
+}
+function previewCharacterAt(point, state) {
+  if (!state) return '';
+  const names = Object.keys(state.characters || {});
+  for (let i=names.length-1;i>=0;i--) {
+    const character = state.characters[names[i]], size=Number(character.size)||1;
+    const left=character.x*1440-270*size, right=character.x*1440+270*size;
+    const top=character.y*1080-540*size, bottom=character.y*1080+540*size;
+    if (point.x*1440>=left&&point.x*1440<=right&&point.y*1080>=top&&point.y*1080<=bottom) return names[i];
+  }
+  return '';
+}
+function distanceBetweenPointers() {
+  const values=[...previewPointers.values()];
+  if (values.length<2) return 0;
+  return Math.hypot(values[0].clientX-values[1].clientX, values[0].clientY-values[1].clientY);
+}
+function drawDirectPreview(state) {
+  if (!state) return;
+  mobilePreviewRenderer.draw(state).catch(() => {});
+}
+function clearPreviewLongPress() {
+  if (previewLongPress) clearTimeout(previewLongPress);
+  previewLongPress=null;
+}
+mobilePreviewCanvas.addEventListener('pointerdown', event => {
+  if (!currentFile || selectedStepIdx < 0 || !previewScenario) return;
+  previewPointers.set(event.pointerId, event);
+  mobilePreviewCanvas.setPointerCapture?.(event.pointerId);
+  const point=previewCoordinate(event);
+  const state=KSPreview.buildState(previewScenario, previewStep);
+  if (previewPointers.size===1) {
+    const name=previewCharacterAt(point,state);
+    previewGesture={start:point,last:point,name,moved:false,dragState:state};
+    clearPreviewLongPress();
+    previewLongPress=setTimeout(() => {
+      previewGesture.longPressed=true;
+      showPreviewActionMenu(event.clientX,event.clientY);
+    },650);
+  } else {
+    clearPreviewLongPress();
+    const name=previewGesture?.name||sceneSelectedName||previewCharacterAt(point,state);
+    previewGesture={pinchName:name,pinchState:state,pinchSize:name ? Number(state.characters[name]?.size)||1 : 1,pinchDistance:distanceBetweenPointers(),moved:true};
+  }
+});
+mobilePreviewCanvas.addEventListener('pointermove', event => {
+  if (!previewPointers.has(event.pointerId) || !previewGesture) return;
+  previewPointers.set(event.pointerId,event);
+  if (previewPointers.size>=2 && previewGesture.pinchName) {
+    const distance=distanceBetweenPointers();
+    const factor=previewGesture.pinchDistance ? distance/previewGesture.pinchDistance : 1;
+    const state=previewGesture.pinchState;
+    const character=state.characters[previewGesture.pinchName];
+    if (character) { character.size=Math.max(.2,Math.min(3,previewGesture.pinchSize*factor)); drawDirectPreview(state); }
+    return;
+  }
+  if (!previewGesture.start || previewGesture.longPressed) return;
+  const point=previewCoordinate(event);
+  const dx=point.x-previewGesture.start.x, dy=point.y-previewGesture.start.y;
+  if (Math.hypot(dx,dy)>0.025) { previewGesture.moved=true; clearPreviewLongPress(); }
+  previewGesture.last=point;
+});
+mobilePreviewCanvas.addEventListener('pointerup', event => {
+  if (!previewPointers.has(event.pointerId) || !previewGesture) return;
+  const finalDistance=previewPointers.size>=2 ? distanceBetweenPointers() : 0;
+  previewPointers.delete(event.pointerId); clearPreviewLongPress();
+  if (previewPointers.size>0) return;
+  const gesture=previewGesture; previewGesture=null;
+  if (gesture.pinchName && gesture.pinchDistance) {
+    const factor=finalDistance ? finalDistance/gesture.pinchDistance : 1;
+    const size=Math.max(.2,Math.min(3,gesture.pinchSize*factor));
+    writeSceneAction('chara_shift',gesture.pinchName,{size:size.toFixed(3)});
+    drawPreview();
+    return;
+  }
+  if (gesture.longPressed) return;
+  const dx=gesture.last.x-gesture.start.x, dy=gesture.last.y-gesture.start.y;
+  if (!gesture.moved && Math.abs(dx)>0.08 && Math.abs(dx)>Math.abs(dy)*1.35) {
+    navigateMobileStep(dx<0 ? 1 : -1);
+    return;
+  }
+  if (gesture.name && gesture.moved) {
+    const state=KSPreview.buildState(previewScenario,previewStep);
+    sceneState=state; sceneScenario=previewScenario; sceneStepNumber=previewStep; sceneSelectedName=gesture.name;
+    applyScenePosition(gesture.last.x,gesture.last.y,Number(state.characters[gesture.name]?.size)||1);
+    drawPreview();
+  } else if (!gesture.moved) {
+    sceneSelectedName=gesture.name||'';
+    sbMsg(gesture.name ? `${gesture.name}を選択中` : 'Previewを選択中', 1800);
+  }
+});
+mobilePreviewCanvas.addEventListener('pointercancel', () => { previewPointers.clear(); clearPreviewLongPress(); previewGesture=null; });
+
+let mobileStepApplyTimer=null;
+function scheduleMobileStepApply() {
+  if (editMode || selectedStepIdx<0) return;
+  clearTimeout(mobileStepApplyTimer);
+  mobileStepApplyTimer=setTimeout(() => {
+    if (selectedStepIdx>=0 && !editMode) applyStepEditorChanges();
+  }, 280);
+}
+['step-speaker','step-body','step-actions','step-memo'].forEach(id => $(id).addEventListener('input', scheduleMobileStepApply));
+['step-scroll-stop','step-female'].forEach(id => $(id).addEventListener('change', scheduleMobileStepApply));
 </script>
 </body>
 </html>
