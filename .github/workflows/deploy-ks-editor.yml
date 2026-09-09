@@ -23,7 +23,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install sshpass + rsync
-        run: sudo apt-get install -y sshpass rsync
+        run: |
+          timeout 5m sudo env DEBIAN_FRONTEND=noninteractive \
+            apt-get install -y --no-install-recommends sshpass rsync
 
       - name: Find existing public web root
         run: |
@@ -40,57 +42,60 @@ jobs:
           export SSHPASS="$SSH_PASS"
           printf '%s\n' "$GITHUB_SHA" > ./tools/dev/ks-editor/deploy-version.txt
 
-          # Use the root that already serves the public editor. wp-config.php can belong to another site.
-          WEB_PATH=$(sshpass -e ssh \
+          # Deploy to every existing editor root. A shared host can contain several site roots.
+          WEB_PATHS=$(sshpass -e ssh \
             -p "${SSH_PORT:-22}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "$SSH_USER@$SSH_HOST" \
-            'find "$HOME" -type f -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null | sed "s#/dev/ks-editor$##" | head -1' 2>/dev/null)
+            'find "$HOME" -type f -path "*/dev/ks-editor/index.html" -exec dirname {} \; 2>/dev/null | sed "s#/dev/ks-editor$##" | sort -u' 2>/dev/null)
 
-          if [ -z "$WEB_PATH" ]; then
-            # First deployment fallback. Only accept a candidate that has a dev directory.
-            WEB_PATH=$(sshpass -e ssh \
+          if [ -z "$WEB_PATHS" ]; then
+            # First deployment fallback. Include every candidate that has a dev directory.
+            WEB_PATHS=$(sshpass -e ssh \
               -p "${SSH_PORT:-22}" \
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
               "$SSH_USER@$SSH_HOST" \
               'for candidate in "$HOME/pikupikutai.pinoko.jp/mokiss" "$HOME/mokiss" "$HOME/pikupikutai.pinoko.jp"; do
-                 if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; break; fi
+                 if [ -d "$candidate/dev" ]; then printf "%s\\n" "$candidate"; fi
                done')
           fi
 
-          if [ -z "$WEB_PATH" ]; then
+          if [ -z "$WEB_PATHS" ]; then
             echo "ERROR: Could not find the public web root on the SSH host"
             exit 1
           fi
 
-          echo "Deploying to: ${WEB_PATH}/dev/"
-          sshpass -e ssh \
-            -p "${SSH_PORT:-22}" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$SSH_USER@$SSH_HOST" \
-            "mkdir -p \"${WEB_PATH}/dev/ks-editor\""
+          while IFS= read -r WEB_PATH; do
+            [ -z "$WEB_PATH" ] && continue
+            echo "Deploying to: ${WEB_PATH}/dev/"
+            sshpass -e ssh \
+              -p "${SSH_PORT:-22}" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              "$SSH_USER@$SSH_HOST" \
+              "mkdir -p \"${WEB_PATH}/dev/ks-editor\""
 
-          sshpass -e rsync -avz \
-            --ignore-times \
-            --exclude=api_config.php \
-            -e "ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-            ./tools/dev/ \
-            "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
+            sshpass -e rsync -avz \
+              --ignore-times \
+              --exclude=api_config.php \
+              -e "ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              ./tools/dev/ \
+              "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
 
-          REMOTE_SHA=$(sshpass -e ssh \
-            -p "${SSH_PORT:-22}" \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$SSH_USER@$SSH_HOST" \
-            "cat \"${WEB_PATH}/dev/ks-editor/deploy-version.txt\"")
+            REMOTE_SHA=$(sshpass -e ssh \
+              -p "${SSH_PORT:-22}" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              "$SSH_USER@$SSH_HOST" \
+              "cat \"${WEB_PATH}/dev/ks-editor/deploy-version.txt\"")
 
-          if [ "$REMOTE_SHA" != "$GITHUB_SHA" ]; then
-            echo "Remote deploy verification failed: expected $GITHUB_SHA, got $REMOTE_SHA"
-            exit 1
-          fi
+            if [ "$REMOTE_SHA" != "$GITHUB_SHA" ]; then
+              echo "Remote deploy verification failed for ${WEB_PATH}: expected $GITHUB_SHA, got $REMOTE_SHA"
+              exit 1
+            fi
+          done <<< "$WEB_PATHS"
 
       - name: Verify public deployment
         run: |
