@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>mo-kiss KSエディタ</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3c3f41">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <!-- build: 2026-06-09 -->
 <style>
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -89,6 +93,7 @@ tr.file-row:hover td { background:var(--panel2); }
 
 /* ===== ファイルビュー ===== */
 #file-panel { flex:1; display:flex; overflow:hidden; min-width:0; }
+#mobile-preview-dock { display:none; }
 
 /* アウトラインサイドバー */
 #outline-sidebar { width:160px; flex-shrink:0; border-right:1px solid var(--border); overflow:auto; background:var(--panel); }
@@ -132,6 +137,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   flex-shrink:0; position:sticky; top:0;
 }
 #step-panel-title{font-size:12px;color:var(--blue);font-weight:bold;}
+#step-panel-nav{display:flex;gap:4px;margin-left:auto;}
 .sp-body{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0; }
 .sp-field{padding:6px 10px;border-bottom:1px solid #3a3a3a;}
 .sp-label{font-size:10px;color:var(--comment);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
@@ -143,12 +149,19 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
 .sp-input:focus,.sp-textarea:focus{border-color:var(--blue);}
 .sp-check{font-size:13px;color:var(--text);cursor:pointer;line-height:2;}
 .sp-check input{margin-right:6px;transform:scale(1.2);}
+#step-action-tools{display:flex;gap:5px;margin-top:5px;}
+#step-tag-select{flex:1;min-width:0;background:#1e1e1e;border:1px solid var(--border);color:var(--text2);padding:5px;font-size:12px;}
+#step-add-tag{white-space:nowrap;}
 #step-btns{padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--panel2);border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;z-index:3;box-shadow:0 -3px 10px rgba(0,0,0,.35);}
 #step-save-state{font-size:11px;color:var(--comment);margin-left:auto;white-space:nowrap;}
 #step-save-state.unsaved{color:#ffd866;font-weight:bold;}
 #step-save-github{background:#287a36;color:#fff;font-weight:bold;border-color:#45a958;}
 #step-save-github.saved{background:#3c3f41;color:#9ca3a8;border-color:#666;}
 #step-save-github.busy{opacity:.65;pointer-events:none;}
+#metadata-fields{max-height:65vh;overflow:auto;}
+.metadata-field{margin-bottom:9px;}
+.metadata-field label{display:block;color:var(--comment);font-size:10px;margin-bottom:3px;}
+.metadata-field input{margin-bottom:0;}
 /* ビューモードのコード行 */
 .step-line{cursor:pointer;}
 .step-line:hover{filter:brightness(1.3);}
@@ -156,6 +169,9 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
 #statusbar { background:var(--panel2); border-top:1px solid var(--border); display:flex; align-items:center; gap:16px; padding:2px 10px; flex-shrink:0; font-size:11px; color:var(--comment); }
 #statusbar span { white-space:nowrap; }
 #sb-mode { color:var(--warn); font-weight:bold; }
+#sb-connection { color:var(--green); }
+#sb-connection.offline { color:var(--warn); }
+#sb-connection.pending { color:var(--accent); }
 .spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
@@ -189,7 +205,46 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
 .chara-field.mismatch select { border-color:#ffcc00; background:#4a3a00; }
 .chara-field.changed select { border-color:#6a8759; background:#263d26; }
 .chara-actions { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
+.scene-box { width:min(1240px,98vw); max-height:96vh; padding:0; overflow:hidden; }
+.scene-layout { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(260px,.7fr); min-height:0; max-height:calc(96vh - 44px); }
+.scene-stage { background:#111; display:flex; align-items:center; justify-content:center; min-width:0; overflow:hidden; }
+.scene-stage canvas { display:block; width:100%; height:auto; max-height:calc(96vh - 44px); aspect-ratio:4/3; object-fit:contain; touch-action:none; }
+.scene-inspector { padding:10px; overflow:auto; background:var(--panel); }
+.scene-objects { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+.scene-object { width:100%; text-align:left; padding:6px 8px; background:var(--btn); border:1px solid var(--border); color:var(--text2); cursor:pointer; font:12px inherit; }
+.scene-object.selected { border-color:var(--blue); background:var(--sel); color:#fff; }
+.scene-properties { border-top:1px solid var(--border); padding-top:9px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+.scene-properties .sp-label, .scene-properties button { grid-column:1/-1; }
+.scene-properties label { color:var(--comment); font-size:10px; }
+.scene-properties input { width:100%; box-sizing:border-box; background:#1e1e1e; border:1px solid var(--border); color:var(--text2); padding:5px; font:12px inherit; }
+.scene-actions { display:flex; flex-wrap:wrap; gap:5px; margin:12px 0; }
+.scene-actions button { flex:1 1 30%; min-width:75px; }
 @media (max-width:700px) {
+  #menubar { padding:4px; gap:3px; overflow-x:auto; flex-wrap:nowrap; }
+  #menubar h1 { display:none; }
+  #menubar .mbtn { min-height:40px; padding:7px 10px; }
+  #content-area { overflow:hidden; }
+  #file-panel { flex-direction:column; }
+  #mobile-preview-dock { display:flex; flex:0 0 auto; flex-direction:column; background:#111; border-bottom:2px solid var(--blue); }
+  #mobile-preview-head { display:flex; align-items:center; gap:6px; min-height:34px; padding:4px 8px; background:var(--panel2); }
+  #mobile-preview-title { color:var(--blue); font-size:11px; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #mobile-preview-stage { display:flex; align-items:center; justify-content:center; min-height:0; max-height:38dvh; overflow:hidden; background:#111; }
+  #mobile-preview-canvas { display:block; width:100%; height:auto; aspect-ratio:4/3; object-fit:contain; }
+  #mobile-preview-controls { display:flex; align-items:center; gap:5px; padding:4px 6px; background:var(--panel2); }
+  #mobile-preview-controls .smbtn { min-width:42px; min-height:36px; }
+  #mobile-preview-status { flex:1; text-align:center; font-size:10px; color:var(--comment); }
+  #outline-sidebar { width:100%; max-height:72px; border-right:0; border-bottom:1px solid var(--border); }
+  #outline-title { display:none; }
+  #outline-list { display:flex; overflow-x:auto; }
+  .para-item { min-width:130px; border-right:1px solid #3a3a3a; border-bottom:0; }
+  #ks-wrap { min-height:0; }
+  #list-panel { padding:6px; }
+  #list-toolbar { position:sticky; top:0; z-index:20; padding:4px 0; background:var(--bg); }
+  #file-table th, #file-table td { padding:9px 8px; }
+  #statusbar { min-height:28px; padding:4px 8px; gap:8px; overflow:hidden; }
+  #sb-file { overflow:hidden; text-overflow:ellipsis; }
+  #sb-lines, #sb-size { display:none; }
+  #sb-connection { margin-left:auto; }
   .preview-modal { padding:0; align-items:stretch; }
   .preview-box { width:100vw; max-height:100dvh; height:100dvh; border:0; }
   .preview-stage { flex:1; }
@@ -197,6 +252,10 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   .chara-box { width:100vw; max-height:100dvh; height:100dvh; grid-template-columns:1fr; grid-template-rows:minmax(220px,42vh) 1fr; border:0; }
   .chara-stage canvas { max-height:42vh; }
   .chara-form { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+  .scene-box { width:100vw; max-height:100dvh; height:100dvh; border:0; }
+  .scene-layout { grid-template-columns:1fr; grid-template-rows:minmax(0,48dvh) 1fr; max-height:none; height:calc(100dvh - 44px); }
+  .scene-stage canvas { max-height:48dvh; }
+  .scene-inspector { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
   #step-panel{max-height:88dvh;}
   #step-btns .smbtn{min-height:42px;padding:8px 10px;}
   #step-save-state{order:20;width:100%;margin-left:0;text-align:right;}
@@ -226,6 +285,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <div class="msep"></div>
     <button class="mbtn hidden" id="btn-back">← 一覧</button>
     <button class="mbtn" id="btn-reload">再読込</button>
+    <button class="mbtn" id="btn-sync">オフライン同期</button>
     <div class="msep" id="sep-file" style="display:none"></div>
     <button class="mbtn hidden" id="btn-edit-toggle">編集</button>
     <button class="mbtn hidden" id="btn-save">保存</button>
@@ -237,6 +297,9 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <button class="mbtn hidden" id="btn-outline">アウトライン</button>
     <button class="mbtn hidden" id="btn-step-panel">Step編集</button>
     <button class="mbtn hidden" id="btn-preview">▶ プレビュー</button>
+    <button class="mbtn hidden" id="btn-undo" title="Ctrl+Z">戻す</button>
+    <button class="mbtn hidden" id="btn-redo" title="Ctrl+Y">やり直し</button>
+    <button class="mbtn hidden" id="btn-metadata">メタデータ</button>
     <button class="mbtn" id="btn-settings">設定</button>
     <button class="mbtn" id="btn-logout" style="margin-left:auto">ログアウト</button>
   </div>
@@ -270,6 +333,19 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
 
     <!-- ファイルビュー -->
     <div id="file-panel" style="display:none">
+      <div id="mobile-preview-dock" aria-label="モバイルプレビュー">
+        <div id="mobile-preview-head">
+          <span id="mobile-preview-title">プレビュー</span>
+          <button class="smbtn" id="mobile-preview-open" style="margin-left:auto">全画面</button>
+        </div>
+        <div id="mobile-preview-stage"><canvas id="mobile-preview-canvas" width="1440" height="1080"></canvas></div>
+        <div id="mobile-preview-controls">
+          <button class="smbtn" id="mobile-preview-prev">◀</button>
+          <span id="mobile-preview-status">Step —</span>
+          <button class="smbtn" id="mobile-preview-next">▶</button>
+          <button class="smbtn" id="mobile-preview-sound">🔇</button>
+        </div>
+      </div>
       <div id="outline-sidebar" class="hidden">
         <div id="outline-title">アウトライン</div>
         <div id="outline-list"></div>
@@ -290,7 +366,11 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <div id="step-panel-head">
       <span id="step-panel-title">Step #0</span>
       <span style="font-size:11px;color:var(--comment);margin-left:8px">緑の「GitHub mainへ保存」でコミット・再取得確認まで実行</span>
-      <button class="smbtn" id="step-close" style="margin-left:auto">閉じる</button>
+      <div id="step-panel-nav">
+        <button class="smbtn" id="step-prev">◀</button>
+        <button class="smbtn" id="step-next">▶</button>
+        <button class="smbtn" id="step-close">閉じる</button>
+      </div>
     </div>
     <div class="sp-body">
       <div class="sp-field">
@@ -310,6 +390,10 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
       <div class="sp-field">
         <div class="sp-label">アクション（1行1タグ）</div>
         <textarea id="step-actions" class="sp-textarea" rows="2" placeholder="[bg_show storage=...]など"></textarea>
+        <div id="step-action-tools">
+          <select id="step-tag-select" aria-label="追加するタグ"></select>
+          <button class="smbtn" id="step-add-tag">タグ追加</button>
+        </div>
       </div>
       <div class="sp-field">
         <div class="sp-label">メモ（KSに含まれ、エディタ内で表示）</div>
@@ -322,6 +406,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
       <button class="smbtn danger" id="step-delete-btn">削除</button>
       <button class="smbtn" id="step-preview">▶ このStepをプレビュー</button>
       <button class="smbtn" id="step-chara-preview">🎨 立ち絵プレビュー</button>
+      <button class="smbtn" id="step-scene-editor">ステージ編集</button>
       <button class="smbtn" id="step-apply" style="background:var(--blue);color:#fff;font-weight:bold">KSへ反映（未保存）</button>
       <button class="smbtn" id="step-apply-save" style="background:#2a7a2a;color:#fff;font-weight:bold">GitHub mainへ保存</button>
       <span id="step-save-state">✓ GitHub保存済み</span>
@@ -335,6 +420,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
     <span id="sb-lines"></span>
     <span id="sb-size"></span>
     <span id="sb-mode"></span>
+    <span id="sb-connection">オンライン</span>
     <span id="sb-msg" style="margin-left:auto"></span>
   </div>
 
@@ -385,6 +471,19 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   </div>
 </div>
 
+<!-- イベントメタデータ -->
+<div id="metadata-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(520px,94vw)">
+    <h3>イベントメタデータ</h3>
+    <div id="metadata-fields"></div>
+    <div class="modal-note" id="metadata-status"></div>
+    <div class="modal-row">
+      <button class="smbtn" id="metadata-cancel">キャンセル</button>
+      <button class="smbtn" id="metadata-save" style="background:#2a7a2a;color:#fff">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- ゲームプレビュー -->
 <div id="preview-modal" class="modal-overlay preview-modal hidden">
   <div class="modal-box preview-box">
@@ -401,6 +500,7 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
       <span id="preview-status">Step 0 / 0</span>
       <button class="smbtn" id="preview-next">次 ▶</button>
       <button class="smbtn" id="preview-last">▶|</button>
+      <button class="smbtn" id="preview-sound">🔇 音声</button>
     </div>
   </div>
 </div>
@@ -422,6 +522,37 @@ mark.cur   { background:var(--cur-bg);   color:var(--cur-fg); }
   </div>
 </div>
 
+<div id="scene-modal" class="modal-overlay hidden">
+  <div class="modal-box scene-box">
+    <div class="preview-head">
+      <span class="preview-title">ステージ編集</span>
+      <span id="scene-status" class="modal-note" style="margin:0"></span>
+      <button class="smbtn" id="scene-close" style="margin-left:auto">閉じる</button>
+    </div>
+    <div class="scene-layout">
+      <div class="scene-stage"><canvas id="scene-canvas" width="1440" height="1080"></canvas></div>
+      <div class="scene-inspector">
+        <div class="sp-label">オブジェクト</div>
+        <div id="scene-objects" class="scene-objects"></div>
+        <div class="scene-properties">
+          <div class="sp-label">選択中の座標 / サイズ</div>
+          <label>x <input id="scene-x" type="number" min="0" max="1" step="0.001"></label>
+          <label>y <input id="scene-y" type="number" min="0" max="1" step="0.001"></label>
+          <label>size <input id="scene-size" type="number" min="0.2" max="3" step="0.01"></label>
+          <button class="smbtn" id="scene-apply-properties">座標をStepへ反映</button>
+        </div>
+        <div class="scene-actions">
+          <button class="smbtn" id="scene-add-move">Moveを追加</button>
+          <button class="smbtn" id="scene-add-shift">Shiftを追加</button>
+          <button class="smbtn danger" id="scene-add-hide">Hideを追加</button>
+        </div>
+        <div class="modal-note">キャラをドラッグして移動。Shiftキー併用で軸固定。反映後、Step画面の「KSへ反映」またはGitHub保存を押してください。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="offline_store.js"></script>
 <script src="preview_engine.js?v=20260629-save-conflict"></script>
 <script>
 // ============================================================
@@ -431,13 +562,18 @@ const REPO     = "pikupiku-official/mo-kiss";
 const BRANCH   = "main";
 const DIR      = "events";
 const PASSWORD = "1919";  // ← 変更してください
+const IS_BUNDLED_APP = location.protocol === "capacitor:" ||
+  (location.hostname === "localhost" && !location.port);
+const API_ENDPOINT = IS_BUNDLED_APP
+  ? "https://mokiss.jp/dev/ks-editor/api.php"
+  : "api.php";
 
 // ============================================================
 //  ユーティリティ
 // ============================================================
 const $ = id => document.getElementById(id);
 function fmtSize(n) { return n < 1024 ? n+" B" : Math.round(n/1024)+" KB"; }
-function esc(s)     { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function esc(s)     { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 function sbMsg(txt, ms=0) {
   $("sb-msg").innerHTML = txt;
@@ -450,6 +586,119 @@ function toB64(str) { return btoa(unescape(encodeURIComponent(str))); }
 function fromB64(b64) {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g,"")))); }
   catch { return atob(b64.replace(/\s/g,"")); }
+}
+
+// ============================================================
+//  オフライン編集・保存キュー
+// ============================================================
+let outboxFlushBusy = false;
+
+function setConnectionState() {
+  const el = $("sb-connection");
+  if (!el) return;
+  const pending = Number(el.dataset.pending || 0);
+  el.classList.toggle("offline", !navigator.onLine);
+  el.classList.toggle("pending", pending > 0);
+  if (!navigator.onLine) el.textContent = pending ? `オフライン / 送信待ち ${pending}` : "オフライン";
+  else if (pending > 0) el.textContent = `オンライン / 送信待ち ${pending}`;
+  else el.textContent = "オンライン";
+}
+
+async function refreshOutboxStatus() {
+  try {
+    const rows = await KSOfflineStore.listOutbox();
+    const el = $("sb-connection");
+    if (el) el.dataset.pending = String(rows.filter(row => row.status !== "conflict").length);
+  } catch (error) {
+    console.warn("offline store status unavailable", error);
+  }
+  setConnectionState();
+}
+
+async function queueGithubWrite(action, path, opts, reason = "オフライン") {
+  await KSOfflineStore.enqueueWrite({
+    action,
+    path,
+    method: opts.method || "GET",
+    body: opts.body || null
+  });
+  await refreshOutboxStatus();
+  sbMsg(`✓ 端末に保存しました（${reason}・オンライン復帰後にGitHubへ送信）`, 6000);
+  return { queued: true };
+}
+
+async function flushOutbox() {
+  if (outboxFlushBusy || !navigator.onLine) return;
+  outboxFlushBusy = true;
+  try {
+    const rows = await KSOfflineStore.listOutbox();
+    for (const row of rows) {
+      if (row.status === "conflict") continue;
+      row.status = "sending";
+      row.attempts = (row.attempts || 0) + 1;
+      await KSOfflineStore.updateOutbox(row);
+      await refreshOutboxStatus();
+      try {
+        if (row.action === "save" && row.body) {
+          const payload = JSON.parse(row.body);
+          if (payload.sha && /^(bundled|local)-/.test(payload.sha)) {
+            const latest = await apiCall("get", row.path, { queueOffline: false });
+            if (!latest || !latest.sha) throw new Error("GitHubの最新SHAを取得できません");
+            payload.sha = latest.sha;
+            row.body = JSON.stringify(payload);
+            await KSOfflineStore.updateOutbox(row);
+          }
+        }
+        const result = await apiCall(row.action, row.path, {
+          method: row.method,
+          body: row.body,
+          queueOffline: false
+        });
+        if (result && result.queued) throw new Error("送信待ちを再キューしました");
+        await KSOfflineStore.removeOutbox(row.id);
+        if (row.action === "save" && currentFile && currentFile.path === row.path) {
+          const payload = row.body ? JSON.parse(row.body) : {};
+          const savedText = payload.content ? fromB64(payload.content) : currentText;
+          currentText = savedText;
+          lastSavedText = savedText;
+          if (result && result.content && result.content.sha) {
+            currentSha = result.content.sha;
+            lastConfirmedSha = result.content.sha;
+          }
+          updateStepSaveState();
+          await KSOfflineStore.removeDraft(row.path).catch(() => {});
+        }
+        if (row.path === METADATA_PATH) await KSOfflineStore.removeDraft(row.path).catch(() => {});
+      } catch (error) {
+        row.status = error.status === 409 ? "conflict" : "pending";
+        row.error = error.message || String(error);
+        await KSOfflineStore.updateOutbox(row);
+        if (row.status === "conflict") {
+          sbMsg(`⚠ GitHub競合: ${row.path}（ローカル変更は保持中）`, 8000);
+        } else {
+          sbMsg(`⚠ 同期失敗: ${row.path}（次回自動再試行）`, 6000);
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    console.warn("outbox flush failed", error);
+  } finally {
+    outboxFlushBusy = false;
+    await refreshOutboxStatus();
+  }
+}
+
+function registerOfflineSupport() {
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("sw.js").catch(error => console.warn("service worker registration failed", error));
+  }
+  window.addEventListener("online", () => {
+    setConnectionState();
+    flushOutbox();
+  });
+  window.addEventListener("offline", setConnectionState);
+  refreshOutboxStatus();
 }
 
 // ============================================================
@@ -471,6 +720,7 @@ function doLogin() {
 $("login-btn").addEventListener("click", doLogin);
 $("pin-input").addEventListener("keydown", e => { if(e.key==="Enter") doLogin(); });
 $("btn-logout").addEventListener("click", ()=>{ sessionStorage.removeItem("mks_ok"); location.reload(); });
+registerOfflineSupport();
 
 if (isLoggedIn()) {
   $("login-view").classList.add("hidden");
@@ -485,38 +735,264 @@ if (isLoggedIn()) {
 // ============================================================
 const GH_API = `https://api.github.com/repos/${REPO}`;
 
+let bundledManifestPromise = null;
+async function getBundledManifest() {
+  if (!bundledManifestPromise) {
+    bundledManifestPromise = fetch("offline-manifest.json", { cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .catch(() => null);
+  }
+  return bundledManifestPromise;
+}
+
+async function getBundledData(path) {
+  if (!path || path.startsWith("http")) return null;
+  const manifest = await getBundledManifest();
+  if (!manifest || !Array.isArray(manifest.files)) return null;
+  const normalized = path.replace(/^\/+|\/+$/g, "");
+  const match = manifest.files.find(item => item.path === normalized);
+  if (match) {
+    const response = await fetch(`./${normalized}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const text = await response.text();
+    return {
+      name: normalized.split("/").pop(),
+      path: normalized,
+      size: new TextEncoder().encode(text).length,
+      sha: `bundled-${normalized}`,
+      content: toB64(text)
+    };
+  }
+  const prefix = normalized ? `${normalized}/` : "";
+  const children = manifest.files
+    .filter(item => item.path.startsWith(prefix))
+    .map(item => item.path.slice(prefix.length).split("/")[0])
+    .filter((value, index, values) => value && values.indexOf(value) === index)
+    .map(name => {
+      const childPath = prefix + name;
+      const exact = manifest.files.find(item => item.path === childPath);
+      return exact
+        ? { name, path: childPath, type: "file", size: exact.size, download_url: "" }
+        : { name, path: childPath, type: "dir", size: 0 };
+    });
+  return children.length ? children : null;
+}
+
 // 読み取り用: 直接GitHub API（公開リポ、認証不要）
 async function ghGet(path) {
   const baseUrl = path.startsWith('http')
     ? path
     : `${GH_API}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
   const url = baseUrl+(`${baseUrl.includes('?')?'&':'?'}_=${Date.now()}`);
-  const r = await fetch(url, {
-    headers: { Accept: 'application/vnd.github+json' },
-    cache: 'no-store'
-  });
-  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.message||'HTTP '+r.status); }
-  return r.json();
+  const cacheKey = `github:${baseUrl}`;
+  try {
+    const r = await fetch(url, {
+      headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store'
+    });
+    if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.message||'HTTP '+r.status); }
+    const data = await r.json();
+    await KSOfflineStore.putFile(cacheKey, data).catch(() => {});
+    if (!path.startsWith('http') && data && data.content && data.sha) {
+      await KSOfflineStore.putFile(path, data).catch(() => {});
+    }
+    return data;
+  } catch (error) {
+    const bundled = await getBundledData(path).catch(() => null);
+    if (bundled) {
+      sbMsg(`↶ APK同梱データを使用: ${path || 'ルート'}`, 3000);
+      return bundled;
+    }
+    const cached = await KSOfflineStore.getFile(cacheKey).catch(() => null);
+    if (cached && cached.data) {
+      sbMsg(`↶ オフラインキャッシュを使用: ${path || 'ルート'}`, 3000);
+      return cached.data;
+    }
+    const fileCached = !path.startsWith('http') ? await KSOfflineStore.getFile(path).catch(() => null) : null;
+    if (fileCached && fileCached.data) {
+      sbMsg(`↶ ローカル保存版を使用: ${path}`, 3000);
+      return fileCached.data;
+    }
+    throw error;
+  }
 }
 
 // 書き込み用: api.php経由
 async function apiCall(action, path='', opts={}) {
-  const url = 'api.php?action='+action+(path ? '&path='+encodeURIComponent(path) : '');
-  const r = await fetch(url, {
-    method: opts.method || 'GET',
-    headers: { 'Content-Type':'application/json', 'X-App-Secret': PASSWORD },
-    body: opts.body || undefined,
-    cache: 'no-store'
-  });
-  if (!r.ok) {
-    const j = await r.json().catch(()=>({}));
-    const error=new Error(j.error || j.message || 'HTTP '+r.status);
-    error.status=r.status;
-    error.payload=j;
+  const url = API_ENDPOINT+'?action='+action+(path ? '&path='+encodeURIComponent(path) : '');
+  try {
+    const r = await fetch(url, {
+      method: opts.method || 'GET',
+      headers: { 'Content-Type':'application/json', 'X-App-Secret': PASSWORD },
+      body: opts.body || undefined,
+      cache: 'no-store'
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(()=>({}));
+      const error=new Error(j.error || j.message || 'HTTP '+r.status);
+      error.status=r.status;
+      error.payload=j;
+      throw error;
+    }
+    return r.json();
+  } catch (error) {
+    const isWrite = ['save', 'delete'].includes(action) && opts.queueOffline !== false;
+    const isNetworkFailure = !error.status || error.status >= 500;
+    if (isWrite && isNetworkFailure) return queueGithubWrite(action, path, opts);
     throw error;
   }
-  return r.json();
 }
+
+async function syncAllOfflineData() {
+  if (!navigator.onLine) {
+    sbMsg('⚠ オフライン中は同期を開始できません', 4000);
+    return;
+  }
+  const button = $("btn-sync");
+  if (button) { button.disabled = true; button.textContent = "同期中…"; }
+  try {
+    sbMsg('<span class="spinner"></span> GitHubのファイル一覧を取得中…');
+    const treeUrl = `${GH_API}/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`;
+    const response = await fetch(treeUrl, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (!response.ok) throw new Error(`ファイル一覧 HTTP ${response.status}`);
+    const tree = await response.json();
+    if (tree.truncated) throw new Error('GitHubのファイル一覧が大きすぎるため中断しました');
+    const paths = (tree.tree || []).filter(item => {
+      if (item.type !== 'blob') return false;
+      return /^(events|images|sounds|fonts|movies)\//.test(item.path);
+    }).map(item => item.path);
+    const textPaths = paths.filter(path => /\.(ks|csv|json|txt|md)$/i.test(path));
+    const binaryPaths = paths.filter(path => !textPaths.includes(path));
+    let done = 0;
+    for (const path of textPaths) {
+      const meta = await ghGet(path);
+      if (meta && meta.content) await KSOfflineStore.putFile(path, meta);
+      done += 1;
+      sbMsg(`<span class="spinner"></span> テキスト同期 ${done}/${paths.length}…`);
+    }
+    const assetCache = await caches.open('mo-kiss-ks-assets-v1');
+    for (const path of binaryPaths) {
+      const assetUrl = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${path}`;
+      const assetResponse = await fetch(assetUrl, { cache: 'no-store' });
+      if (assetResponse.ok) await assetCache.put(assetUrl, assetResponse.clone());
+      done += 1;
+      sbMsg(`<span class="spinner"></span> アセット同期 ${done}/${paths.length}…`);
+    }
+    await KSOfflineStore.setMeta('lastFullSync', { at: Date.now(), count: paths.length });
+    sbMsg(`✓ オフライン同期完了（${paths.length}ファイル）`, 8000);
+  } catch (error) {
+    sbMsg(`⚠ オフライン同期失敗: ${error.message}`, 8000);
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "オフライン同期"; }
+  }
+}
+
+$("btn-sync").addEventListener("click", syncAllOfflineData);
+
+// ============================================================
+//  events.csv メタデータ
+// ============================================================
+const METADATA_PATH = "events/events.csv";
+let metadataRows = null;
+let metadataHeaders = null;
+let metadataSourceSha = "";
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+  for (let i = 0; i < String(text || "").length; i += 1) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (quoted && text[i + 1] === '"') { cell += '"'; i += 1; }
+      else quoted = !quoted;
+    } else if (ch === ',' && !quoted) {
+      row.push(cell); cell = "";
+    } else if ((ch === '\n' || ch === '\r') && !quoted) {
+      if (ch === '\r' && text[i + 1] === '\n') i += 1;
+      row.push(cell); cell = "";
+      if (row.some(value => value !== "")) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+function serializeCsv(rows) {
+  return rows.map(row => row.map(value => {
+    const text = String(value ?? "");
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }).join(",")).join("\r\n") + "\r\n";
+}
+
+function metadataEventId() {
+  return (currentFile?.name || "").replace(/\.[^.]+$/, "");
+}
+
+async function openMetadataEditor() {
+  if (!currentFile) return;
+  $("metadata-status").textContent = "読み込み中…";
+  $("metadata-modal").classList.remove("hidden");
+  try {
+    const meta = await ghGet(METADATA_PATH);
+    const rows = parseCsv(fromB64(meta.content));
+    if (!rows.length) throw new Error("events.csvが空です");
+    metadataHeaders = rows[0];
+    metadataRows = rows.slice(1);
+    metadataSourceSha = meta.sha || "";
+    const eventId = metadataEventId();
+    let row = metadataRows.find(item => item[0] === eventId);
+    if (!row) row = [eventId, ...Array(Math.max(0, metadataHeaders.length - 1)).fill("")];
+    $("metadata-fields").innerHTML = metadataHeaders.map((header, index) => `
+      <div class="metadata-field">
+        <label>${esc(header || `列${index + 1}`)}</label>
+        <input class="sp-input metadata-input" data-index="${index}" value="${esc(row[index] || "")}">
+      </div>`).join("");
+    $("metadata-status").textContent = `対象: ${eventId}`;
+  } catch (error) {
+    $("metadata-status").textContent = `⚠ ${error.message}`;
+  }
+}
+
+async function saveMetadata() {
+  if (!currentFile || !metadataHeaders) return;
+  const values = [...document.querySelectorAll(".metadata-input")].map(input => input.value);
+  const eventId = metadataEventId();
+  values[0] = eventId;
+  const nextRows = metadataRows ? metadataRows.map(row => row.slice()) : [];
+  const index = nextRows.findIndex(row => row[0] === eventId);
+  if (index >= 0) nextRows[index] = values;
+  else nextRows.push(values);
+  const text = serializeCsv([metadataHeaders, ...nextRows]);
+  const body = {
+    message: `KSエディタ: ${eventId} メタデータを更新`,
+    content: toB64(text),
+    branch: BRANCH,
+    ...(metadataSourceSha ? { sha: metadataSourceSha } : {})
+  };
+  $("metadata-save").disabled = true;
+  $("metadata-status").textContent = "保存中…";
+  try {
+    const result = await apiCall("save", METADATA_PATH, { method: "PUT", body: JSON.stringify(body) });
+    if (result && result.queued) {
+      await KSOfflineStore.putDraft(METADATA_PATH, text, metadataSourceSha).catch(() => {});
+      $("metadata-status").textContent = "端末保存済み・GitHub送信待ち";
+    } else {
+      metadataSourceSha = result.content?.sha || metadataSourceSha;
+      metadataRows = nextRows;
+      await KSOfflineStore.removeDraft(METADATA_PATH).catch(() => {});
+      $("metadata-status").textContent = "GitHub保存済み";
+    }
+  } catch (error) {
+    $("metadata-status").textContent = `⚠ 保存失敗: ${error.message}`;
+  } finally {
+    $("metadata-save").disabled = false;
+  }
+}
+
+$("btn-metadata").addEventListener("click", openMetadataEditor);
+$("metadata-cancel").addEventListener("click", () => $("metadata-modal").classList.add("hidden"));
+$("metadata-save").addEventListener("click", saveMetadata);
 
 // ============================================================
 //  ディレクトリブラウザ
@@ -603,7 +1079,10 @@ function renderDirTable(items, dirPath) {
 }
 
 $("btn-reload").addEventListener("click", () => {
-  if (currentFile) openFile(currentFile, false);
+  if (currentFile) {
+    if (editMode) currentText = $("edit-textarea").value;
+    persistCurrentDraftNow().finally(() => openFile(currentFile, false));
+  }
   else browseDir(currentDir);
 });
 
@@ -616,12 +1095,15 @@ let editMode    = false;
 
 function showList(push=true) {
   if (push) history.pushState({page:"list"},"",location.pathname);
+  if (editMode) currentText = $("edit-textarea").value;
+  persistCurrentDraftNow();
   $("file-panel").style.display = "none";
   $("list-panel").style.display = "";
-  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-step-panel","btn-preview","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
+  ["btn-back","btn-edit-toggle","btn-save","btn-delete","btn-copy","btn-find","btn-outline","btn-step-panel","btn-preview","btn-undo","btn-redo","btn-metadata","btn-new","sep-file","sep-view"].forEach(id=>$(id).classList.add("hidden"));
   $("btn-new2").style.display = "";
   closeFindBar();
   exitEditMode(false);
+  $("mobile-preview-dock").style.display = "none";
   currentFile = null;
   $("sb-file").textContent = DIR+"/";
   $("sb-lines").textContent = "";
@@ -632,7 +1114,7 @@ function showList(push=true) {
 function showFilePanel() {
   $("list-panel").style.display = "none";
   $("file-panel").style.display = "flex";
-  ["btn-back","btn-edit-toggle","btn-delete","btn-copy","btn-find","btn-outline","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
+  ["btn-back","btn-edit-toggle","btn-delete","btn-copy","btn-find","btn-outline","btn-undo","btn-redo","btn-new"].forEach(id=>$(id).classList.remove("hidden"));
   $("sep-file").style.display = "";
   $("sep-view").style.display = "";
   $("btn-new2").style.display = "none";
@@ -727,6 +1209,87 @@ let currentText = "";
 let lastSavedText = "";
 let lastConfirmedSha = "";
 let stepSaveBusy = false;
+let undoStack = [];
+let redoStack = [];
+let historyText = "";
+
+function resetTextHistory() {
+  undoStack = [];
+  redoStack = [];
+  historyText = currentText;
+  updateHistoryButtons();
+}
+
+function recordTextChange(before, after) {
+  if (before === after) return;
+  undoStack.push(before);
+  if (undoStack.length > 100) undoStack.shift();
+  redoStack = [];
+  historyText = after;
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  const undo = $("btn-undo"), redo = $("btn-redo");
+  if (!undo || !redo) return;
+  undo.disabled = undoStack.length === 0;
+  redo.disabled = redoStack.length === 0;
+  undo.classList.toggle("hidden", !currentFile);
+  redo.classList.toggle("hidden", !currentFile);
+}
+
+function renderCurrentText() {
+  const isKSFile = !!currentFile && currentFile.name.endsWith('.ks');
+  if (editMode) $("edit-textarea").value = currentText;
+  if (!isKSFile) return;
+  currentSteps = parseStepsFromKS(currentText);
+  $("ks-tbody").innerHTML = renderWithSteps(currentText);
+  attachStepClicks();
+  buildOutline(currentText);
+  previewScenario = KSPreview.parseScenario(currentText);
+  previewStep = Math.min(previewStep, Math.max(0, previewScenario.steps.length - 1));
+  $("preview-range").max = Math.max(0, previewScenario.steps.length - 1);
+  drawPreview();
+  updateStepSaveState();
+  scheduleCurrentDraftSave();
+}
+
+function undoTextChange() {
+  if (!undoStack.length) return;
+  const before = undoStack.pop();
+  redoStack.push(currentText);
+  currentText = before;
+  historyText = currentText;
+  renderCurrentText();
+  sbMsg("戻しました。GitHub保存前の変更です", 2500);
+  updateHistoryButtons();
+}
+
+function redoTextChange() {
+  if (!redoStack.length) return;
+  const after = redoStack.pop();
+  undoStack.push(currentText);
+  currentText = after;
+  historyText = currentText;
+  renderCurrentText();
+  sbMsg("やり直しました。GitHub保存前の変更です", 2500);
+  updateHistoryButtons();
+}
+
+$("btn-undo").addEventListener("click", undoTextChange);
+$("btn-redo").addEventListener("click", redoTextChange);
+document.addEventListener("keydown", event => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+  const target = event.target;
+  if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.id === "step-body" || target.id === "step-actions")) return;
+  if (event.key.toLowerCase() === "z") {
+    event.preventDefault();
+    event.shiftKey ? redoTextChange() : undoTextChange();
+  } else if (event.key.toLowerCase() === "y") {
+    event.preventDefault();
+    redoTextChange();
+  }
+});
 
 function updateStepSaveState(){
   const dirty=!!currentFile&&currentText!==lastSavedText;
@@ -739,6 +1302,34 @@ function updateStepSaveState(){
   button.classList.toggle('saved',!dirty);
   return dirty;
 }
+
+let draftPersistTimer = null;
+function scheduleCurrentDraftSave() {
+  if (!currentFile) return;
+  clearTimeout(draftPersistTimer);
+  draftPersistTimer = setTimeout(() => {
+    KSOfflineStore.putDraft(currentFile.path, currentText, lastConfirmedSha || currentSha || "")
+      .then(() => refreshOutboxStatus())
+      .catch(error => console.warn("draft save failed", error));
+  }, 120);
+}
+
+async function clearCurrentDraft() {
+  if (!currentFile) return;
+  await KSOfflineStore.removeDraft(currentFile.path).catch(() => {});
+}
+
+function persistCurrentDraftNow() {
+  if (!currentFile || !currentText) return Promise.resolve();
+  clearTimeout(draftPersistTimer);
+  return KSOfflineStore.putDraft(currentFile.path, currentText, lastConfirmedSha || currentSha || "")
+    .catch(error => console.warn("draft save failed", error));
+}
+
+window.addEventListener("pagehide", () => { persistCurrentDraftNow(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") persistCurrentDraftNow();
+});
 
 async function openFile(f, push=true) {
   currentFile = f;
@@ -756,22 +1347,36 @@ async function openFile(f, push=true) {
     // raw CDNとAPIを並列取得すると、更新直後に世代がずれて競合の原因になる。
     const meta = await ghGet(f.path);
     if(!meta||Array.isArray(meta)||!meta.content||!meta.sha)throw new Error('GitHubから本文とSHAを取得できません');
-    const text = fromB64(meta.content);
+    const remoteText = fromB64(meta.content);
+    const draft = await KSOfflineStore.getDraft(f.path).catch(() => null);
+    const usingDraft = !!draft && draft.text !== remoteText;
+    const text = usingDraft ? draft.text : remoteText;
     currentText = text;
-    lastSavedText = text;
+    // lastSavedText stays at the remote revision so a restored draft remains dirty.
+    lastSavedText = remoteText;
     currentSha  = meta ? meta.sha : "";
     lastConfirmedSha = currentSha;
+    resetTextHistory();
     updateStepSaveState();
     const lines = text.split("\n");
     const isKSFile = f.name.endsWith('.ks');
+    $("mobile-preview-dock").style.display = isKSFile ? "" : "none";
     $("ks-tbody").innerHTML = isKSFile ? renderWithSteps(text) : renderGeneric(text);
     if (isKSFile) attachStepClicks();
     // Step編集ボタンはKSのみ表示
     $("btn-step-panel").classList.toggle("hidden", !isKSFile);
     $("btn-preview").classList.toggle("hidden", !isKSFile);
+    $("btn-metadata").classList.toggle("hidden", !isKSFile);
     buildOutline(text);
     $("sb-lines").textContent = lines.length+" 行" + (isKSFile ? '' : ' — ' + f.name.split('.').pop().toUpperCase());
-    sbMsg("");
+    if (isKSFile) {
+      previewScenario = KSPreview.parseScenario(text);
+      previewStep = 0;
+      $("preview-range").max = Math.max(0, previewScenario.steps.length - 1);
+      drawPreview();
+    }
+    if (usingDraft) sbMsg("↶ 未送信のローカル下書きを復元しました", 6000);
+    else sbMsg("");
   } catch(e) {
     sbMsg("エラー: "+e.message, 4000);
   }
@@ -782,6 +1387,14 @@ async function openFile(f, push=true) {
 // ============================================================
 $("btn-edit-toggle").addEventListener("click", toggleEdit);
 $("btn-save").addEventListener("click", saveFile);
+$("edit-textarea").addEventListener("input", () => {
+  if (!editMode) return;
+  const before = historyText;
+  currentText = $("edit-textarea").value;
+  recordTextChange(before, currentText);
+  updateStepSaveState();
+  scheduleCurrentDraftSave();
+});
 
 function toggleEdit() {
   editMode ? exitEditMode(true) : enterEditMode();
@@ -844,8 +1457,21 @@ async function saveFile() {
     });
     currentText = newText;
     lastSavedText = newText;
+    if (res && res.queued) {
+      await KSOfflineStore.putDraft(currentFile.path, newText, sha).catch(() => {});
+      updateStepSaveState();
+      const lines = newText.split("\n");
+      $("ks-tbody").innerHTML = renderWithSteps(newText);
+      attachStepClicks();
+      buildOutline(newText);
+      $("sb-lines").textContent = lines.length+" 行";
+      exitEditMode(false);
+      sbMsg("✓ 端末保存済み・GitHub送信待ち", 6000);
+      return;
+    }
     currentSha  = res.content.sha;
     lastConfirmedSha = currentSha;
+    await clearCurrentDraft();
     updateStepSaveState();
     const lines = newText.split("\n");
     $("ks-tbody").innerHTML = renderWithSteps(newText);
@@ -1185,8 +1811,54 @@ $('btn-step-panel').addEventListener('click',()=>{
   $('step-panel').classList.contains('sp-closed')?openStepPanel():closeStepPanel();
 });
 
+const STEP_TAG_TEMPLATES = {
+  bg: '[bg storage=""]',
+  bg_show: '[bg_show storage="" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]',
+  bg_move: '[bg_move bg_left="0.0" bg_top="0.0" bg_zoom="1.0" time="600"]',
+  chara_show: '[chara_show name="" torso="" eye="" mouth="" brow="" cheek="" effect="" accessory="" x="0.5" y="0.5" size="1.0" fade="0.3"]',
+  chara_shift: '[chara_shift name="" eye="" mouth="" brow="" cheek="" fade="0.3"]',
+  chara_move: '[chara_move name="" left="0.0" top="0.0" zoom="1.0" time="600"]',
+  chara_hide: '[chara_hide name="" fade="0.3"]',
+  bgm: '[bgm bgm="" volume="0.5" loop="true" fade="1.0"]',
+  bgmstop: '[bgmstop time="1.0"]',
+  bgmstart: '[bgmstart time="1.0"]',
+  bgmend: '[bgmend time="1.0"]',
+  se: '[se se="" volume="0.5" block="false"]',
+  sestop: '[sestop]',
+  fadeout: '[fadeout color="black" time="1.0"]',
+  fadein: '[fadein time="1.0"]',
+  choice: '[choice option1="" option2=""]',
+  flag_set: '[flag_set name="" value="true"]',
+  if: '[if condition=""]',
+  endif: '[endif]',
+  event_control: '[event_control unlock="" lock=""]'
+};
+Object.entries(STEP_TAG_TEMPLATES).forEach(([name])=>{
+  const option=document.createElement('option');
+  option.value=name; option.textContent=name;
+  $('step-tag-select').appendChild(option);
+});
+$('step-add-tag').addEventListener('click',()=>{
+  const textarea=$('step-actions');
+  const template=STEP_TAG_TEMPLATES[$('step-tag-select').value];
+  if(!template)return;
+  const current=textarea.value.trim();
+  textarea.value=current?(current+'\n'+template):template;
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length-template.length,textarea.value.length);
+});
+function moveSelectedStep(delta){
+  if(selectedStepIdx<0)return;
+  if(!applyStepEditorChanges())return;
+  const next=Math.max(0,Math.min(currentSteps.length-1,selectedStepIdx+delta));
+  openStepEditor(next);
+}
+$('step-prev').addEventListener('click',()=>moveSelectedStep(-1));
+$('step-next').addEventListener('click',()=>moveSelectedStep(1));
+
 function applyStepEditorChanges(){
   if(selectedStepIdx<0)return false;
+  const beforeText=currentText;
   const step=currentSteps[selectedStepIdx];
   const speaker=$('step-speaker').value,body=$('step-body').value;
   const scrollStop=$('step-scroll-stop').checked;
@@ -1195,10 +1867,12 @@ function applyStepEditorChanges(){
   const memo=$('step-memo').value;
   stepMemos[selectedStepIdx]=memo;
   currentText=buildStepUpdateText(currentText,step,speaker,body,scrollStop,forceFemale,actions,memo);
+  recordTextChange(beforeText,currentText);
   currentSteps=parseStepsFromKS(currentText);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   updateStepSaveState();
+  scheduleCurrentDraftSave();
   sbMsg('✓ KSへ反映済み（GitHubには未保存）',4000);
   return true;
 }
@@ -1215,9 +1889,19 @@ async function saveStepChangesToGitHub(message){
   $('step-save-github').disabled=true;
   $('step-apply-save').disabled=true;
   sbMsg('<span class="spinner"></span> SHA取得中…');
+  const expectedText=currentText;
+  const baseText=lastSavedText;
   try{
-    const expectedText=currentText;
-    const baseText=lastSavedText;
+    if (!navigator.onLine) {
+      await queueGithubWrite('save', currentFile.path, {
+        method:'PUT',
+        body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha:lastConfirmedSha||currentSha||''})
+      });
+      lastSavedText=expectedText;
+      await KSOfflineStore.putDraft(currentFile.path, expectedText, lastConfirmedSha||currentSha||'').catch(()=>{});
+      updateStepSaveState();
+      return true;
+    }
     let latestMeta=await apiCall('get',currentFile.path);
     if(!latestMeta||!latestMeta.sha||!latestMeta.content)throw new Error('GitHubから最新SHAを取得できません');
     if(fromB64(latestMeta.content)!==baseText){
@@ -1241,6 +1925,13 @@ async function saveStepChangesToGitHub(message){
         method:'PUT',body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha:latestMeta.sha})
       });
     }
+    if (res && res.queued) {
+      lastSavedText=expectedText;
+      await KSOfflineStore.putDraft(currentFile.path, expectedText, latestMeta.sha).catch(()=>{});
+      updateStepSaveState();
+      sbMsg('✓ 端末保存済み・GitHub送信待ち', 6000);
+      return true;
+    }
     sbMsg('<span class="spinner"></span> GitHub上の保存内容を再確認中…');
     let verified=null;
     for(let attempt=0;attempt<3;attempt++){
@@ -1254,10 +1945,21 @@ async function saveStepChangesToGitHub(message){
     currentSha=verified.sha;
     lastConfirmedSha=verified.sha;
     lastSavedText=expectedText;
+    await clearCurrentDraft();
     updateStepSaveState();
     sbMsg(`✓ GitHub mainへ保存・再取得確認済み SHA ${verified.sha.slice(0,7)}`,6000);
     return true;
   }catch(e){
+    if (!navigator.onLine || !e.status) {
+      await queueGithubWrite('save', currentFile.path, {
+        method:'PUT',
+        body:JSON.stringify({message,content:toB64(expectedText),branch:BRANCH,sha:lastConfirmedSha||currentSha||''})
+      });
+      lastSavedText=expectedText;
+      await KSOfflineStore.putDraft(currentFile.path, expectedText, lastConfirmedSha||currentSha||'').catch(()=>{});
+      updateStepSaveState();
+      return true;
+    }
     sbMsg('⚠ GitHub保存失敗: '+e.message,6000);
     return false;
   }finally{
@@ -1282,28 +1984,34 @@ $('step-apply-save').addEventListener('click',async()=>{
 $('step-delete-btn').addEventListener('click',()=>{
   if(selectedStepIdx<0)return;
   if(!confirm('Step #'+selectedStepIdx+' \u3092\u524a\u9664\u3057\u307e\u3059\u304b\uff1f'))return;
+  const beforeText=currentText;
   const step=currentSteps[selectedStepIdx];
   const lines=currentText.split('\n');
   lines.splice(step.start_line,step.end_line-step.start_line+1);
   currentText=lines.join('\n');
+  recordTextChange(beforeText,currentText);
   currentSteps=parseStepsFromKS(currentText);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   updateStepSaveState();
+  scheduleCurrentDraftSave();
   closeStepPanel();sbMsg('✓ Step削除済み（GitHubには未保存）',4000);
 });
 
 function insertStepTemplate(before){
   if(selectedStepIdx<0)return;
+  const beforeText=currentText;
   const step=currentSteps[selectedStepIdx];
   const lines=currentText.split('\n');
   const at=before?step.start_line:step.end_line+1;
   lines.splice(at,0,'; --- new step ---','//\u8a71\u8005//','\u300c\u30bb\u30ea\u30d5\u300d','');
   currentText=lines.join('\n');
+  recordTextChange(beforeText,currentText);
   currentSteps=parseStepsFromKS(currentText);
   $('ks-tbody').innerHTML=renderWithSteps(currentText);
   attachStepClicks();buildOutline(currentText);
   updateStepSaveState();
+  scheduleCurrentDraftSave();
   sbMsg('✓ テンプレート挿入済み（GitHubには未保存）',4000);
 }
 $('step-ins-before').addEventListener('click',()=>insertStepTemplate(true));
@@ -1314,8 +2022,45 @@ $('step-ins-after').addEventListener('click',()=>insertStepTemplate(false));
 // ============================================================
 const previewAssets = new KSPreview.AssetIndex({repo:REPO,branch:BRANCH});
 const previewRenderer = new KSPreview.CanvasRenderer($('preview-canvas'),previewAssets);
+const mobilePreviewRenderer = new KSPreview.CanvasRenderer($('mobile-preview-canvas'),previewAssets);
 const charaRenderer = new KSPreview.CanvasRenderer($('chara-canvas'),previewAssets);
+const sceneRenderer = new KSPreview.CanvasRenderer($('scene-canvas'),previewAssets);
 let previewScenario=null,previewStep=0,previewDrawToken=0;
+let previewAudioEnabled=false,previewBgmAudio=null,previewBgmName='',previewLastSeKey='';
+
+function setPreviewAudioLabel(){
+  const label=previewAudioEnabled?'🔊':'🔇';
+  $('preview-sound').textContent=`${label} 音声`;
+  $('mobile-preview-sound').textContent=label;
+}
+
+function stopPreviewAudio(){
+  if(previewBgmAudio){previewBgmAudio.pause();previewBgmAudio.src='';previewBgmAudio=null;}
+  previewBgmName=''; previewLastSeKey='';
+}
+
+function syncPreviewAudio(state){
+  if(!previewAudioEnabled||typeof Audio==='undefined')return;
+  const bgm=state.audio?.bgm||'';
+  if(bgm!==previewBgmName){
+    if(previewBgmAudio)previewBgmAudio.pause();
+    previewBgmName=bgm;
+    if(bgm){
+      previewBgmAudio=new Audio(previewAssets.soundUrl(bgm,'bgm'));
+      previewBgmAudio.loop=true;
+      previewBgmAudio.volume=.5;
+      previewBgmAudio.play().catch(()=>{});
+    }else previewBgmAudio=null;
+  }
+  const se=state.audio?.se||'';
+  const seKey=`${previewStep}:${se}`;
+  if(se&&seKey!==previewLastSeKey){
+    previewLastSeKey=seKey;
+    const effect=new Audio(previewAssets.soundUrl(se,'se'));
+    effect.volume=.8;
+    effect.play().catch(()=>{});
+  }
+}
 
 function sourceLineToPreviewStep(line){
   return KSPreview.findStepForSourceLine(previewScenario,line);
@@ -1333,8 +2078,15 @@ async function drawPreview(){
   const token=++previewDrawToken;
   try{
     const state=KSPreview.buildState(previewScenario,previewStep);
-    await previewRenderer.draw(state);
-    if(token===previewDrawToken)$('preview-assets').textContent=state.warnings.length?state.warnings.join(' / '):'';
+    const draws=[previewRenderer.draw(state)];
+    if ($('mobile-preview-dock').style.display !== 'none') draws.push(mobilePreviewRenderer.draw(state));
+    await Promise.all(draws);
+    syncPreviewAudio(state);
+    if(token===previewDrawToken){
+      $('preview-assets').textContent=state.warnings.length?state.warnings.join(' / '):'';
+      $('mobile-preview-title').textContent=`${currentFile?.name||'KS'} / Step ${previewStep+1}`;
+      $('mobile-preview-status').textContent=`Step ${previewStep+1} / ${previewScenario.steps.length}`;
+    }
   }catch(error){
     if(token===previewDrawToken){
       $('preview-assets').textContent='一部画像を表示できません';
@@ -1362,13 +2114,30 @@ $('step-preview').addEventListener('click',()=>{
   const step=currentSteps[selectedStepIdx];
   openPreviewAtLine(step?(step.dialogue_line??step.start_line):0);
 });
-$('preview-close').addEventListener('click',()=>$('preview-modal').classList.add('hidden'));
 $('preview-first').addEventListener('click',()=>{previewStep=0;drawPreview();});
 $('preview-last').addEventListener('click',()=>{previewStep=Math.max(0,previewScenario.steps.length-1);drawPreview();});
 $('preview-prev').addEventListener('click',()=>{previewStep-=1;drawPreview();});
 $('preview-next').addEventListener('click',()=>{previewStep+=1;drawPreview();});
 $('preview-range').addEventListener('input',()=>{previewStep=parseInt($('preview-range').value);drawPreview();});
 $('preview-canvas').addEventListener('click',()=>{previewStep+=1;drawPreview();});
+$('mobile-preview-prev').addEventListener('click',()=>{previewStep-=1;drawPreview();});
+$('mobile-preview-next').addEventListener('click',()=>{previewStep+=1;drawPreview();});
+$('mobile-preview-open').addEventListener('click',()=>{
+  $('preview-modal').classList.remove('hidden');
+  drawPreview();
+});
+$('preview-sound').addEventListener('click',()=>{
+  previewAudioEnabled=!previewAudioEnabled;
+  if(!previewAudioEnabled)stopPreviewAudio();
+  setPreviewAudioLabel();
+  if(previewAudioEnabled)drawPreview();
+});
+$('mobile-preview-sound').addEventListener('click',()=>$('preview-sound').click());
+$('preview-close').addEventListener('click',()=>{
+  $('preview-modal').classList.add('hidden');
+  stopPreviewAudio();
+});
+setPreviewAudioLabel();
 
 // ============================================================
 //  立ち絵合成プレビュー・パーツ選択
@@ -1621,6 +2390,186 @@ $('chara-apply').addEventListener('click',()=>{
   $('step-actions').value=lines.join('\n');
   $('chara-modal').classList.add('hidden');
   sbMsg('✓ 立ち絵パーツをアクション欄へ反映',2500);
+});
+// ============================================================
+//  ステージオブジェクト編集
+// ============================================================
+let sceneScenario = null;
+let sceneState = null;
+let sceneStepNumber = -1;
+let sceneSelectedName = '';
+let scenePointer = null;
+
+function sceneNumber(value, fallback) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function sceneCoordinate(event) {
+  const canvas = $('scene-canvas');
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+  };
+}
+
+function sceneCharacterBox(character) {
+  const size = sceneNumber(character.size, 1);
+  return { left: character.x * 1440 - 270 * size, right: character.x * 1440 + 270 * size,
+    top: character.y * 1080 - 540 * size, bottom: character.y * 1080 + 540 * size };
+}
+
+function sceneHitTest(point) {
+  if (!sceneState) return '';
+  const names = Object.keys(sceneState.characters);
+  for (let index = names.length - 1; index >= 0; index -= 1) {
+    const name = names[index], box = sceneCharacterBox(sceneState.characters[name]);
+    if (point.x * 1440 >= box.left && point.x * 1440 <= box.right &&
+        point.y * 1080 >= box.top && point.y * 1080 <= box.bottom) return name;
+  }
+  return '';
+}
+
+function renderSceneObjects() {
+  const list = $('scene-objects');
+  list.innerHTML = '';
+  if (!sceneState || !Object.keys(sceneState.characters).length) {
+    list.innerHTML = '<div class="modal-note">このStepに表示中のキャラはありません</div>';
+    return;
+  }
+  Object.values(sceneState.characters).forEach(character => {
+    const button = document.createElement('button');
+    button.className = 'scene-object' + (character.name === sceneSelectedName ? ' selected' : '');
+    button.textContent = character.name;
+    button.addEventListener('click', () => {
+      sceneSelectedName = character.name;
+      renderSceneObjects(); updateSceneProperties(); drawSceneCanvas();
+    });
+    list.appendChild(button);
+  });
+}
+
+function updateSceneProperties() {
+  const character = sceneState && sceneState.characters[sceneSelectedName];
+  $('scene-x').value = character ? sceneNumber(character.x, .5).toFixed(3) : '';
+  $('scene-y').value = character ? sceneNumber(character.y, .5).toFixed(3) : '';
+  $('scene-size').value = character ? sceneNumber(character.size, 1).toFixed(2) : '';
+}
+
+async function drawSceneCanvas() {
+  if (!sceneState) return;
+  await sceneRenderer.draw(sceneState);
+  const ctx = $('scene-canvas').getContext('2d');
+  const character = sceneState.characters[sceneSelectedName];
+  if (character) {
+    const box = sceneCharacterBox(character);
+    ctx.save(); ctx.strokeStyle = '#59b7ff'; ctx.lineWidth = 5; ctx.setLineDash([12, 8]);
+    ctx.strokeRect(box.left, box.top, box.right - box.left, box.bottom - box.top);
+    ctx.fillStyle = '#59b7ff'; ctx.font = '24px sans-serif';
+    ctx.fillText(character.name, box.left + 8, Math.max(26, box.top + 28)); ctx.restore();
+  }
+  $('scene-status').textContent = sceneSelectedName ? `${sceneSelectedName} / ドラッグで移動` : 'キャラを選択';
+}
+
+function sceneBaseCharacter(name) {
+  if (!sceneScenario || sceneStepNumber < 0) return null;
+  const before = KSPreview.buildState(sceneScenario, sceneStepNumber - 1);
+  return before.characters[name] || sceneState?.characters[name] || null;
+}
+
+function sceneActionTagFor(name, type) {
+  const lines = currentStepActionLines();
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const tag = KSPreview.parseTag(lines[index]);
+    if (tag && tag.type === type && String(tag.params.name || tag.params.target || '') === name) {
+      return { lines, index, tag };
+    }
+  }
+  return { lines, index: -1, tag: null };
+}
+
+function writeSceneAction(type, name, values = {}) {
+  if (!name) return;
+  const foundShow = sceneActionTagFor(name, 'chara_show');
+  const foundMove = sceneActionTagFor(name, 'chara_move');
+  const foundShift = sceneActionTagFor(name, 'chara_shift');
+  const found = type === 'chara_move' ? foundMove : type === 'chara_shift' ? foundShift : foundShow;
+  const tag = found.tag || { type, params: { name } };
+  tag.params.name = name;
+  Object.entries(values).forEach(([key, value]) => {
+    if (value === '' || value == null) delete tag.params[key]; else tag.params[key] = String(value);
+  });
+  if (found.index < 0) found.lines.push(serializeTag(tag)); else found.lines[found.index] = serializeTag(tag);
+  $('step-actions').value = found.lines.join('\n');
+  refreshSceneState();
+}
+
+function refreshSceneState() {
+  if (!currentFile || selectedStepIdx < 0) return;
+  const text = buildStepEditorPreviewText();
+  sceneScenario = KSPreview.parseScenario(text);
+  const sourceLine = currentSteps[selectedStepIdx]?.start_line || 0;
+  sceneStepNumber = KSPreview.findStepForSourceLine(sceneScenario, sourceLine);
+  sceneState = KSPreview.buildState(sceneScenario, sceneStepNumber);
+  if (!sceneSelectedName || !sceneState.characters[sceneSelectedName]) {
+    sceneSelectedName = Object.keys(sceneState.characters).slice(-1)[0] || '';
+  }
+  renderSceneObjects(); updateSceneProperties(); drawSceneCanvas();
+}
+
+function applyScenePosition(x, y, size) {
+  const character = sceneState?.characters[sceneSelectedName];
+  if (!character) return;
+  const base = sceneBaseCharacter(sceneSelectedName) || character;
+  const values = {left:(x - sceneNumber(base.x, .5)).toFixed(4), top:(y - sceneNumber(base.y, .5)).toFixed(4),
+    zoom:sceneNumber(size, sceneNumber(character.size, 1)).toFixed(3), time:'0'};
+  const show = sceneActionTagFor(sceneSelectedName, 'chara_show');
+  if (show.index >= 0) writeSceneAction('chara_show', sceneSelectedName, {x:x.toFixed(4), y:y.toFixed(4), size:values.zoom});
+  else writeSceneAction('chara_move', sceneSelectedName, values);
+}
+
+function openSceneEditor() {
+  if (selectedStepIdx < 0) { sbMsg('先に編集するStepを選択してください', 2500); return; }
+  refreshSceneState(); $('scene-modal').classList.remove('hidden'); drawSceneCanvas();
+}
+
+$('step-scene-editor').addEventListener('click', openSceneEditor);
+$('scene-close').addEventListener('click', () => $('scene-modal').classList.add('hidden'));
+$('scene-canvas').addEventListener('pointerdown', event => {
+  const point = sceneCoordinate(event), hit = sceneHitTest(point);
+  if (!hit) return;
+  sceneSelectedName = hit; scenePointer = {id:event.pointerId, start:point};
+  $('scene-canvas').setPointerCapture(event.pointerId);
+  renderSceneObjects(); updateSceneProperties(); drawSceneCanvas();
+});
+$('scene-canvas').addEventListener('pointermove', event => {
+  if (!scenePointer || scenePointer.id !== event.pointerId || !sceneState) return;
+  const point = sceneCoordinate(event); let x = point.x, y = point.y;
+  if (event.shiftKey) {
+    if (Math.abs(x - scenePointer.start.x) >= Math.abs(y - scenePointer.start.y)) y = scenePointer.start.y;
+    else x = scenePointer.start.x;
+  }
+  const character = sceneState.characters[sceneSelectedName];
+  applyScenePosition(x, y, character?.size || 1);
+});
+['pointerup','pointercancel','pointerleave'].forEach(type => $('scene-canvas').addEventListener(type, event => {
+  if (scenePointer && scenePointer.id === event.pointerId) scenePointer = null;
+}));
+$('scene-apply-properties').addEventListener('click', () => applyScenePosition(
+  sceneNumber($('scene-x').value, .5), sceneNumber($('scene-y').value, .5), sceneNumber($('scene-size').value, 1)));
+$('scene-add-move').addEventListener('click', () => {
+  const character = sceneState?.characters[sceneSelectedName];
+  if (character) writeSceneAction('chara_move', sceneSelectedName, {left:'0', top:'0', zoom:sceneNumber(character.size,1).toFixed(3), time:'600'});
+});
+$('scene-add-shift').addEventListener('click', () => {
+  const character = sceneState?.characters[sceneSelectedName];
+  if (character) writeSceneAction('chara_shift', sceneSelectedName, {x:sceneNumber(character.x,.5).toFixed(4), y:sceneNumber(character.y,.5).toFixed(4), size:sceneNumber(character.size,1).toFixed(3)});
+});
+$('scene-add-hide').addEventListener('click', () => {
+  if (!sceneSelectedName) return;
+  const lines = currentStepActionLines(); lines.push(serializeTag({type:'chara_hide', params:{name:sceneSelectedName, fade:'0.3'}}));
+  $('step-actions').value = lines.join('\n'); refreshSceneState();
 });
 </script>
 </body>

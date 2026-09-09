@@ -290,13 +290,28 @@
       state.audio.bgm = "";
       return;
     }
+    if (type === "bgmend") {
+      state.audio.bgm = "";
+      return;
+    }
     if (type === "se") {
       state.audio.se = p.se || p.storage || p.value || "";
       return;
     }
-    if (!["if", "endif", "flag_set", "event_control"].includes(type)) {
-      state.warnings.push(`未対応タグ: ${type}`);
+    if (type === "sestop") {
+      state.audio.se = "";
+      return;
     }
+    if (type === "fade") {
+      state.fade = { color: p.color || "black", opacity: number(p.opacity, 0) };
+      return;
+    }
+    if (["if", "endif", "flag_set", "event_control", "standalone_step", "ruby", "wait", "stop", "seed", "seed_dialogue", "seed_answer"].includes(type)) return;
+    if (!type || type === "scroll_stop" || type === "female") return;
+    // 旧形式の演出メモ（例: [沙那子　驚き顔に変化]）は、本文編集を止める警告にしない。
+    if (Object.prototype.hasOwnProperty.call(p, "value") || Object.keys(p).length === 0) return;
+    const warning = `未対応タグ: ${type}`;
+    if (!state.warnings.includes(warning)) state.warnings.push(warning);
   }
 
   function buildState(parsed, stepIndex) {
@@ -388,16 +403,52 @@
       this.characters = new Map();
       this.images = new Map();
       this.timeTextPromise = null;
+      this.bundledManifestPromise = null;
+    }
+
+    async listBundled(path) {
+      if (!this.fetch) return null;
+      if (!this.bundledManifestPromise) {
+        this.bundledManifestPromise = this.fetch("offline-manifest.json", { cache: "no-store" })
+          .then((response) => response.ok ? response.json() : null)
+          .catch(() => null);
+      }
+      const manifest = await this.bundledManifestPromise;
+      if (!manifest || !Array.isArray(manifest.files)) return null;
+      const prefix = path ? `${path.replace(/\/+$/, "")}/` : "";
+      const names = new Map();
+      manifest.files.forEach((file) => {
+        if (!file.path.startsWith(prefix)) return;
+        const rest = file.path.slice(prefix.length);
+        if (!rest) return;
+        const name = rest.split("/")[0];
+        const childPath = `${prefix}${name}`.replace(/\/$/, "");
+        const isFile = rest.indexOf("/") === -1;
+        if (!names.has(name)) names.set(name, {
+          name,
+          path: childPath,
+          type: isFile ? "file" : "dir",
+          size: isFile ? file.size : 0,
+          download_url: isFile ? `./${file.path}` : ""
+        });
+      });
+      return [...names.values()];
     }
 
     async list(path) {
       if (!this.fetch) throw new Error("fetch is unavailable");
       const separator = this.apiBase.includes("?") ? "&" : "?";
-      const response = await this.fetch(`${this.apiBase}${path}${separator}ref=${encodeURIComponent(this.branch)}`, {
-        headers: { Accept: "application/vnd.github+json" },
-      });
-      if (!response.ok) throw new Error(`asset list HTTP ${response.status}`);
-      return response.json();
+      try {
+        const response = await this.fetch(`${this.apiBase}${path}${separator}ref=${encodeURIComponent(this.branch)}`, {
+          headers: { Accept: "application/vnd.github+json" },
+        });
+        if (!response.ok) throw new Error(`asset list HTTP ${response.status}`);
+        return response.json();
+      } catch (error) {
+        const bundled = await this.listBundled(path);
+        if (bundled && bundled.length) return bundled;
+        throw error;
+      }
     }
 
     async loadBackgrounds() {
@@ -442,7 +493,19 @@
     }
 
     fontUrl(fileName) {
+      if (typeof location !== "undefined" && (location.hostname === "localhost" || location.protocol === "capacitor:")) {
+        return `./fonts/${encodeURIComponent(fileName)}`;
+      }
       return `${this.rawBase}fonts/${encodeURIComponent(fileName)}`;
+    }
+
+    soundUrl(fileName, kind = "bgm") {
+      const directory = kind === "se" ? "sounds/ses" : "sounds/bgms";
+      const encoded = String(fileName || "").split("/").map(encodeURIComponent).join("/");
+      if (typeof location !== "undefined" && (location.hostname === "localhost" || location.protocol === "capacitor:")) {
+        return `./${directory}/${encoded}`;
+      }
+      return `${this.rawBase}${directory}/${encoded}`;
     }
 
     async loadTimeText() {

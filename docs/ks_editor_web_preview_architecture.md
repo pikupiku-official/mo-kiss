@@ -45,3 +45,22 @@
 - `tools/dev/ks-editor/preview_engine.js`: パーサー、状態リプレイ、アセット解決、Canvas描画
 - `tools/dev/ks-editor/index.html`: プレビューUI、Step連動、立ち絵パーツ選択
 - `.github/workflows/deploy-ks-editor.yml`: `tools/dev/` を同期する既存処理により自動配置
+
+## オフライン編集とAndroid版
+
+Web版はService WorkerとIndexedDBを使い、次の状態を端末へ保持する。
+
+- `files`: GitHubから取得したディレクトリ一覧・KS本文
+- `drafts`: 編集中本文と基準SHA
+- `outbox`: GitHubへ送信待ちの保存・削除操作
+- `meta`: 全データ同期の最終状態
+
+KS本文の編集は入力後すぐに下書きへ退避し、保存APIへ到達できない場合は
+`outbox`へ積む。同一KSに対する未送信の保存は最新内容へ集約する。
+オンライン復帰後はキューを直列処理し、GitHub側の409競合は上書きせず保持する。
+
+`tools/dev/ks-editor/android-shell/` は同じWeb UIをCapacitorでAndroidへ包むためのシェルである。
+`build-android.ps1` はKS、画像、音声、フォント、動画をAPK用Web資産へコピーし、
+`offline-manifest.json`を生成する。Android版ではアプリ内の同梱データを初期値とし、
+オンライン時はGitHubの最新データを参照する。APK本体のUI更新はAPK再配布、
+KS・アセット更新はGitHub同期で行う。
