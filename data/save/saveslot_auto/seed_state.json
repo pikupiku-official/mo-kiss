@@ -1,6 +1,19 @@
 {
   "schema_version": 1,
-  "acquired": {},
-  "journal_days": [],
+  "acquired": {
+    "MASUDA_TP1_001": {
+      "source_event_id": "TANE_MASUDA_01",
+      "acquired_game_date": "1999-05-31",
+      "journaled_game_date": "1999-05-31"
+    }
+  },
+  "journal_days": [
+    {
+      "game_date": "1999-05-31",
+      "seed_ids": [
+        "MASUDA_TP1_001"
+      ]
+    }
+  ],
   "turning_point_results": {}
 }

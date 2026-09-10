@@ -5,10 +5,10 @@
     "version": 1,
     "event_file": "events/E001.ks",
     "event_id": "E001",
-    "paragraph_index": 6,
-    "ir_step_index": 3,
+    "paragraph_index": 129,
+    "ir_step_index": 63,
     "background": {
-      "current_bg": "車窓②",
+      "current_bg": "通学路②",
       "pos": [
         0.0,
         0.0
@@ -18,10 +18,26 @@
     },
     "characters": {
       "active": [
-        "ナレ"
+        "ナレ",
+        "？？",
+        "純一",
+        "桃子",
+        "増田"
       ],
-      "positions": {},
-      "zoom": {},
+      "positions": {
+        "増田": [
+          -422,
+          -162
+        ],
+        "桃子": [
+          298,
+          -162
+        ]
+      },
+      "zoom": {
+        "増田": 2.3,
+        "桃子": 2.3
+      },
       "expressions": {
         "ナレ": {
           "eye": "",
@@ -30,15 +46,54 @@
           "cheek": "",
           "effect": "",
           "accessory": ""
+        },
+        "？？": {
+          "eye": "",
+          "mouth": "",
+          "brow": "",
+          "cheek": "",
+          "effect": "",
+          "accessory": ""
+        },
+        "純一": {
+          "eye": "",
+          "mouth": "",
+          "brow": "",
+          "cheek": "",
+          "effect": "",
+          "accessory": ""
+        },
+        "増田": {
+          "eye": "MST_F00_EYE_0001",
+          "mouth": "MST_F00_MOU_0012",
+          "brow": "MST_F00_BRO_0005",
+          "cheek": "",
+          "effect": "",
+          "accessory": ""
+        },
+        "桃子": {
+          "eye": "MMK_F00_EYE00_00",
+          "mouth": "MMK_F00_MOU02_02",
+          "brow": "MMK_F00_BRO01_00",
+          "cheek": "MMK_F00_CHE04_00",
+          "effect": "",
+          "accessory": ""
         }
       },
-      "torso": {},
+      "torso": {
+        "増田": "MST_T00_ARM_0006",
+        "桃子": "MMK_T00_ARM05_CLO00"
+      },
       "blink_enabled": {
-        "ナレ": true
+        "ナレ": true,
+        "？？": true,
+        "純一": true,
+        "増田": true,
+        "桃子": false
       }
     },
     "fade": {
-      "type": null,
+      "type": "fadein",
       "start_time": 0,
       "duration": 0,
       "color": [
@@ -50,71 +105,491 @@
       "active": false
     },
     "text": {
-      "body": "いつだってこんな景色ばかり。",
-      "speaker": "ナレ",
+      "body": "ってことは、わざわざ録画して⾒てるのか？",
+      "speaker": "増田",
       "force_female": false
     },
     "scroll": {
       "active": true,
       "scroll_lines": [
-        "いつだってこんな景色ばかり。"
+        "でもさ、古畑は⽕曜だよな？",
+        "そうだよー。",
+        "ってことは、わざわざ録画して⾒てるのか？"
       ],
-      "all_text": [
-        "＿＿＿",
-        "＿＿＿",
-        "見慣れた中央線の車窓から流れる風景。",
-        "いつだってこんな景色ばかり。"
-      ],
-      "all_speakers": [
-        "ナレ",
-        "ナレ",
-        "ナレ",
-        "ナレ"
-      ],
-      "all_force_female": [
-        false,
-        false,
-        false,
-        false
-      ],
-      "current_set_line_count": 1,
+      "current_set_line_count": 3,
       "line_speakers": [
-        "ナレ"
+        "増田",
+        "桃子",
+        "増田"
       ],
       "line_is_first": [
+        true,
+        true,
         true
       ],
       "line_force_female": [
+        false,
+        false,
         false
       ],
-      "current_speaker": "ナレ",
-      "last_added_speaker": "ナレ"
+      "current_speaker": "増田",
+      "last_added_speaker": "増田"
     },
     "choices": [],
     "backlog": [
       {
         "speaker": "ナレ",
         "text": "＿＿＿",
-        "force_female": false
+        "force_female": false,
+        "display_lines": [
+          "＿＿＿"
+        ]
       },
       {
         "speaker": "ナレ",
         "text": "＿＿＿",
-        "force_female": false
+        "force_female": false,
+        "display_lines": [
+          "＿＿＿"
+        ]
       },
       {
         "speaker": "ナレ",
         "text": "見慣れた中央線の車窓から流れる風景。",
-        "force_female": false
+        "force_female": false,
+        "display_lines": [
+          "見慣れた中央線の車窓から流れる風景。"
+        ]
       },
       {
         "speaker": "ナレ",
         "text": "いつだってこんな景色ばかり。",
-        "force_female": false
+        "force_female": false,
+        "display_lines": [
+          "いつだってこんな景色ばかり。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "やっぱりなんか物足りないな。西新宿みたいな高層ビルもないし。",
+        "force_female": false,
+        "display_lines": [
+          "やっぱりなんか物足りないな。西新宿みたい",
+          "な高層ビルもないし。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "そんなことを考えていると、停車のアナウンスが響く。",
+        "force_female": false,
+        "display_lines": [
+          "そんなことを考えていると、停車のアナウン",
+          "スが響く。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "僕を車内の隅に押し込んでいる周りの人たちも降りる支度をし始める。",
+        "force_female": false,
+        "display_lines": [
+          "僕を車内の隅に押し込んでいる周りの人たち",
+          "も降りる支度をし始める。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "向かいの大学生らしき男がカバンに突っ込んだのはカーグラフィック。表紙はジャガー。",
+        "force_female": false,
+        "display_lines": [
+          "向かいの大学生らしき男がカバンに突っ込ん",
+          "だのはカーグラフィック。表紙はジャガー。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "僕もいつか、日曜洋画劇場で見たジェームズボンドみたいに、流麗なセダンを乗り回してみたい、と思った。",
+        "force_female": false,
+        "display_lines": [
+          "僕もいつか、日曜洋画劇場で見たジェームズ",
+          "ボンドみたいに、流麗なセダンを乗り回して",
+          "みたい、と思った。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "ドアが開くといつものようにあっという間に車内から押し出される。",
+        "force_female": false,
+        "display_lines": [
+          "ドアが開くといつものようにあっという間に",
+          "車内から押し出される。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "＿＿＿",
+        "force_female": false,
+        "display_lines": [
+          "＿＿＿"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "やはり外の空気は最⾼だ。",
+        "force_female": false,
+        "display_lines": [
+          "やはり外の空気は最⾼だ。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "緑⾵が僕の周りにまとわりついていたすべての湿気を流し去ってくれる。",
+        "force_female": false,
+        "display_lines": [
+          "緑⾵が僕の周りにまとわりついていたすべて",
+          "の湿気を流し去ってくれる。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "僕は、朝の電⾞にはあるものが充満していると思う。",
+        "force_female": false,
+        "display_lines": [
+          "僕は、朝の電⾞にはあるものが充満している",
+          "と思う。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "それは通勤、通学を“しなければいけない⼈々”のネガティブな感情だ。",
+        "force_female": false,
+        "display_lines": [
+          "それは通勤、通学を“しなければいけない⼈",
+          "々”のネガティブな感情だ。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "そんな⼈々に流されながら階段を登る。",
+        "force_female": false,
+        "display_lines": [
+          "そんな⼈々に流されながら階段を登る。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "＿＿＿",
+        "force_female": false,
+        "display_lines": [
+          "＿＿＿"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "階段を上り切ると、⼈混みの３割ほどは⻄武線の⽅へ吸い込まれていった。",
+        "force_female": false,
+        "display_lines": [
+          "階段を上り切ると、⼈混みの３割ほどは⻄武",
+          "線の⽅へ吸い込まれていった。"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "＿＿＿",
+        "force_female": false,
+        "display_lines": [
+          "＿＿＿"
+        ]
+      },
+      {
+        "speaker": "ナレ",
+        "text": "僕は改札を抜け、いつもの通学路へ踏み出した。",
+        "force_female": false,
+        "display_lines": [
+          "僕は改札を抜け、いつもの通学路へ踏み出し",
+          "た。"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "君に触れたい〜♪君に触れたい〜♪",
+        "force_female": false,
+        "display_lines": [
+          "君に触れたい〜♪君に触れたい〜♪"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（うげっ、朝からこの声はきっと・・・）",
+        "force_female": false,
+        "display_lines": [
+          "（うげっ、朝からこの声はきっと・・・）"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "⽇向の窓でぇ〜へ〜♪",
+        "force_female": false,
+        "display_lines": [
+          "⽇向の窓でぇ〜へ〜♪"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（やっぱりこいつだ・・・）",
+        "force_female": false,
+        "display_lines": [
+          "（やっぱりこいつだ・・・）"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "おっ！純⼀じゃんかあ！",
+        "force_female": false,
+        "display_lines": [
+          "おっ！純⼀じゃんかあ！"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（こ、ここはあえて放っておこう・・・）",
+        "force_female": false,
+        "display_lines": [
+          "（こ、ここはあえて放っておこう・・・）"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（さ、僕は一人で学校へ・・・）",
+        "force_female": false,
+        "display_lines": [
+          "（さ、僕は一人で学校へ・・・）"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "おーい！無視すんなって！",
+        "force_female": false,
+        "display_lines": [
+          "おーい！無視すんなって！"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "うわあ！びっくりした！",
+        "force_female": false,
+        "display_lines": [
+          "うわあ！びっくりした！"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "純一よ、いつからお前はそんな冷たい奴になったんだ？",
+        "force_female": false,
+        "display_lines": [
+          "純一よ、いつからお前はそんな冷たい奴にな",
+          "ったんだ？"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "むしろ増⽥が暑いんだよ。",
+        "force_female": false,
+        "display_lines": [
+          "むしろ増⽥が暑いんだよ。"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "え～？俺が悪いのかよ～。",
+        "force_female": false,
+        "display_lines": [
+          "え～？俺が悪いのかよ～。"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（僕は軽⼝を叩く。そうそう、こんな感じ。これがいつものムード。）",
+        "force_female": false,
+        "display_lines": [
+          "（僕は軽⼝を叩く。そうそう、こんな感じ。",
+          "これがいつものムード。）"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（彼は増⽥⼀樹。）",
+        "force_female": false,
+        "display_lines": [
+          "（彼は増⽥⼀樹。）"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（かれこれ中学から５年間の付き合いになる。）",
+        "force_female": false,
+        "display_lines": [
+          "（かれこれ中学から５年間の付き合いになる",
+          "。）"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "まったく、つれないなあ。",
+        "force_female": false,
+        "display_lines": [
+          "まったく、つれないなあ。"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "僕は昔から朝が弱いんだ。",
+        "force_female": false,
+        "display_lines": [
+          "僕は昔から朝が弱いんだ。"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "そういやそうだったな。",
+        "force_female": false,
+        "display_lines": [
+          "そういやそうだったな。"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "修学旅行のときなんかお前…",
+        "force_female": false,
+        "display_lines": [
+          "修学旅行のときなんかお前…"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "・・・ん？",
+        "force_female": false,
+        "display_lines": [
+          "・・・ん？"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "はぁ……はぁ……",
+        "force_female": true,
+        "display_lines": [
+          "はぁ……はぁ……"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "つ、疲れたあ・・・いったん休憩・・・",
+        "force_female": true,
+        "display_lines": [
+          "つ、疲れたあ・・・いったん休憩・・・"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "あれっ、じゅんいちだ。",
+        "force_female": true,
+        "display_lines": [
+          "あれっ、じゅんいちだ。"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "じゅんいち～～～～！",
+        "force_female": true,
+        "display_lines": [
+          "じゅんいち～～～～！"
+        ]
+      },
+      {
+        "speaker": "？？",
+        "text": "おはよう！",
+        "force_female": true,
+        "display_lines": [
+          "おはよう！"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "やあ桃⼦。",
+        "force_female": false,
+        "display_lines": [
+          "やあ桃⼦。"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（まるでお⽇様みたいな彼⼥は幼馴染の愛沼桃⼦。）",
+        "force_female": false,
+        "display_lines": [
+          "（まるでお⽇様みたいな彼⼥は幼馴染の愛沼",
+          "桃⼦。）"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "（僕とは⼩学⽣以来の幼馴染で、増⽥と共に⼀緒のクラスでもある。）",
+        "force_female": false,
+        "display_lines": [
+          "（僕とは⼩学⽣以来の幼馴染で、増⽥と共に",
+          "⼀緒のクラスでもある。）"
+        ]
+      },
+      {
+        "speaker": "純一",
+        "text": "今⽇は珍しく遅いんだな。",
+        "force_female": false,
+        "display_lines": [
+          "今⽇は珍しく遅いんだな。"
+        ]
+      },
+      {
+        "speaker": "桃子",
+        "text": "うん。家族で古畑任三郎観ててね、夜更かししちゃったの。",
+        "force_female": false,
+        "display_lines": [
+          "うん。家族で古畑任三郎観ててね、夜更かし",
+          "しちゃったの。"
+        ]
+      },
+      {
+        "speaker": "桃子",
+        "text": "ふわぁ～。",
+        "force_female": false,
+        "display_lines": [
+          "ふわぁ～。"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "でもさ、古畑は⽕曜だよな？",
+        "force_female": false,
+        "display_lines": [
+          "でもさ、古畑は⽕曜だよな？"
+        ]
+      },
+      {
+        "speaker": "桃子",
+        "text": "そうだよー。",
+        "force_female": false,
+        "display_lines": [
+          "そうだよー。"
+        ]
+      },
+      {
+        "speaker": "増田",
+        "text": "ってことは、わざわざ録画して⾒てるのか？",
+        "force_female": false,
+        "display_lines": [
+          "ってことは、わざわざ録画して⾒てるのか？"
+        ]
       }
     ],
     "bgm": {
-      "file": null,
+      "file": "MokLap1.mp3",
       "volume": 0.5,
       "loop": true
     }
