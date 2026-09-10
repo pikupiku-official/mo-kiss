@@ -42,7 +42,7 @@ from PyQt5.QtCore import (
     QEasingCurve, QParallelAnimationGroup, QPropertyAnimation,
 )
 from PyQt5.QtGui import (
-    QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter,
+    QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter, QIcon,
     QPalette, QLinearGradient,
 )
 
@@ -3410,7 +3410,22 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setMinimumContentsLength(12)
                 field.setMinimumWidth(0)
                 field.addItem("")
-                field.addItems(self._editor_asset_options(field_type))
+                options = self._editor_asset_options(field_type)
+                if field_type == "bg_asset":
+                    paths = getattr(self._image_manager, "image_paths", {}) or {}
+                    bg_paths = paths.get("bg", {}) or {}
+                    field.setIconSize(QSize(96, 54))
+                    for name in options:
+                        pixmap = QPixmap(bg_paths.get(name, ""))
+                        if not pixmap.isNull():
+                            pixmap = pixmap.scaled(
+                                96, 54, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                            )
+                            field.addItem(QIcon(pixmap), name)
+                        else:
+                            field.addItem(name)
+                else:
+                    field.addItems(options)
             else:
                 field = QLineEdit()
             self.custom_fields[key] = field
@@ -3674,7 +3689,10 @@ class StepEditorDialog(Win2000FramelessDialog):
         stem = os.path.splitext(os.path.basename(file_path))[0]
         field = self.custom_fields.get(key)
         if field is not None:
-            field.setText(stem)
+            if isinstance(field, QComboBox):
+                field.setCurrentText(stem)
+            else:
+                field.setText(stem)
 
     def _load_action_into_editors(self, tag, params, from_template=False):
         merged = self._merge_with_template(tag, params)
