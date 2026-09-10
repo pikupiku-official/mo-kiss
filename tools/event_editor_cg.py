@@ -44,12 +44,13 @@ def list_cg_assets(image_manager):
 class CgDiffBrowserDialog(QDialog):
     """Select one CG asset without eagerly decoding the whole CG library."""
 
-    def __init__(self, parent, image_manager, current_storage=""):
+    def __init__(self, parent, image_manager, current_storage="", preferred_storage=""):
         super().__init__(parent)
         self.setWindowTitle("CG差分一覧")
         self.resize(720, 520)
         self._grouped = list_cg_assets(image_manager)
         self._current_storage = (current_storage or "").strip()
+        self._preferred_storage = (preferred_storage or "").strip()
         self._selected_storage = self._current_storage
 
         layout = QVBoxLayout(self)
@@ -89,6 +90,15 @@ class CgDiffBrowserDialog(QDialog):
         match = CG_ASSET_RE.fullmatch(os.path.splitext(self._current_storage)[0])
         if match:
             wanted = (match.group("char").upper(), match.group("cg"))
+            index = self.cg_combo.findData(wanted)
+            if index >= 0:
+                self.cg_combo.setCurrentIndex(index)
+                self._populate_diffs()
+                return
+        # Keep newly-created CG actions on the set already used by the event.
+        preferred_match = CG_ASSET_RE.fullmatch(os.path.splitext(self._preferred_storage)[0])
+        if preferred_match:
+            wanted = (preferred_match.group("char").upper(), preferred_match.group("cg"))
             index = self.cg_combo.findData(wanted)
             if index >= 0:
                 self.cg_combo.setCurrentIndex(index)

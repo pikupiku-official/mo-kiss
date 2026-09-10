@@ -1999,7 +1999,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.undo_btn = QPushButton("↶ 元に戻す")
         self.undo_btn.setToolTip("直前の編集を取り消す (Ctrl+Z)")
         self.redo_btn = QPushButton("↷ やり直す")
-        self.redo_btn.setToolTip("取り消した編集をやり直す (Ctrl+Y)")
+        self.redo_btn.setToolTip("取り消した編集をやり直す (Ctrl+Y / Ctrl+Shift+Z)")
         navigation_layout.addWidget(self.undo_btn)
         navigation_layout.addWidget(self.redo_btn)
         navigation_layout.addStretch()
@@ -2188,6 +2188,10 @@ class StepEditorDialog(Win2000FramelessDialog):
         cancel_button.setAutoDefault(False)
         self.save_status_label = QLabel()
         self.save_status_label.setStyleSheet("color: green;")
+        self._save_status_timer = QTimer(self)
+        self._save_status_timer.setSingleShot(True)
+        self._save_status_timer.setInterval(3000)
+        self._save_status_timer.timeout.connect(self.save_status_label.clear)
         buttons.clicked.connect(
             lambda button: self._save_current_step()
             if button is apply_button
@@ -2781,6 +2785,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._update_current_outline_item()
         self._update_navigation_controls()
         self.save_status_label.setText("保存しました")
+        self._save_status_timer.start()
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -2808,11 +2813,16 @@ class StepEditorDialog(Win2000FramelessDialog):
                     self._move_action_down()
                     event.accept()
                     return True
-                if event.key() == Qt.Key_Z:
+                if event.key() == Qt.Key_Z and modifiers == Qt.ControlModifier:
                     self._undo_editor_change()
                     event.accept()
                     return True
-                if event.key() == Qt.Key_Y:
+                if event.key() == Qt.Key_Y and modifiers == Qt.ControlModifier:
+                    self._redo_editor_change()
+                    event.accept()
+                    return True
+            if modifiers == (Qt.ControlModifier | Qt.ShiftModifier):
+                if event.key() == Qt.Key_Z:
                     self._redo_editor_change()
                     event.accept()
                     return True
@@ -2862,6 +2872,10 @@ class StepEditorDialog(Win2000FramelessDialog):
                 self._redo_editor_change()
                 event.accept()
                 return
+        if event.modifiers() == (Qt.ControlModifier | Qt.ShiftModifier) and event.key() == Qt.Key_Z:
+            self._redo_editor_change()
+            event.accept()
+            return
         if (
             event.key() in (Qt.Key_Left, Qt.Key_Right)
             and event.modifiers() in (Qt.NoModifier, Qt.KeypadModifier)
@@ -4046,7 +4060,24 @@ class StepEditorDialog(Win2000FramelessDialog):
         field = self.custom_fields.get(key)
         if field is None:
             return
-        dialog = CgDiffBrowserDialog(self, self._image_manager, field.text().strip())
+        current_storage = field.text().strip()
+        preferred_storage = ""
+        if not current_storage:
+            # New CG actions inherit the CG set already used in this event,
+            # rather than resetting to the first entry in the whole library.
+            for step_actions in self._all_step_actions:
+                for action in step_actions:
+                    tag, pairs = self._parse_action(action)
+                    if tag in ("cg_show", "cg_shift"):
+                        storage = dict(pairs).get("storage", "").strip()
+                        if storage:
+                            preferred_storage = storage
+                            break
+                if preferred_storage:
+                    break
+        dialog = CgDiffBrowserDialog(
+            self, self._image_manager, current_storage, preferred_storage
+        )
         if dialog.exec_() != QDialog.Accepted or not dialog.selected_storage:
             return
         field.setText(dialog.selected_storage)
