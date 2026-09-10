@@ -5,13 +5,31 @@
       "source_event_id": "TANE_MASUDA_01",
       "acquired_game_date": "1999-05-31",
       "journaled_game_date": "1999-05-31"
+<<<<<<< HEAD
+=======
+    },
+    "MASUDA_TP1_002": {
+      "source_event_id": "TANE_MASUDA_02",
+      "acquired_game_date": "1999-05-31",
+      "journaled_game_date": "1999-05-31"
+    },
+    "MASUDA_TP1_003": {
+      "source_event_id": "TANE_MASUDA_03",
+      "acquired_game_date": "1999-06-01",
+      "journaled_game_date": null
+>>>>>>> 7613db04247ec35b2ac140c63a0e66b9a631b7b8
     }
   },
   "journal_days": [
     {
       "game_date": "1999-05-31",
       "seed_ids": [
+<<<<<<< HEAD
         "MASUDA_TP1_001"
+=======
+        "MASUDA_TP1_001",
+        "MASUDA_TP1_002"
+>>>>>>> 7613db04247ec35b2ac140c63a0e66b9a631b7b8
       ]
     }
   ],

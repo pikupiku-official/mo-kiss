@@ -2136,9 +2136,19 @@ class StepEditorDialog(Win2000FramelessDialog):
         apply_button.setAutoDefault(False)
         apply_button.setDefault(False)
         cancel_button.setAutoDefault(False)
-        buttons.accepted.connect(self.accept)
+        self.save_status_label = QLabel()
+        self.save_status_label.setStyleSheet("color: green;")
+        buttons.clicked.connect(
+            lambda button: self._save_current_step()
+            if button is apply_button
+            else None
+        )
         buttons.rejected.connect(self.reject)
-        main_layout.addWidget(buttons)
+        footer_layout = QHBoxLayout()
+        footer_layout.addWidget(self.save_status_label)
+        footer_layout.addStretch()
+        footer_layout.addWidget(buttons)
+        main_layout.addLayout(footer_layout)
 
         self.add_btn.clicked.connect(self._add_action)
         self.remove_btn.clicked.connect(self._remove_action)
@@ -2604,6 +2614,14 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.scene_canvas.flush_pending_scale()
         self._stop_audio_preview()
         super().accept()
+
+    def _save_current_step(self):
+        """現在のstepを保存・適用し、ダイアログは開いたままにする。"""
+        if not self._apply_current_step_to_parent():
+            return
+        self._update_current_outline_item()
+        self._update_navigation_controls()
+        self.save_status_label.setText("保存しました")
 
     def showEvent(self, event):
         super().showEvent(event)

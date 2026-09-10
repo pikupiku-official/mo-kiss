@@ -1,5 +1,7 @@
 import pygame
 
+from core.ui.dim_overlay import SceneDimmer
+
 from core.config import (
     CHARACTER_GENDERS,
     FONT_EFFECTS,
@@ -60,7 +62,7 @@ class BacklogManager:
         self.female_name_color = TEXT_COLOR_FEMALE
         self.choice_color = TEXT_COLOR
 
-        self._dim_surface = None
+        self._dimmer = SceneDimmer(self.DIM_ALPHA)
 
     def set_text_renderer(self, text_renderer):
         self.text_renderer = text_renderer
@@ -431,15 +433,7 @@ class BacklogManager:
         return True
 
     def _render_dim(self):
-        if (
-            self._dim_surface is None
-            or self._dim_surface.get_size() != self.screen.get_size()
-        ):
-            self._dim_surface = pygame.Surface(
-                self.screen.get_size(), pygame.SRCALPHA
-            )
-            self._dim_surface.fill((0, 0, 0, self.DIM_ALPHA))
-        self.screen.blit(self._dim_surface, (0, 0))
+        self._dimmer.render(self.screen)
 
     @staticmethod
     def _draw_bevel(surface, rect, raised=True):

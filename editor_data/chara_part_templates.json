@@ -645,6 +645,141 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "b49e8cf01aad4b178b623f6497988bce",
+      "name": "桃子困惑２",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM17_CLO00",
+        "brow": "MMK_F00_BRO03_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU17_00",
+        "accessory": "",
+        "effect": "MMK_E00_01"
+      },
+      "blink": true
+    },
+    {
+      "id": "87d4ed23fa0648d68613461ad5d4d4a3",
+      "name": "杏反応",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0002",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0005",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "9f27b71773c549248c06941741e7b9a2",
+      "name": "杏おちゃらけ2",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0002",
+        "mouth": "ANZ_F00_MOU_0011",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "45bd9b84065b45879d06c7a2d74766eb",
+      "name": "杏会話聞き上手",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0001",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0001",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "928397be671f426c82a7fa07a60599f4",
+      "name": "杏会話",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0001",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0001",
+        "mouth": "ANZ_F00_MOU_0005",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "7ed49627077a44458b62dd72bf2b5fc2",
+      "name": "杏笑顔",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T00_0003",
+        "brow": "ANZ_F00_BRO_0001",
+        "cheek": "ANZ_F00_CHE_0001",
+        "eye": "ANZ_F00_EYE_0008",
+        "mouth": "ANZ_F00_MOU_0004",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "e27e2d01c5ea47cb8e5d67d64f735ce6",
+      "name": "桃子恥ずかしがる",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM08_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU01_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "b13c8922127749489077f9766c37e1de",
+      "name": "爆笑斜め",
+      "character": "静",
+      "parts": {
+        "torso": "SZK_T01_0005",
+        "brow": "SZK_F01_BRO_0001",
+        "cheek": "SZK_F01_CHE_0001",
+        "eye": "SZK_F01_EYE_0010",
+        "mouth": "SZK_F01_MOU_0012",
+        "accessory": "",
+        "effect": "SZK_E01_0002"
+      },
+      "blink": true
+    },
+    {
+      "id": "8008796e7296438e887c1743bda6af92",
+      "name": "爆笑斜め",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T01_0005",
+        "brow": "ANZ_F01_BRO_0002",
+        "cheek": "ANZ_F01_CHE_0001",
+        "eye": "ANZ_F01_EYE_0008",
+        "mouth": "ANZ_F01_MOU_0012",
+        "accessory": "",
+        "effect": "ANZ_E01_0002"
+      },
+      "blink": true
     }
   ]
 }

@@ -17,82 +17,71 @@ jobs:
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_PASS: ${{ secrets.SSH_PASS }}
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install sshpass + rsync
-        run: sudo apt-get install -y sshpass rsync
-
-      - name: Find correct web path via SSH
         run: |
-          sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            "echo '=== home ===' && pwd && echo '=== ls ~/ ===' && ls ~/ && echo '=== find mokiss ===' && find ~/ -maxdepth 3 -name 'wp-config.php' 2>/dev/null | head -5"
-        continue-on-error: true
+          timeout 5m sudo env DEBIAN_FRONTEND=noninteractive \
+            apt-get install -y --no-install-recommends sshpass rsync
 
-      - name: Create remote directory and deploy
+      - name: Deploy
         run: |
+          set -euo pipefail
+
+          for required in SSH_HOST SSH_USER SSH_PASS; do
+            if [ -z "${!required:-}" ]; then
+              echo "::error::Repository secret ${required} is not configured"
+              exit 1
+            fi
+          done
+
+          export SSHPASS="$SSH_PASS"
           printf '%s\n' "$GITHUB_SHA" > ./tools/dev/ks-editor/deploy-version.txt
 
-          # mokiss の実際のパスを検出して使う（xargs -r: 空入力時は実行しない）
-          WEB_PATH=$(sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            'find $HOME -maxdepth 4 -name "wp-config.php" 2>/dev/null | grep mokiss | head -1 | xargs -r dirname')
+          # Lolipop serves the configured "mokiss" upload folder from
+          # $HOME/web/mokiss. Use rsync's one SSH session both to create the
+          # destination and upload, avoiding repeated connections that the
+          # shared SSH host can close with exit code 255.
+          echo "Deploying to Lolipop upload folder: web/mokiss/dev/"
+          DEPLOYED=false
+          for attempt in 1 2 3; do
+            if sshpass -e rsync -avz \
+              --ignore-times \
+              --timeout=60 \
+              --exclude=api_config.php \
+              --rsync-path='printf "remote_home=%s\\n" "$HOME" >&2; mkdir -p "$HOME/web/mokiss/dev" && exec rsync' \
+              -e "ssh -p ${SSH_PORT:-2222} -o ConnectTimeout=20 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+              ./tools/dev/ \
+              "${SSH_USER}@${SSH_HOST}:web/mokiss/dev/"; then
+              DEPLOYED=true
+              break
+            fi
 
-          echo "Detected mokiss path: $WEB_PATH"
+            echo "::warning::SSH/rsync attempt ${attempt} failed"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
 
-          if [ -z "$WEB_PATH" ]; then
-            # リモートの $HOME を取得してフォールバック（ローカルの $HOME は使わない）
-            REMOTE_HOME=$(sshpass -p "$SSH_PASS" ssh \
-              -p $SSH_PORT \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              $SSH_USER@$SSH_HOST \
-              'echo $HOME')
-            echo "WARNING: Could not detect path, fallback with remote HOME=$REMOTE_HOME"
-            WEB_PATH="$REMOTE_HOME/pikupikutai.pinoko.jp/mokiss"
-          fi
-
-          DEPLOY_TO="${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
-          echo "Deploying to: $DEPLOY_TO"
-
-          sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            "mkdir -p ${WEB_PATH}/dev/ks-editor"
-
-          sshpass -p "$SSH_PASS" rsync -avz \
-            --ignore-times \
-            --exclude=api_config.php \
-            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-            ./tools/dev/ \
-            "${SSH_USER}@${SSH_HOST}:${WEB_PATH}/dev/"
-
-          REMOTE_SHA=$(sshpass -p "$SSH_PASS" ssh \
-            -p $SSH_PORT \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            $SSH_USER@$SSH_HOST \
-            "cat ${WEB_PATH}/dev/ks-editor/deploy-version.txt")
-
-          if [ "$REMOTE_SHA" != "$GITHUB_SHA" ]; then
-            echo "Remote deploy verification failed: expected $GITHUB_SHA, got $REMOTE_SHA"
+          if [ "$DEPLOYED" != true ]; then
+            echo "::error::Lolipop closed all three SSH/rsync attempts"
             exit 1
           fi
 
       - name: Verify public deployment
         run: |
-          for attempt in 1 2 3 4 5; do
-            PUBLIC_SHA=$(curl -fsS "https://mokiss.jp/dev/ks-editor/deploy-version.txt?sha=${GITHUB_SHA}&attempt=${attempt}" || true)
+          # Static files are normally visible immediately. Retry briefly for a
+          # transient edge cache, but do not hide a wrong document root for two minutes.
+          PUBLIC_SHA=""
+          for attempt in $(seq 1 5); do
+            PUBLIC_SHA=$(curl --fail --silent --show-error --location \
+              --connect-timeout 10 \
+              --max-time 20 \
+              -H 'Cache-Control: no-cache' \
+              "https://mokiss.jp/dev/ks-editor/deploy-version.txt?deploy=${GITHUB_SHA}&attempt=${attempt}&ts=$(date +%s%N)" || true)
             if [ "$PUBLIC_SHA" = "$GITHUB_SHA" ]; then
               echo "Public deployment verified: $PUBLIC_SHA"
               exit 0
@@ -101,5 +90,6 @@ jobs:
             sleep 3
           done
 
-          echo "Public deployment verification failed"
+          echo "::error::SSH upload succeeded, but mokiss.jp is serving ${PUBLIC_SHA:-<empty>} instead of $GITHUB_SHA"
+          echo "::error::Expected Lolipop document root: \$HOME/web/mokiss (upload folder: mokiss)"
           exit 1

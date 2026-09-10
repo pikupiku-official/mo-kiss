@@ -1,5 +1,7 @@
 import pygame
 from .main_menu_config import COLORS, BUTTON_CONFIG, SLIDER_CONFIG
+from core.ui.text_edit import TextEditBuffer
+from dialogue.font_effects import render_text_with_effects
 
 class Button:
     def __init__(self, x, y, width, height, text, font, color_scheme='normal'):
@@ -192,7 +194,8 @@ class ToggleButton:
 
 
 class TextInput:
-    """テキスト入力フィールド"""
+    """Single-line name field backed by the shared IME editor."""
+
     def __init__(
         self,
         x,
@@ -203,168 +206,248 @@ class TextInput:
         max_length=3,
         placeholder="",
         input_rect_transform=None,
+        grid_width=None,
     ):
         self.rect = pygame.Rect(x, y, width, height)
         self.font = font
         self.max_length = max_length
         self.placeholder = placeholder
         self.input_rect_transform = input_rect_transform or (lambda rect: rect)
-        self.text = ""
+        self.grid_width = grid_width or max(8, self.font.get_height())
+        # Name entry intentionally accepts overlong text and reports the
+        # existing validation error at confirmation time.
+        self.editor = TextEditBuffer(max_length=max_length)
         self.is_focused = False
         self.cursor_visible = True
-        self.cursor_timer = 0
         self.is_hovered = False
-        
-        # IME入力用
-        self.composition_text = ""  # IME変換中のテキスト
-        self.is_composing = False   # IME変換中かどうか
-        
-        # カーソル点滅用
-        self.cursor_blink_time = 500  # 500ms
+        self.cursor_blink_time = 500
         self.last_blink = pygame.time.get_ticks()
-    
+
+    @property
+    def text(self):
+        return self.editor.text
+
+    @text.setter
+    def text(self, value):
+        self.editor.set_text(value)
+
+    @property
+    def composition_text(self):
+        return self.editor.composition
+
+    @composition_text.setter
+    def composition_text(self, value):
+        self.editor.composition = str(value or "")
+
+    @property
+    def is_composing(self):
+        return self.editor.is_composing
+
+    @is_composing.setter
+    def is_composing(self, value):
+        if not value:
+            self.editor.clear_composition()
+
     def handle_event(self, event):
-        """イベント処理（日本語IME対応改善版）"""
-        result = None
-        
         if event.type == pygame.MOUSEMOTION:
             self.is_hovered = self.rect.collidepoint(event.pos)
-        
-        elif event.type == pygame.MOUSEBUTTONDOWN:
+            return None
+        if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
                 if not self.is_focused:
                     self.focus()
-                    result = 'focus'
-            else:
-                if self.is_focused:
-                    self.is_focused = False
-                    self.composition_text = ""
-                    self.is_composing = False
-                    # テキスト入力を無効にする
-                    pygame.key.stop_text_input()
-                    result = 'blur'
-        
-        elif self.is_focused:
-            if event.type == pygame.KEYDOWN:
-                # 変換中の編集・確定キーはIMEに処理させる。結果は
-                # TEXTEDITING/TEXTINPUTイベントとして受け取る。
-                if not self.is_composing:
-                    if event.key == pygame.K_BACKSPACE and self.text:
-                        self.text = self.text[:-1]
-                        result = 'text_changed'
-                    elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
-                        self.is_focused = False
-                        self.composition_text = ""
-                        self.is_composing = False
-                        pygame.key.stop_text_input()
-                        result = 'enter'
-            
-            elif event.type == pygame.TEXTINPUT:
-                # テキスト入力イベント（IME確定後の文字）
-                self.text += event.text
-                result = 'text_changed'
-                # TEXTINPUT はIMEの確定通知なので、変換表示を必ず終了する
-                self.composition_text = ""
-                self.is_composing = False
-            
-            elif event.type == pygame.TEXTEDITING:
-                # テキスト編集イベント（IME変換中）
-                self.composition_text = event.text
-                self.is_composing = len(event.text) > 0
-        
-        # カーソル点滅処理
-        current_time = pygame.time.get_ticks()
-        if current_time - self.last_blink > self.cursor_blink_time:
-            self.cursor_visible = not self.cursor_visible
-            self.last_blink = current_time
-        
-        return result
-    
+                self._place_cursor_from_mouse(event.pos[0])
+                return "focus"
+            if self.is_focused:
+                self.clear_focus()
+                return "blur"
+            return None
+        if not self.is_focused:
+            return None
+
+        result = self.editor.handle_event(event, enforce_limit=False)
+        if result == "submit":
+            self.clear_focus()
+            return "enter"
+        if result == "changed":
+            self._reset_cursor_blink()
+            return "text_changed"
+        if result in ("selection", "composition"):
+            self._reset_cursor_blink()
+        return None
+
+    def _place_cursor_from_mouse(self, mouse_x):
+        relative = max(0, mouse_x - (self.rect.x + 8))
+        best_index = 0
+        best_distance = float("inf")
+        for index in range(len(self.text) + 1):
+            distance = abs(index * self.grid_width - relative)
+            if distance < best_distance:
+                best_index = index
+                best_distance = distance
+        self.editor.set_cursor(best_index)
+        self._reset_cursor_blink()
+
+    def _reset_cursor_blink(self):
+        self.cursor_visible = True
+        self.last_blink = pygame.time.get_ticks()
+
     def set_text(self, text):
-        """テキストを設定"""
-        self.text = text or ""
-    
+        self.editor.set_text(text)
+
     def get_text(self):
-        """テキストを取得"""
-        return self.text
+        return self.editor.text
 
     def focus(self):
-        """入力欄へフォーカスし、IME候補の基準位置を設定する。"""
         self.is_focused = True
-        self.cursor_visible = True
+        self._reset_cursor_blink()
         self.update_ime_rect()
         pygame.key.start_text_input()
 
-    def update_ime_rect(self):
-        """現在のウィンドウ寸法に合わせてIME候補位置を更新する。"""
-        input_rect = pygame.Rect(self.input_rect_transform(self.rect.copy()))
-        pygame.key.set_text_input_rect(input_rect)
-    
-    def clear_focus(self):
-        """フォーカスをクリアしてIME入力を停止"""
-        if self.is_focused:
-            self.is_focused = False
-            self.composition_text = ""
-            self.is_composing = False
-            pygame.key.stop_text_input()
-    
-    def draw(self, screen):
-        """描画"""
-        if self.is_focused:
-            self.update_ime_rect()
-
-        # 背景色を決定
-        if self.is_focused:
-            bg_color = COLORS['btn_hover']
-            border_color = COLORS['slider_active']
-            border_width = 3
-        elif self.is_hovered:
-            bg_color = (240, 240, 240)
-            border_color = COLORS['border_dark']
-            border_width = 2
-        else:
-            bg_color = (255, 255, 255)
-            border_color = COLORS['border_dark']
-            border_width = 1
-        
-        # フィールドを描画
-        pygame.draw.rect(screen, bg_color, self.rect, border_radius=5)
-        pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=5)
-        
-        # テキストまたはプレースホルダーを描画
+    def _caret_virtual_rect(self):
         text_x = self.rect.x + 8
         text_y = self.rect.y + (self.rect.height - self.font.get_height()) // 2
-        
+        selection_start, selection_end = self.editor.selection
+        insert_at = (
+            selection_start
+            if self.composition_text and selection_start != selection_end
+            else self.editor.cursor
+        )
+        prefix = self.text[:insert_at] + self.composition_text
+        caret_x = text_x + len(prefix) * self.grid_width
+        return pygame.Rect(caret_x, text_y + self.font.get_height(), 2, self.font.get_height())
+
+    def update_ime_rect(self):
+        input_rect = pygame.Rect(self.input_rect_transform(self._caret_virtual_rect()))
+        pygame.key.set_text_input_rect(input_rect)
+
+    def clear_focus(self):
+        if self.is_focused:
+            self.is_focused = False
+            self.editor.clear_composition()
+            pygame.key.stop_text_input()
+
+    def _draw_editor_text(self, screen, text_x, text_y, text_color=None,
+                          selected_color=(255, 255, 255), selection_color=None):
+        text_color = COLORS["text_dark"] if text_color is None else text_color
+        selection_color = COLORS["slider_active"] if selection_color is None else selection_color
+        selection_start, selection_end = self.editor.selection
+        replacing_selection = bool(
+            self.composition_text and selection_start != selection_end
+        )
+        insert_at = selection_start if replacing_selection else self.editor.cursor
+        resume_at = selection_end if replacing_selection else self.editor.cursor
+        visual = []
+        for index, char in enumerate(self.text[:insert_at]):
+            kind = "text" if replacing_selection else (
+                "selected" if selection_start <= index < selection_end else "text"
+            )
+            visual.append((char, kind))
+        for index, char in enumerate(self.composition_text):
+            active = (
+                self.editor.composition_start
+                <= index
+                < self.editor.composition_start + self.editor.composition_length
+            )
+            visual.append((char, "composition_active" if active else "composition"))
+        for index in range(resume_at, len(self.text)):
+            visual.append(
+                (
+                    self.text[index],
+                    "text" if replacing_selection else (
+                        "selected" if selection_start <= index < selection_end else "text"
+                    ),
+                )
+            )
+
+        x = text_x
+        for char, kind in visual:
+            selected = kind in ("selected", "composition_active")
+            color = selected_color if selected else text_color
+            # Use the exact outline/stretch pipeline used by Dialogue text;
+            # plain Font.render here was the source of the visibly softer
+            # name-input glyphs.
+            glyph = render_text_with_effects(self.font, char, color)
+            if selected:
+                pygame.draw.rect(
+                    screen,
+                    selection_color if kind == "selected" else (70, 70, 70),
+                    pygame.Rect(x, text_y, glyph.get_width(), self.font.get_height()),
+                )
+            screen.blit(glyph, (x, text_y))
+            if kind.startswith("composition"):
+                pygame.draw.line(
+                    screen,
+                    COLORS["text_dark"],
+                    (x, text_y + self.font.get_height() - 2),
+                    (x + glyph.get_width(), text_y + self.font.get_height() - 2),
+                    2,
+                )
+            # Advance by the underlying font width, as TextRenderer's grid
+            # does; outline padding must not change character spacing.
+            x += self.grid_width
+
+    def draw(self, screen, *, frame=True, text_color=None,
+             selected_color=(255, 255, 255), selection_color=None):
+        if self.is_focused:
+            now = pygame.time.get_ticks()
+            if now - self.last_blink >= self.cursor_blink_time:
+                self.cursor_visible = not self.cursor_visible
+                self.last_blink = now
+            self.update_ime_rect()
+
+        if frame and self.is_focused:
+            bg_color, border_color, border_width = COLORS["btn_hover"], COLORS["slider_active"], 3
+        elif frame and self.is_hovered:
+            bg_color, border_color, border_width = (240, 240, 240), COLORS["border_dark"], 2
+        elif frame:
+            bg_color, border_color, border_width = (255, 255, 255), COLORS["border_dark"], 1
+        else:
+            bg_color = (0, 0, 0)
+        if frame:
+            pygame.draw.rect(screen, bg_color, self.rect, border_radius=5)
+            pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=5)
+
+        text_x = self.rect.x + 8
+        text_y = self.rect.y + (self.rect.height - self.font.get_height()) // 2
         if self.text or self.composition_text:
-            # 確定済みテキストを描画
-            if self.text:
-                text_surface = self.font.render(self.text, True, COLORS['text_dark'])
-                screen.blit(text_surface, (text_x, text_y))
-                text_width = text_surface.get_width()
-            else:
-                text_width = 0
-            
-            # IME変換中のテキストを描画（下線付き）
-            if self.is_composing and self.composition_text:
-                comp_surface = self.font.render(self.composition_text, True, (100, 100, 100))
-                comp_x = text_x + text_width
-                screen.blit(comp_surface, (comp_x, text_y))
-                # 変換中テキストに下線を描画
-                comp_width = comp_surface.get_width()
-                pygame.draw.line(screen, (100, 100, 100), 
-                               (comp_x, text_y + self.font.get_height() - 2), 
-                               (comp_x + comp_width, text_y + self.font.get_height() - 2), 1)
-            
-            # カーソルを描画（フォーカス中かつ表示状態の場合）
+            self._draw_editor_text(
+                screen, text_x, text_y, text_color=text_color,
+                selected_color=selected_color, selection_color=selection_color,
+            )
             if self.is_focused and self.cursor_visible:
-                cursor_x = text_x + text_width
-                if self.is_composing and self.composition_text:
-                    cursor_x += self.font.size(self.composition_text)[0]
-                cursor_y1 = self.rect.y + 5
-                cursor_y2 = self.rect.y + self.rect.height - 5
-                pygame.draw.line(screen, COLORS['text_dark'], (cursor_x, cursor_y1), (cursor_x, cursor_y2), 2)
-        
+                selection_start, selection_end = self.editor.selection
+                insert_at = (
+                    selection_start
+                    if self.composition_text and selection_start != selection_end
+                    else self.editor.cursor
+                )
+                cursor_x = text_x + len(
+                    self.text[:insert_at] + self.composition_text
+                ) * self.grid_width
+                # Japanese dialogue uses a full-width grid cell.  A half-width
+                # underscore made the caret hard to see beside CJK glyphs.
+                block_width = max(8, self.font.size("あ")[0])
+                block_width = self.grid_width
+                caret = pygame.Rect(cursor_x, text_y, block_width, self.font.get_height())
+                pygame.draw.rect(screen, text_color or COLORS["text_dark"], caret)
+                if self.editor.cursor < len(self.text) and not self.composition_text:
+                    glyph = render_text_with_effects(
+                        self.font, self.text[self.editor.cursor], bg_color
+                    )
+                    screen.blit(glyph, (cursor_x, text_y))
         elif self.placeholder:
-            # プレースホルダーを描画
-            placeholder_surface = self.font.render(self.placeholder, True, (150, 150, 150))
-            screen.blit(placeholder_surface, (text_x, text_y))
+            if frame:
+                surface = self.font.render(self.placeholder, True, (150, 150, 150))
+                screen.blit(surface, (text_x, text_y))
+            if self.is_focused and self.cursor_visible:
+                pygame.draw.rect(
+                    screen,
+                    COLORS["text_dark"],
+                    pygame.Rect(
+                        text_x,
+                        text_y,
+                        max(8, self.font.size("あ")[0]),
+                        self.font.get_height(),
+                    ),
+                )

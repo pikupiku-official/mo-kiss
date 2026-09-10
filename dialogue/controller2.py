@@ -1,6 +1,12 @@
 ﻿import pygame
 from .model import advance_dialogue
-from core.config import get_ui_button_positions, DEBUG, FONT_EFFECTS
+from core.config import (
+    get_ui_button_positions,
+    get_configured_key,
+    DEBUG,
+    FONT_EFFECTS,
+    SEED_INPUT_CONFIG,
+)
 from .character_manager import update_character_animations
 from .background_manager import update_background_animation
 from .fade_manager import update_fade_animation
@@ -193,12 +199,88 @@ def handle_events(game_state, screen):
         print("[EVENTS] KSファイル終了フラグ検知")
         return False  # KSファイル終了を通知
 
+    events = pygame.event.get()
     seed_answer_overlay = game_state.get("seed_answer_overlay")
-    if seed_answer_overlay is not None:
-        for event in pygame.event.get():
+    seed_list_overlay = game_state.get("seed_list_overlay")
+
+    remaining_events = []
+    for event in events:
+        if (
+            seed_list_overlay is not None
+            and event.type == pygame.KEYDOWN
+            and event.key == get_configured_key(SEED_INPUT_CONFIG['seed_list_key'])
+            and not getattr(event, "repeat", False)
+            and not (
+                seed_answer_overlay is not None
+                and seed_answer_overlay.is_composing
+            )
+        ):
+            showing = seed_list_overlay.toggle()
+            backlog = game_state.get("backlog_manager")
+            if showing and backlog is not None and backlog.is_showing_backlog():
+                backlog.toggle_backlog()
+            if seed_answer_overlay is not None:
+                if showing:
+                    seed_answer_overlay.suspend()
+                elif not game_state.get("seed_system_message"):
+                    seed_answer_overlay.resume()
+            continue
+        remaining_events.append(event)
+    events = remaining_events
+
+    if seed_list_overlay is not None and seed_list_overlay.is_showing:
+        for event in events:
+            if event.type == pygame.QUIT:
+                return False
+            seed_list_overlay.handle_event(event)
+        return True
+
+    seed_system_message = game_state.get("seed_system_message")
+    if seed_answer_overlay is not None and seed_system_message:
+        for event in events:
             if event.type == pygame.QUIT:
                 seed_answer_overlay.close()
                 return False
+            if event.type == pygame.KEYDOWN and event.key in (
+                pygame.K_RETURN,
+                pygame.K_KP_ENTER,
+            ):
+                text_renderer = game_state.get("text_renderer")
+                if text_renderer is not None and text_renderer.is_displaying():
+                    text_renderer.skip_text()
+                else:
+                    game_state["seed_system_message"] = None
+                    seed_answer_overlay.resume()
+        return True
+
+    if seed_answer_overlay is not None:
+        for event in events:
+            if event.type == pygame.QUIT:
+                seed_answer_overlay.close()
+                return False
+            if (
+                event.type == pygame.KEYDOWN
+                and event.key == get_configured_key(
+                    SEED_INPUT_CONFIG['input_backlog_key']
+                )
+                and (
+                    not SEED_INPUT_CONFIG['input_backlog_requires_ctrl']
+                    or int(getattr(event, "mod", 0) or 0) & pygame.KMOD_CTRL
+                )
+                and not seed_answer_overlay.is_composing
+            ):
+                backlog = game_state.get("backlog_manager")
+                if backlog is not None:
+                    backlog.toggle_backlog()
+                    if backlog.is_showing_backlog():
+                        seed_answer_overlay.suspend()
+                    else:
+                        seed_answer_overlay.resume()
+                continue
+            backlog = game_state.get("backlog_manager")
+            if backlog is not None and backlog.is_showing_backlog():
+                backlog.handle_input(event)
+                continue
             overlay_event = event
             if hasattr(event, "pos"):
                 event_values = dict(event.dict)
@@ -212,7 +294,7 @@ def handle_events(game_state, screen):
                 break
         return True
     
-    for event in pygame.event.get():
+    for event in events:
         # バックログ関連のイベント処理
         backlog_manager = game_state['backlog_manager']
         backlog_was_open = backlog_manager.is_showing_backlog()
@@ -379,19 +461,28 @@ def _submit_seed_answer(game_state, answer_text):
         game_state["seed_answer_overlay"] = None
         return
 
-    verdict = seed_manager.judge_answer(turning_point_id, answer_text)
+    if getattr(overlay, "fallback_armed", False):
+        verdict = overlay.fallback_verdict()
+    else:
+        verdict = seed_manager.judge_answer(turning_point_id, answer_text)
+    overlay.last_verdict = verdict
     result = verdict.get("result", "error")
-    if result in ("borderline", "error"):
-        if result == "borderline":
-            message = "惜しい。もう少し具体的に推理しよう。"
-        else:
-            message = "判定モデルを読み込めません。起動コンソールを確認してください。"
-            import sys
+    if result == "error":
+        unavailable = verdict.get("error_kind") == "model_unavailable"
+        message = (
+            "判定機能を準備できませんでした。もう一度入力してください。"
+            if unavailable
+            else "判定中に問題が発生しました。もう一度試してください。"
+        )
+        if unavailable and hasattr(overlay, "arm_model_fallback"):
+            overlay.arm_model_fallback()
+        overlay.suspend()
+        game_state["seed_system_message"] = message
+        game_state["text_renderer"].set_dialogue(message, "")
+        import sys
 
-            print(f"[SEED][ERROR] Python: {sys.executable}")
-            print(f"[SEED][ERROR] Detail: {verdict.get('error_detail', 'unknown error')}")
-        if hasattr(overlay, "show_judge_feedback"):
-            overlay.show_judge_feedback(result, message)
+        print(f"[SEED][ERROR] Python: {sys.executable}")
+        print(f"[SEED][ERROR] Detail: {verdict.get('error_detail', 'unknown error')}")
         print(
             f"[SEED] 推理判定保留: {turning_point_id} -> {result} "
             f"({verdict.get('reason_codes', ())})"
@@ -406,16 +497,24 @@ def _submit_seed_answer(game_state, answer_text):
         f"{time_manager.current_month:02d}-"
         f"{time_manager.current_day:02d}"
     )
-    seed_manager.record_turning_point_result(
-        turning_point_id, answer_text, verdict, game_date
-    )
     dialogue_loader = game_state.get("dialogue_loader")
     if dialogue_loader:
         dialogue_loader.set_story_flag(f"{turning_point_id}_RESULT", result)
 
+    if result == "borderline":
+        game_state["seed_retry_text"] = answer_text
+    else:
+        seed_manager.record_turning_point_result(
+            turning_point_id, answer_text, verdict, game_date
+        )
+
     overlay.close()
     game_state["seed_answer_overlay"] = None
-    game_state["text_renderer"].set_dialogue(answer_text, "{苗字}")
+    text_renderer = game_state["text_renderer"]
+    scroll_manager = getattr(text_renderer, "scroll_manager", None)
+    if scroll_manager is not None:
+        scroll_manager.process_scroll_stop_command()
+    text_renderer.set_dialogue(answer_text, "{苗字}")
     print(f"[SEED] 推理判定: {turning_point_id} -> {result}")
 
 def advance_to_next_dialogue(game_state):
@@ -636,6 +735,10 @@ def update_game(game_state):
         is_ir_idle(game_state) and
         not is_input_blocked(game_state) and
         not game_state['backlog_manager'].is_showing_backlog() and
+        not (
+            game_state.get('seed_list_overlay')
+            and game_state['seed_list_overlay'].is_showing
+        ) and
         not game_state['choice_renderer'].is_choice_showing()):
         # 自動的に次の対話に進む
         if game_state.get('seed_dialogue_session') is not None:

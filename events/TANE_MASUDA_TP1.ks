@@ -5,7 +5,7 @@
 	「温泉を断ったこと、局部を見られるのを極端に嫌がること、包茎という言葉だけ避けること……。」
 	「この三つをつなげれば、増田が隠していることが分かるはずだ。」
 
-[seed_answer turning_point="MASUDA_TP1"]
+[seed_answer turning_point="MASUDA_TP1" prompt="増田が温泉を拒む本当の理由は何だろう？"]
 
 [if condition="MASUDA_TP1_RESULT==correct"]
 	//純一//
@@ -21,4 +21,10 @@
 	//純一//
 	「推理を組み直したほうがよさそうだ。」
 [event_control lock="TANE_MASUDA_TP1"]
+[endif]
+
+[if condition="MASUDA_TP1_RESULT==borderline"]
+	//純一//
+	「うーん、もう少し考えてみよう。」
+[seed_retry]
 [endif]

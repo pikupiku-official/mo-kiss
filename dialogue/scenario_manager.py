@@ -124,6 +124,9 @@ def advance_dialogue(game_state):
             elif command_type == 'seed_answer':
                 return _handle_seed_answer(game_state, current_dialogue)
 
+            elif command_type == 'seed_retry':
+                return _handle_seed_retry(game_state)
+
         # 通常の対話テキスト
         return _handle_dialogue_text(game_state, current_dialogue)
     
@@ -168,6 +171,8 @@ def advance_dialogue_ir(game_state):
                 return _handle_event_control(game_state, params)
             if action_type == "seed_answer":
                 return _handle_seed_answer(game_state, params)
+            if action_type == "seed_retry":
+                return _handle_seed_retry(game_state)
             if action_type == "choice":
                 _ir_handle_choice(game_state, params)
                 choice_shown = True
@@ -1385,7 +1390,7 @@ def _handle_event_control(game_state, command_data):
     return advance_dialogue(game_state)
 
 
-def _handle_seed_answer(game_state, command_data):
+def _handle_seed_answer(game_state, command_data, initial_text=""):
     """Pause dialogue on a diary-backed free-text turning-point prompt."""
     turning_point_id = command_data.get('turning_point_id')
     seed_manager = game_state.get('seed_manager')
@@ -1393,10 +1398,34 @@ def _handle_seed_answer(game_state, command_data):
         return advance_dialogue(game_state)
     from .seed_answer_overlay import SeedAnswerOverlay
 
+    text_renderer = game_state['text_renderer']
+    scroll_manager = getattr(text_renderer, 'scroll_manager', None)
+    if scroll_manager is not None:
+        scroll_manager.process_scroll_stop_command()
+    game_state['last_seed_answer_source_index'] = game_state.get('current_paragraph')
+    game_state['last_seed_answer_ir_index'] = game_state.get('ir_step_index')
+    game_state['last_seed_answer_command'] = dict(command_data)
     game_state['seed_answer_overlay'] = SeedAnswerOverlay(
         game_state['screen'],
         turning_point_id,
         seed_manager,
-        game_state['text_renderer'],
+        text_renderer,
+        prompt=command_data.get('prompt', ''),
+        initial_text=initial_text,
     )
     return True
+
+
+def _handle_seed_retry(game_state):
+    """Jump back to the most recently executed seed answer and reopen it."""
+    command = game_state.get('last_seed_answer_command')
+    source_index = game_state.get('last_seed_answer_source_index')
+    if not command or source_index is None:
+        raise ValueError("[seed_retry] requires an earlier [seed_answer] in the same KS")
+    game_state['current_paragraph'] = source_index
+    if game_state.get('use_ir'):
+        ir_index = game_state.get('last_seed_answer_ir_index')
+        if ir_index is not None:
+            game_state['ir_step_index'] = ir_index
+    initial_text = game_state.pop('seed_retry_text', '')
+    return _handle_seed_answer(game_state, command, initial_text=initial_text)
