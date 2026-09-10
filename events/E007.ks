@@ -54,6 +54,7 @@
 	「えー、そんなことない、年相応だよ～。」
 	//純一//
 	「（・・・おや？この聞き覚えのある声は――）
+[chara_show name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0010" mouth="SZK_F01_MOU_0012" brow="SZK_F01_BRO_0001" cheek="SZK_F01_CHE_0001" effect="SZK_E01_0002" blink="true" x="0.5" y="0.5" size="1.0" fade="0.15"]
 	//静//
 	「私の頃は考えられなかったけどねぇ……そういうものかしら。」
 	//杏//
