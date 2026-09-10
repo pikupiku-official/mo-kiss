@@ -475,8 +475,11 @@ def _ir_handle_character_shift(game_state, target, params):
             target_zoom = size
 
     target_expressions = old_expressions.copy()
+    clear_effect_with_eye = "eye" in params and "effect" not in params
+    if clear_effect_with_eye:
+        target_expressions["effect"] = ""
     for part_type in ("eye", "mouth", "brow", "cheek", "effect", "accessory"):
-        if part_type in params:
+        if part_type in params or (part_type == "effect" and clear_effect_with_eye):
             target_expressions[part_type] = (
                 params.get(part_type) if params.get(part_type) is not None else ""
             )

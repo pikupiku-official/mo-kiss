@@ -95,6 +95,7 @@ from tools.event_editor_scene import (
     FitPixmapLabel,
     StepSceneCanvas,
     StepSceneStateBuilder,
+    load_qimage,
     parse_step_action,
 )
 from tools.event_editor_part_templates import CharaPartTemplateStore
@@ -1604,6 +1605,7 @@ class CharaCompositePreviewDialog(QDialog):
 
     def _update_preview(self):
         result = None
+        painter = None
         for part in self.LAYER_ORDER:
             file_id = self._fields.get(part, '').strip()
             if not file_id:
@@ -1612,7 +1614,7 @@ class CharaCompositePreviewDialog(QDialog):
             path = paths.get(file_id)
             if not path or not os.path.exists(path):
                 continue
-            img = QImage(path)
+            img = load_qimage(path)
             if img.isNull():
                 # Fallback to pygame loading for WebP support in Qt5
                 try:
@@ -1632,9 +1634,10 @@ class CharaCompositePreviewDialog(QDialog):
             if result is None:
                 result = QImage(img.size(), QImage.Format_ARGB32)
                 result.fill(0)
-            painter = QPainter(result)
-            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+                painter = QPainter(result)
+                painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
             painter.drawImage(0, 0, img)
+        if painter is not None:
             painter.end()
         self.canvas.set_image(result)
 
@@ -1970,6 +1973,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         # when the user pages back to an unchanged step.
         self._final_preview_cache = OrderedDict()
         self._final_preview_cache_limit = 24
+        self._editor_history = []
+        self._editor_history_index = -1
+        self._restoring_editor_history = False
 
         self.setWindowTitle("step編集")
         self.resize(1400, 850)
@@ -1990,6 +1996,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.next_step_btn = QPushButton("次のstep →")
         self.next_step_btn.setToolTip("現在の編集内容を適用して、次のstep編集へ移動します")
         navigation_layout.addWidget(self.prev_step_btn)
+        self.undo_btn = QPushButton("↶ 元に戻す")
+        self.undo_btn.setToolTip("直前の編集を取り消す (Ctrl+Z)")
+        self.redo_btn = QPushButton("↷ やり直す")
+        self.redo_btn.setToolTip("取り消した編集をやり直す (Ctrl+Y)")
+        navigation_layout.addWidget(self.undo_btn)
+        navigation_layout.addWidget(self.redo_btn)
         navigation_layout.addStretch()
         navigation_layout.addWidget(self.step_position_label)
         navigation_layout.addWidget(self.unsaved_label)
@@ -2103,14 +2115,21 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.actions_list.setEditTriggers(
             QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed
         )
+        self.actions_list.setDragDropMode(QAbstractItemView.InternalMove)
+        self.actions_list.setDefaultDropAction(Qt.MoveAction)
+        self.actions_list.setToolTip(
+            "ドラッグで順序変更 / Deleteで削除 / Ctrl+Dで複製"
+        )
         actions_layout.addWidget(self.actions_list)
 
         actions_buttons = QHBoxLayout()
         self.add_btn = QPushButton("+ 追加")
+        self.duplicate_btn = QPushButton("複製")
         self.remove_btn = QPushButton("削除")
         self.up_btn = QPushButton("↑")
         self.down_btn = QPushButton("↓")
         actions_buttons.addWidget(self.add_btn)
+        actions_buttons.addWidget(self.duplicate_btn)
         actions_buttons.addWidget(self.remove_btn)
         actions_buttons.addWidget(self.up_btn)
         actions_buttons.addWidget(self.down_btn)
@@ -2182,6 +2201,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         main_layout.addLayout(footer_layout)
 
         self.add_btn.clicked.connect(self._add_action)
+        self.duplicate_btn.clicked.connect(self._duplicate_action)
         self.remove_btn.clicked.connect(self._remove_action)
         self.up_btn.clicked.connect(self._move_action_up)
         self.down_btn.clicked.connect(self._move_action_down)
@@ -2204,6 +2224,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.scene_canvas.context_requested.connect(self._show_scene_context_menu)
         self.scene_canvas.step_navigation_requested.connect(self._page_step)
         self.preview_tabs.currentChanged.connect(self._on_preview_tab_changed)
+        self.undo_btn.clicked.connect(self._undo_editor_change)
+        self.redo_btn.clicked.connect(self._redo_editor_change)
 
         # Editing software-style live preview: coalesce a burst of keystrokes into
         # one render instead of launching work for every individual change.
@@ -2211,6 +2233,10 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._preview_debounce_timer.setSingleShot(True)
         self._preview_debounce_timer.setInterval(300)
         self._preview_debounce_timer.timeout.connect(self._request_preview_update)
+        self._history_timer = QTimer(self)
+        self._history_timer.setSingleShot(True)
+        self._history_timer.setInterval(180)
+        self._history_timer.timeout.connect(self._record_editor_history)
         self.speaker_input.textChanged.connect(self._schedule_preview_update)
         self.body_input.textChanged.connect(self._schedule_preview_update)
         self.scroll_checkbox.stateChanged.connect(self._schedule_preview_update)
@@ -2221,6 +2247,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.body_input.textChanged.connect(self._on_edit_state_changed)
         self.scroll_checkbox.stateChanged.connect(self._on_edit_state_changed)
         self.female_checkbox.stateChanged.connect(self._on_edit_state_changed)
+        self.speaker_input.textChanged.connect(self._schedule_editor_history)
+        self.body_input.textChanged.connect(self._schedule_editor_history)
+        self.scroll_checkbox.stateChanged.connect(self._schedule_editor_history)
+        self.female_checkbox.stateChanged.connect(self._schedule_editor_history)
+        self.standalone_checkbox.stateChanged.connect(self._schedule_editor_history)
+        self.memo_input.textChanged.connect(self._schedule_editor_history)
         action_model = self.actions_list.model()
         action_model.dataChanged.connect(self._schedule_scene_preview_update)
         action_model.rowsInserted.connect(self._schedule_scene_preview_update)
@@ -2230,6 +2262,10 @@ class StepEditorDialog(Win2000FramelessDialog):
         action_model.rowsInserted.connect(self._on_edit_state_changed)
         action_model.rowsRemoved.connect(self._on_edit_state_changed)
         action_model.rowsMoved.connect(self._on_edit_state_changed)
+        action_model.dataChanged.connect(self._schedule_editor_history)
+        action_model.rowsInserted.connect(self._schedule_editor_history)
+        action_model.rowsRemoved.connect(self._schedule_editor_history)
+        action_model.rowsMoved.connect(self._schedule_editor_history)
         action_model.dataChanged.connect(self._sync_standalone_control)
         action_model.rowsInserted.connect(self._sync_standalone_control)
         action_model.rowsRemoved.connect(self._sync_standalone_control)
@@ -2244,6 +2280,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._sync_standalone_control()
         self._loading_step = False
         self._baseline_signature = self._current_step_signature()
+        self._reset_editor_history()
         self._refresh_step_outline()
         self._update_navigation_controls()
         for widget in self.findChildren(QWidget):
@@ -2272,6 +2309,96 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def get_standalone(self):
         return self.standalone_checkbox.isChecked()
+
+    def _capture_editor_state(self):
+        return (
+            self.get_dialogue_values(),
+            self.get_memo(),
+            self.get_standalone(),
+            tuple(self.get_actions()),
+            self.actions_list.currentRow(),
+        )
+
+    def _reset_editor_history(self):
+        self._history_timer.stop()
+        self._editor_history = [self._capture_editor_state()]
+        self._editor_history_index = 0
+        self._update_history_controls()
+
+    def _schedule_editor_history(self, *args):
+        if self._loading_step or self._restoring_editor_history:
+            return
+        self._history_timer.start()
+
+    def _record_editor_history(self):
+        if self._loading_step or self._restoring_editor_history:
+            return
+        state = self._capture_editor_state()
+        if self._editor_history and state == self._editor_history[self._editor_history_index]:
+            return
+        del self._editor_history[self._editor_history_index + 1 :]
+        self._editor_history.append(state)
+        self._editor_history_index += 1
+        self._update_history_controls()
+
+    def _restore_editor_state(self, state):
+        dialogue_values, memo, standalone, actions, current_row = state
+        self._restoring_editor_history = True
+        self._loading_step = True
+        try:
+            speaker, body, scroll_stop, force_female = dialogue_values
+            self.speaker_input.setText(speaker)
+            self.body_input.setText(body)
+            self.scroll_checkbox.setChecked(scroll_stop)
+            self.female_checkbox.setChecked(force_female)
+            self.memo_input.setText(memo)
+            self.standalone_checkbox.setChecked(standalone)
+
+            self.actions_list.blockSignals(True)
+            self.actions_list.clear()
+            self.actions_list.addItems(actions)
+            if actions:
+                self.actions_list.setCurrentRow(
+                    max(0, min(current_row, len(actions) - 1))
+                )
+            self.actions_list.blockSignals(False)
+            if self.actions_list.currentItem():
+                self._on_action_selected(self.actions_list.currentItem(), None)
+        finally:
+            self._loading_step = False
+            self._restoring_editor_history = False
+
+        self._refresh_scene_preview()
+        self._sync_standalone_control()
+        self._update_current_outline_item()
+        self._update_navigation_controls()
+        self._schedule_preview_update()
+
+    def _update_history_controls(self):
+        if not hasattr(self, "undo_btn"):
+            return
+        self.undo_btn.setEnabled(self._editor_history_index > 0)
+        self.redo_btn.setEnabled(
+            self._editor_history_index + 1 < len(self._editor_history)
+        )
+
+    def _undo_editor_change(self):
+        self._history_timer.stop()
+        self._record_editor_history()
+        if self._editor_history_index <= 0:
+            return
+        self._editor_history_index -= 1
+        self._restore_editor_state(self._editor_history[self._editor_history_index])
+        self._update_history_controls()
+
+    def _redo_editor_change(self):
+        self._history_timer.stop()
+        self._record_editor_history()
+        if self._editor_history_index + 1 >= len(self._editor_history):
+            return
+        self._editor_history_index += 1
+        self._restore_editor_state(self._editor_history[self._editor_history_index])
+        self._update_history_controls()
 
     def _sync_standalone_control(self, *args):
         eligible = not self.body_input.text().strip() and bool(self.get_actions())
@@ -2544,6 +2671,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._sync_standalone_control()
         self._refresh_scene_preview()
         self._baseline_signature = self._current_step_signature()
+        self._reset_editor_history()
         self._select_current_outline_step()
         self._update_navigation_controls()
 
@@ -2661,6 +2789,33 @@ class StepEditorDialog(Win2000FramelessDialog):
         QTimer.singleShot(0, self.scene_canvas.setFocus)
 
     def eventFilter(self, watched, event):
+        if watched is self.actions_list and event.type() == QEvent.KeyPress:
+            modifiers = event.modifiers()
+            if event.key() in (Qt.Key_Delete, Qt.Key_Backspace) and modifiers == Qt.NoModifier:
+                self._remove_action()
+                event.accept()
+                return True
+            if modifiers == Qt.ControlModifier:
+                if event.key() == Qt.Key_D:
+                    self._duplicate_action()
+                    event.accept()
+                    return True
+                if event.key() == Qt.Key_Up:
+                    self._move_action_up()
+                    event.accept()
+                    return True
+                if event.key() == Qt.Key_Down:
+                    self._move_action_down()
+                    event.accept()
+                    return True
+                if event.key() == Qt.Key_Z:
+                    self._undo_editor_change()
+                    event.accept()
+                    return True
+                if event.key() == Qt.Key_Y:
+                    self._redo_editor_change()
+                    event.accept()
+                    return True
         if (
             event.type() == QEvent.KeyPress
             and event.key() in (Qt.Key_Left, Qt.Key_Right)
@@ -2694,6 +2849,19 @@ class StepEditorDialog(Win2000FramelessDialog):
         if event.key() in (Qt.Key_Return, Qt.Key_Enter):
             event.accept()
             return
+        if event.modifiers() == Qt.ControlModifier:
+            if event.key() == Qt.Key_S:
+                self._save_current_step()
+                event.accept()
+                return
+            if event.key() == Qt.Key_Z:
+                self._undo_editor_change()
+                event.accept()
+                return
+            if event.key() == Qt.Key_Y:
+                self._redo_editor_change()
+                event.accept()
+                return
         if (
             event.key() in (Qt.Key_Left, Qt.Key_Right)
             and event.modifiers() in (Qt.NoModifier, Qt.KeypadModifier)
@@ -2844,6 +3012,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 action_label = "cg_shiftを追加"
 
             self._direct_scene_edit = False
+            self._record_editor_history()
             self.scene_canvas.mark_object_modified("cg", name)
             self.scene_selection_label.setText(
                 f"移動: CG「{name}」 / {action_label} "
@@ -2860,7 +3029,6 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._direct_scene_edit = True
 
         last_placement_row = -1
-        reusable_shift_row = -1
         parsed_by_row = {}
         for row in range(self.actions_list.count()):
             tag, pairs = self._parse_action(self.actions_list.item(row).text())
@@ -2868,18 +3036,9 @@ class StepEditorDialog(Win2000FramelessDialog):
             parsed_by_row[row] = (tag, params)
             if params.get("name", "").strip() != name:
                 continue
-            if tag in ("chara_show", "chara_move") or (
-                tag == "chara_shift"
-                and any(key in params for key in ("x", "y", "size"))
-            ):
+            if tag in ("chara_show", "chara_move"):
                 last_placement_row = row
-                reusable_shift_row = row if tag == "chara_shift" else -1
 
-        placement_params = {
-            "x": self._format_scene_number(target_x),
-            "y": self._format_scene_number(target_y),
-            "size": self._format_scene_number(target_size),
-        }
         last_placement = parsed_by_row.get(last_placement_row)
         if last_placement is not None and last_placement[0] == "chara_show":
             tag, params = last_placement
@@ -2889,19 +3048,31 @@ class StepEditorDialog(Win2000FramelessDialog):
             params["y"] = self._format_scene_number(target_y)
             self._set_action_row(last_placement_row, tag, params)
             action_label = "chara_showのx/yを更新"
-        elif reusable_shift_row == last_placement_row and reusable_shift_row >= 0:
-            tag, params = parsed_by_row[reusable_shift_row]
-            params.update(placement_params)
-            self._set_action_row(reusable_shift_row, tag, params)
-            action_label = "chara_shiftのx/y/sizeを更新"
+        elif last_placement is not None and last_placement[0] == "chara_move":
+            tag, params = last_placement
+            params["left"] = self._format_scene_number(
+                self._parse_scene_number(params.get("left"), 0.0) + relative_x
+            )
+            params["top"] = self._format_scene_number(
+                self._parse_scene_number(params.get("top"), 0.0) + relative_y
+            )
+            self._set_action_row(last_placement_row, tag, params)
+            action_label = "chara_moveの移動量を更新"
         else:
-            shift_params = {"name": name, **placement_params}
-            action_text = self._build_action("chara_shift", list(shift_params.items()))
+            move_params = {
+                "name": name,
+                "left": self._format_scene_number(relative_x),
+                "top": self._format_scene_number(relative_y),
+                "zoom": self._format_scene_number(target_size),
+                "time": "600",
+            }
+            action_text = self._build_action("chara_move", list(move_params.items()))
             self.actions_list.addItem(action_text)
             self.actions_list.setCurrentRow(self.actions_list.count() - 1)
-            action_label = "chara_shiftを追加"
+            action_label = "chara_moveを追加"
 
         self._direct_scene_edit = False
+        self._record_editor_history()
         self.scene_canvas.mark_character_modified(
             name,
             {"x": target_x, "y": target_y, "zoom": target_size},
@@ -2950,6 +3121,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 action_label = "拡大縮小用cg_shiftを追加"
 
             self._direct_scene_edit = False
+            self._record_editor_history()
             self.scene_canvas.mark_object_modified("cg", name)
             self.scene_selection_label.setText(
                 f"拡大縮小: CG「{name}」 / {action_label} "
@@ -2994,6 +3166,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             action_label = "拡大縮小用chara_moveを追加"
 
         self._direct_scene_edit = False
+        self._record_editor_history()
         self.scene_canvas.mark_character_modified(name)
         self.scene_selection_label.setText(
             f"拡大縮小: キャラ「{name}」 / {action_label} "
@@ -3167,6 +3340,16 @@ class StepEditorDialog(Win2000FramelessDialog):
         tag = self.tag_combo.currentText().strip() or "bg"
         self.actions_list.addItem(tag)
         self.actions_list.setCurrentRow(self.actions_list.count() - 1)
+
+    def _duplicate_action(self):
+        row = self.actions_list.currentRow()
+        if row < 0:
+            return
+        item = self.actions_list.item(row)
+        if not item:
+            return
+        self.actions_list.insertItem(row + 1, item.text())
+        self.actions_list.setCurrentRow(row + 1)
 
     def _remove_action(self):
         row = self.actions_list.currentRow()

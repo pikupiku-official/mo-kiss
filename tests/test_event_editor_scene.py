@@ -590,6 +590,34 @@ def test_repeated_drag_updates_existing_move_instead_of_adding_another():
     ]
 
 
+def test_action_editor_supports_duplicate_undo_and_redo():
+    steps = [{"step_index": 0}]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=['bg_show storage="room"'],
+        all_steps=steps,
+        all_step_actions=[['bg_show storage="room"']],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+
+    dialog._duplicate_action()
+    assert dialog.get_actions() == [
+        'bg_show storage="room"',
+        'bg_show storage="room"',
+    ]
+
+    dialog._undo_editor_change()
+    assert dialog.get_actions() == ['bg_show storage="room"']
+
+    dialog._redo_editor_change()
+    assert dialog.get_actions() == [
+        'bg_show storage="room"',
+        'bg_show storage="room"',
+    ]
+
+
 def test_shift_wheel_updates_show_size_or_adds_inherited_move():
     steps = [{"step_index": 0}, {"step_index": 1}]
     prior_show = 'chara_show name="桃子" torso="MMK_T00" size="2.3"'

@@ -1,4 +1,4 @@
-﻿import pygame
+import pygame
 from enum import Enum
 from typing import List, Dict, Tuple
 

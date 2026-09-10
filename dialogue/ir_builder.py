@@ -225,6 +225,11 @@ def _normalize_chara_shift_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     for key in ("x", "y", "size", "fade"):
         if key in params and params[key] is not None:
             params[key] = _to_float(params[key], params[key])
+    # An expression shift without an explicit effect means the transient
+    # effect layer is cleared.  Keep this distinction in the IR so runtime and
+    # editor previews do not accidentally retain a stale overlay.
+    if "eye" in entry and "effect" not in params:
+        params["effect"] = ""
     return params
 
 

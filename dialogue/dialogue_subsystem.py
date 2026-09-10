@@ -547,9 +547,13 @@ class DialogueSubsystem(SubsystemBase):
         blit_x = self._saved_offset_x if self._saved_offset_x is not None else OFFSET_X
         blit_y = self._saved_offset_y if self._saved_offset_y is not None else OFFSET_Y
         try:
-            scaled = pygame.transform.smoothscale(
-                self.virtual_screen, (CONTENT_WIDTH, CONTENT_HEIGHT)
-            )
+            target_size = (CONTENT_WIDTH, CONTENT_HEIGHT)
+            if self.virtual_screen.get_size() == target_size:
+                scaled = self.virtual_screen
+            else:
+                scaled = pygame.transform.smoothscale(
+                    self.virtual_screen, target_size
+                )
             self.screen.blit(scaled, (blit_x, blit_y))
         except Exception as e:
             print(f"⚠️ DialogueSubsystem render スケーリングエラー: {e}")

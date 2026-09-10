@@ -68,7 +68,6 @@ mo-kiss/
 │   └── __init__.py
 ├── map/                   # マップシステム
 │   ├── map.py
-│   ├── map_characters.py  # マップキャラクター
 │   ├── map_config.py      # マップ設定
 │   ├── map_events.py      # マップイベント
 │   └── __init__.py
@@ -148,7 +147,6 @@ font_path = os.path.join(font_dir, "MPLUS1p-Regular.ttf")
 5. **map/map.py** - マップUI
 6. **menu/main_menu.py** - メインメニュー
 7. **title_screen.py** - タイトル画面
-8. **events/event_base.py** - イベント表示
 
 ## 画面解像度
 

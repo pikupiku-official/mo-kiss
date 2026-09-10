@@ -18,7 +18,7 @@ def get_scaled_background(image, new_width, new_height):
     scaled_image = pygame.transform.scale(image, (new_width, new_height))
     
     # キャッシュに保存（最大20個まで - 背景は大きいため少なめ）
-    if len(_bg_scaled_cache) > 20:
+    if len(_bg_scaled_cache) >= 20:
         # 古いエントリを削除
         oldest_key = next(iter(_bg_scaled_cache))
         del _bg_scaled_cache[oldest_key]

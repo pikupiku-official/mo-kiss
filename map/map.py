@@ -1,4 +1,4 @@
-﻿from logging import DEBUG
+from logging import DEBUG
 import pygame
 import sys
 import math

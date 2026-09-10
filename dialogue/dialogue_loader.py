@@ -262,6 +262,11 @@ class DialogueLoader:
         self.seed_annotations = annotations
         return stripped
 
+    def parse_ks_script(self, lines):
+        """Parse script lines through the same path used for loaded KS files."""
+        content = lines if isinstance(lines, str) else "\n".join(lines or [])
+        return self._parse_ks_content(content)
+
     def _parse_ks_content(self, content):
         dialogue_data = []
         current_bg = None  # 初期背景はなし
@@ -549,6 +554,8 @@ class DialogueLoader:
                                 character_face_parts[current_char]['cheek'] = cheek_type.group(1)
                             if effect_type is not None:
                                 character_face_parts[current_char]['effect'] = effect_type.group(1)
+                            elif eye_type is not None:
+                                character_face_parts[current_char]['effect'] = ""
                             if accessory_type is not None:
                                 character_face_parts[current_char]['accessory'] = accessory_type.group(1)
 

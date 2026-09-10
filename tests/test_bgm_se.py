@@ -214,7 +214,7 @@ class TestBgmSe(unittest.TestCase):
         
         # Test case-insensitive or partial fallback
         actual2 = manager.get_bgm_for_scene("Mok1_Lap1")
-        self.assertEqual(actual2, "Mok1_Lap2.mp3") if actual2 == "Mok1_Lap2.mp3" else self.assertEqual(actual2, "Mok1_Lap1.mp3")
+        self.assertEqual(actual2, "MokLap1.mp3")
 
     def test_no_bgm_at_start_if_unspecified(self):
         from dialogue.game_manager import _initialize_bgm

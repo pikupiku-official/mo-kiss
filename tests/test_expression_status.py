@@ -53,4 +53,13 @@ def test_confirmed_corpus_is_explicit_and_exact():
         for path in events_dir.glob("*.ks")
         if inspect_status_text(path.read_text(encoding="utf-8-sig")) == "human_confirmed"
     }
-    assert confirmed == {"E002.ks", "E003.ks", "E005.ks", "E006.ks", "E008.ks"}
+    assert confirmed == {
+        "E001.ks",
+        "E002.ks",
+        "E003.ks",
+        "E005.ks",
+        "E006.ks",
+        "E007a.ks",
+        "E008.ks",
+        "E011.ks",
+    }
