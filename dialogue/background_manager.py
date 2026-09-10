@@ -18,7 +18,7 @@ def get_scaled_background(image, new_width, new_height):
     scaled_image = pygame.transform.scale(image, (new_width, new_height))
     
     # キャッシュに保存（最大20個まで - 背景は大きいため少なめ）
-    if len(_bg_scaled_cache) > 20:
+    if len(_bg_scaled_cache) >= 20:
         # 古いエントリを削除
         oldest_key = next(iter(_bg_scaled_cache))
         del _bg_scaled_cache[oldest_key]
@@ -62,6 +62,22 @@ def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom):
     bg_state['pos'] = [offset_x, offset_y]
     bg_state['zoom'] = bg_zoom
     bg_state['anim'] = None
+
+    # Load and scale the background before returning.  A background command
+    # is often followed immediately by a short character crossfade (notably
+    # when the editor preview starts at a later step); leaving this work for
+    # the first render can consume the entire 150ms character transition.
+    image_manager = game_state.get('image_manager')
+    if image_manager:
+        bg_image = image_manager.get_image('bg', bg_name)
+        if bg_image:
+            virtual_new_width = int(VIRTUAL_WIDTH * bg_zoom)
+            virtual_new_height = int(VIRTUAL_HEIGHT * bg_zoom)
+            new_width, new_height = scale_size(
+                virtual_new_width, virtual_new_height
+            )
+            if bg_image.get_size() != (new_width, new_height):
+                get_scaled_background(bg_image, new_width, new_height)
     
     if DEBUG:
         print(f"背景表示: {bg_name}, オフセット: ({offset_x:.1f}, {offset_y:.1f}), ズーム: {bg_zoom}")

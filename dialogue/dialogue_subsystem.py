@@ -400,6 +400,8 @@ class DialogueSubsystem(SubsystemBase):
         )
         gs["character_anim"] = {}
         gs["character_part_fades"] = {}
+        gs["character_fade_pending_render"] = {}
+        gs["character_transitions"] = {}
         gs["character_hide_pending"] = {}
         gs["character_blink_state"] = {}
         gs["character_blink_timers"] = {}
@@ -478,6 +480,7 @@ class DialogueSubsystem(SubsystemBase):
         """画面描画: 仮想画面に描画してフルスクリーンにスケーリング転送"""
         from dialogue.background_manager import draw_background
         from dialogue.character_manager import draw_characters
+        from dialogue.cg_manager import draw_cg
         from dialogue.fade_manager import draw_fade_overlay
         from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
 
@@ -488,6 +491,7 @@ class DialogueSubsystem(SubsystemBase):
 
         # 背景・キャラクター・フェード
         draw_background(gs)
+        draw_cg(gs)
         draw_characters(gs)
         draw_fade_overlay(gs)
 
@@ -543,9 +547,13 @@ class DialogueSubsystem(SubsystemBase):
         blit_x = self._saved_offset_x if self._saved_offset_x is not None else OFFSET_X
         blit_y = self._saved_offset_y if self._saved_offset_y is not None else OFFSET_Y
         try:
-            scaled = pygame.transform.smoothscale(
-                self.virtual_screen, (CONTENT_WIDTH, CONTENT_HEIGHT)
-            )
+            target_size = (CONTENT_WIDTH, CONTENT_HEIGHT)
+            if self.virtual_screen.get_size() == target_size:
+                scaled = self.virtual_screen
+            else:
+                scaled = pygame.transform.smoothscale(
+                    self.virtual_screen, target_size
+                )
             self.screen.blit(scaled, (blit_x, blit_y))
         except Exception as e:
             print(f"⚠️ DialogueSubsystem render スケーリングエラー: {e}")

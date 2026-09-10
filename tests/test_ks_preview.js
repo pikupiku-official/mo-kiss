@@ -197,3 +197,43 @@ test('AssetIndex preserves dotted background IDs instead of stripping their nume
   assert.equal((await assets.resolveBackground('test.bg.9901')).url, 'second');
   assert.equal((await assets.resolveBackground('test.bg.DSCN3314.jpg')).url, 'third');
 });
+
+test('preview replays CG variants and hides characters while CG is visible', () => {
+  const parsed = { steps: [
+    { actions: [preview.parseTag('[chara_show name="MMK" torso="MMK_T00"]')] },
+    { actions: [preview.parseTag('[cg_show storage="MMK_03_000"]')] },
+    { actions: [preview.parseTag('[cg_shift storage="MMK_03_001" left="0.02" zoom="1.1" time="600"]')] },
+  ] };
+  const state = preview.buildState(parsed, 2);
+  assert.deepEqual(state.cg, {
+    storage: 'MMK_03_001',
+    offsetX: 28.8,
+    offsetY: 0,
+    zoom: 1.1,
+  });
+  assert.equal(Object.keys(state.characters).length, 1);
+
+  const hidden = preview.buildState({ steps: [
+    { actions: [preview.parseTag('[chara_show name="MMK" torso="MMK_T00"]')] },
+    { actions: [preview.parseTag('[cg_show storage="MMK_03_000"]')] },
+    { actions: [preview.parseTag('[cg_hide fade="0.3"]')] },
+  ] }, 2);
+  assert.equal(hidden.cg, null);
+  assert.equal(Object.keys(hidden.characters).length, 1);
+});
+
+test('AssetIndex resolves legacy MMK CG IDs from the character directory', async () => {
+  const assets = new preview.AssetIndex({ fetch: async (url) => {
+    if (url.includes('/contents/images?')) {
+      return { ok: true, json: async () => [{ name: '01MMK', type: 'dir', path: 'images/01MMK' }] };
+    }
+    if (url.includes('/contents/images/01MMK?')) {
+      return { ok: true, json: async () => [
+        { name: 'MMK_03_000.png', type: 'file', path: 'images/01MMK/MMK_03_000.png', download_url: 'cg000' },
+        { name: 'MMK_03_001.png', type: 'file', path: 'images/01MMK/MMK_03_001.png', download_url: 'cg001' },
+      ] };
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  } });
+  assert.equal((await assets.resolveCG('MMK_03_001')).url, 'cg001');
+});

@@ -1756,6 +1756,9 @@ const STEP_TAG_TEMPLATES = {
   chara_shift: '[chara_shift name="" eye="" mouth="" brow="" cheek="" fade="0.3"]',
   chara_move: '[chara_move name="" left="0.0" top="0.0" zoom="1.0" time="600"]',
   chara_hide: '[chara_hide name="" fade="0.3"]',
+  cg_show: '[cg_show storage="MMK_03_000" fade="0.3"]',
+  cg_shift: '[cg_shift storage="MMK_03_001" left="0.0" top="0.0" zoom="1.0" time="600"]',
+  cg_hide: '[cg_hide fade="0.3"]',
   bgm: '[bgm bgm="" volume="0.5" loop="true" fade="1.0"]',
   bgmstop: '[bgmstop time="1.0"]',
   bgmstart: '[bgmstart time="1.0"]',
@@ -2652,6 +2655,9 @@ previewActionMenu.innerHTML = `
   <button class="smbtn" data-preview-tag="chara_shift">表情・差分</button>
   <button class="smbtn" data-preview-tag="chara_hide">キャラ非表示</button>
   <button class="smbtn" data-preview-tag="chara_show">キャラ表示</button>
+  <button class="smbtn" data-preview-tag="cg_show">CG表示</button>
+  <button class="smbtn" data-preview-tag="cg_shift">CG差分・移動</button>
+  <button class="smbtn" data-preview-tag="cg_hide">CG非表示</button>
   <button class="smbtn" data-preview-tag="bg_show">背景</button>
   <button class="smbtn" data-preview-tag="bgm">BGM</button>
   <button class="smbtn" data-preview-tag="se">SE</button>

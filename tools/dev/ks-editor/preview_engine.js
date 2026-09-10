@@ -163,6 +163,7 @@
   function initialState() {
     return {
       background: null,
+      cg: null,
       characters: {},
       text: { speaker: "", body: "" },
       textBlocks: [],
@@ -290,6 +291,30 @@
       state.audio.bgm = "";
       return;
     }
+    if (type === "cg_show") {
+      const storage = String(p.storage || p.value || "").trim();
+      if (!storage) return;
+      state.cg = {
+        storage,
+        offsetX: 0,
+        offsetY: 0,
+        zoom: 1,
+      };
+      return;
+    }
+    if (type === "cg_shift") {
+      if (!state.cg) return;
+      const current = state.cg;
+      if (p.storage && String(p.storage).trim()) current.storage = String(p.storage).trim();
+      if (p.left !== undefined && p.left !== "") current.offsetX += number(p.left, 0) * VIRTUAL_WIDTH;
+      if (p.top !== undefined && p.top !== "") current.offsetY += number(p.top, 0) * VIRTUAL_HEIGHT;
+      if (p.zoom !== undefined && p.zoom !== "") current.zoom = Math.max(0.1, Math.min(4, number(p.zoom, current.zoom)));
+      return;
+    }
+    if (type === "cg_hide") {
+      state.cg = null;
+      return;
+    }
     if (type === "bgmend") {
       state.audio.bgm = "";
       return;
@@ -378,6 +403,7 @@
       if (stem.includes("_MOU")) return "mouth";
       if (stem.includes("_CHE")) return "cheek";
     }
+    if (/^[A-Z]{3}_\d{2}_\d{3}$/i.test(stem)) return "cg";
     if (stem.includes("_T")) return "torso";
     if (stem.includes("_F")) {
       if (stem.includes("_BRO")) return "brow";
@@ -401,6 +427,7 @@
       this.ui = null;
       this.charDirs = null;
       this.characters = new Map();
+      this.cgs = new Map();
       this.images = new Map();
       this.timeTextPromise = null;
       this.bundledManifestPromise = null;
@@ -553,6 +580,24 @@
       return this.characters.get(code);
     }
 
+    async loadCG(code) {
+      if (!code) return [];
+      if (!this.cgs.has(code)) {
+        const dirs = await this.loadCharDirs();
+        const dir = dirs.find((item) => item.name.endsWith(code));
+        if (!dir) {
+          this.cgs.set(code, []);
+        } else {
+          const items = await this.list(dir.path);
+          this.cgs.set(code, items.filter((item) => item.type === "file").map((item) => {
+            const stem = item.name.replace(/\.[^.]+$/, "");
+            return { name: item.name, stem, url: item.download_url || `${this.rawBase}${item.path}` };
+          }));
+        }
+      }
+      return this.cgs.get(code);
+    }
+
     async resolveBackground(storage) {
       if (!storage) return null;
       const items = await this.loadBackgrounds();
@@ -565,6 +610,16 @@
         || items.find((item) => item.stem.toLowerCase().endsWith(`.${wanted}`))
         || items.find((item) => item.stem.toLowerCase().includes(wanted))
         || null;
+    }
+
+    async resolveCG(storage) {
+      if (!storage) return null;
+      const wanted = String(storage).trim().replace(/\.(?:png|jpe?g|webp)$/i, "");
+      const match = wanted.match(/^([A-Z]{3})_\d{2}_\d{3}$/i);
+      if (!match) return null;
+      const items = await this.loadCG(match[1].toUpperCase());
+      const lowered = wanted.toLowerCase();
+      return items.find((item) => item.stem.toLowerCase() === lowered) || null;
     }
 
     async partOptions(code, part, torso = "") {
@@ -664,6 +719,9 @@
       if (state.background && state.background.storage) {
         promises.push(this.assets.resolveBackground(state.background.storage).then(item => item && this.assets.image(item.url)));
       }
+      if (state.cg && state.cg.storage) {
+        promises.push(this.assets.resolveCG(state.cg.storage).then(item => item && this.assets.image(item.url)));
+      }
       for (const character of Object.values(state.characters)) {
         const code = this.assets.codeFor(character);
         if (!code) continue;
@@ -683,7 +741,10 @@
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
       await this.drawBackground(state.background);
-      for (const character of Object.values(state.characters)) await this.drawCharacter(character);
+      await this.drawCG(state.cg);
+      if (!state.cg) {
+        for (const character of Object.values(state.characters)) await this.drawCharacter(character);
+      }
       if (state.fade.opacity) {
         ctx.globalAlpha = state.fade.opacity;
         ctx.fillStyle = state.fade.color || "black";
@@ -711,6 +772,24 @@
       const x = VIRTUAL_WIDTH / 2 - width / 2 + number(background.offsetX, 0);
       const y = VIRTUAL_HEIGHT / 2 - height / 2 + number(background.offsetY, 0);
       // ImageManager は背景を先に画面サイズへ変形してからズームする。
+      this.ctx.drawImage(image, x, y, width, height);
+    }
+
+    async drawCG(cg) {
+      if (!cg || !cg.storage) return;
+      const item = await this.assets.resolveCG(cg.storage);
+      if (!item) return;
+      const image = await this.assets.image(item.url);
+      if (!image || !image.height) return;
+      const zoom = Math.max(0.1, Math.min(4, number(cg.zoom, 1)));
+      const height = VIRTUAL_HEIGHT * zoom;
+      const width = image.width / image.height * height;
+      const maxX = Math.max(0, (width - VIRTUAL_WIDTH) / 2);
+      const maxY = Math.max(0, (height - VIRTUAL_HEIGHT) / 2);
+      const offsetX = Math.max(-maxX, Math.min(maxX, number(cg.offsetX, 0)));
+      const offsetY = Math.max(-maxY, Math.min(maxY, number(cg.offsetY, 0)));
+      const x = VIRTUAL_WIDTH / 2 - width / 2 + offsetX;
+      const y = VIRTUAL_HEIGHT / 2 - height / 2 + offsetY;
       this.ctx.drawImage(image, x, y, width, height);
     }
 

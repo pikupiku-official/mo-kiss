@@ -6,5 +6,5 @@
 [resetlaypos]
 [bg_show storage="home00" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 
-//{苗字}//
+//{フルネーム}//
 「行ってきま～す。」

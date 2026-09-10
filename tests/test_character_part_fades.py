@@ -1,6 +1,13 @@
 import pygame
 
-from dialogue.character_manager import render_face_parts
+from dialogue.character_manager import (
+    _begin_character_fade_on_first_render,
+    _begin_character_transition_on_first_render,
+    render_face_parts,
+    start_character_part_fade,
+    update_character_transitions,
+    update_character_fades,
+)
 from dialogue.data_normalizer import normalize_dialogue_data
 from dialogue.dialogue_loader import DialogueLoader
 from dialogue.ir_builder import build_ir_from_normalized
@@ -156,6 +163,31 @@ def test_chara_shift_registers_crossfades_for_changed_and_cleared_parts(monkeypa
     assert fades["mouth"]["from"] == "MOUTH01"
     assert fades["mouth"]["to"] == ""
     assert ("eye", "EYE02") in manager.requests
+
+
+def test_character_fade_does_not_expire_before_first_render(monkeypatch):
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
+    game_state = {"character_part_fades": {}}
+
+    start_character_part_fade(
+        game_state, "momoko", "eye", "EYE01", "EYE02", 150
+    )
+
+    # Simulate a slow preview setup before the first character frame.
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1300)
+    update_character_fades(game_state)
+    assert "eye" in game_state["character_part_fades"]["momoko"]
+
+    _begin_character_fade_on_first_render(game_state, "momoko", 1300)
+    assert game_state["character_part_fades"]["momoko"]["eye"]["start_time"] == 1300
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1449)
+    update_character_fades(game_state)
+    assert "momoko" in game_state["character_part_fades"]
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1450)
+    update_character_fades(game_state)
+    assert "momoko" not in game_state["character_part_fades"]
 
 
 def test_chara_shift_registers_torso_crossfade(monkeypatch):
@@ -374,3 +406,76 @@ def test_render_face_parts_draws_both_crossfade_endpoints(monkeypatch):
     pixel = screen.get_at((3, 3))
     assert pixel.r > 0
     assert pixel.b > 0
+
+
+def test_torso_shift_uses_one_full_body_crossfade(monkeypatch):
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 1000)
+    old_torso = pygame.Surface((100, 200), pygame.SRCALPHA)
+    new_torso = pygame.Surface((100, 200), pygame.SRCALPHA)
+    manager = DummyImageManager(
+        {
+            ("torso", "T00"): old_torso,
+            ("torso", "T01"): new_torso,
+        }
+    )
+    game_state = {
+        "active_characters": ["momoko"],
+        "character_pos": {"momoko": [100, 100]},
+        "character_zoom": {"momoko": 1.0},
+        "character_torso": {"momoko": "T00"},
+        "character_expressions": {"momoko": {"eye": "EYE01"}},
+        "character_part_fades": {},
+        "image_manager": manager,
+    }
+
+    duration = _ir_handle_character_shift(
+        game_state, "momoko", {"torso": "T01", "fade": 0.3}
+    )
+
+    assert duration == 300
+    transition = game_state["character_transitions"]["momoko"]
+    assert transition["mode"] == "crossfade"
+    assert transition["pending_render"] is True
+    assert transition["from_surface"] is not None
+    assert transition["to_surface"] is not None
+    assert game_state["character_torso"]["momoko"] == "T01"
+
+
+def test_position_shift_is_fo_then_fi_and_commits_between_legs(monkeypatch):
+    ticks = {"value": 1000}
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: ticks["value"])
+    torso = pygame.Surface((100, 200), pygame.SRCALPHA)
+    manager = DummyImageManager({("torso", "T00"): torso})
+    game_state = {
+        "active_characters": ["momoko"],
+        "character_pos": {"momoko": [100, 100]},
+        "character_zoom": {"momoko": 1.0},
+        "character_torso": {"momoko": "T00"},
+        "character_expressions": {"momoko": {}},
+        "character_part_fades": {},
+        "image_manager": manager,
+    }
+
+    duration = _ir_handle_character_shift(
+        game_state,
+        "momoko",
+        {"x": 0.75, "fade": 0.15},
+    )
+    transition = game_state["character_transitions"]["momoko"]
+    assert duration == 300
+    assert transition["phase"] == "out"
+    assert game_state["character_pos"]["momoko"] == [100, 100]
+
+    _begin_character_transition_on_first_render(game_state, "momoko", 1000)
+    ticks["value"] = 1149
+    update_character_transitions(game_state)
+    assert game_state["character_pos"]["momoko"] == [100, 100]
+
+    ticks["value"] = 1150
+    update_character_transitions(game_state)
+    assert transition["phase"] == "in"
+    assert game_state["character_pos"]["momoko"] != [100, 100]
+
+    ticks["value"] = 1300
+    update_character_transitions(game_state)
+    assert "momoko" not in game_state["character_transitions"]

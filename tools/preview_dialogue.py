@@ -24,8 +24,14 @@ from dialogue.ir_builder import build_ir_from_normalized, dump_ir_json, get_ir_d
 from dialogue.dialogue_loader import DialogueLoader
 from dialogue.text_renderer import TextRenderer
 from dialogue.choice_renderer import ChoiceRenderer
-from dialogue.character_manager import draw_characters, update_character_animations, init_blink_system
+from dialogue.character_manager import (
+    draw_characters,
+    update_character_animations,
+    init_blink_system,
+    settle_character_transitions,
+)
 from dialogue.background_manager import draw_background, update_background_animation
+from dialogue.cg_manager import draw_cg
 from dialogue.fade_manager import draw_fade_overlay
 from dialogue.notification_manager import NotificationManager
 from dialogue.backlog_manager import BacklogManager
@@ -73,6 +79,12 @@ def settle_step_preview_animations(game_state):
     """Seek animations to their final frame without sleeping in real time."""
     now = pygame.time.get_ticks()
 
+    # This helper is used by the static snapshot path as well as when seeking
+    # to a later interactive step.  Those transitions are intentionally being
+    # settled, so they must not retain the live preview's first-render hold.
+    game_state.get("character_fade_pending_render", {}).clear()
+    settle_character_transitions(game_state)
+
     for anim in game_state.get("character_anim", {}).values():
         anim["start_time"] = now - max(int(anim.get("duration", 0)), 0)
 
@@ -92,6 +104,10 @@ def settle_step_preview_animations(game_state):
     fade_state = game_state.get("fade_state", {})
     if fade_state.get("active"):
         fade_state["start_time"] = now - max(int(fade_state.get("duration", 0)), 0)
+
+    cg_transition = game_state.get("cg_state", {}).get("transition")
+    if cg_transition:
+        cg_transition["start_time"] = now - max(int(cg_transition.get("duration", 0)), 0)
 
     for anim in game_state.get("ir_active_anims", []):
         anim["end_time"] = now
@@ -251,12 +267,21 @@ def preview_step_image(
             'character_blink_state': {},
             'character_blink_timers': {},
             'character_part_fades': {},
+            'character_fade_pending_render': {},
+            'character_transitions': {},
             'character_hide_pending': {},
             'background_state': {
                 'current_bg': None,
                 'zoom': 1.0,
                 'pos': [0, 0],
                 'anim': None,
+            },
+            'cg_state': {
+                'storage': None,
+                'offset_x': 0.0,
+                'offset_y': 0.0,
+                'zoom': 1.0,
+                'transition': None,
             },
             'fade_state': {
                 'fading': False,
@@ -297,6 +322,7 @@ def preview_step_image(
         # completed. Intermediate transition frames are opt-in.
         preserve_target_transition = 0.0 <= transition_progress < 1.0
         target_shift_fades = {}
+        target_shift_transitions = {}
 
         for idx in range(target_index + 1):
             step = steps[idx] if idx < len(steps) else None
@@ -323,18 +349,29 @@ def preview_step_image(
                         text_renderer.set_dialogue("_SCROLL_STOP", None)
                     continue
                 _ir_dispatch_action(game_state, action)
-                # A still image cannot play a transition. Preserve fades created
-                # by the selected chara_shift so the preview can show its middle
-                # frame after preceding actions have been settled.
-                if (
+                preserve_this_transition = (
                     preserve_target_transition
                     and idx == target_index
                     and action_type == "chara_shift"
-                ):
+                )
+                # A still image cannot play a transition. Preserve fades created
+                # by the selected chara_shift so the preview can show its middle
+                # frame after preceding actions have been settled.
+                if preserve_this_transition:
                     target = action.get("target")
                     fade_map = game_state.get("character_part_fades", {}).get(target)
                     if fade_map:
                         target_shift_fades[target] = copy.deepcopy(fade_map)
+                    transition = game_state.get("character_transitions", {}).get(target)
+                    if transition:
+                        target_shift_transitions[target] = copy.deepcopy(transition)
+
+                # Every action before the selected snapshot is already
+                # complete. This is especially important for relocation
+                # shifts, whose live state remains at the old pose during FO.
+                if game_state.get("character_transitions") and not preserve_this_transition:
+                    settle_character_transitions(game_state)
+                    update_character_animations(game_state)
 
             text = step.get("text")
             if text and text_renderer:
@@ -389,6 +426,30 @@ def preview_step_image(
                         snapshot_time - int(duration * transition_progress)
                     )
 
+        if target_shift_transitions:
+            snapshot_time = pygame.time.get_ticks()
+            transitions = game_state.setdefault("character_transitions", {})
+            for character_name, transition in target_shift_transitions.items():
+                transition["pending_render"] = False
+                duration = max(int(transition.get("duration", 0)), 0)
+                progress = max(0.0, min(1.0, transition_progress))
+                if transition.get("mode") == "relocate":
+                    if progress < 0.5:
+                        transition["phase"] = "out"
+                        phase_progress = progress * 2.0
+                    else:
+                        transition["phase"] = "in"
+                        phase_progress = (progress - 0.5) * 2.0
+                    transition["start_time"] = snapshot_time - int(
+                        duration * phase_progress
+                    )
+                else:
+                    transition["phase"] = "blend"
+                    transition["start_time"] = snapshot_time - int(
+                        duration * progress
+                    )
+                transitions[character_name] = transition
+
         if choice_renderer:
             choice_renderer.hide_choices()
 
@@ -399,6 +460,7 @@ def preview_step_image(
 
         virtual_screen.fill((0, 0, 0))
         draw_background(game_state)
+        draw_cg(game_state)
         draw_characters(game_state)
         draw_fade_overlay(game_state)
 
@@ -570,6 +632,8 @@ def preview_ks_file(ks_file_path, start_step=1):
             'character_blink_state': {},
             'character_blink_timers': {},
             'character_part_fades': {},
+            'character_fade_pending_render': {},
+            'character_transitions': {},
             'character_hide_pending': {},
             # 背景関連
             'background_state': {
@@ -577,6 +641,13 @@ def preview_ks_file(ks_file_path, start_step=1):
                 'zoom': 1.0,
                 'pos': [0, 0],
                 'anim': None,
+            },
+            'cg_state': {
+                'storage': None,
+                'offset_x': 0.0,
+                'offset_y': 0.0,
+                'zoom': 1.0,
+                'transition': None,
             },
             # フェード関連
             'fade_state': {
@@ -715,6 +786,8 @@ def preview_ks_file(ks_file_path, start_step=1):
                 error_logged['background'] = True
 
         # キャラクター描画（エラー回避のためtry-except）
+        draw_cg(game_state)
+
         try:
             draw_characters(game_state)
         except (KeyError, IndexError, TypeError) as e:

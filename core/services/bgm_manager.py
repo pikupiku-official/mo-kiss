@@ -365,8 +365,8 @@ class BGMManager:
             "classroom": "02_学校生活.ogg",
             "晴海の昼": "02_学校生活.ogg",
             "MokMas42654": "MokMas42654.mp3",
-            "Mok1_Lap1": "Mok1_Lap1.mp3",
-            "Mok1_Lap2": "Mok1_Lap2.mp3",
+            "Mok1_Lap1": "MokLap1.mp3",
+            "Mok1_Lap2": "MokLap2.mp3",
             "title": "maou_bgm_8bit29.mp3",
             "BGM_TITLE": "maou_bgm_8bit29.mp3",
         }
