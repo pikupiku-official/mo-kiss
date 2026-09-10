@@ -98,6 +98,7 @@ from tools.event_editor_scene import (
     parse_step_action,
 )
 from tools.event_editor_part_templates import CharaPartTemplateStore
+from tools.event_editor_cg import CgDiffBrowserDialog
 
 
 def apply_windows_2000_style(app):
@@ -730,6 +731,8 @@ class PreviewWindow:
                 'character_blink_state': {},
                 'character_blink_timers': {},
                 'character_part_fades': {},
+                'character_fade_pending_render': {},
+                'character_transitions': {},
                 'character_hide_pending': {},
                 'fade_state': {
                     'type': None,
@@ -1761,6 +1764,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         "chara_shift",
         "chara_move",
         "chara_hide",
+        "cg_show",
+        "cg_shift",
+        "cg_hide",
         "bgm",
         "bgmend",
         "bgmstop",
@@ -1812,6 +1818,16 @@ class StepEditorDialog(Win2000FramelessDialog):
         ],
         "chara_move": [("name", ""), ("left", "0.0"), ("top", "0.0"), ("zoom", "1.0"), ("time", "600")],
         "chara_hide": [("name", ""), ("fade", "0.15")],
+        "cg_show": [("storage", ""), ("fade", "0.3")],
+        "cg_shift": [
+            ("storage", ""),
+            ("left", ""),
+            ("top", ""),
+            ("zoom", ""),
+            ("time", "600"),
+            ("fade", "0.3"),
+        ],
+        "cg_hide": [("fade", "0.3")],
         "bgm": [("bgm", ""), ("volume", "0.5"), ("loop", "true"), ("fade", "0.0")],
         "bgmend": [("time", "1.0")],
         "bgmstop": [("time", "1.0")],
@@ -1881,6 +1897,21 @@ class StepEditorDialog(Win2000FramelessDialog):
         ],
         "chara_hide": [
             ("name", "name", "text"),
+            ("fade", "fade", "text"),
+        ],
+        "cg_show": [
+            ("storage", "storage", "cg_asset"),
+            ("fade", "fade", "text"),
+        ],
+        "cg_shift": [
+            ("storage", "storage", "cg_asset"),
+            ("left", "left", "text"),
+            ("top", "top", "text"),
+            ("zoom", "zoom", "text"),
+            ("time", "time", "text"),
+            ("fade", "fade", "text"),
+        ],
+        "cg_hide": [
             ("fade", "fade", "text"),
         ],
         "bgm": [
@@ -2720,10 +2751,16 @@ class StepEditorDialog(Win2000FramelessDialog):
             "modified": "このstepで変更",
             "inherited": "前のstepから引き継ぎ",
         }.get(origin, origin)
-        type_label = "キャラ" if object_type == "character" else "背景"
+        type_label = (
+            "キャラ" if object_type == "character"
+            else "CG" if object_type == "cg"
+            else "背景"
+        )
         shortcut_hint = (
             "（矢印: 1px、Shift+矢印: 10px）"
             if object_type == "character"
+            else "（ドラッグ移動、Shift+ホイールでズーム）"
+            if object_type == "cg"
             else ""
         )
         self.scene_selection_label.setText(
@@ -2738,6 +2775,10 @@ class StepEditorDialog(Win2000FramelessDialog):
             params = dict(pairs)
             if object_type == "character":
                 if tag.startswith("chara_") and params.get("name", "").strip() == object_name:
+                    self.actions_list.setCurrentRow(row)
+                    return
+            elif object_type == "cg" and tag in ("cg_show", "cg_shift", "cg_hide"):
+                if object_name == params.get("storage", "").strip() or tag == "cg_hide":
                     self.actions_list.setCurrentRow(row)
                     return
             elif object_type == "background" and tag in ("bg", "bg_show", "bg_move"):
@@ -2769,6 +2810,48 @@ class StepEditorDialog(Win2000FramelessDialog):
         name = (name or "").strip()
         if not name:
             return
+
+        if metadata.get("object_type") == "cg":
+            relative_x = float(delta_x) / VIRTUAL_WIDTH
+            relative_y = float(delta_y) / VIRTUAL_HEIGHT
+            self._direct_scene_edit = True
+            shift_rows = []
+            for row in range(self.actions_list.count()):
+                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                params = dict(pairs)
+                if tag == "cg_shift":
+                    shift_rows.append((row, params))
+
+            if shift_rows:
+                row, params = shift_rows[-1]
+                params["left"] = self._format_scene_number(
+                    self._parse_scene_number(params.get("left"), 0.0) + relative_x
+                )
+                params["top"] = self._format_scene_number(
+                    self._parse_scene_number(params.get("top"), 0.0) + relative_y
+                )
+                self._set_action_row(row, "cg_shift", params)
+                action_label = "cg_shiftの移動量を更新"
+            else:
+                shift_params = {
+                    "left": self._format_scene_number(relative_x),
+                    "top": self._format_scene_number(relative_y),
+                    "time": "0",
+                }
+                action_text = self._build_action("cg_shift", list(shift_params.items()))
+                self.actions_list.addItem(action_text)
+                self.actions_list.setCurrentRow(self.actions_list.count() - 1)
+                action_label = "cg_shiftを追加"
+
+            self._direct_scene_edit = False
+            self.scene_canvas.mark_object_modified("cg", name)
+            self.scene_selection_label.setText(
+                f"移動: CG「{name}」 / {action_label} "
+                f"(Δx={self._format_scene_number(relative_x)}, "
+                f"Δy={self._format_scene_number(relative_y)})"
+            )
+            return
+
         relative_x = float(delta_x) / VIRTUAL_WIDTH
         relative_y = float(delta_y) / VIRTUAL_HEIGHT
         target_x = self._parse_scene_number(metadata.get("x"), 0.5) + relative_x
@@ -2835,6 +2918,45 @@ class StepEditorDialog(Win2000FramelessDialog):
         if not name:
             return
 
+        if metadata.get("object_type") == "cg":
+            self._direct_scene_edit = True
+            scale_rows = []
+            parsed_by_row = {}
+            for row in range(self.actions_list.count()):
+                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                params = dict(pairs)
+                parsed_by_row[row] = (tag, params)
+                if tag == "cg_shift" and "zoom" in params:
+                    scale_rows.append(row)
+
+            formatted_zoom = self._format_scene_number(new_zoom)
+            if scale_rows:
+                row = max(scale_rows)
+                tag, params = parsed_by_row[row]
+                if tag == "cg_show":
+                    params["zoom"] = formatted_zoom
+                else:
+                    params["zoom"] = formatted_zoom
+                self._set_action_row(row, tag, params)
+                action_label = f"{tag}のzoomを更新"
+            else:
+                move_params = {
+                    "zoom": formatted_zoom,
+                    "time": "0",
+                }
+                action_text = self._build_action("cg_shift", list(move_params.items()))
+                self.actions_list.addItem(action_text)
+                self.actions_list.setCurrentRow(self.actions_list.count() - 1)
+                action_label = "拡大縮小用cg_shiftを追加"
+
+            self._direct_scene_edit = False
+            self.scene_canvas.mark_object_modified("cg", name)
+            self.scene_selection_label.setText(
+                f"拡大縮小: CG「{name}」 / {action_label} "
+                f"(zoom={formatted_zoom})"
+            )
+            return
+
         self._direct_scene_edit = True
         scale_rows = []
         parsed_by_row = {}
@@ -2894,6 +3016,24 @@ class StepEditorDialog(Win2000FramelessDialog):
                 return row
         return -1
 
+    def _find_latest_cg_action(self, tag):
+        for row in range(self.actions_list.count() - 1, -1, -1):
+            current_tag, _pairs = self._parse_action(self.actions_list.item(row).text())
+            if current_tag == tag:
+                return row
+        return -1
+
+    def _current_cg_storage(self):
+        for row in range(self.actions_list.count() - 1, -1, -1):
+            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            params = dict(pairs)
+            if tag in ("cg_show", "cg_shift") and params.get("storage", "").strip():
+                return params["storage"].strip()
+            if tag == "cg_hide":
+                return ""
+        scene_cg = (getattr(self, "_scene_states", {}) or {}).get("after", {}).get("cg")
+        return (scene_cg or {}).get("storage", "") if scene_cg else ""
+
     def _execute_scene_context_command(self, command, object_name="", metadata=None):
         if command == "character_move":
             self.scene_selection_label.setText(
@@ -2914,6 +3054,23 @@ class StepEditorDialog(Win2000FramelessDialog):
             self._append_action_from_template(
                 "chara_hide", {"name": object_name, "fade": "0.15"}
             )
+            return
+        if command == "cg_show":
+            self._append_action_from_template("cg_show", {"fade": "0.3"})
+            QTimer.singleShot(0, lambda: self._open_cg_browser("storage"))
+            return
+        if command == "cg_shift":
+            row = self._find_latest_cg_action("cg_shift")
+            if row < 0:
+                row = self._append_action_from_template(
+                    "cg_shift", {"storage": self._current_cg_storage(), "fade": "0.3"}
+                )
+            else:
+                self.actions_list.setCurrentRow(row)
+            QTimer.singleShot(0, lambda: self._open_cg_browser("storage"))
+            return
+        if command == "cg_hide":
+            self._append_action_from_template("cg_hide", {"fade": "0.3"})
             return
         if command == "select_background":
             for row in range(self.actions_list.count() - 1, -1, -1):
@@ -2954,6 +3111,11 @@ class StepEditorDialog(Win2000FramelessDialog):
             bg_show_action = background_menu.addAction("背景を設定（bg_show）...")
             bg_move_action = background_menu.addAction("背景を移動（bg_move）...")
 
+            cg_menu = menu.addMenu("CG")
+            cg_show_action = cg_menu.addAction("CGを表示（cg_show）...")
+            cg_shift_action = cg_menu.addAction("CG差分・演出を変更（cg_shift）...")
+            cg_hide_action = cg_menu.addAction("CGを非表示（cg_hide）")
+
             audio_menu = menu.addMenu("音声")
             bgm_action = audio_menu.addAction("BGMを追加...")
             se_action = audio_menu.addAction("SEを追加...")
@@ -2977,6 +3139,9 @@ class StepEditorDialog(Win2000FramelessDialog):
                 select_bg_action: "select_background",
                 bg_show_action: "bg_show",
                 bg_move_action: "bg_move",
+                cg_show_action: "cg_show",
+                cg_shift_action: "cg_shift",
+                cg_hide_action: "cg_hide",
                 bgm_action: "bgm",
                 se_action: "se",
                 se_stop_action: "sestop",
@@ -3406,6 +3571,10 @@ class StepEditorDialog(Win2000FramelessDialog):
                 # Do not enumerate/load all background images while opening a
                 # step editor; the dialog can show thumbnails on demand.
                 field = QLineEdit()
+            elif field_type == "cg_asset":
+                # CGs use a dedicated lightweight browser.  It lists only
+                # names initially and decodes one scaled preview on demand.
+                field = QLineEdit()
             elif field_type in ("bgm_asset", "se_asset"):
                 field = QComboBox()
                 field.setEditable(True)
@@ -3440,7 +3609,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 wrapper_layout.addWidget(slider, 1)
                 wrapper_layout.addWidget(field)
                 self.custom_editor_layout.addRow(label, wrapper)
-            elif field_type in ("bg_asset", "bgm_asset", "se_asset"):
+            elif field_type in ("bg_asset", "cg_asset", "bgm_asset", "se_asset"):
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
                 wrapper_layout.setContentsMargins(0, 0, 0, 0)
@@ -3449,6 +3618,11 @@ class StepEditorDialog(Win2000FramelessDialog):
                     browse_btn = QPushButton("参照...")
                     browse_btn.setObjectName(f"{key}BrowseButton")
                     browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_asset(k))
+                    wrapper_layout.addWidget(browse_btn)
+                elif field_type == "cg_asset":
+                    browse_btn = QPushButton("差分一覧…")
+                    browse_btn.setObjectName(f"{key}BrowseButton")
+                    browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_cg(k))
                     wrapper_layout.addWidget(browse_btn)
                 else:
                     play_btn = QPushButton("▶ 試聴")
@@ -3684,6 +3858,19 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setCurrentText(stem)
             else:
                 field.setText(stem)
+
+    def _browse_for_cg(self, key):
+        field = self.custom_fields.get(key)
+        if field is None:
+            return
+        dialog = CgDiffBrowserDialog(self, self._image_manager, field.text().strip())
+        if dialog.exec_() != QDialog.Accepted or not dialog.selected_storage:
+            return
+        field.setText(dialog.selected_storage)
+        self._apply_action_editor()
+
+    def _open_cg_browser(self, key="storage"):
+        self._browse_for_cg(key)
 
     def _load_action_into_editors(self, tag, params, from_template=False):
         merged = self._merge_with_template(tag, params)

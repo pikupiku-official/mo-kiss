@@ -36,7 +36,7 @@ def get_scaled_image(image, zoom_scale):
     return scaled_image
 
 def _blit_with_alpha(screen, image, pos, alpha):
-    if alpha <= 0:
+    if image is None or alpha <= 0:
         return
     if alpha >= 255:
         screen.blit(image, pos)
@@ -157,6 +157,312 @@ def start_character_part_fade(game_state, character_name, part_type, from_id, to
         'start_time': pygame.time.get_ticks(),
         'duration': duration_ms
     }
+    pending = game_state.setdefault('character_fade_pending_render', {})
+    pending.setdefault(character_name, set()).add(part_type)
+
+
+def prewarm_character_fade_images(game_state, character_name, changed_parts):
+    """Populate scaled-image caches before a character fade starts.
+
+    Character assets are large enough that the first scale operation can take
+    longer than a short (150ms) transition.  If that work happens during the
+    first rendered frame, the wall-clock fade can finish before the user sees
+    an intermediate frame.  Keep the loading cost outside the transition.
+    """
+    image_manager = game_state.get('image_manager')
+    if not image_manager or not changed_parts:
+        return
+
+    torso_id = game_state.get('character_torso', {}).get(character_name, character_name)
+    torso_img = image_manager.get_image('torso', torso_id)
+    if not torso_img:
+        return
+
+    zoom_scale = game_state.get('character_zoom', {}).get(character_name, 1.0)
+    try:
+        zoom_scale = float(zoom_scale)
+    except (TypeError, ValueError):
+        zoom_scale = 1.0
+
+    # The normal (non-fading) torso is also drawn on every frame.  Warm it as
+    # well; otherwise an expression-only shift can still spend the whole
+    # transition scaling the unchanged body for the first time.
+    torso_ids = {torso_id}
+    part_ids = {}
+    for part_type, (from_id, to_id) in changed_parts.items():
+        if part_type == 'torso':
+            torso_ids.update((from_id, to_id))
+        else:
+            part_ids[part_type] = (from_id, to_id)
+
+    # These layers are drawn alongside the changed layers in the same frame.
+    # Warm their current images too, using the exact scale used by
+    # render_face_parts.
+    expressions = game_state.get('character_expressions', {}).get(character_name, {})
+    for part_type in ('brow', 'eye', 'mouth', 'cheek', 'effect', 'accessory'):
+        current_id = expressions.get(part_type)
+        if part_type not in part_ids:
+            part_ids[part_type] = (current_id, current_id)
+
+    for image_id in torso_ids:
+        image = image_manager.get_image('torso', image_id) if image_id else None
+        if image:
+            scale = zoom_scale * VIRTUAL_HEIGHT / image.get_height() * SCALE
+            get_scaled_image(image, scale)
+
+    face_scale = zoom_scale * (VIRTUAL_HEIGHT / torso_img.get_height()) * SCALE
+    for part_type, ids in part_ids.items():
+        for image_id in ids:
+            image = image_manager.get_image(part_type, image_id) if image_id else None
+            if image:
+                get_scaled_image(image, face_scale)
+
+
+_CHARACTER_EXPRESSION_PARTS = (
+    'brow', 'eye', 'mouth', 'cheek', 'effect', 'accessory'
+)
+
+
+def _build_character_snapshot(
+    game_state,
+    character_name,
+    torso_id,
+    expressions,
+    character_pos,
+    character_zoom,
+):
+    """Compose one character pose into a reusable transparent surface.
+
+    A transition must not re-render every character part on every frame.  The
+    two endpoint poses are composed once, then only their alpha is animated.
+    The returned position is the global top-left of the compact surface.
+    """
+    image_manager = game_state.get('image_manager')
+    if not image_manager or not torso_id or character_pos is None:
+        return None, (0, 0)
+    torso_img = image_manager.get_image('torso', torso_id)
+    if not torso_img or torso_img.get_height() <= 0:
+        return None, (0, 0)
+
+    try:
+        zoom = float(character_zoom)
+    except (TypeError, ValueError):
+        zoom = 1.0
+    base_scale = VIRTUAL_HEIGHT / torso_img.get_height()
+    final_zoom = zoom * base_scale * SCALE
+    torso_surface = get_scaled_image(torso_img, final_zoom)
+    x, y = character_pos
+    layers = [(torso_surface, (round(x), round(y)))]
+
+    if game_state.get('show_face_parts', True):
+        center_x = round(x + torso_surface.get_width() / 2)
+        center_y = round(y + torso_surface.get_height() / 2)
+        expressions = expressions or {}
+        for part_type in _CHARACTER_EXPRESSION_PARTS:
+            part_id = expressions.get(part_type)
+            if not part_id:
+                continue
+            part_img = image_manager.get_image(part_type, part_id)
+            if not part_img:
+                continue
+            scaled_img = get_scaled_image(part_img, final_zoom)
+            layers.append(
+                (
+                    scaled_img,
+                    (
+                        center_x - scaled_img.get_width() // 2,
+                        center_y - scaled_img.get_height() // 2,
+                    ),
+                )
+            )
+
+    bounds = pygame.Rect(layers[0][1], layers[0][0].get_size())
+    for image, pos in layers[1:]:
+        bounds.union_ip(pygame.Rect(pos, image.get_size()))
+    if bounds.width <= 0 or bounds.height <= 0:
+        return None, (0, 0)
+
+    snapshot = pygame.Surface(bounds.size, pygame.SRCALPHA, 32)
+    for image, pos in layers:
+        snapshot.blit(image, (pos[0] - bounds.x, pos[1] - bounds.y))
+    return snapshot, (bounds.x, bounds.y)
+
+
+def _commit_character_transition_target(game_state, character_name, transition):
+    """Publish the target pose after a relocation or crossfade completes."""
+    game_state.setdefault('character_torso', {})[character_name] = transition[
+        'to_torso'
+    ]
+    game_state.setdefault('character_expressions', {})[character_name] = dict(
+        transition.get('to_expressions') or {}
+    )
+    game_state.setdefault('character_pos', {})[character_name] = list(
+        transition['to_pos']
+    )
+    game_state.setdefault('character_zoom', {})[character_name] = transition[
+        'to_zoom'
+    ]
+    game_state.get('character_part_fades', {}).pop(character_name, None)
+    game_state.get('character_fade_pending_render', {}).pop(character_name, None)
+
+
+def start_character_transition(
+    game_state,
+    character_name,
+    *,
+    from_torso,
+    from_expressions,
+    from_pos,
+    from_zoom,
+    to_torso,
+    to_expressions,
+    to_pos,
+    to_zoom,
+    duration_ms,
+    relocation=False,
+):
+    """Start a composited character transition.
+
+    ``duration_ms`` is one fade leg.  Relocation uses two legs: FO at the old
+    pose, then state commit and FI at the new pose.
+    """
+    duration_ms = max(int(duration_ms), 0)
+    if duration_ms <= 0:
+        game_state.setdefault('character_torso', {})[character_name] = to_torso
+        game_state.setdefault('character_expressions', {})[character_name] = dict(
+            to_expressions or {}
+        )
+        game_state.setdefault('character_pos', {})[character_name] = list(to_pos)
+        game_state.setdefault('character_zoom', {})[character_name] = to_zoom
+        return 0
+
+    from_surface, from_surface_pos = _build_character_snapshot(
+        game_state,
+        character_name,
+        from_torso,
+        from_expressions,
+        from_pos,
+        from_zoom,
+    )
+    to_surface, to_surface_pos = _build_character_snapshot(
+        game_state,
+        character_name,
+        to_torso,
+        to_expressions,
+        to_pos,
+        to_zoom,
+    )
+    transition = {
+        'mode': 'relocate' if relocation else 'crossfade',
+        'phase': 'out' if relocation else 'blend',
+        'from_surface': from_surface,
+        'from_surface_pos': from_surface_pos,
+        'to_surface': to_surface,
+        'to_surface_pos': to_surface_pos,
+        'from_torso': from_torso,
+        'from_expressions': dict(from_expressions or {}),
+        'from_pos': list(from_pos),
+        'from_zoom': from_zoom,
+        'to_torso': to_torso,
+        'to_expressions': dict(to_expressions or {}),
+        'to_pos': list(to_pos),
+        'to_zoom': to_zoom,
+        'start_time': pygame.time.get_ticks(),
+        'duration': duration_ms,
+        'pending_render': True,
+    }
+    game_state.setdefault('character_transitions', {})[character_name] = transition
+    return duration_ms * (2 if relocation else 1)
+
+
+def _begin_character_transition_on_first_render(game_state, char_name, current_time):
+    transitions = game_state.get('character_transitions', {})
+    transition = transitions.get(char_name)
+    if not transition or not transition.get('pending_render'):
+        return
+    transition['pending_render'] = False
+    transition['start_time'] = current_time
+    total_duration = transition['duration'] * (
+        2 if transition.get('mode') == 'relocate' else 1
+    )
+    end_time = current_time + total_duration
+    for anim in game_state.get('ir_active_anims', []):
+        if (
+            anim.get('target') == char_name
+            and anim.get('action') == 'chara_shift'
+        ):
+            anim['end_time'] = end_time
+    if any(
+        anim.get('target') == char_name and anim.get('action') == 'chara_shift'
+        for anim in game_state.get('ir_active_anims', [])
+    ):
+        game_state['ir_anim_pending'] = True
+        game_state['ir_anim_end_time'] = end_time
+
+
+def draw_character_transition(game_state, char_name, screen, current_time=None):
+    transition = game_state.get('character_transitions', {}).get(char_name)
+    if not transition:
+        return False
+    now = pygame.time.get_ticks() if current_time is None else current_time
+    elapsed = max(0, now - transition.get('start_time', now))
+    duration = max(int(transition.get('duration', 0)), 0)
+    progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
+    if transition.get('mode') == 'relocate':
+        if transition.get('phase') == 'out':
+            _blit_with_alpha(
+                screen,
+                transition.get('from_surface'),
+                transition.get('from_surface_pos', (0, 0)),
+                round(255 * (1.0 - progress)),
+            )
+        else:
+            _blit_with_alpha(
+                screen,
+                transition.get('to_surface'),
+                transition.get('to_surface_pos', (0, 0)),
+                round(255 * progress),
+            )
+    else:
+        _blit_crossfade(
+            screen,
+            transition.get('from_surface'),
+            transition.get('from_surface_pos', (0, 0)),
+            transition.get('to_surface'),
+            transition.get('to_surface_pos', (0, 0)),
+            progress,
+        )
+    return True
+
+
+def update_character_transitions(game_state):
+    now = pygame.time.get_ticks()
+    transitions = game_state.get('character_transitions', {})
+    for char_name, transition in list(transitions.items()):
+        if transition.get('pending_render'):
+            continue
+        duration = max(int(transition.get('duration', 0)), 0)
+        if now - transition.get('start_time', now) < duration:
+            continue
+        if (
+            transition.get('mode') == 'relocate'
+            and transition.get('phase') == 'out'
+        ):
+            _commit_character_transition_target(game_state, char_name, transition)
+            transition['phase'] = 'in'
+            transition['start_time'] = now
+            continue
+        _commit_character_transition_target(game_state, char_name, transition)
+        transitions.pop(char_name, None)
+
+
+def settle_character_transitions(game_state):
+    """Seek live preview transitions to their final committed state."""
+    now = pygame.time.get_ticks()
+    for transition in game_state.get('character_transitions', {}).values():
+        transition['pending_render'] = False
+        transition['phase'] = 'in' if transition.get('mode') == 'relocate' else 'blend'
+        transition['start_time'] = now - max(int(transition.get('duration', 0)), 0)
 
 def start_character_hide_fade(game_state, character_name, duration_ms):
     if duration_ms <= 0:
@@ -255,6 +561,8 @@ def hide_character(game_state, character_name):
         print(f"[HIDE] 現在のactive_characters: {game_state['active_characters']}")
 
     # アニメーション中の場合は停止
+    game_state.get('character_transitions', {}).pop(character_name, None)
+    game_state.get('character_fade_pending_render', {}).pop(character_name, None)
     if character_name in game_state['character_anim']:
         del game_state['character_anim'][character_name]
         print(f"[HIDE] キャラクター '{character_name}' の移動アニメーションを停止しました")
@@ -475,14 +783,20 @@ def update_character_animations(game_state):
             game_state['character_zoom'][char_name] = current_zoom
 
     # まばたきシステムの更新
+    update_character_transitions(game_state)
     update_blink_system(game_state)
     update_character_fades(game_state)
 
 def update_character_fades(game_state):
     current_time = pygame.time.get_ticks()
     fades = game_state.get('character_part_fades', {})
+    pending = game_state.get('character_fade_pending_render', {})
     for char_name, part_map in list(fades.items()):
         for part_type, fade in list(part_map.items()):
+            # The clock is restarted when the first frame is actually drawn.
+            # Do not let the update loop remove a fade before that happens.
+            if part_type in pending.get(char_name, set()):
+                continue
             duration = fade.get('duration', 0)
             if duration <= 0 or current_time - fade.get('start_time', 0) >= duration:
                 if DEBUG:
@@ -490,6 +804,7 @@ def update_character_fades(game_state):
                 part_map.pop(part_type, None)
         if not part_map:
             fades.pop(char_name, None)
+            pending.pop(char_name, None)
 
     hide_pending = game_state.get('character_hide_pending', {})
     for char_name, end_time in list(hide_pending.items()):
@@ -497,6 +812,49 @@ def update_character_fades(game_state):
             hide_pending.pop(char_name, None)
             hide_character(game_state, char_name)
             fades.pop(char_name, None)
+
+
+def _begin_character_fade_on_first_render(game_state, char_name, current_time):
+    """Start a newly-created fade when its first frame is actually rendered."""
+    pending = game_state.get('character_fade_pending_render', {})
+    part_types = pending.pop(char_name, None)
+    if not part_types:
+        return
+    part_map = game_state.get('character_part_fades', {}).get(char_name, {})
+    max_duration = 0
+    for part_type in part_types:
+        fade = part_map.get(part_type)
+        if fade:
+            fade['start_time'] = current_time
+            max_duration = max(max_duration, max(0, fade.get('duration', 0)))
+
+    # The IR animation guard is registered just after the character action.
+    # Extend its deadline to the same first-visible-frame origin, otherwise
+    # an expensive preview frame could make the step look idle too early.
+    if max_duration:
+        end_time = current_time + max_duration
+        matched_animation = False
+        for anim in game_state.get('ir_active_anims', []):
+            if (
+                anim.get('target') == char_name
+                and anim.get('action') in ('chara_show', 'chara_shift', 'chara_hide')
+            ):
+                anim['end_time'] = end_time
+                matched_animation = True
+        if matched_animation:
+            game_state['ir_anim_pending'] = True
+            game_state['ir_anim_end_time'] = end_time
+
+
+def _hold_character_fade_for_first_render(game_state, char_name, current_time):
+    """Render pending fades at their initial state before starting their clock."""
+    pending = game_state.get('character_fade_pending_render', {})
+    part_types = pending.get(char_name, set())
+    part_map = game_state.get('character_part_fades', {}).get(char_name, {})
+    for part_type in part_types:
+        fade = part_map.get(part_type)
+        if fade:
+            fade['start_time'] = current_time
 
 def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, cheek_type, zoom_scale, fade_map=None, current_time=None, effect_type="", accessory_type=""):
     """Face parts rendering with strictly unified single-layer drawing."""
@@ -563,6 +921,21 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
 
 def draw_characters(game_state):
     """Draw characters with optional part fades."""
+    # A CG replaces the normal character layer while it is visible or
+    # transitioning.  Character state remains in the game state so cg_hide
+    # can reveal the latest expressions/positions again.
+    cg_state = game_state.get("cg_state") or {}
+    if cg_state.get("storage") or cg_state.get("transition"):
+        # The character layer is intentionally hidden under a CG. Still let
+        # its transition clock begin, otherwise a hidden shift could deadlock
+        # the step until cg_hide reveals it.
+        now = pygame.time.get_ticks()
+        for char_name in list(game_state.get('character_transitions', {})):
+            _begin_character_transition_on_first_render(
+                game_state, char_name, now
+            )
+        return
+
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']] if game_state['dialogue_data'] else None
     if isinstance(current_dialogue, dict):
         current_speaker = (
@@ -580,6 +953,23 @@ def draw_characters(game_state):
 
         fade_map = game_state.get('character_part_fades', {}).get(char_name, {})
         current_time = pygame.time.get_ticks()
+        has_pending_fade = bool(
+            game_state.get('character_fade_pending_render', {}).get(char_name)
+        )
+        if has_pending_fade:
+            _hold_character_fade_for_first_render(game_state, char_name, current_time)
+
+        transition = game_state.get('character_transitions', {}).get(char_name)
+        if transition:
+            draw_character_transition(game_state, char_name, screen, current_time)
+            if transition.get('pending_render'):
+                # Start the clock after the endpoint surface was actually
+                # drawn, so a slow first frame cannot consume the fade.
+                _begin_character_transition_on_first_render(
+                    game_state, char_name, pygame.time.get_ticks()
+                )
+            continue
+
         torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
 
         char_img = image_manager.get_image("torso", torso_id)
@@ -641,5 +1031,12 @@ def draw_characters(game_state):
                 current_time=current_time,
                 effect_type=effect_type,
                 accessory_type=accessory_type,
+            )
+
+        if has_pending_fade:
+            # Start the real-time clock after this frame has been fully
+            # rendered, so a slow first frame cannot consume the transition.
+            _begin_character_fade_on_first_render(
+                game_state, char_name, pygame.time.get_ticks()
             )
 

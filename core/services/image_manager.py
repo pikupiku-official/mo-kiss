@@ -28,6 +28,11 @@ def _classify_stem(stem: str):
     if '_CGE' in stem: return 'cg_effect'
     if '_CGA' in stem: return 'cg_accessory'
     if '_CG'  in stem: return 'cg'
+    # Legacy standalone CG assets use [CHAR]_nn_nnn (for example
+    # MMK_03_000.png): the middle token is the CG set and the final token is
+    # its variant.  Keep this after the explicit CG layer checks above.
+    if re.fullmatch(r'[A-Z]{3}_\d{2}_\d{3}', stem, re.IGNORECASE):
+        return 'cg'
     if '_T'   in stem: return 'torso'
     if '_F'   in stem:
         if '_BRO' in stem: return 'brow'

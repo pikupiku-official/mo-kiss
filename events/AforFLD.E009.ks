@@ -1,26 +1,35 @@
 [bg_show storage="教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.5" y="0.90767825" size="2.50528314" fade="0.15"]
+[bgm bgm="MokLap1.mp3" volume="0.55" loop="true" fade="0.0"]
 	//純一//
 	「「行ってないだろ、部活」」
+[chara_shift name="桃子" template="驚き" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" fade="0.15"]
 	//桃子//
 	「「…………」」
 	//純一//
 	「「それでも学校に残ってる訳はなんだ」」
 	「「……こんな時間まで」」
+[chara_shift name="桃子" template="本当かなあ？斜め" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO04_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「「…………」」
 	//純一//
 	「「…………家」」
 	「「家に……帰れないのか？」」
+[chara_shift name="桃子" eye="MMK_F01_EYE03_00" fade="0.15"]
 	//桃子//
 	「「…………」」
 ; 表情の変化で演出したい
 	「「…………なんで」」
+[chara_shift name="桃子" eye="MMK_F01_EYE00_01" fade="0.15"]
 	//純一//
 	「「…………」」
 
 
+[chara_shift name="桃子" template="何言ってんだこいつ" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" x="0.40334528" size="2.50528314" fade="0.15"]
 	//純一//
 	「（天真爛漫な桃子が、最近はどこか上の空で元気がない。）」
+[chara_shift name="桃子" template="拗ねる・ぷくー斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE03_00" x="0.54731237" y="0.90767825" size="2.50528314" fade="0.15"]
+	//純一//
 	「（何か大きなことに頭を悩ませているみたいに。）」
 	//純一//
 	「（そして、家族の話題を避けているようだ。）」
@@ -36,14 +45,18 @@
 	//純一//
 	「桃子は家族と上手くいっていない。」
 	「・・・そうだろ？」
+[chara_shift name="桃子" template="驚き" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 	//桃子//
 	「！！」
+[chara_shift name="桃子" eye="MMK_F00_EYE00_01" brow="MMK_F00_BRO04_00" fade="0.15"]
+	//桃子//
 	「・・・なんで。」
 
 
 
 	//純一//
 	「「……知ってるから、僕」」
+[chara_shift name="桃子" template="照れ提案斜め" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE01_00" fade="0.15"]
 	//桃子//
 	「「………え…」」
 	//純一//
@@ -74,6 +87,7 @@
 ; 中略。
 
 
+[cg_show storage="MMK_03_000" fade="0.3"]
 	//桃子//
 	「ふたりとも、大好き。」
 	「どっちかなんて、選べない。」

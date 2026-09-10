@@ -63,6 +63,26 @@ def normalize_dialogue_data(raw_data):
             ])
             # デバッグ出力削除
                 
+        elif entry_type in ('cg_show', 'cg_shift', 'cg_hide'):
+            # Keep the legacy list representation compatible with the normal
+            # path while carrying CG attributes losslessly in metadata.
+            cg_params = {
+                key: entry[key]
+                for key in ('storage', 'left', 'top', 'zoom', 'time', 'fade')
+                if key in entry and entry.get(key) is not None
+            }
+            cg_command = {
+                'cg_show': '_CG_SHOW',
+                'cg_shift': '_CG_SHIFT',
+                'cg_hide': '_CG_HIDE',
+            }[entry_type]
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth,
+                current_brow, current_cheek, cg_command, current_bgm,
+                current_bgm_volume, current_bgm_loop, current_char, False,
+                False, cg_params,
+            ])
+
         elif entry_type == 'chara_shift':
             char_name = entry['name']
             if entry.get('torso'):

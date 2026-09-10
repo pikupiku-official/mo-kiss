@@ -19,6 +19,7 @@
 
 - `bg`, `bg_show`, `bg_move`
 - `chara_show`, `chara_shift`, `chara_move`, `chara_hide`
+- `cg_show`, `cg_shift`, `cg_hide`（`MMK_nn_nnn` の差分ID、左右クロップ）
 - `fadeout`, `fadein`
 - `choice`, `bgm`, `bgmstart`, `bgmstop`, `se`
 - ラベル、話者、本文、`scroll-stop`
@@ -26,6 +27,7 @@
 - トルソー番号に応じた `_Fxx_`, `_Exx_`, `_Axx_` パーツ候補フィルタ
 - `VIRTUAL_WIDTH=1440`, `VIRTUAL_HEIGHT=1080`
 - 背景を1440×1080へ変形後、Python版と同じズーム・オフセット制限で描画
+- CGを画面高へ合わせて中央配置し、左右をクロップ。CG表示中は立ち絵を描画しない
 - `ui.text-box.png`, `ui.auto.png`, `ui.skip.png` の実画像とRGB乗算色 `(40, 83, 120)`
 - M PLUS 1p Medium/Bold/Regularの動的ロード
 - 本文20文字×最大3行、固定文字グリッド、69px行間、2px文字間、1.05倍横伸長、2分の1縮小再拡大、6px影

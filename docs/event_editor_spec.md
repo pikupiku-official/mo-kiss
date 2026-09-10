@@ -142,6 +142,7 @@ KSファイル (.ks)
     │   ├── bg / bg_show / bg_move: storage, 位置, ズーム
     │   ├── chara_show / chara_shift: 全パーツフィールド + 🎨立ち絵プレビューボタン
     │   ├── chara_move / chara_hide: name, 位置, fade
+    │   ├── cg_show / cg_shift / cg_hide: CG ID、差分、移動、ズーム、fade
     │   └── se: SE選択, 試聴, volume等
     └── 詳細パラメータ表示（key-valueテーブル、トグル）
 ```
@@ -152,6 +153,7 @@ KSファイル (.ks)
 TAG_NAMES = [
     "bg", "bg_show", "bg_move",
     "chara_show", "chara_shift", "chara_move", "chara_hide",
+    "cg_show", "cg_shift", "cg_hide",
     "bgm", "bgmstop", "bgmstart", "bgmend",
     "se", "sestop", "fadeout", "fadein",
     "choice", "flag_set", "if", "endif", "event_control"
@@ -330,6 +332,18 @@ ir_data = build_ir_from_normalized(dialogue_data)
 [chara_move name="キャラ名" left="0.3" top="0.0" zoom="1.0" time="600"]
 [chara_hide name="キャラ名" fade="0.3"]
 ```
+
+#### CG系
+
+```ks
+[cg_show storage="MMK_03_000" fade="0.3"]
+[cg_shift storage="MMK_03_001" left="0.02" zoom="1.1" time="600"]
+[cg_hide fade="0.3"]
+```
+
+CGの `storage` は `MMK_nn_nnn` 全体を指定する。エディタの「差分一覧…」は
+別ウィンドウでCG番号ごとに差分を一覧し、選択した1枚だけを縮小プレビューする。
+ステージ上ではドラッグで移動、Shift+ホイールでズームし、変更は `cg_shift` に保存する。
 
 #### 音声系
 

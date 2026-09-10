@@ -57,6 +57,13 @@ class DialogueLoader:
         self.loading_tasks = {}  # ファイル読み込み中のタスク管理
         self.ir_data = None  # IR skeleton (optional)
 
+    @staticmethod
+    def _parse_float_or_none(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
     def _get_chara_template(self, character, template_name):
         if not template_name:
             return None
@@ -719,6 +726,52 @@ class DialogueLoader:
                             print(f"SE解析エラー（行 {line_num}）: {e} - {line}")
                         
                 # キャラクター移動コマンドを検出
+                # CG表示・差分変更・非表示
+                elif "[cg_show" in line.lower():
+                    try:
+                        storage = re.search(r'storage="([^"]+)"', line, re.IGNORECASE)
+                        fade = re.search(r'fade="([^"]+)"', line, re.IGNORECASE)
+                        fade_time = re.search(r'time="([^"]+)"', line, re.IGNORECASE)
+                        if storage:
+                            fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                            entry = {'type': 'cg_show', 'storage': storage.group(1)}
+                            if fade_source is not None:
+                                entry['fade'] = self._parse_float_or_none(fade_source)
+                            dialogue_data.append(entry)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"CG表示 parse error (line {line_num}): {e} - {line}")
+
+                elif "[cg_shift" in line.lower():
+                    try:
+                        params = {}
+                        for key in ('storage', 'left', 'top', 'zoom', 'time', 'fade'):
+                            match = re.search(rf'{key}="([^"]*)"', line, re.IGNORECASE)
+                            if match:
+                                params[key] = match.group(1)
+                        if params:
+                            params['type'] = 'cg_shift'
+                            for key in ('left', 'top', 'zoom', 'time', 'fade'):
+                                if key in params:
+                                    params[key] = self._parse_float_or_none(params[key])
+                            dialogue_data.append(params)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"CG shift parse error (line {line_num}): {e} - {line}")
+
+                elif "[cg_hide" in line.lower():
+                    try:
+                        fade = re.search(r'fade="([^"]+)"', line, re.IGNORECASE)
+                        fade_time = re.search(r'time="([^"]+)"', line, re.IGNORECASE)
+                        fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                        entry = {'type': 'cg_hide'}
+                        if fade_source is not None:
+                            entry['fade'] = self._parse_float_or_none(fade_source)
+                        dialogue_data.append(entry)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"CG hide parse error (line {line_num}): {e} - {line}")
+
                 elif "[chara_move" in line:
                     try:
                         # name属性を優先、なければsubmにフォールバック

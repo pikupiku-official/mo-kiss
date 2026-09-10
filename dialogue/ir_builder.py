@@ -70,7 +70,9 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             params = entry
             if action_type == "chara_shift":
                 params = _normalize_chara_shift_params(entry)
-            if action_type in ("chara_shift", "chara_show", "chara_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer", "seed_retry"):
+            if action_type in ("cg_show", "cg_shift", "cg_hide"):
+                params = _normalize_cg_params(entry)
+            if action_type in ("chara_shift", "chara_show", "chara_hide", "cg_show", "cg_shift", "cg_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer", "seed_retry"):
                 if pending_actions:
                     emit_step(
                         actions=pending_actions,
@@ -80,7 +82,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
                     pending_actions = []
                     pending_sources = []
                 animation = None
-                if action_type in ("chara_shift", "chara_show"):
+                if action_type in ("chara_shift", "chara_show", "cg_show", "cg_shift", "cg_hide"):
                     animation = make_animation(on_advance=ON_ADVANCE_BLOCK)
                 emit_step(
                     actions=[make_action(action=action_type, target=target, params=params, animation=animation)],
@@ -226,6 +228,17 @@ def _normalize_chara_shift_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     return params
 
 
+def _normalize_cg_params(entry: Dict[str, Any]) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    for key in ("storage", "left", "top", "zoom", "time", "fade"):
+        if key in entry and entry.get(key) is not None:
+            params[key] = entry.get(key)
+    for key in ("left", "top", "zoom", "time", "fade"):
+        if key in params:
+            params[key] = _to_float(params[key], params[key])
+    return params
+
+
 def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]]:
     if text.startswith("_SCROLL_STOP"):
         return make_action(action="scroll_stop")
@@ -291,6 +304,30 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
             action="chara_show",
             target=target,
             params=params,
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
+        )
+
+    if text.startswith("_CG_SHOW"):
+        metadata = entry[13] if len(entry) > 13 and isinstance(entry[13], dict) else {}
+        return make_action(
+            action="cg_show",
+            params=_normalize_cg_params(metadata),
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
+        )
+
+    if text.startswith("_CG_SHIFT"):
+        metadata = entry[13] if len(entry) > 13 and isinstance(entry[13], dict) else {}
+        return make_action(
+            action="cg_shift",
+            params=_normalize_cg_params(metadata),
+            animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
+        )
+
+    if text.startswith("_CG_HIDE"):
+        metadata = entry[13] if len(entry) > 13 and isinstance(entry[13], dict) else {}
+        return make_action(
+            action="cg_hide",
+            params=_normalize_cg_params(metadata),
             animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
         )
 

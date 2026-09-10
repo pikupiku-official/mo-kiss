@@ -9,6 +9,7 @@ from core.config import (
 )
 from .character_manager import update_character_animations
 from .background_manager import update_background_animation
+from .cg_manager import update_cg_animation
 from .fade_manager import update_fade_animation
 
 def _to_virtual_mouse_pos(mouse_pos, screen, game_state):
@@ -73,9 +74,8 @@ def handle_mouse_click(game_state, mouse_pos, screen):
         print(f"[SEED] 会話分岐を開始: {seed_id}")
         return
 
-    # タネ会話分岐は選択肢と同じ独立入力として先に処理する。
-    # 立ち絵フェード等が残っていても、表示済みの最新タネをクリックした
-    # 入力まで通常の会話送りと一緒に捨てない。
+    # Seed links are an independent overlay action. Ordinary clicks stay
+    # blocked while the current character step owns the transition.
     if is_input_blocked(game_state):
         print("[CLICK] 入力ブロック中のため無効")
         return
@@ -192,6 +192,37 @@ def _advance_seed_dialogue(game_state):
     game_state['seed_dialogue_session'] = None
     return advance_to_next_dialogue(game_state)
 
+def _discard_blocked_gameplay_events(game_state, events):
+    """Drop stale advances while retaining escape/backlog window controls."""
+    blocked = is_input_blocked(game_state)
+    filtered = []
+    advance_keys = (pygame.K_RETURN, pygame.K_KP_ENTER)
+    advance_key_held = game_state.get("_advance_key_held", False)
+    for event in events:
+        if event.type == pygame.KEYUP and event.key in advance_keys:
+            # KEYUP is consumed here only to release the held-key gate. A
+            # KEYDOWN that happened during a transition must never replay.
+            advance_key_held = False
+            continue
+        if event.type == pygame.KEYDOWN and event.key in advance_keys:
+            if blocked or advance_key_held or getattr(event, "repeat", False):
+                advance_key_held = True
+                continue
+            advance_key_held = True
+            filtered.append(event)
+            continue
+        if blocked and event.type == pygame.KEYDOWN and event.key in (
+            pygame.K_SPACE,
+            pygame.K_a,
+        ):
+            # Skip/auto toggles would otherwise become a delayed advance after
+            # the transition ends.
+            continue
+        filtered.append(event)
+    game_state["_advance_key_held"] = advance_key_held
+    return filtered
+
+
 def handle_events(game_state, screen):
     """イベント処理を行う"""
     # KSファイル終了チェック
@@ -293,6 +324,10 @@ def handle_events(game_state, screen):
                 _submit_seed_answer(game_state, answer)
                 break
         return True
+
+    # pygame.event.get() has already drained the queue. Discarding here makes
+    # blocked Enter/clicks impossible to replay after the transition unlocks.
+    events = _discard_blocked_gameplay_events(game_state, events)
     
     for event in events:
         # バックログ関連のイベント処理
@@ -412,6 +447,13 @@ def handle_enter_key(game_state):
         print("[ENTER] 選択肢表示中のため無効（マウスクリックで選択してください）")
         return
 
+    # A character transition owns the current step, including seed/session
+    # paths. Check before any alternate advance handler so Enter cannot slip
+    # through a parallel input route.
+    if is_input_blocked(game_state):
+        print("[ENTER] 入力ブロック中のため無効")
+        return
+
 
     text_renderer = game_state['text_renderer']
     if game_state.get('seed_dialogue_session') is not None:
@@ -419,11 +461,6 @@ def handle_enter_key(game_state):
             text_renderer.skip_text()
             return
         _advance_seed_dialogue(game_state)
-        return
-
-    # 入力ブロック中は、文字表示のスキップも段落送りも禁止する。
-    if is_input_blocked(game_state):
-        print("[ENTER] 入力ブロック中のため無効")
         return
 
     if text_renderer.is_displaying():
@@ -543,6 +580,12 @@ def advance_to_next_dialogue(game_state):
 
 def is_ir_idle(game_state):
     """IRアニメーションがアイドルか判定する（暫定）"""
+    if (game_state.get("cg_state") or {}).get("transition"):
+        return False
+    # A character fade is also a step-level animation. This includes a fade
+    # whose first frame has not been rendered yet.
+    if is_character_image_fading(game_state):
+        return False
     if not game_state.get("use_ir"):
         return True
     return not game_state.get("ir_anim_pending", False)
@@ -550,12 +593,22 @@ def is_ir_idle(game_state):
 def is_character_image_fading(game_state):
     """キャラクター画像のフェードが実時間上まだ進行中か判定する。"""
     now = pygame.time.get_ticks()
-    for part_map in game_state.get("character_part_fades", {}).values():
+    for transition in game_state.get("character_transitions", {}).values():
+        # Keep the step locked until update_character_transitions commits and
+        # removes it. This also closes the event/update boundary race at the
+        # exact frame a fade duration elapses.
+        return True
+
+    pending = game_state.get("character_fade_pending_render", {})
+    for char_name, part_map in game_state.get("character_part_fades", {}).items():
+        pending_parts = pending.get(char_name, set())
         for fade in part_map.values():
             duration = max(0, fade.get("duration", 0))
             start_time = fade.get("start_time", 0)
             if duration > 0 and now < start_time + duration:
                 return True
+        if any(part_type in part_map for part_type in pending_parts):
+            return True
 
     return any(
         now < end_time
@@ -563,9 +616,11 @@ def is_character_image_fading(game_state):
     )
 
 def is_input_blocked(game_state):
-    # キャラ画像の表示・差分切替・非表示フェードは、IR側の
+    # キャラ/CG画像の表示・差分切替・非表示フェードは、IR側の
     # on_advance 指定にかかわらず最後まで再生する。
     if is_character_image_fading(game_state):
+        return True
+    if (game_state.get("cg_state") or {}).get("transition"):
         return True
     if not game_state.get("use_ir"):
         return False
@@ -620,7 +675,7 @@ def _update_ir_active_anims(game_state):
         game_state["ir_anim_end_time"] = max(anim.get("end_time", 0) for anim in active_anims)
     else:
         game_state["ir_anim_pending"] = False
-    game_state["ir_anim_end_time"] = None
+        game_state["ir_anim_end_time"] = None
 
 def _ir_has_blocking_anims(game_state):
     active_anims = game_state.get("ir_active_anims") or []
@@ -665,12 +720,31 @@ def _ir_fast_forward_animations(game_state, duration_ms):
         bg_anim["start_time"] = start
         bg_anim["duration"] = dur
 
+    cg_state = game_state.get("cg_state", {})
+    cg_transition = cg_state.get("transition")
+    if cg_transition:
+        start, dur = retime(
+            cg_transition.get("start_time", now),
+            cg_transition.get("duration", 0),
+        )
+        cg_transition["start_time"] = start
+        cg_transition["duration"] = dur
+
     fades = game_state.get("character_part_fades", {})
     for part_map in fades.values():
         for fade in part_map.values():
             start, dur = retime(fade.get("start_time", now), fade.get("duration", 0))
             fade["start_time"] = start
             fade["duration"] = dur
+
+    transitions = game_state.get("character_transitions", {})
+    for transition in transitions.values():
+        start, dur = retime(
+            transition.get("start_time", now),
+            transition.get("duration", 0),
+        )
+        transition["start_time"] = start
+        transition["duration"] = dur
 
     hide_pending = game_state.get("character_hide_pending", {})
     for char_name, end_time in list(hide_pending.items()):
@@ -707,6 +781,9 @@ def update_game(game_state):
     
     # 背景アニメーションの更新
     update_background_animation(game_state)
+
+    # CGフェード・差分・移動アニメーションの更新
+    update_cg_animation(game_state)
     
     # フェードアニメーションの更新
     update_fade_animation(game_state)

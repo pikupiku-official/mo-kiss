@@ -141,6 +141,14 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'anim': None    # アニメーション情報
     }
 
+    cg_state = {
+        'storage': None,
+        'offset_x': 0.0,
+        'offset_y': 0.0,
+        'zoom': 1.0,
+        'transition': None,
+    }
+
     # まばたき関連の初期化
     character_blink_enabled = {}  # キャラクターごとのまばたき有効フラグ
     character_blink_state = {}    # キャラクターごとのまばたき状態
@@ -186,9 +194,12 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'character_blink_state': character_blink_state,
         'character_blink_timers': character_blink_timers,
         'character_part_fades': {},
+        'character_fade_pending_render': {},
+        'character_transitions': {},
         'character_hide_pending': {},
         'fade_state': fade_state,
         'background_state': background_state,
+        'cg_state': cg_state,
         'show_face_parts': True,
         'show_text': True,
         'seed_dialogue_session': None,

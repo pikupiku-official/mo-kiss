@@ -7,9 +7,16 @@ from .character_manager import (
     init_blink_system,
     start_character_part_fade,
     start_character_hide_fade,
+    start_character_transition,
 )
 from .background_manager import show_background, move_background
 from .fade_manager import start_fadeout, start_fadein
+from .cg_manager import (
+    show_cg,
+    shift_cg,
+    hide_cg,
+    cg_transition_duration_ms,
+)
 
 def advance_dialogue(game_state):
     """次の対話に進む"""
@@ -62,6 +69,16 @@ def advance_dialogue(game_state):
     # 背景移動コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BG_MOVE_"):
         return _handle_background_move(game_state, dialogue_text)
+
+    # CG表示・差分切替・非表示コマンド（旧リスト実行経路）
+    elif dialogue_text and dialogue_text.startswith("_CG_SHOW"):
+        return _handle_cg_show_legacy(game_state, current_dialogue)
+
+    elif dialogue_text and dialogue_text.startswith("_CG_SHIFT"):
+        return _handle_cg_shift_legacy(game_state, current_dialogue)
+
+    elif dialogue_text and dialogue_text.startswith("_CG_HIDE"):
+        return _handle_cg_hide_legacy(game_state, current_dialogue)
 
     # 選択肢コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_CHOICE_"):
@@ -229,14 +246,33 @@ def _ir_dispatch_action(game_state, action):
     target = action.get("target")
     params = action.get("params") or {}
 
+    cg_duration_override = None
+    character_duration_override = None
     if action_type == "chara_show":
         _ir_handle_character_show(game_state, target, params)
     elif action_type == "chara_shift":
-        _ir_handle_character_shift(game_state, target, params)
+        character_duration_override = _ir_handle_character_shift(
+            game_state, target, params
+        )
     elif action_type == "chara_hide":
         _ir_handle_character_hide(game_state, target, params)
     elif action_type == "chara_move":
         _ir_handle_character_move(game_state, target, params)
+    elif action_type == "cg_show":
+        result = _ir_handle_cg_show(game_state, params)
+        if result is False:
+            return
+        cg_duration_override = result
+    elif action_type == "cg_shift":
+        result = _ir_handle_cg_shift(game_state, params)
+        if result is False:
+            return
+        cg_duration_override = result
+    elif action_type == "cg_hide":
+        result = _ir_handle_cg_hide(game_state, params)
+        if result is False:
+            return
+        cg_duration_override = result
     elif action_type == "bg_show":
         _ir_handle_background_show(game_state, params)
     elif action_type == "bg_move":
@@ -264,7 +300,15 @@ def _ir_dispatch_action(game_state, action):
         _ir_handle_bgm_unpause(game_state, params)
     elif action_type == "bgm_end":
         _ir_handle_bgm_end(game_state, params)
-    _ir_register_action_animation(game_state, action)
+    _ir_register_action_animation(
+        game_state,
+        action,
+        duration_override=(
+            character_duration_override
+            if action_type == "chara_shift"
+            else cg_duration_override
+        ),
+    )
 
 def _ir_handle_scroll_stop(game_state):
     text_renderer = game_state.get("text_renderer")
@@ -318,6 +362,7 @@ def _ir_handle_character_show(game_state, target, params):
     # A show command starts a fresh fade-in. Do not let an interrupted hide or
     # an older shift keep controlling any of this character's layers.
     game_state.get("character_part_fades", {}).pop(target, None)
+    game_state.get("character_fade_pending_render", {}).pop(target, None)
 
     is_new_character = target not in game_state.get("active_characters", [])
     if is_new_character:
@@ -360,7 +405,7 @@ def _ir_handle_character_show(game_state, target, params):
 
 def _ir_handle_character_shift(game_state, target, params):
     if not target:
-        return
+        return 0
     active_characters = game_state.get("active_characters", [])
     if target not in active_characters:
         active_characters.append(target)
@@ -377,6 +422,11 @@ def _ir_handle_character_shift(game_state, target, params):
         "accessory": "",
     }).copy()
     old_torso = game_state.get("character_torso", {}).get(target, target)
+    old_pos = game_state.get("character_pos", {}).get(target)
+    old_pos = list(old_pos) if old_pos is not None else None
+    old_zoom = _to_float(
+        game_state.get("character_zoom", {}).get(target), 1.0
+    )
 
     torso_id = params.get("torso")
     image_manager = game_state.get("image_manager")
@@ -389,69 +439,164 @@ def _ir_handle_character_shift(game_state, target, params):
             if part_id:
                 image_manager.get_image(part_type, part_id)
 
-    if torso_id:
-        if "character_torso" not in game_state:
-            game_state["character_torso"] = {}
-        game_state["character_torso"][target] = torso_id
-    current_torso = game_state.get("character_torso", {}).get(target, target)
-    placement_img = image_manager.get_image("torso", current_torso) if image_manager else None
+    target_torso = torso_id or old_torso
+    placement_img = (
+        image_manager.get_image("torso", target_torso)
+        if image_manager else None
+    )
+
+    target_pos = list(old_pos) if old_pos is not None else None
+    target_zoom = old_zoom
     if placement_img:
         has_position_update = "x" in params or "y" in params or "size" in params
-        current_pos = game_state.get("character_pos", {}).get(target)
-        current_zoom = _to_float(game_state.get("character_zoom", {}).get(target), 1.0)
-        
-        if has_position_update or not current_pos:
+        if has_position_update or target_pos is None:
             current_center_x = 0.5
             current_center_y = 0.5
-            if current_pos:
+            if old_pos:
                 old_img = image_manager.get_image("torso", old_torso) if image_manager else None
                 center_img = old_img or placement_img
                 old_base_scale = VIRTUAL_HEIGHT / center_img.get_height()
-                virtual_left = (current_pos[0] - OFFSET_X) / SCALE
-                virtual_top = (current_pos[1] - OFFSET_Y) / SCALE
+                virtual_left = (old_pos[0] - OFFSET_X) / SCALE
+                virtual_top = (old_pos[1] - OFFSET_Y) / SCALE
                 current_center_x = (
-                    virtual_left
-                    + center_img.get_width() * old_base_scale * current_zoom / 2
+                    virtual_left + center_img.get_width() * old_base_scale * old_zoom / 2
                 ) / VIRTUAL_WIDTH
                 current_center_y = (
-                    virtual_top
-                    + center_img.get_height() * old_base_scale * current_zoom / 2
+                    virtual_top + center_img.get_height() * old_base_scale * old_zoom / 2
                 ) / VIRTUAL_HEIGHT
 
             show_x = _to_float(params.get("x"), current_center_x)
             show_y = _to_float(params.get("y"), current_center_y)
-            size = _to_float(params.get("size"), current_zoom)
+            size = _to_float(params.get("size"), old_zoom)
 
-            pos_x, pos_y = _ir_compute_character_placement(
+            target_pos = list(_ir_compute_character_placement(
                 placement_img, show_x, show_y, size
-            )
-            game_state["character_pos"][target] = [pos_x, pos_y]
-            game_state["character_zoom"][target] = size
-    _ir_update_expressions(game_state, target, params)
+            ))
+            target_zoom = size
 
-    new_expressions = game_state.get("character_expressions", {}).get(target, {})
+    target_expressions = old_expressions.copy()
+    for part_type in ("eye", "mouth", "brow", "cheek", "effect", "accessory"):
+        if part_type in params:
+            target_expressions[part_type] = (
+                params.get(part_type) if params.get(part_type) is not None else ""
+            )
+
+    if target_pos is None:
+        target_pos = [0, 0]
+    # A missing incoming torso cannot be composed; preserve the old
+    # expression-only fallback instead of creating an invisible blocking
+    # transition.
+    torso_changed = old_torso != target_torso and placement_img is not None
+    position_changed = (
+        old_pos is not None
+        and (target_pos != old_pos or abs(target_zoom - old_zoom) > 0.0001)
+    )
+
     changed_parts = {}
-    if torso_id and old_torso != current_torso:
-        changed_parts["torso"] = (old_torso, current_torso)
+    if torso_changed:
+        changed_parts["torso"] = (old_torso, target_torso)
     for part_type in ("brow", "eye", "mouth", "cheek", "effect", "accessory"):
         if part_type in params:
             old_id = old_expressions.get(part_type, "")
-            new_id = new_expressions.get(part_type, "")
+            new_id = target_expressions.get(part_type, "")
             if old_id != new_id:
                 changed_parts[part_type] = (old_id, new_id)
 
+    character_torso = game_state.setdefault("character_torso", {})
+    character_pos = game_state.setdefault("character_pos", {})
+    character_zoom = game_state.setdefault("character_zoom", {})
+    character_expressions = game_state.setdefault("character_expressions", {})
+
+    # A zero fade is an explicit immediate update and must not leave an older
+    # transition or per-part fade controlling the new state.
+    if fade_ms <= 0 or (not changed_parts and not position_changed):
+        character_torso[target] = target_torso
+        character_pos[target] = list(target_pos)
+        character_zoom[target] = target_zoom
+        character_expressions[target] = target_expressions
+        game_state.get("character_transitions", {}).pop(target, None)
+        game_state.get("character_part_fades", {}).pop(target, None)
+        game_state.get("character_fade_pending_render", {}).pop(target, None)
+        return 0
+
+    if position_changed:
+        # Keep the old pose visible until FO has completed. Then publish all
+        # target state at once and FI from the target coordinate.
+        character_torso[target] = old_torso
+        character_pos[target] = list(old_pos)
+        character_zoom[target] = old_zoom
+        character_expressions[target] = old_expressions
+        game_state.get("character_part_fades", {}).pop(target, None)
+        game_state.get("character_fade_pending_render", {}).pop(target, None)
+        return start_character_transition(
+            game_state,
+            target,
+            from_torso=old_torso,
+            from_expressions=old_expressions,
+            from_pos=old_pos,
+            from_zoom=old_zoom,
+            to_torso=target_torso,
+            to_expressions=target_expressions,
+            to_pos=target_pos,
+            to_zoom=target_zoom,
+            duration_ms=fade_ms,
+            relocation=True,
+        )
+
+    # Torso changes use one composited full-body crossfade. Keep the legacy
+    # torso fade record as metadata for old save/debug consumers, but remove
+    # its pending-render marker so it cannot run a second visual fade.
+    character_torso[target] = target_torso
+    character_pos[target] = list(target_pos)
+    character_zoom[target] = target_zoom
+    character_expressions[target] = target_expressions
+    if torso_changed:
+        start_character_part_fade(
+            game_state, target, "torso", old_torso, target_torso, fade_ms
+        )
+        pending = game_state.get("character_fade_pending_render", {}).get(target)
+        if pending is not None:
+            pending.discard("torso")
+            if not pending:
+                game_state["character_fade_pending_render"].pop(target, None)
+        return start_character_transition(
+            game_state,
+            target,
+            from_torso=old_torso,
+            from_expressions=old_expressions,
+            from_pos=target_pos,
+            from_zoom=target_zoom,
+            to_torso=target_torso,
+            to_expressions=target_expressions,
+            to_pos=target_pos,
+            to_zoom=target_zoom,
+            duration_ms=fade_ms,
+            relocation=False,
+        )
+
     if fade_ms > 0:
+        # Large character assets may take longer than a short transition to
+        # scale on their first draw.  Warm both endpoints before starting the
+        # wall-clock fade so the preview cannot skip the transition frame.
+        from .character_manager import prewarm_character_fade_images
+        prewarm_character_fade_images(game_state, target, changed_parts)
         for part_type, (old_id, new_id) in changed_parts.items():
             start_character_part_fade(
                 game_state, target, part_type, old_id, new_id, fade_ms
             )
+        return fade_ms if changed_parts else 0
     else:
         # An immediate shift supersedes an older transition for the same layers.
         active_fades = game_state.get("character_part_fades", {}).get(target, {})
+        pending_fades = game_state.get("character_fade_pending_render", {}).get(target, set())
         for part_type in changed_parts:
             active_fades.pop(part_type, None)
+            pending_fades.discard(part_type)
         if not active_fades:
             game_state.get("character_part_fades", {}).pop(target, None)
+        if not pending_fades:
+            game_state.get("character_fade_pending_render", {}).pop(target, None)
+    return 0
 
 
 def _ir_handle_character_hide(game_state, target, params):
@@ -471,6 +616,18 @@ def _ir_handle_character_move(game_state, target, params):
     duration = _to_int(params.get("time"), 600)
     zoom = _to_float(params.get("zoom"), 1.0)
     move_character(game_state, target, left, top, duration, zoom)
+
+
+def _ir_handle_cg_show(game_state, params):
+    return show_cg(game_state, params.get("storage"), params)
+
+
+def _ir_handle_cg_shift(game_state, params):
+    return shift_cg(game_state, params)
+
+
+def _ir_handle_cg_hide(game_state, params):
+    return hide_cg(game_state, params)
 
 def _ir_handle_background_show(game_state, params):
     storage = params.get("storage")
@@ -643,12 +800,14 @@ def _ir_get_action_duration_ms(action_type, params):
         return _to_int((params or {}).get("time"), 600)
     if action_type == "bg_move":
         return _to_int((params or {}).get("time"), 600)
+    if action_type in ("cg_show", "cg_shift", "cg_hide"):
+        return cg_transition_duration_ms(params or {}, action_type)
     if action_type in ("fadeout", "fadein"):
         return int(_to_float((params or {}).get("time"), 1.0) * 1000)
     return 0
 
 def _ir_default_on_advance(action_type):
-    if action_type in ("chara_show", "chara_shift", "chara_hide"):
+    if action_type in ("chara_show", "chara_shift", "chara_hide", "cg_show", "cg_shift", "cg_hide"):
         return "block"
     if action_type in ("fadeout", "fadein"):
         return "complete"
@@ -656,13 +815,17 @@ def _ir_default_on_advance(action_type):
         return "complete"
     return None
 
-def _ir_register_action_animation(game_state, action):
+def _ir_register_action_animation(game_state, action, duration_override=None):
     action_type = action.get("action")
     anim = action.get("animation") or {}
     on_advance = anim.get("on_advance") or _ir_default_on_advance(action_type)
     if on_advance not in ("block", "complete", "interrupt"):
         return
-    duration_ms = _ir_get_action_duration_ms(action_type, action.get("params") or {})
+    duration_ms = (
+        duration_override
+        if duration_override is not None
+        else _ir_get_action_duration_ms(action_type, action.get("params") or {})
+    )
     if duration_ms <= 0:
         return
     end_time = pygame.time.get_ticks() + duration_ms
@@ -908,6 +1071,37 @@ def _handle_background_move(game_state, dialogue_text):
     
     # 背景移動コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
+
+
+def _legacy_cg_params(current_dialogue):
+    if isinstance(current_dialogue, list) and len(current_dialogue) > 13:
+        metadata = current_dialogue[13]
+        if isinstance(metadata, dict):
+            return metadata
+    return {}
+
+
+def _handle_cg_show_legacy(game_state, current_dialogue):
+    result = show_cg(game_state, _legacy_cg_params(current_dialogue).get("storage"), _legacy_cg_params(current_dialogue))
+    # A missing asset is a no-op, so do not leave the player on a command with
+    # no visual transition to finish.
+    if result is False or result == 0:
+        return advance_dialogue(game_state)
+    return True
+
+
+def _handle_cg_shift_legacy(game_state, current_dialogue):
+    result = shift_cg(game_state, _legacy_cg_params(current_dialogue))
+    if result is False or result == 0:
+        return advance_dialogue(game_state)
+    return True
+
+
+def _handle_cg_hide_legacy(game_state, current_dialogue):
+    result = hide_cg(game_state, _legacy_cg_params(current_dialogue))
+    if result is False or result == 0:
+        return advance_dialogue(game_state)
+    return True
 
 def _handle_choice(game_state, dialogue_text, current_dialogue):
     """選択肢を処理"""

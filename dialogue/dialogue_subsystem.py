@@ -400,6 +400,8 @@ class DialogueSubsystem(SubsystemBase):
         )
         gs["character_anim"] = {}
         gs["character_part_fades"] = {}
+        gs["character_fade_pending_render"] = {}
+        gs["character_transitions"] = {}
         gs["character_hide_pending"] = {}
         gs["character_blink_state"] = {}
         gs["character_blink_timers"] = {}
@@ -478,6 +480,7 @@ class DialogueSubsystem(SubsystemBase):
         """画面描画: 仮想画面に描画してフルスクリーンにスケーリング転送"""
         from dialogue.background_manager import draw_background
         from dialogue.character_manager import draw_characters
+        from dialogue.cg_manager import draw_cg
         from dialogue.fade_manager import draw_fade_overlay
         from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
 
@@ -488,6 +491,7 @@ class DialogueSubsystem(SubsystemBase):
 
         # 背景・キャラクター・フェード
         draw_background(gs)
+        draw_cg(gs)
         draw_characters(gs)
         draw_fade_overlay(gs)
 

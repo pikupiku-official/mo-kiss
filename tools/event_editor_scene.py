@@ -270,7 +270,53 @@ class StepSceneStateBuilder:
         return {
             "background": None,
             "characters": {},
+            "cg": None,
         }
+
+    def _cg_image_size(self, storage):
+        return self._image_size("cg", storage)
+
+    def _cg_limits(self, storage, zoom):
+        width, height = self._cg_image_size(storage)
+        display_height = VIRTUAL_HEIGHT * max(float(zoom), 0.1)
+        display_width = display_height * width / max(height, 1)
+        return (
+            max(0.0, (display_width - VIRTUAL_WIDTH) / 2),
+            max(0.0, (display_height - VIRTUAL_HEIGHT) / 2),
+        )
+
+    def _cg_clamp_offset(self, storage, offset_x, offset_y, zoom):
+        limit_x, limit_y = self._cg_limits(storage, zoom)
+        return {
+            "offset_x": max(-limit_x, min(limit_x, float(offset_x))),
+            "offset_y": max(-limit_y, min(limit_y, float(offset_y))),
+        }
+
+    def _show_cg(self, params):
+        storage = (params.get("storage") or "").strip()
+        if not storage:
+            return None
+        return {
+            "storage": storage,
+            "offset_x": 0.0,
+            "offset_y": 0.0,
+            "zoom": 1.0,
+        }
+
+    def _shift_cg(self, cg, params):
+        if not cg:
+            return cg
+        next_cg = dict(cg)
+        storage = (params.get("storage") or next_cg.get("storage") or "").strip()
+        if storage:
+            next_cg["storage"] = storage
+        zoom = _to_float(params.get("zoom"), next_cg.get("zoom", 1.0))
+        zoom = max(0.1, min(4.0, zoom))
+        offset_x = next_cg.get("offset_x", 0.0) + _to_float(params.get("left"), 0.0) * VIRTUAL_WIDTH
+        offset_y = next_cg.get("offset_y", 0.0) + _to_float(params.get("top"), 0.0) * VIRTUAL_HEIGHT
+        next_cg.update(self._cg_clamp_offset(storage, offset_x, offset_y, zoom))
+        next_cg["zoom"] = zoom
+        return next_cg
 
     def _display_size(self, character, torso=None, zoom=None):
         torso = torso if torso is not None else character.get("torso", "")
@@ -364,6 +410,21 @@ class StepSceneStateBuilder:
                 state.get("background"), params
             )
             changes["background"] = "move"
+            return
+
+        if tag == "cg_show":
+            state["cg"] = self._show_cg(params)
+            changes["cg"] = "show"
+            return
+
+        if tag == "cg_shift":
+            state["cg"] = self._shift_cg(state.get("cg"), params)
+            changes["cg"] = "shift"
+            return
+
+        if tag == "cg_hide":
+            state["cg"] = None
+            changes["cg"] = "hide"
             return
 
         if tag not in ("chara_show", "chara_shift", "chara_move", "chara_hide"):
@@ -524,6 +585,13 @@ class StepSceneStateBuilder:
             else:
                 background["origin"] = "inherited"
 
+        cg = state.get("cg")
+        if cg:
+            if changes.get("cg"):
+                cg["origin"] = "current" if not before.get("cg") else "modified"
+            else:
+                cg["origin"] = "inherited"
+
         result = {
             "step_index": target,
             "before": before,
@@ -671,6 +739,38 @@ class StepSceneCanvas(QGraphicsView):
         )
         self._scene.addItem(item)
 
+    def _add_cg(self, cg):
+        storage = (cg.get("storage") or "").strip()
+        path = self._asset_path("cg", storage)
+        image = load_qimage(path)
+        if image.isNull():
+            return
+        zoom = max(0.1, _to_float(cg.get("zoom"), 1.0))
+        height = max(1, round(VIRTUAL_HEIGHT * zoom))
+        width = max(1, round(image.width() * height / max(image.height(), 1)))
+        pixmap = QPixmap.fromImage(
+            image.scaled(width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+        )
+        item = QGraphicsPixmapItem(pixmap)
+        item.setPos(
+            VIRTUAL_WIDTH / 2 - width / 2 + float(cg.get("offset_x", 0.0)),
+            VIRTUAL_HEIGHT / 2 - height / 2 + float(cg.get("offset_y", 0.0)),
+        )
+        item.setZValue(5)
+        item.setFlag(QGraphicsItem.ItemIsMovable, True)
+        metadata = dict(cg)
+        metadata["object_type"] = "cg"
+        self._tag_item(item, "cg", storage, cg.get("origin", "inherited"), metadata)
+        self._scene.addItem(item)
+        label = QGraphicsSimpleTextItem(f"CG {storage}")
+        label.setBrush(QColor(255, 255, 255))
+        label.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+        label.setAcceptedMouseButtons(Qt.NoButton)
+        label.setPos(item.pos().x() + 8, max(0, item.pos().y() + 8))
+        label.setZValue(100)
+        self._scene.addItem(label)
+        self._labels_by_key[("cg", storage)] = label
+
     def _add_character(self, character, z_value):
         name = character.get("name", "")
         origin = character.get("origin", "inherited")
@@ -731,10 +831,14 @@ class StepSceneCanvas(QGraphicsView):
         if background:
             self._add_background(background)
 
-        for index, character in enumerate(state.get("characters", {}).values()):
-            self._add_character(character, 10 + index)
+        cg = state.get("cg")
+        if cg:
+            self._add_cg(cg)
+        else:
+            for index, character in enumerate(state.get("characters", {}).values()):
+                self._add_character(character, 10 + index)
 
-        if not background and not state.get("characters"):
+        if not background and not state.get("characters") and not cg:
             empty = self._scene.addText("このstepまでに表示されるオブジェクトはありません")
             empty.setDefaultTextColor(QColor(170, 170, 170))
             empty.setPos(VIRTUAL_WIDTH / 2 - 250, VIRTUAL_HEIGHT / 2 - 20)
@@ -815,6 +919,21 @@ class StepSceneCanvas(QGraphicsView):
         self._scale_commit_timer.stop()
         self._pending_scale = None
 
+    def mark_object_modified(self, object_type, name, metadata_updates=None):
+        """Update origin metadata for a character or CG scene object."""
+        for item in self._scene.items():
+            if item.data(0) != object_type or item.data(1) != name:
+                continue
+            item.setData(2, "modified")
+            metadata = dict(item.data(3) or {})
+            metadata["origin"] = "modified"
+            metadata.update(metadata_updates or {})
+            item.setData(3, metadata)
+            label = self._labels_by_key.get((object_type, name))
+            if label is not None:
+                label.setText(f"{name}  [modified]")
+            return
+
     def mark_character_modified(self, name, metadata_updates=None):
         """Update origin metadata without rebuilding all character layers."""
         for item in self._scene.items():
@@ -836,13 +955,13 @@ class StepSceneCanvas(QGraphicsView):
 
     def wheelEvent(self, event):
         if event.modifiers() & Qt.ShiftModifier:
-            item = self._character_item_at(event.pos())
+            item = self._editable_item_at(event.pos())
             if item is None:
                 item = next(
                     (
                         selected
                         for selected in self._scene.selectedItems()
-                        if selected.data(0) == "character"
+                        if selected.data(0) in ("character", "cg")
                     ),
                     None,
                 )
@@ -850,7 +969,8 @@ class StepSceneCanvas(QGraphicsView):
                 metadata = dict(item.data(3) or {})
                 current_zoom = float(metadata.get("zoom", 1.0))
                 wheel_steps = event.angleDelta().y() / 120.0
-                new_zoom = max(0.1, min(5.0, current_zoom * (1.08 ** wheel_steps)))
+                zoom_limit = 4.0 if item.data(0) == "cg" else 5.0
+                new_zoom = max(0.1, min(zoom_limit, current_zoom * (1.08 ** wheel_steps)))
                 if current_zoom > 0:
                     item.setScale(item.scale() * new_zoom / current_zoom)
                 metadata["zoom"] = new_zoom
@@ -883,7 +1003,7 @@ class StepSceneCanvas(QGraphicsView):
             (
                 item
                 for item in self._scene.selectedItems()
-                if item.data(0) == "character"
+                if item.data(0) in ("character", "cg")
             ),
             None,
         )
@@ -892,7 +1012,7 @@ class StepSceneCanvas(QGraphicsView):
             delta_x = -amount if key == Qt.Key_Left else amount if key == Qt.Key_Right else 0.0
             delta_y = -amount if key == Qt.Key_Up else amount if key == Qt.Key_Down else 0.0
             selected_character.moveBy(delta_x, delta_y)
-            key_tuple = ("character", str(selected_character.data(1) or ""))
+            key_tuple = (str(selected_character.data(0) or ""), str(selected_character.data(1) or ""))
             label = self._labels_by_key.get(key_tuple)
             if label is not None:
                 label.setPos(
@@ -921,12 +1041,12 @@ class StepSceneCanvas(QGraphicsView):
         # treats every non-character point as stage space.  Background editing
         # remains an explicit entry in the stage menu instead of stealing the
         # empty-space menu everywhere.
-        item = self._character_item_at(event.pos())
+        item = self._editable_item_at(event.pos())
         if item is not None:
             self._scene.clearSelection()
             item.setSelected(True)
             self.context_requested.emit(
-                "character",
+                str(item.data(0) or "stage"),
                 str(item.data(1) or ""),
                 str(item.data(2) or ""),
                 event.globalPos(),
@@ -942,13 +1062,19 @@ class StepSceneCanvas(QGraphicsView):
                 return item
         return None
 
+    def _editable_item_at(self, viewport_pos):
+        for item in self.items(viewport_pos):
+            if item.data(0) in ("character", "cg"):
+                return item
+        return None
+
     def _sync_dragged_label(self):
         if self._drag_item is None:
             return
         self._sync_dragged_label_for_item(self._drag_item)
 
     def _sync_dragged_label_for_item(self, item):
-        key = ("character", str(item.data(1) or ""))
+        key = (str(item.data(0) or ""), str(item.data(1) or ""))
         label = self._labels_by_key.get(key)
         if label is not None:
             label.setPos(
@@ -974,7 +1100,7 @@ class StepSceneCanvas(QGraphicsView):
                     self._resize_current_zoom = self._resize_start_zoom
                     event.accept()
                     return
-            item = self._character_item_at(event.pos())
+            item = self._editable_item_at(event.pos())
             if item is not None:
                 self._drag_item = item
                 self._drag_start_pos = item.pos()
