@@ -62,6 +62,21 @@ def test_background_storage_uses_editable_asset_dropdown():
         "classroom",
         "street",
     ]
+    browse_button = dialog.findChild(QPushButton, "storageBrowseButton")
+    assert browse_button is not None
+
+
+def test_asset_dropdown_does_not_size_editor_to_longest_filename(monkeypatch, tmp_path):
+    bgm_dir = tmp_path / "sounds" / "bgms"
+    bgm_dir.mkdir(parents=True)
+    (bgm_dir / ("a" * 80 + ".ogg")).write_bytes(b"test")
+    monkeypatch.setattr(event_editor, "project_root", str(tmp_path))
+
+    dialog = _dialog('bgm bgm="' + "a" * 80 + '.ogg"')
+    field = dialog.custom_fields["bgm"]
+
+    assert field.minimumWidth() == 0
+    assert field.sizeAdjustPolicy() == QComboBox.AdjustToMinimumContentsLengthWithIcon
 
 
 def test_se_uses_dropdown_and_preview_buttons(monkeypatch, tmp_path):

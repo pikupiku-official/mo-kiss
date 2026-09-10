@@ -3404,6 +3404,11 @@ class StepEditorDialog(Win2000FramelessDialog):
             elif field_type in ("bg_asset", "bgm_asset", "se_asset"):
                 field = QComboBox()
                 field.setEditable(True)
+                # Do not let a long asset filename become the minimum width of
+                # the whole action editor pane.
+                field.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+                field.setMinimumContentsLength(12)
+                field.setMinimumWidth(0)
                 field.addItem("")
                 field.addItems(self._editor_asset_options(field_type))
             else:
@@ -3429,23 +3434,29 @@ class StepEditorDialog(Win2000FramelessDialog):
                 wrapper_layout.addWidget(slider, 1)
                 wrapper_layout.addWidget(field)
                 self.custom_editor_layout.addRow(label, wrapper)
-            elif field_type in ("bgm_asset", "se_asset"):
+            elif field_type in ("bg_asset", "bgm_asset", "se_asset"):
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
                 wrapper_layout.setContentsMargins(0, 0, 0, 0)
                 wrapper_layout.addWidget(field, 1)
-                play_btn = QPushButton("▶ 試聴")
-                stop_btn = QPushButton("■")
-                play_btn.setObjectName(f"{key}PreviewButton")
-                stop_btn.setObjectName(f"{key}PreviewStopButton")
-                if field_type == "bgm_asset":
-                    play_btn.clicked.connect(self._preview_selected_bgm)
-                    stop_btn.clicked.connect(self._stop_bgm_preview)
+                if field_type == "bg_asset":
+                    browse_btn = QPushButton("参照...")
+                    browse_btn.setObjectName(f"{key}BrowseButton")
+                    browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_asset(k))
+                    wrapper_layout.addWidget(browse_btn)
                 else:
-                    play_btn.clicked.connect(self._preview_selected_se)
-                    stop_btn.clicked.connect(self._stop_se_preview)
-                wrapper_layout.addWidget(play_btn)
-                wrapper_layout.addWidget(stop_btn)
+                    play_btn = QPushButton("▶ 試聴")
+                    stop_btn = QPushButton("■")
+                    play_btn.setObjectName(f"{key}PreviewButton")
+                    stop_btn.setObjectName(f"{key}PreviewStopButton")
+                    if field_type == "bgm_asset":
+                        play_btn.clicked.connect(self._preview_selected_bgm)
+                        stop_btn.clicked.connect(self._stop_bgm_preview)
+                    else:
+                        play_btn.clicked.connect(self._preview_selected_se)
+                        stop_btn.clicked.connect(self._stop_se_preview)
+                    wrapper_layout.addWidget(play_btn)
+                    wrapper_layout.addWidget(stop_btn)
                 self.custom_editor_layout.addRow(label, wrapper)
             elif field_type == "text" and key in self.BROWSE_KEYS:
                 wrapper = QWidget()
