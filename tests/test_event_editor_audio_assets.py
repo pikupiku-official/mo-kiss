@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QSlider,
 )
+from PyQt5.QtGui import QImage
 
 import event_editor
 from event_editor import StepEditorDialog
@@ -64,6 +65,25 @@ def test_background_storage_uses_editable_asset_dropdown():
     ]
     browse_button = dialog.findChild(QPushButton, "storageBrowseButton")
     assert browse_button is not None
+
+
+def test_background_dropdown_shows_thumbnail_and_explorer_selection(monkeypatch, tmp_path):
+    image_path = tmp_path / "classroom.png"
+    image = QImage(160, 90, QImage.Format_RGB32)
+    image.fill(0x336699)
+    assert image.save(str(image_path))
+    manager = SimpleNamespace(image_paths={"bg": {"classroom": str(image_path)}})
+    dialog = _dialog('bg storage="classroom"', manager=manager)
+    field = dialog.custom_fields["storage"]
+
+    assert not field.itemIcon(field.findText("classroom")).isNull()
+    monkeypatch.setattr(
+        event_editor.QFileDialog,
+        "getOpenFileName",
+        lambda *args, **kwargs: (str(image_path), "Images (*.png)"),
+    )
+    dialog._browse_for_asset("storage")
+    assert field.currentText() == "classroom"
 
 
 def test_asset_dropdown_does_not_size_editor_to_longest_filename(monkeypatch, tmp_path):
