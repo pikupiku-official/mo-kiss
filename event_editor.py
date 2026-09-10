@@ -42,7 +42,7 @@ from PyQt5.QtCore import (
     QEasingCurve, QParallelAnimationGroup, QPropertyAnimation,
 )
 from PyQt5.QtGui import (
-    QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter, QIcon,
+    QFont, QTextCursor, QTextCharFormat, QColor, QPixmap, QImage, QPainter,
     QPalette, QLinearGradient,
 )
 
@@ -3401,7 +3401,12 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setDecimals(2)
                 field.setSingleStep(0.01)
                 field.setMaximumWidth(76)
-            elif field_type in ("bg_asset", "bgm_asset", "se_asset"):
+            elif field_type == "bg_asset":
+                # Backgrounds are selected through the native file dialog.
+                # Do not enumerate/load all background images while opening a
+                # step editor; the dialog can show thumbnails on demand.
+                field = QLineEdit()
+            elif field_type in ("bgm_asset", "se_asset"):
                 field = QComboBox()
                 field.setEditable(True)
                 # Do not let a long asset filename become the minimum width of
@@ -3411,21 +3416,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setMinimumWidth(0)
                 field.addItem("")
                 options = self._editor_asset_options(field_type)
-                if field_type == "bg_asset":
-                    paths = getattr(self._image_manager, "image_paths", {}) or {}
-                    bg_paths = paths.get("bg", {}) or {}
-                    field.setIconSize(QSize(96, 54))
-                    for name in options:
-                        pixmap = QPixmap(bg_paths.get(name, ""))
-                        if not pixmap.isNull():
-                            pixmap = pixmap.scaled(
-                                96, 54, Qt.KeepAspectRatio, Qt.SmoothTransformation
-                            )
-                            field.addItem(QIcon(pixmap), name)
-                        else:
-                            field.addItem(name)
-                else:
-                    field.addItems(options)
+                field.addItems(options)
             else:
                 field = QLineEdit()
             self.custom_fields[key] = field
