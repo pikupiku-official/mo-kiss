@@ -19,6 +19,7 @@ def normalize_dialogue_data(raw_data):
 
     normalized_data = CustomList()
     character_torso = {}
+    character_face_parts = {}
     current_bg = None  # 初期背景はなし
     current_char = None
     current_eye = ""
@@ -69,12 +70,23 @@ def normalize_dialogue_data(raw_data):
             torso_id = entry.get('torso', character_torso.get(char_name, char_name))
             character_torso[char_name] = torso_id
             current_char = torso_id
-            current_eye = entry.get('eye', '')
-            current_mouth = entry.get('mouth', '')
-            current_brow = entry.get('brow', '')
-            current_cheek = entry.get('cheek', '')
-            current_effect = entry.get('effect', '')
-            current_accessory = entry.get('accessory', '')
+            face_parts = character_face_parts.setdefault(char_name, {
+                'eye': '',
+                'mouth': '',
+                'brow': '',
+                'cheek': '',
+                'effect': '',
+                'accessory': '',
+            })
+            for part in ('eye', 'mouth', 'brow', 'cheek', 'effect', 'accessory'):
+                if part in entry and entry[part] is not None:
+                    face_parts[part] = entry[part]
+            current_eye = face_parts['eye']
+            current_mouth = face_parts['mouth']
+            current_brow = face_parts['brow']
+            current_cheek = face_parts['cheek']
+            current_effect = face_parts['effect']
+            current_accessory = face_parts['accessory']
             show_x = entry.get('x')
             show_y = entry.get('y')
             size = entry.get('size')
@@ -110,6 +122,14 @@ def normalize_dialogue_data(raw_data):
             current_mouth = entry['mouth']
             current_brow = entry['brow']
             current_cheek = entry.get('cheek', '')
+            character_face_parts[char_name] = {
+                'eye': current_eye,
+                'mouth': current_mouth,
+                'brow': current_brow,
+                'cheek': current_cheek,
+                'effect': current_effect,
+                'accessory': current_accessory,
+            }
             current_blink = entry.get('blink', True)
             show_x = entry.get('show_x', 0.5)
             show_y = entry.get('show_y', 0.5)

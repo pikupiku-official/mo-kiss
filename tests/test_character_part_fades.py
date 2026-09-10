@@ -48,6 +48,46 @@ def test_chara_shift_fade_survives_normalization_and_ir_build():
     assert action["params"]["y"] == 1.0
 
 
+def test_normalized_partial_chara_shift_preserves_each_characters_parts():
+    raw = [
+        {
+            "type": "character",
+            "name": "alice",
+            "torso": "A_T00",
+            "eye": "A_EYE01",
+            "mouth": "A_MOUTH01",
+            "brow": "A_BROW01",
+            "cheek": "A_CHEEK01",
+            "effect": "A_EFFECT01",
+            "accessory": "A_ACCESSORY01",
+        },
+        {
+            "type": "character",
+            "name": "bob",
+            "torso": "B_T00",
+            "eye": "B_EYE01",
+            "mouth": "B_MOUTH01",
+            "brow": "B_BROW01",
+            "cheek": "B_CHEEK01",
+            "effect": "B_EFFECT01",
+            "accessory": "B_ACCESSORY01",
+        },
+        {"type": "chara_shift", "name": "alice", "eye": "A_EYE02"},
+    ]
+
+    ir = build_ir_from_normalized(normalize_dialogue_data(raw))
+    shift_action = ir["steps"][0]["actions"][2]
+
+    assert shift_action["target"] == "alice"
+    assert shift_action["params"] == {
+        "torso": "A_T00",
+        "eye": "A_EYE02",
+        "mouth": "A_MOUTH01",
+        "brow": "A_BROW01",
+        "cheek": "A_CHEEK01",
+    }
+
+
 def test_chara_shift_accessory_does_not_capture_y_and_keeps_torso():
     loader = DialogueLoader()
     parsed = loader._parse_ks_content(
