@@ -513,7 +513,8 @@ class DialogueLoader:
                         show_y = re.search(r'(?:^|\s)y="([^"]+)"', line)
                         size = re.search(r'(?:^|\s)size="([^"]+)"', line)
                         fade = re.search(r'fade="([^"]+)"', line)
-                        fade_time = re.search(r'time="([^"]+)"', line)
+                        move_mode = re.search(r'move="([^"]+)"', line)
+                        shift_time = re.search(r'time="([^"]+)"', line)
 
                         if char_name:
                             current_char = char_name.group(1)
@@ -569,7 +570,11 @@ class DialogueLoader:
                             current_shift_x = float(show_x.group(1)) if show_x else None
                             current_shift_y = float(show_y.group(1)) if show_y else None
                             current_shift_size = float(size.group(1)) if size else None
-                            fade_source = fade.group(1) if fade else (fade_time.group(1) if fade_time else None)
+                            fade_source = (
+                                fade.group(1)
+                                if fade
+                                else (shift_time.group(1) if shift_time and not move_mode else None)
+                            )
                             shift_fade = None
                             if fade_source is not None:
                                 try:
@@ -602,6 +607,12 @@ class DialogueLoader:
                                 shift_entry['size'] = current_shift_size
                             if shift_fade is not None:
                                 shift_entry['fade'] = shift_fade
+                            if move_mode:
+                                shift_entry['move'] = move_mode.group(1)
+                                if shift_time:
+                                    shift_entry['time'] = self._parse_float_or_none(
+                                        shift_time.group(1)
+                                    )
                             dialogue_data.append(shift_entry)
                         else:
                             if self.debug:
@@ -682,6 +693,7 @@ class DialogueLoader:
                         bgm_volume = re.search(r'volume="([^"]+)"', line, re.IGNORECASE)
                         bgm_loop = re.search(r'loop="([^"]+)"', line, re.IGNORECASE)
                         bgm_fade = re.search(r'(?:fade|fade_time)="([^"]+)"', line, re.IGNORECASE)
+                        bgm_start = re.search(r'start="([^"]+)"', line, re.IGNORECASE)
                         if bgm_parts:
                             # BGMファイル名をそのまま使用
                             current_bgm = bgm_parts.group(1)
@@ -689,6 +701,7 @@ class DialogueLoader:
                             current_bgm_volume = float(bgm_volume.group(1)) if bgm_volume else DEFAULT_BGM_VOLUME
                             current_bgm_loop = bgm_loop.group(1).lower() == "true" if bgm_loop else DEFAULT_BGM_LOOP
                             fade_time = float(bgm_fade.group(1)) if bgm_fade else 0.0
+                            start_time = float(bgm_start.group(1)) if bgm_start else 0.0
                             
                             # デバッグ出力削除
 
@@ -698,6 +711,7 @@ class DialogueLoader:
                                 'volume': current_bgm_volume,
                                 'loop': current_bgm_loop,
                                 'fade_time': fade_time,
+                                'start': start_time,
                             })
                                 
                     except Exception as e:
@@ -714,11 +728,15 @@ class DialogueLoader:
                         se_volume = re.search(r'volume="([^"]+)"', line, re.IGNORECASE)
                         se_frequency = re.search(r'frequency="([^"]+)"', line, re.IGNORECASE)
                         se_block = re.search(r'block="([^"]+)"', line, re.IGNORECASE)
+                        se_start = re.search(r'start="([^"]+)"', line, re.IGNORECASE)
+                        se_end = re.search(r'end="([^"]+)"', line, re.IGNORECASE)
                         if se_parts:
                             se_name = se_parts.group(1)
                             se_vol = float(se_volume.group(1)) if se_volume else 0.5
                             se_freq = int(se_frequency.group(1)) if se_frequency else 1
                             se_blk = se_block.group(1).lower() == "true" if se_block else False
+                            se_start_time = float(se_start.group(1)) if se_start else 0.0
+                            se_end_time = float(se_end.group(1)) if se_end else None
                             
                             dialogue_data.append({
                                 'type': 'se',
@@ -726,6 +744,8 @@ class DialogueLoader:
                                 'volume': se_vol,
                                 'frequency': se_freq,
                                 'block': se_blk,
+                                'start': se_start_time,
+                                'end': se_end_time,
                             })
                                 
                     except Exception as e:

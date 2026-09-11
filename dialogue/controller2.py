@@ -838,6 +838,11 @@ def update_game(game_state):
             bgm_name = current_dialogue[7]
             bgm_volume = current_dialogue[8]
             bgm_loop = current_dialogue[9] if len(current_dialogue) > 9 else True
+            bgm_metadata = (
+                current_dialogue[13]
+                if len(current_dialogue) > 13 and isinstance(current_dialogue[13], dict)
+                else {}
+            )
             
             # BGM?????????????????
             if bgm_name:
@@ -846,7 +851,15 @@ def update_game(game_state):
                 
                 if (actual_bgm_filename and 
                     actual_bgm_filename != bgm_manager.current_bgm):
-                    success = bgm_manager.play_bgm(actual_bgm_filename, bgm_volume, bgm_loop)
+                    bgm_start = float(bgm_metadata.get("start", 0.0) or 0.0)
+                    if bgm_start > 0:
+                        success = bgm_manager.play_bgm(
+                            actual_bgm_filename, bgm_volume, bgm_loop, start=bgm_start
+                        )
+                    else:
+                        success = bgm_manager.play_bgm(
+                            actual_bgm_filename, bgm_volume, bgm_loop
+                        )
 
 # 新しい遅延設定用のヘルパー関数
 def configure_text_delays(game_state, punctuation_delay=None, paragraph_transition_delay=None):

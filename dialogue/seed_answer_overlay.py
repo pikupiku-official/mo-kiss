@@ -194,7 +194,8 @@ class SeedAnswerOverlay:
             return f"{value:.4f}" if isinstance(value, (int, float)) else "-"
 
         return [
-            f"MODEL          {self.seed_manager.model_status()}",
+            "MODEL          "
+            f"{self.seed_manager.model_status_for_turning_point(self.turning_point_id)}",
             f"RESULT         {verdict.get('result', '-')}",
             f"POS            {score('semantic_score')}",
             f"NEG            {score('hard_negative_score')}",

@@ -1,15 +1,8 @@
 イベントID,実行日時,実行回数,有効フラグ
-<<<<<<< HEAD
-E001,平成１１年（１９９９年）５月３１日（月）昼,1,TRUE
-E002,,0,TRUE
-E003,,0,TRUE
-E004,平成１１年（１９９９年）６月１日（火）朝,1,TRUE
-=======
 E001,,0,TRUE
 E002,,0,FALSE
 E003,,0,FALSE
 E004,,0,FALSE
->>>>>>> 7613db04247ec35b2ac140c63a0e66b9a631b7b8
 E005,,0,TRUE
 E006,,0,TRUE
 E007,,0,TRUE
@@ -72,13 +65,9 @@ E063,,0,TRUE
 E064,,0,TRUE
 E065,,0,TRUE
 E066,,0,TRUE
-TANE_MASUDA_01,平成１１年（１９９９年）５月３１日（月）朝,1,FALSE
-<<<<<<< HEAD
-TANE_MASUDA_02,,0,TRUE
+TANE_MASUDA_01,,0,TRUE
+TANE_MASUDA_02,,0,FALSE
 TANE_MASUDA_03,,0,FALSE
 TANE_MASUDA_TP1,,0,FALSE
-=======
-TANE_MASUDA_02,平成１１年（１９９９年）５月３１日（月）昼,1,FALSE
-TANE_MASUDA_03,平成１１年（１９９９年）６月１日（火）朝,1,FALSE
-TANE_MASUDA_TP1,平成１１年（１９９９年）６月１日（火）昼,1,TRUE
->>>>>>> 7613db04247ec35b2ac140c63a0e66b9a631b7b8
+DEV_MOMOKO_SEEDS,平成１１年（１９９９年）５月３１日（月）朝,1,TRUE
+AforFLD.E009,平成１１年（１９９９年）５月３１日（月）昼,1,TRUE

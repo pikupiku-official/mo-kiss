@@ -33,7 +33,32 @@ class SEManager:
         
         return True
 
-    def play_se(self, filename, volume=0.5, frequency=1):
+    def _trim_sound(self, sound, start=0.0, end=None):
+        """Create a mixer-compatible PCM slice of a decoded sound."""
+        try:
+            start = max(0.0, float(start or 0.0))
+            end = None if end in (None, "") else max(0.0, float(end))
+        except (TypeError, ValueError):
+            return None
+        if start <= 0 and end is None:
+            return sound
+        length = sound.get_length()
+        end = length if end is None else min(end, length)
+        if start >= end:
+            return None
+        init = pygame.mixer.get_init()
+        if not init or not hasattr(sound, "get_raw"):
+            return None
+        sample_rate, sample_format, channels = init
+        bytes_per_sample = max(1, abs(int(sample_format)) // 8)
+        frame_bytes = bytes_per_sample * int(channels)
+        raw = sound.get_raw()
+        first = int(round(start * sample_rate)) * frame_bytes
+        last = int(round(end * sample_rate)) * frame_bytes
+        raw_slice = raw[first:last]
+        return pygame.mixer.Sound(buffer=raw_slice) if raw_slice else None
+
+    def play_se(self, filename, volume=0.5, frequency=1, start=0.0, end=None):
         try:
             if not pygame.mixer.get_init():
                 try:
@@ -72,6 +97,9 @@ class SEManager:
             
             # 効果音を読み込み
             sound = pygame.mixer.Sound(se_path)
+            sound = self._trim_sound(sound, start, end)
+            if sound is None:
+                return False
             sound.set_volume(volume)
             self.current_sound = sound
             
@@ -88,8 +116,7 @@ class SEManager:
             
             # バックグラウンドで連続再生（複数回はブロック追跡不可）
             if int(frequency) > 1:
-                threading.Thread(target=play_sequential, daemon=True).start()
-                channel = None
+                channel = sound.play(loops=int(frequency) - 1)
             else:
                 channel = sound.play()
                 get_settings_manager().apply_se_channel_volume(channel)

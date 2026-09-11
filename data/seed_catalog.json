@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
   "characters": [
-    {"id": "MASUDA", "display_name": "増田", "sort_order": 900}
+    {"id": "MASUDA", "display_name": "増田", "sort_order": 900},
+    {"id": "MOMOKO", "display_name": "愛沼桃子", "sort_order": 100}
   ],
   "seeds": [
     {
@@ -38,6 +39,42 @@
       "parents": ["MASUDA_TP1_002"],
       "parent_mode": "all",
       "source_events": ["TANE_MASUDA_03"],
+      "journal_location": {"page": 1, "slot": 3}
+    },
+    {
+      "id": "MOMOKO_TP1_001",
+      "character_id": "MOMOKO",
+      "turning_point_id": "MOMOKO_TP1",
+      "title": "家族の話題を避けている",
+      "journal_text": "桃子は家族の話題を避けている。",
+      "masked_journal_text": "桃子は？？の話題を避けている。",
+      "parents": [],
+      "parent_mode": "all",
+      "source_events": ["DEV_MOMOKO_SEEDS", "AforFLD.E009"],
+      "journal_location": {"page": 1, "slot": 1}
+    },
+    {
+      "id": "MOMOKO_TP1_002",
+      "character_id": "MOMOKO",
+      "turning_point_id": "MOMOKO_TP1",
+      "title": "部活に行かず時間を潰している",
+      "journal_text": "桃子は部活に行かず、学校で時間を潰している。",
+      "masked_journal_text": "桃子は？？に行かず、学校で時間を潰している。",
+      "parents": [],
+      "parent_mode": "all",
+      "source_events": ["DEV_MOMOKO_SEEDS", "AforFLD.E009"],
+      "journal_location": {"page": 1, "slot": 2}
+    },
+    {
+      "id": "MOMOKO_TP1_003",
+      "character_id": "MOMOKO",
+      "turning_point_id": "MOMOKO_TP1",
+      "title": "家に帰りたくない事情",
+      "journal_text": "桃子には、家に帰りたくない事情がある。",
+      "masked_journal_text": "桃子には、家に帰りたくない事情がある。",
+      "parents": [],
+      "parent_mode": "all",
+      "source_events": ["DEV_MOMOKO_SEEDS", "AforFLD.E009"],
       "journal_location": {"page": 1, "slot": 3}
     }
   ]

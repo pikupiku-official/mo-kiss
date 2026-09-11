@@ -547,6 +547,36 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
     if DEBUG:
         print(f"移動アニメーション開始: {character_name} 比率({target_x}, {target_y}) -> 座標({final_target_x}, {final_target_y}), zoom: {current_zoom} -> {zoom}, 時間: {duration}ms")
 
+def move_character_to(game_state, character_name, target_pos, duration=0, zoom=1.0):
+    """Animate to an absolute screen position for linear chara shifts."""
+    character_pos = game_state.setdefault('character_pos', {})
+    character_zoom = game_state.setdefault('character_zoom', {})
+    character_anim = game_state.setdefault('character_anim', {})
+    active_characters = game_state.setdefault('active_characters', [])
+    current_pos = list(character_pos.get(character_name, target_pos))
+    current_zoom = float(character_zoom.get(character_name, 1.0))
+    target = [int(target_pos[0]), int(target_pos[1])]
+    duration = max(0, int(duration))
+    zoom = float(zoom)
+    if duration <= 0:
+        character_anim.pop(character_name, None)
+        character_pos[character_name] = target
+        character_zoom[character_name] = zoom
+    else:
+        character_anim[character_name] = {
+            'start_x': current_pos[0],
+            'start_y': current_pos[1],
+            'target_x': target[0],
+            'target_y': target[1],
+            'start_zoom': current_zoom,
+            'target_zoom': zoom,
+            'start_time': pygame.time.get_ticks(),
+            'duration': duration,
+        }
+    if character_name not in active_characters:
+        active_characters.append(character_name)
+
+
 def hide_character(game_state, character_name):
     """キャラクターを退場させる"""
     print(f"[HIDE] hide_character呼び出し: char_name='{character_name}'")

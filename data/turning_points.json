@@ -49,6 +49,20 @@
           "増田は体に傷がある"
         ]
       }
+    },
+    {
+      "id": "MOMOKO_TP1",
+      "character_id": "MOMOKO",
+      "title": "桃子が家に帰りたくない理由",
+      "sort_order": 100,
+      "required_seed_ids": ["MOMOKO_TP1_001", "MOMOKO_TP1_002", "MOMOKO_TP1_003"],
+      "canonical_answer": "桃子は家族と上手くいっていない",
+      "accepted_answers": [
+        "桃子は家族と上手くいっていない",
+        "桃子は家族とうまくいっていない",
+        "桃子が家族と上手くいっていない",
+        "桃子が家族とうまくいっていない"
+      ]
     }
   ]
 }

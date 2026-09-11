@@ -7,20 +7,6 @@ import json
 import random
 import time
 
-# On Windows, importing PyQt5 first loads native DLLs that can make a later
-# onnxruntime import fail with DLL initialization error.  Preloading only the
-# runtime module (not the model) establishes the safe order.  Missing optional
-# semantic dependencies remain non-fatal and are reported by the seed HUD.
-_onnxruntime_preload = None
-_onnxruntime_preload_error = None
-if os.name == "nt":
-    try:
-        import onnxruntime as _onnxruntime_preload
-    except Exception as exc:
-        # The game remains launchable without the optional seed judge. Its
-        # normal Dialogue error path and F8 HUD report the unavailable model.
-        _onnxruntime_preload_error = str(exc)
-
 from PyQt5.QtWidgets import QApplication
 
 # PyQt5アプリケーションのグローバル変数

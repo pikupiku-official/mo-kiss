@@ -32,7 +32,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QListWidget, QListWidgetItem, QPushButton, QLabel, QSplitter,
     QLineEdit, QMessageBox, QToolBar, QAction, QGroupBox,
-    QFormLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
+    QFormLayout, QGridLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
     QFileDialog, QInputDialog, QTabWidget, QSlider, QDoubleSpinBox,
     QScrollArea, QStyleFactory, QAbstractButton,
@@ -260,6 +260,72 @@ class Win2000CaptionButton(QAbstractButton):
         painter.end()
 
 
+class WorkAreaMaximizeMixin:
+    """Maximize custom-framed windows inside the OS work area.
+
+    Qt cannot reliably derive the Windows work area for a frameless window
+    when ``showMaximized()`` is used.  In that case the taskbar can end up
+    behind the window.  The editor owns its title bar, so explicitly placing
+    the window in ``availableGeometry()`` gives the same visual result while
+    preserving the taskbar and its reserved space.
+    """
+
+    def _is_work_area_maximized(self):
+        return bool(getattr(self, "_work_area_maximized", False))
+
+    def _screen_for_work_area(self):
+        handle = self.windowHandle()
+        if handle is not None and handle.screen() is not None:
+            return handle.screen()
+        app = QApplication.instance()
+        return app.primaryScreen() if app is not None else None
+
+    def _apply_work_area_geometry(self):
+        if not self._is_work_area_maximized():
+            return
+        screen = self._screen_for_work_area()
+        if screen is not None:
+            self.setGeometry(screen.availableGeometry())
+
+    def _sync_frame_geometry(self):
+        margin = 0 if self._is_work_area_maximized() else self.FRAME_WIDTH
+        if hasattr(self, "_frame_layout"):
+            self._frame_layout.setContentsMargins(margin, margin, margin, margin)
+        else:
+            self.setContentsMargins(margin, margin, margin, margin)
+
+    def toggle_work_area_maximized(self):
+        if self._is_work_area_maximized():
+            self._work_area_maximized = False
+            if self._normal_geometry is not None:
+                self.setGeometry(self._normal_geometry)
+        else:
+            if self.isMinimized():
+                self.showNormal()
+            self._normal_geometry = self.geometry()
+            self._work_area_maximized = True
+            self._apply_work_area_geometry()
+        self._sync_frame_geometry()
+        self.title_bar.sync_window_state()
+        self.update()
+
+    def _fit_initial_size(self, width, height, margin=24):
+        """Center a requested size without extending under taskbar/dock."""
+        screen = self._screen_for_work_area()
+        if screen is None:
+            self.resize(width, height)
+            return
+        available = screen.availableGeometry()
+        width = min(int(width), max(1, available.width() - margin * 2))
+        height = min(int(height), max(1, available.height() - margin * 2))
+        x = available.x() + max(0, (available.width() - width) // 2)
+        y = available.y() + max(0, (available.height() - height) // 2)
+        self.setGeometry(x, y, width, height)
+
+    def _on_available_geometry_changed(self, *args):
+        self._apply_work_area_geometry()
+
+
 class Win2000TitleBar(QWidget):
     """Windows 2000 caption bar with native system move behavior."""
 
@@ -268,6 +334,7 @@ class Win2000TitleBar(QWidget):
         self._window = window
         self._drag_offset = None
         self._screen_signal_bound = False
+        self._available_geometry_signal_bound = False
         self.setFixedHeight(22)
         self.setMouseTracking(True)
 
@@ -347,13 +414,24 @@ class Win2000TitleBar(QWidget):
         self.title_label.setFont(title_font)
 
     def _bind_screen_tracking(self):
-        if self._screen_signal_bound:
+        if self._screen_signal_bound and self._available_geometry_signal_bound:
             return
         handle = self._window.windowHandle()
         if handle is None:
             return
-        handle.screenChanged.connect(self.update_screen_metrics)
-        self._screen_signal_bound = True
+        if not self._screen_signal_bound:
+            handle.screenChanged.connect(self.update_screen_metrics)
+            self._screen_signal_bound = True
+        screen = handle.screen()
+        if (
+            not self._available_geometry_signal_bound
+            and screen is not None
+            and hasattr(screen, "availableGeometryChanged")
+        ):
+            screen.availableGeometryChanged.connect(
+                self._window._on_available_geometry_changed
+            )
+            self._available_geometry_signal_bound = True
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -365,7 +443,9 @@ class Win2000TitleBar(QWidget):
 
     def sync_window_state(self):
         self.maximize_button.set_role(
-            "restore" if self._window.isMaximized() else "maximize"
+            "restore"
+            if self._window._is_work_area_maximized()
+            else "maximize"
         )
         active = self._window.isActiveWindow()
         color = QColor(255, 255, 255) if active else QColor(212, 208, 200)
@@ -375,11 +455,7 @@ class Win2000TitleBar(QWidget):
         self.update()
 
     def toggle_maximize(self):
-        if self._window.isMaximized():
-            self._window.showNormal()
-        else:
-            self._window.showMaximized()
-        self.sync_window_state()
+        self._window.toggle_work_area_maximized()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -404,7 +480,7 @@ class Win2000TitleBar(QWidget):
         if event.button() != Qt.LeftButton:
             super().mousePressEvent(event)
             return
-        if self._window.isMaximized():
+        if self._window._is_work_area_maximized():
             self._drag_offset = None
             event.accept()
             return
@@ -431,7 +507,7 @@ class Win2000TitleBar(QWidget):
         super().mouseReleaseEvent(event)
 
 
-class Win2000FramelessDialog(QDialog):
+class Win2000FramelessDialog(WorkAreaMaximizeMixin, QDialog):
     """Reusable frameless dialog with a Windows 2000 non-client frame."""
 
     FRAME_WIDTH = 4
@@ -439,6 +515,8 @@ class Win2000FramelessDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._work_area_maximized = False
+        self._normal_geometry = None
         flags = self.windowFlags()
         flags &= ~Qt.WindowContextHelpButtonHint
         flags |= Qt.FramelessWindowHint | Qt.WindowSystemMenuHint
@@ -470,14 +548,14 @@ class Win2000FramelessDialog(QDialog):
     def changeEvent(self, event):
         super().changeEvent(event)
         if event.type() in (QEvent.ActivationChange, QEvent.WindowStateChange):
-            margin = 0 if self.isMaximized() else self.FRAME_WIDTH
+            margin = 0 if self._is_work_area_maximized() else self.FRAME_WIDTH
             self._frame_layout.setContentsMargins(margin, margin, margin, margin)
             self.title_bar.sync_window_state()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(212, 208, 200))
-        if self.isMaximized():
+        if self._is_work_area_maximized():
             painter.end()
             return
         rect = self.rect().adjusted(0, 0, -1, -1)
@@ -497,7 +575,7 @@ class Win2000FramelessDialog(QDialog):
         painter.end()
 
     def _resize_edges_at(self, pos):
-        if self.isMaximized():
+        if self._is_work_area_maximized():
             return Qt.Edges()
         margin = self.RESIZE_MARGIN
         edges = Qt.Edges()
@@ -545,7 +623,7 @@ class Win2000FramelessDialog(QDialog):
         super().mousePressEvent(event)
 
 
-class Win2000FramelessMainWindow(QMainWindow):
+class Win2000FramelessMainWindow(WorkAreaMaximizeMixin, QMainWindow):
     """QMainWindow variant of the reusable Windows 2000 frame."""
 
     FRAME_WIDTH = Win2000FramelessDialog.FRAME_WIDTH
@@ -553,6 +631,8 @@ class Win2000FramelessMainWindow(QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._work_area_maximized = False
+        self._normal_geometry = None
         flags = self.windowFlags()
         flags &= ~Qt.WindowContextHelpButtonHint
         flags |= Qt.FramelessWindowHint | Qt.WindowSystemMenuHint
@@ -576,14 +656,14 @@ class Win2000FramelessMainWindow(QMainWindow):
     def changeEvent(self, event):
         super().changeEvent(event)
         if event.type() in (QEvent.ActivationChange, QEvent.WindowStateChange):
-            margin = 0 if self.isMaximized() else self.FRAME_WIDTH
+            margin = 0 if self._is_work_area_maximized() else self.FRAME_WIDTH
             self.setContentsMargins(margin, margin, margin, margin)
             self.title_bar.sync_window_state()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(212, 208, 200))
-        if self.isMaximized():
+        if self._is_work_area_maximized():
             painter.end()
             return
         rect = self.rect().adjusted(0, 0, -1, -1)
@@ -603,7 +683,7 @@ class Win2000FramelessMainWindow(QMainWindow):
         painter.end()
 
     def _resize_edges_at(self, pos):
-        if self.isMaximized():
+        if self._is_work_area_maximized():
             return Qt.Edges()
         margin = self.RESIZE_MARGIN
         edges = Qt.Edges()
@@ -1758,6 +1838,79 @@ class StepSlideViewport(QWidget):
 class StepEditorDialog(Win2000FramelessDialog):
     """step編集用ダイアログ"""
 
+    ACTION_SOURCE_ROLE = Qt.UserRole + 1
+    ACTION_LABELS = {
+        "bg": "背景",
+        "bg_show": "背景表示",
+        "bg_move": "背景移動",
+        "chara_show": "立ち絵表示",
+        "chara_shift": "立ち絵変更",
+        "chara_move": "立ち絵移動（旧）",
+        "chara_hide": "立ち絵非表示",
+        "cg_show": "CG表示",
+        "cg_shift": "CG変更",
+        "cg_hide": "CG非表示",
+        "bgm": "BGM再生",
+        "bgmend": "BGM終了",
+        "bgmstop": "BGM一時停止",
+        "bgmstart": "BGM再開",
+        "se": "SE再生",
+        "sestop": "SE停止",
+        "fadeout": "フェードアウト",
+        "fadein": "フェードイン",
+        "choice": "選択肢",
+        "flag_set": "フラグ設定",
+        "if": "条件分岐",
+        "endif": "条件分岐終了",
+        "event_control": "イベント制御",
+    }
+
+    def _action_item_source(self, item):
+        if item is None:
+            return ""
+        source = item.data(self.ACTION_SOURCE_ROLE)
+        return str(source) if source is not None else item.text()
+
+    def _action_summary(self, source):
+        tag, pairs = self._parse_action(source)
+        params = dict(pairs)
+        label = self.ACTION_LABELS.get(tag, tag or "アクション")
+        detail = []
+        if tag in ("bgm", "se"):
+            asset = params.get(tag, "")
+            if asset:
+                detail.append(asset)
+            if params.get("start") not in (None, "", "0", "0.0"):
+                detail.append(f"開始 {params['start']}s")
+            if tag == "se" and params.get("end") not in (None, ""):
+                detail.append(f"範囲 {params.get('start', '0')}–{params['end']}s")
+            if tag == "bgm" and params.get("loop", "true").lower() == "true":
+                detail.append("ループ")
+        elif tag.startswith("chara_"):
+            if params.get("name"):
+                detail.append(params["name"])
+            if tag == "chara_shift" and params.get("move"):
+                detail.append(params["move"])
+        elif tag in ("bg", "bg_show", "bg_move"):
+            detail.append(params.get("storage", ""))
+        elif tag.startswith("cg_"):
+            detail.append(params.get("storage", ""))
+        elif tag == "choice":
+            detail.append(" / ".join(value for key, value in pairs if key.startswith("option")))
+        text = " ".join(part for part in detail if part)
+        return f"{label}  {text}" if text else label
+
+    def _make_action_item(self, source):
+        item = QListWidgetItem()
+        self._set_action_item_source(item, source)
+        return item
+
+    def _set_action_item_source(self, item, source):
+        source = str(source or "").strip()
+        item.setData(self.ACTION_SOURCE_ROLE, source)
+        item.setText(self._action_summary(source))
+        item.setToolTip(source)
+
     CHARA_PREVIEW_PARTS = tuple(CharaCompositePreviewDialog.LAYER_ORDER)
 
     TAG_NAMES = [
@@ -1766,7 +1919,6 @@ class StepEditorDialog(Win2000FramelessDialog):
         "bg_move",
         "chara_show",
         "chara_shift",
-        "chara_move",
         "chara_hide",
         "cg_show",
         "cg_shift",
@@ -1819,6 +1971,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("y", ""),
             ("size", ""),
             ("fade", "0.15"),
+            ("move", ""),
+            ("time", ""),
         ],
         "chara_move": [("name", ""), ("left", "0.0"), ("top", "0.0"), ("zoom", "1.0"), ("time", "600")],
         "chara_hide": [("name", ""), ("fade", "0.15")],
@@ -1832,11 +1986,17 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("fade", "0.3"),
         ],
         "cg_hide": [("fade", "0.3")],
-        "bgm": [("bgm", ""), ("volume", "0.5"), ("loop", "true"), ("fade", "0.0")],
+        "bgm": [
+            ("bgm", ""), ("volume", "0.5"), ("loop", "true"),
+            ("fade", "0.0"), ("start", ""),
+        ],
         "bgmend": [("time", "1.0")],
         "bgmstop": [("time", "1.0")],
         "bgmstart": [("time", "1.0")],
-        "se": [("se", ""), ("volume", "0.5"), ("frequency", "1"), ("block", "false")],
+        "se": [
+            ("se", ""), ("volume", "0.5"), ("frequency", "1"),
+            ("block", "false"), ("start", ""), ("end", ""),
+        ],
         "sestop": [],
         "sewait": [],
         "fadeout": [("color", "black"), ("time", "1.0")],
@@ -1891,6 +2051,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("y", "y", "text"),
             ("size", "size", "text"),
             ("fade", "fade", "text"),
+            ("move", "move", "movement_mode"),
+            ("time", "time", "text"),
         ],
         "chara_move": [
             ("name", "name", "chara_name"),
@@ -1923,12 +2085,15 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("volume", "volume", "volume_slider"),
             ("loop", "loop", "bool"),
             ("fade", "fade", "text"),
+            ("start", "start", "audio_time"),
         ],
         "se": [
             ("se", "se", "se_asset"),
             ("volume", "volume", "volume_slider"),
             ("frequency", "frequency", "text"),
             ("block", "block", "bool"),
+            ("start", "start", "audio_time"),
+            ("end", "end", "audio_time"),
         ],
     }
     # storage → BGディレクトリ、キャラクターパーツ → キャラクターディレクトリ (01MMK 等) 内
@@ -1968,10 +2133,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._outline_navigation = False
         self.navigation_offset = 0
         self._direct_scene_edit = False
+        self._direct_text_edit = False
         self._loading_custom_values = False
         self._bgm_preview_manager = None
         self._se_preview_manager = None
         self._volume_sliders = {}
+        self._audio_time_sliders = {}
         # Keep recently visited final renders in memory.  The interactive scene
         # already changes immediately; this avoids restarting snapshot work
         # when the user pages back to an unchanged step.
@@ -1984,7 +2151,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._restoring_editor_history = False
 
         self.setWindowTitle("step編集")
-        self.resize(1400, 850)
+        self._fit_initial_size(1400, 850)
 
         main_layout = self.client_layout
 
@@ -2064,7 +2231,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         preview_layout.addWidget(self.preview_tabs)
 
         self.scene_selection_label = QLabel(
-            "選択した立ち絵はドラッグ移動、四隅ドラッグで拡大縮小できます"
+            "キャラ／CGはドラッグ移動・拡大縮小、テキストは固定位置で話者名・本文のみ編集できます"
         )
         self.scene_selection_label.setStyleSheet("color: #404040;")
         preview_layout.addWidget(self.scene_selection_label)
@@ -2120,10 +2287,8 @@ class StepEditorDialog(Win2000FramelessDialog):
 
         self.actions_list = QListWidget()
         for action in self.actions:
-            self.actions_list.addItem(action)
-        self.actions_list.setEditTriggers(
-            QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed
-        )
+            self.actions_list.addItem(self._make_action_item(action))
+        self.actions_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.actions_list.setDragDropMode(QAbstractItemView.InternalMove)
         self.actions_list.setDefaultDropAction(Qt.MoveAction)
         self.actions_list.setToolTip(
@@ -2131,7 +2296,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         )
         actions_layout.addWidget(self.actions_list)
 
-        actions_buttons = QHBoxLayout()
+        actions_buttons = QGridLayout()
+        actions_buttons.setHorizontalSpacing(4)
+        actions_buttons.setVerticalSpacing(4)
         self.add_btn = QPushButton("+ 追加")
         self.duplicate_btn = QPushButton("複製")
         self.remove_btn = QPushButton("削除")
@@ -2142,11 +2309,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.remove_btn.setToolTip("選択中のアクションを削除 (Delete)")
         self.up_btn.setToolTip("アクションを1つ上へ移動 (Ctrl+↑)")
         self.down_btn.setToolTip("アクションを1つ下へ移動 (Ctrl+↓)")
-        actions_buttons.addWidget(self.add_btn)
-        actions_buttons.addWidget(self.duplicate_btn)
-        actions_buttons.addWidget(self.remove_btn)
-        actions_buttons.addWidget(self.up_btn)
-        actions_buttons.addWidget(self.down_btn)
+        actions_buttons.addWidget(self.add_btn, 0, 0)
+        actions_buttons.addWidget(self.duplicate_btn, 0, 1)
+        actions_buttons.addWidget(self.remove_btn, 0, 2)
+        actions_buttons.addWidget(self.up_btn, 1, 0)
+        actions_buttons.addWidget(self.down_btn, 1, 1)
         actions_layout.addLayout(actions_buttons)
 
         actions_group.setLayout(actions_layout)
@@ -2251,6 +2418,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.insert_after_btn.clicked.connect(lambda: self._create_adjacent_step(1))
         self.step_outline.currentRowChanged.connect(self._on_outline_step_changed)
         self.scene_canvas.object_selected.connect(self._on_scene_object_selected)
+        self.scene_canvas.dialogue_changed.connect(self._on_scene_dialogue_changed)
         self.scene_canvas.object_moved.connect(self._on_scene_object_moved)
         self.scene_canvas.object_scaled.connect(self._on_scene_object_scaled)
         self.scene_canvas.object_delete_requested.connect(
@@ -2279,8 +2447,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._history_timer.timeout.connect(self._record_editor_history)
         self.speaker_input.textChanged.connect(self._schedule_preview_update)
         self.body_input.textChanged.connect(self._schedule_preview_update)
+        self.speaker_input.textChanged.connect(self._schedule_scene_preview_update)
+        self.body_input.textChanged.connect(self._schedule_scene_preview_update)
         self.scroll_checkbox.stateChanged.connect(self._schedule_preview_update)
         self.female_checkbox.stateChanged.connect(self._schedule_preview_update)
+        self.female_checkbox.stateChanged.connect(self._schedule_scene_preview_update)
         self.standalone_checkbox.stateChanged.connect(self._on_edit_state_changed)
         self.memo_input.textChanged.connect(self._on_edit_state_changed)
         self.speaker_input.textChanged.connect(self._on_edit_state_changed)
@@ -2338,7 +2509,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         """アクション一覧を取得"""
         actions = []
         for i in range(self.actions_list.count()):
-            text = self.actions_list.item(i).text().strip()
+            text = self._action_item_source(self.actions_list.item(i)).strip()
             if text:
                 actions.append(text)
         return actions
@@ -2396,7 +2567,8 @@ class StepEditorDialog(Win2000FramelessDialog):
 
             self.actions_list.blockSignals(True)
             self.actions_list.clear()
-            self.actions_list.addItems(actions)
+            for action in actions:
+                self.actions_list.addItem(self._make_action_item(action))
             if actions:
                 self.actions_list.setCurrentRow(
                     max(0, min(current_row, len(actions) - 1))
@@ -2700,7 +2872,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         action_model.blockSignals(True)
         self.actions_list.blockSignals(True)
         self.actions_list.clear()
-        self.actions_list.addItems(self.actions)
+        for action in self.actions:
+            self.actions_list.addItem(self._make_action_item(action))
         if self.actions_list.count():
             self.actions_list.setCurrentRow(0)
         self.actions_list.blockSignals(False)
@@ -2835,6 +3008,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             "・左のstep目次をクリックして移動\n"
             "・ステージ上のキャラ／CGをドラッグして移動\n"
             "・キャラの四隅をドラッグして拡大縮小\n"
+            "・テキストは固定位置。クリック後、下のセリフ欄で話者名／本文のみ編集\n"
             "・ステージ上でキャラ／CGを選択してDelete: 非表示（Undo可）\n"
             "・アクション一覧はドラッグで順序変更\n"
             "\n"
@@ -2980,16 +3154,42 @@ class StepEditorDialog(Win2000FramelessDialog):
             and self._scene_last_target == self._step_index
         ):
             scene_states = self._scene_state_builder.build_current_step(
-                self.get_actions(), self._step_index
+                self.get_actions(),
+                self._step_index,
+                self._scene_dialogue_state(),
             )
         if scene_states is None:
             scene_states = self._scene_state_builder.build(
-                self._scene_action_steps(), self._step_index
+                self._scene_action_steps(),
+                self._step_index,
+                self._scene_dialogue_state(),
             )
         self._scene_incremental_ready = True
         self._scene_last_target = self._step_index
         self._scene_states = scene_states
         self.scene_canvas.set_scene_state(scene_states.get("after", {}))
+
+    def _scene_dialogue_state(self):
+        speaker, body, _scroll_stop, force_female = self.get_dialogue_values()
+        return {
+            "speaker": speaker,
+            "body": body,
+            "force_female": force_female,
+        }
+
+    def _on_scene_dialogue_changed(self, speaker, body):
+        """Persist direct text-object edits into the normal dialogue fields."""
+        if self._loading_step:
+            return
+        self._direct_text_edit = True
+        try:
+            self.speaker_input.setText((speaker or "").strip())
+            self.body_input.setText((body or "").replace("\n", " ").strip())
+        finally:
+            self._direct_text_edit = False
+        self._on_edit_state_changed()
+        self._schedule_editor_history()
+        self._schedule_preview_update()
 
     def _on_scene_object_selected(self, object_type, object_name, origin):
         if not object_type:
@@ -3003,6 +3203,15 @@ class StepEditorDialog(Win2000FramelessDialog):
             "modified": "このstepで変更",
             "inherited": "前のstepから引き継ぎ",
         }.get(origin, origin)
+        if object_type == "text":
+            part_label = {
+                "speaker": "話者名",
+                "body": "本文",
+            }.get(object_name, "話者名・本文")
+            self.scene_selection_label.setText(
+                f"選択: テキスト「{part_label}」 / 位置変更不可・画面上で直接編集"
+            )
+            return
         type_label = (
             "キャラ" if object_type == "character"
             else "CG" if object_type == "cg"
@@ -3023,7 +3232,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         # last matching action in the existing inspector.  Inherited objects
         # deliberately remain explicit instead of guessing a different target.
         for row in range(self.actions_list.count() - 1, -1, -1):
-            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
             params = dict(pairs)
             if object_type == "character":
                 if tag.startswith("chara_") and params.get("name", "").strip() == object_name:
@@ -3082,7 +3291,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         rows = []
         if object_type == "character":
             for row in range(self.actions_list.count()):
-                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
                 params = dict(pairs)
                 if (
                     tag in ("chara_show", "chara_shift", "chara_move", "chara_hide")
@@ -3092,7 +3301,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         elif object_type == "cg":
             show_row = -1
             for row in range(self.actions_list.count()):
-                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
                 params = dict(pairs)
                 if tag == "cg_show":
                     if params.get("storage", "").strip() == object_name:
@@ -3101,7 +3310,9 @@ class StepEditorDialog(Win2000FramelessDialog):
                         break
             if show_row >= 0:
                 for row in range(show_row, self.actions_list.count()):
-                    tag, _pairs = self._parse_action(self.actions_list.item(row).text())
+                    tag, _pairs = self._parse_action(
+                        self._action_item_source(self.actions_list.item(row))
+                    )
                     if row > show_row and tag == "cg_show":
                         break
                     if tag in ("cg_show", "cg_shift", "cg_hide"):
@@ -3135,7 +3346,7 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def _set_action_row(self, row, tag, params):
         action_text = self._build_action(tag, list(params.items()))
-        self.actions_list.item(row).setText(action_text)
+        self._set_action_item_source(self.actions_list.item(row), action_text)
         self.actions_list.setCurrentRow(row)
 
     def _on_scene_object_moved(self, name, delta_x, delta_y, metadata):
@@ -3150,7 +3361,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             self._direct_scene_edit = True
             shift_rows = []
             for row in range(self.actions_list.count()):
-                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
                 params = dict(pairs)
                 if tag == "cg_shift":
                     shift_rows.append((row, params))
@@ -3172,7 +3383,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                     "time": "0",
                 }
                 action_text = self._build_action("cg_shift", list(shift_params.items()))
-                self.actions_list.addItem(action_text)
+                self.actions_list.addItem(self._make_action_item(action_text))
                 self.actions_list.setCurrentRow(self.actions_list.count() - 1)
                 action_label = "cg_shiftを追加"
 
@@ -3195,12 +3406,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         last_placement_row = -1
         parsed_by_row = {}
         for row in range(self.actions_list.count()):
-            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
             params = dict(pairs)
             parsed_by_row[row] = (tag, params)
             if params.get("name", "").strip() != name:
                 continue
-            if tag in ("chara_show", "chara_move"):
+            if tag in ("chara_show", "chara_shift", "chara_move"):
                 last_placement_row = row
 
         last_placement = parsed_by_row.get(last_placement_row)
@@ -3212,28 +3423,31 @@ class StepEditorDialog(Win2000FramelessDialog):
             params["y"] = self._format_scene_number(target_y)
             self._set_action_row(last_placement_row, tag, params)
             action_label = "chara_showのx/yを更新"
+        elif last_placement is not None and last_placement[0] == "chara_shift":
+            tag, params = last_placement
+            params["x"] = self._format_scene_number(target_x)
+            params["y"] = self._format_scene_number(target_y)
+            self._set_action_row(last_placement_row, tag, params)
+            action_label = "chara_shiftのx/yを更新"
         elif last_placement is not None and last_placement[0] == "chara_move":
             tag, params = last_placement
-            params["left"] = self._format_scene_number(
-                self._parse_scene_number(params.get("left"), 0.0) + relative_x
-            )
-            params["top"] = self._format_scene_number(
-                self._parse_scene_number(params.get("top"), 0.0) + relative_y
-            )
-            self._set_action_row(last_placement_row, tag, params)
-            action_label = "chara_moveの移動量を更新"
-        else:
-            move_params = {
+            shift_params = {
                 "name": name,
-                "left": self._format_scene_number(relative_x),
-                "top": self._format_scene_number(relative_y),
-                "zoom": self._format_scene_number(target_size),
-                "time": "600",
+                "x": self._format_scene_number(target_x),
+                "y": self._format_scene_number(target_y),
             }
-            action_text = self._build_action("chara_move", list(move_params.items()))
-            self.actions_list.addItem(action_text)
+            self._set_action_row(last_placement_row, "chara_shift", shift_params)
+            action_label = "旧chara_moveをchara_shiftへ変換"
+        else:
+            shift_params = {
+                "name": name,
+                "x": self._format_scene_number(target_x),
+                "y": self._format_scene_number(target_y),
+            }
+            action_text = self._build_action("chara_shift", list(shift_params.items()))
+            self.actions_list.addItem(self._make_action_item(action_text))
             self.actions_list.setCurrentRow(self.actions_list.count() - 1)
-            action_label = "chara_moveを追加"
+            action_label = "chara_shiftを追加"
 
         self.scene_canvas.mark_character_modified(
             name,
@@ -3257,7 +3471,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             scale_rows = []
             parsed_by_row = {}
             for row in range(self.actions_list.count()):
-                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
                 params = dict(pairs)
                 parsed_by_row[row] = (tag, params)
                 if tag == "cg_shift" and "zoom" in params:
@@ -3279,7 +3493,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                     "time": "0",
                 }
                 action_text = self._build_action("cg_shift", list(move_params.items()))
-                self.actions_list.addItem(action_text)
+                self.actions_list.addItem(self._make_action_item(action_text))
                 self.actions_list.setCurrentRow(self.actions_list.count() - 1)
                 action_label = "拡大縮小用cg_shiftを追加"
 
@@ -3295,7 +3509,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         scale_rows = []
         parsed_by_row = {}
         for row in range(self.actions_list.count()):
-            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
             params = dict(pairs)
             parsed_by_row[row] = (tag, params)
             if params.get("name", "").strip() != name:
@@ -3311,21 +3525,26 @@ class StepEditorDialog(Win2000FramelessDialog):
         if scale_rows:
             row, scale_key = max(scale_rows, key=lambda value: value[0])
             tag, params = parsed_by_row[row]
-            params[scale_key] = formatted_zoom
-            self._set_action_row(row, tag, params)
-            action_label = f"{tag}の{scale_key}を更新"
+            if tag == "chara_move":
+                self._set_action_row(
+                    row,
+                    "chara_shift",
+                    {"name": name, "size": formatted_zoom},
+                )
+                action_label = "旧chara_moveをchara_shiftへ変換"
+            else:
+                params[scale_key] = formatted_zoom
+                self._set_action_row(row, tag, params)
+                action_label = f"{tag}の{scale_key}を更新"
         else:
-            move_params = {
+            shift_params = {
                 "name": name,
-                "left": "0.0",
-                "top": "0.0",
-                "zoom": formatted_zoom,
-                "time": "600",
+                "size": formatted_zoom,
             }
-            action_text = self._build_action("chara_move", list(move_params.items()))
-            self.actions_list.addItem(action_text)
+            action_text = self._build_action("chara_shift", list(shift_params.items()))
+            self.actions_list.addItem(self._make_action_item(action_text))
             self.actions_list.setCurrentRow(self.actions_list.count() - 1)
-            action_label = "拡大縮小用chara_moveを追加"
+            action_label = "拡大縮小用chara_shiftを追加"
 
         self.scene_canvas.mark_character_modified(name)
         self._finish_direct_scene_edit()
@@ -3338,28 +3557,28 @@ class StepEditorDialog(Win2000FramelessDialog):
         params = dict(self.PARAM_TEMPLATES.get(tag, []))
         params.update(overrides or {})
         action_text = self._build_action(tag, list(params.items()))
-        self.actions_list.addItem(action_text)
+        self.actions_list.addItem(self._make_action_item(action_text))
         row = self.actions_list.count() - 1
         self.actions_list.setCurrentRow(row)
         return row
 
     def _find_latest_character_action(self, tag, name):
         for row in range(self.actions_list.count() - 1, -1, -1):
-            current_tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            current_tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
             if current_tag == tag and dict(pairs).get("name", "").strip() == name:
                 return row
         return -1
 
     def _find_latest_cg_action(self, tag):
         for row in range(self.actions_list.count() - 1, -1, -1):
-            current_tag, _pairs = self._parse_action(self.actions_list.item(row).text())
+            current_tag, _pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
             if current_tag == tag:
                 return row
         return -1
 
     def _current_cg_storage(self):
         for row in range(self.actions_list.count() - 1, -1, -1):
-            tag, pairs = self._parse_action(self.actions_list.item(row).text())
+            tag, pairs = self._parse_action(self._action_item_source(self.actions_list.item(row)))
             params = dict(pairs)
             if tag in ("cg_show", "cg_shift") and params.get("storage", "").strip():
                 return params["storage"].strip()
@@ -3408,7 +3627,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             return
         if command == "select_background":
             for row in range(self.actions_list.count() - 1, -1, -1):
-                tag, _ = self._parse_action(self.actions_list.item(row).text())
+                tag, _ = self._parse_action(self._action_item_source(self.actions_list.item(row)))
                 if tag in ("bg", "bg_show", "bg_move"):
                     self.actions_list.setCurrentRow(row)
                     return
@@ -3499,7 +3718,7 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def _add_action(self):
         tag = self.tag_combo.currentText().strip() or "bg"
-        self.actions_list.addItem(tag)
+        self.actions_list.addItem(self._make_action_item(tag))
         self.actions_list.setCurrentRow(self.actions_list.count() - 1)
 
     def _duplicate_action(self):
@@ -3509,7 +3728,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         item = self.actions_list.item(row)
         if not item:
             return
-        self.actions_list.insertItem(row + 1, item.text())
+        self.actions_list.insertItem(row + 1, self._make_action_item(self._action_item_source(item)))
         self.actions_list.setCurrentRow(row + 1)
 
     def _remove_action(self):
@@ -3534,7 +3753,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _on_action_selected(self, current, previous):
         if not current:
             return
-        tag, params = self._parse_action(current.text())
+        tag, params = self._parse_action(self._action_item_source(current))
         if tag:
             self.tag_combo.setCurrentText(tag)
         self._load_action_into_editors(tag, params)
@@ -3608,7 +3827,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         else:
             params = self._collect_params()
         text = self._build_action(tag, params)
-        self.actions_list.item(current_row).setText(text)
+        self._set_action_item_source(self.actions_list.item(current_row), text)
 
     def _schedule_preview_update(self, *args):
         if self._loading_step or self.preview_tabs.currentIndex() != 1:
@@ -3616,7 +3835,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._preview_debounce_timer.start()
 
     def _schedule_scene_preview_update(self, *args):
-        if self._loading_step or self._direct_scene_edit:
+        if self._loading_step or self._direct_scene_edit or self._direct_text_edit:
             return
         self._scene_preview_timer.start()
         self._schedule_preview_update()
@@ -3720,6 +3939,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.custom_editor_layout.removeRow(0)
         self.custom_fields = {}
         self._volume_sliders = {}
+        self._audio_time_sliders = {}
         self.custom_editor_widget.adjustSize()
         self.custom_editor_widget.updateGeometry()
 
@@ -3784,7 +4004,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 item = self.actions_list.item(row)
                 if not item:
                     continue
-                tag, params = self._parse_action(item.text())
+                tag, params = self._parse_action(self._action_item_source(item))
                 yield tag, dict(params)
 
     def _resolve_chara_preview_name_context(self, current_tag, explicit_name=""):
@@ -4022,6 +4242,13 @@ class StepEditorDialog(Win2000FramelessDialog):
             return
 
         param_map = dict(params or [])
+        if tag in ('chara_show', 'chara_shift'):
+            is_shift = (tag == 'chara_shift')
+            preview_btn = QPushButton('🎨 立ち絵プレビュー & パーツ選択')
+            preview_btn.clicked.connect(lambda: self._open_chara_preview(is_shift))
+            # Keep the preview/action context immediately below tag and above
+            # the name field, where it is discoverable before the long part list.
+            self.custom_editor_layout.addRow('', preview_btn)
         for key, label, field_type in schema:
             if field_type == "bool":
                 field = QComboBox()
@@ -4062,6 +4289,16 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setDecimals(2)
                 field.setSingleStep(0.01)
                 field.setMaximumWidth(76)
+            elif field_type == "movement_mode":
+                field = QComboBox()
+                field.addItems(["", "linear"])
+                field.setToolTip("通常のshiftは既存のフェード。linear指定時だけtimeで座標を補間")
+            elif field_type == "audio_time":
+                field = QDoubleSpinBox()
+                field.setRange(0.0, 99999.0)
+                field.setDecimals(2)
+                field.setSingleStep(0.01)
+                field.setProperty("optionalAudioTime", True)
             elif field_type == "bg_asset":
                 # Backgrounds are selected through the native file dialog.
                 # Do not enumerate/load all background images while opening a
@@ -4107,6 +4344,26 @@ class StepEditorDialog(Win2000FramelessDialog):
                 wrapper_layout.addWidget(slider, 1)
                 wrapper_layout.addWidget(field)
                 self.custom_editor_layout.addRow(label, wrapper)
+            elif field_type == "audio_time":
+                wrapper = QWidget()
+                wrapper_layout = QHBoxLayout(wrapper)
+                wrapper_layout.setContentsMargins(0, 0, 0, 0)
+                slider = QSlider(Qt.Horizontal)
+                slider.setRange(0, 360000)
+                slider.setSingleStep(1)
+                slider.setPageStep(100)
+                slider.setTracking(True)
+                slider.setObjectName(f"{key}Slider")
+                self._audio_time_sliders[key] = slider
+                slider.valueChanged.connect(
+                    lambda value, k=key: self._on_audio_time_slider_changed(k, value)
+                )
+                field.valueChanged.connect(
+                    lambda value, k=key: self._on_audio_time_number_changed(k, value)
+                )
+                wrapper_layout.addWidget(slider, 1)
+                wrapper_layout.addWidget(field)
+                self.custom_editor_layout.addRow(label, wrapper)
             elif field_type in ("bg_asset", "cg_asset", "bgm_asset", "se_asset"):
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
@@ -4148,13 +4405,6 @@ class StepEditorDialog(Win2000FramelessDialog):
             else:
                 self.custom_editor_layout.addRow(label, field)
 
-        # chara_show / chara_shift: 立ち絵プレビューボタンを追加
-        if tag in ('chara_show', 'chara_shift'):
-            is_shift = (tag == 'chara_shift')
-            preview_btn = QPushButton('🎨 立ち絵プレビュー & パーツ選択')
-            preview_btn.clicked.connect(lambda: self._open_chara_preview(is_shift))
-            self.custom_editor_layout.addRow('', preview_btn)
-
         self.custom_editor_widget.show()
         self.advanced_toggle.show()
         self.params_table.setVisible(self.advanced_toggle.isChecked())
@@ -4172,15 +4422,24 @@ class StepEditorDialog(Win2000FramelessDialog):
                 try:
                     numeric_value = float(value)
                 except (TypeError, ValueError):
-                    numeric_value = 0.5
+                    numeric_value = 0.5 if key in self._volume_sliders else 0.0
                 field.blockSignals(True)
-                field.setValue(max(0.0, min(1.0, numeric_value)))
+                if key in self._volume_sliders:
+                    numeric_value = max(0.0, min(1.0, numeric_value))
+                else:
+                    numeric_value = max(field.minimum(), min(field.maximum(), numeric_value))
+                field.setValue(numeric_value)
                 field.blockSignals(False)
                 slider = self._volume_sliders.get(key)
                 if slider is not None:
                     slider.blockSignals(True)
                     slider.setValue(round(field.value() * 100))
                     slider.blockSignals(False)
+                audio_slider = self._audio_time_sliders.get(key)
+                if audio_slider is not None:
+                    audio_slider.blockSignals(True)
+                    audio_slider.setValue(round(field.value() * 100))
+                    audio_slider.blockSignals(False)
             else:
                 field.setText(value)
 
@@ -4201,6 +4460,20 @@ class StepEditorDialog(Win2000FramelessDialog):
             slider.setValue(round(volume * 100))
             slider.blockSignals(False)
         self._apply_live_preview_volume(volume)
+
+    def _on_audio_time_slider_changed(self, key, value):
+        field = self.custom_fields.get(key)
+        if isinstance(field, QDoubleSpinBox):
+            field.blockSignals(True)
+            field.setValue(float(value) / 100.0)
+            field.blockSignals(False)
+
+    def _on_audio_time_number_changed(self, key, value):
+        slider = self._audio_time_sliders.get(key)
+        if slider is not None:
+            slider.blockSignals(True)
+            slider.setValue(round(float(value) * 100))
+            slider.blockSignals(False)
 
     def _apply_live_preview_volume(self, volume):
         tag = self.tag_combo.currentText().strip().lower()
@@ -4255,15 +4528,19 @@ class StepEditorDialog(Win2000FramelessDialog):
             fade_time = float(self._custom_text_value(self.custom_fields.get("fade"), "0.0"))
         except (TypeError, ValueError):
             fade_time = 0.0
+        try:
+            start = float(self._custom_text_value(self.custom_fields.get("start"), "0.0"))
+        except (TypeError, ValueError):
+            start = 0.0
         if self._bgm_preview_manager is None:
             self._bgm_preview_manager = BGMManager(False)
             self._bgm_preview_manager.BGM_PATH = os.path.join(project_root, "sounds", "bgms")
         self._bgm_preview_manager.stop_bgm()
+        preview_kwargs = {"fade_time": fade_time}
+        if start > 0:
+            preview_kwargs["start"] = start
         if self._bgm_preview_manager.play_bgm(
-            filename,
-            volume,
-            loop,
-            fade_time=fade_time,
+            filename, volume, loop, **preview_kwargs
         ):
             self.scene_selection_label.setText(f"BGM試聴中: {filename}")
         else:
@@ -4283,11 +4560,40 @@ class StepEditorDialog(Win2000FramelessDialog):
             volume = float(self._custom_text_value(self.custom_fields.get("volume"), "0.5"))
         except (TypeError, ValueError):
             volume = 0.5
+        try:
+            frequency = max(1, int(float(self._custom_text_value(
+                self.custom_fields.get("frequency"), "1"
+            ))))
+        except (TypeError, ValueError):
+            frequency = 1
+        try:
+            start = float(self._custom_text_value(self.custom_fields.get("start"), "0.0"))
+        except (TypeError, ValueError):
+            start = 0.0
+        end_text = self._custom_text_value(self.custom_fields.get("end"), "")
+        try:
+            end = float(end_text) if end_text else None
+        except (TypeError, ValueError):
+            end = None
         if self._se_preview_manager is None:
             self._se_preview_manager = SEManager(False)
             self._se_preview_manager.SE_PATH = os.path.join(project_root, "sounds", "ses")
         self._se_preview_manager.stop_all_se()
-        play_result = self._se_preview_manager.play_se(filename, volume, 1)
+        preview_kwargs = {}
+        if start > 0:
+            preview_kwargs["start"] = start
+        if end is not None:
+            preview_kwargs["end"] = end
+        try:
+            play_result = self._se_preview_manager.play_se(
+                filename, volume, frequency, **preview_kwargs
+            )
+        except TypeError:
+            # Keep lightweight third-party/test preview adapters compatible
+            # with the original three-argument preview contract.
+            play_result = self._se_preview_manager.play_se(
+                filename, volume, frequency
+            )
         if play_result is not False and play_result is not None:
             self.scene_selection_label.setText(f"SE試聴中: {filename}")
         else:
@@ -4307,6 +4613,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             if isinstance(field, QComboBox):
                 value = field.currentText().strip()
             elif isinstance(field, QDoubleSpinBox):
+                if field.property("optionalAudioTime") and field.value() == 0:
+                    continue
                 value = f"{field.value():.2f}".rstrip("0").rstrip(".")
             else:
                 value = field.text().strip()
@@ -4513,8 +4821,8 @@ class EventEditorGUI(Win2000FramelessMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("KSファイル イベントエディタ (PyQt5版)")
-        self.setGeometry(100, 100, 1600, 900)
+        self.setWindowTitle("KSファイル イベントエディタ")
+        self._fit_initial_size(1600, 900)
 
         # 現在編集中のファイル
         self.current_file = None
@@ -4532,7 +4840,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         self.preview_thread = None
         self.preview_running = False
 
-        # プレビュープロセス管理(別プロセス方式用 - macOS専用)
+        # プレビュープロセス管理（OS共通の別プロセス方式）
         self.preview_process = None
 
         # eventsフォルダのパス
@@ -4592,6 +4900,9 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self.check_status_queue)
         self.status_timer.start(100)  # 100ms
+        self.preview_process_timer = QTimer(self)
+        self.preview_process_timer.timeout.connect(self._poll_preview_process)
+        self.preview_process_timer.start(250)
 
         # Warm the renderer after the editor becomes responsive so the first
         # step preview does not also pay Python/Pygame startup costs.
@@ -5190,7 +5501,11 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 continue
 
             cursor.setPosition(start_block.position())
-            cursor.setPosition(end_block.position() + end_block.length(), QTextCursor.KeepAnchor)
+            end_position = min(
+                end_block.position() + end_block.length(),
+                self.text_editor.document().characterCount() - 1,
+            )
+            cursor.setPosition(end_position, QTextCursor.KeepAnchor)
 
             fmt = QTextCharFormat()
             if step.get("memo"):
@@ -6103,7 +6418,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         ]
 
     def start_preview(self):
-        """ダイアログプレビューを別プロセスとして起動(macOS専用)"""
+        """ダイアログプレビューをOS共通の別プロセスとして起動"""
         logger.info("start_preview呼び出し(dialogue_preview_player.py起動)")
         try:
             if not self.current_file_path:
@@ -6141,7 +6456,6 @@ class EventEditorGUI(Win2000FramelessMainWindow):
                 self,
                 "プレビュー",
                 f"{self.current_file} を保存してからプレビューしますか?\n\n"
-                "※ macOSではエディタ内プレビューは利用できないため、\n"
                 "別ウィンドウでプレビューを起動します。",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             )
@@ -6149,7 +6463,8 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             if reply == QMessageBox.Cancel:
                 return
             elif reply == QMessageBox.Yes:
-                self.save_file()
+                if not self.save_file():
+                    return
 
             # 対話再生専用プレイヤーを別プロセスとして起動
             preview_script = os.path.join(
@@ -6197,7 +6512,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             QMessageBox.critical(self, "エラー", f"プレビュー起動に失敗しました:\n{e}")
 
     def stop_preview(self):
-        """プレビューウィンドウを停止(macOS専用 - プロセスを終了)"""
+        """プレビューウィンドウを停止する"""
         logger.info("stop_preview呼び出し")
         try:
             if not self.preview_process:
@@ -6240,7 +6555,7 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             QMessageBox.critical(self, "エラー", f"プレビュー停止に失敗しました:\n{e}")
 
     def reload_preview(self):
-        """プレビューをリロード(macOS専用 - プロセスを再起動)"""
+        """プレビューをリロードする"""
         logger.info("reload_preview呼び出し")
         try:
             if not self.current_file_path:
@@ -6262,7 +6577,8 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             if reply == QMessageBox.Cancel:
                 return
             elif reply == QMessageBox.Yes:
-                self.save_file()
+                if not self.save_file():
+                    return
 
             # 既存プロセスを終了
             if self.preview_process and self.preview_process.poll() is None:
@@ -6315,6 +6631,25 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         except ValueError:
             QMessageBox.critical(self, "エラー", "段落番号は整数で入力してください")
 
+    def _poll_preview_process(self):
+        """Reflect an externally closed preview in the editor immediately."""
+        process = self.preview_process
+        if process is None:
+            return
+        return_code = process.poll()
+        if return_code is None:
+            return
+
+        self.preview_process = None
+        self.preview_running = False
+        if return_code == 0:
+            self.status_label.setText("プレビュー終了")
+            self.status_label.setStyleSheet("color: gray;")
+        else:
+            self.status_label.setText(f"プレビュー終了（コード: {return_code}）")
+            self.status_label.setStyleSheet("color: orange;")
+        logger.info("プレビュープロセス終了: code=%s", return_code)
+
     def check_status_queue(self):
         """ステータスキューを定期的にチェック"""
         try:
@@ -6345,9 +6680,10 @@ class EventEditorGUI(Win2000FramelessMainWindow):
             self.preview_running = False
 
     def closeEvent(self, event):
-        """ウィンドウが閉じられる時の処理(macOS専用 - プロセスをクリーンアップ)"""
+        """ウィンドウが閉じられる時の処理と子プロセスのクリーンアップ"""
         logger.info("アプリケーション終了処理開始")
         self._closing = True
+        self.preview_process_timer.stop()
 
         if self._step_preview_pending:
             self._discard_step_preview_request(self._step_preview_pending)

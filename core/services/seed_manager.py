@@ -157,6 +157,12 @@ class SeedManager:
     def can_show(self, seed_id: str) -> bool:
         return seed_id in self.state["acquired"] or self.parents_met(seed_id)
 
+    def requires_semantic_judge(self, turning_point_id: str) -> bool:
+        """Return whether a turning point needs the bundled embedding model."""
+        definition = self.turning_points.get(turning_point_id) or {}
+        semantic_config = definition.get("semantic_judge") or {}
+        return bool(semantic_config.get("enabled", False))
+
     def encounter(self, event_id: str | None, seed_id: str) -> bool:
         if not event_id or not self.can_show(seed_id):
             return False
@@ -287,6 +293,12 @@ class SeedManager:
         if judge is None:
             return "not_loaded"
         return str(getattr(judge, "status", "not_loaded"))
+
+    def model_status_for_turning_point(self, turning_point_id: str) -> str:
+        """Report model state without alarming rule-based turning points."""
+        if not self.requires_semantic_judge(turning_point_id):
+            return "not_required"
+        return self.model_status()
 
     def record_turning_point_result(
         self,

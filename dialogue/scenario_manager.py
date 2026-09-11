@@ -8,6 +8,7 @@ from .character_manager import (
     start_character_part_fade,
     start_character_hide_fade,
     start_character_transition,
+    move_character_to,
 )
 from .background_manager import show_background, move_background
 from .fade_manager import start_fadeout, start_fadein
@@ -413,6 +414,11 @@ def _ir_handle_character_shift(game_state, target, params):
     if hide_pending and target in hide_pending:
         hide_pending.pop(target, None)
     fade_ms = _get_fade_ms(params, CHARA_TRANSITION_DEFAULT_MS)
+    if (
+        str(params.get("move", "")).strip().lower() == "linear"
+        and "fade" not in params
+    ):
+        fade_ms = CHARA_TRANSITION_DEFAULT_MS
     old_expressions = game_state.get("character_expressions", {}).get(target, {
         "eye": "",
         "mouth": "",
@@ -509,6 +515,35 @@ def _ir_handle_character_shift(game_state, target, params):
     character_pos = game_state.setdefault("character_pos", {})
     character_zoom = game_state.setdefault("character_zoom", {})
     character_expressions = game_state.setdefault("character_expressions", {})
+
+    if str(params.get("move", "")).strip().lower() == "linear":
+        # Linear movement is a positional animation layered under the normal
+        # shift fade.  In particular, time=0 is an immediate coordinate set;
+        # it must not start the legacy relative move animation.
+        move_ms = max(_to_int(params.get("time"), 0), 0)
+        character_torso[target] = target_torso
+        character_expressions[target] = target_expressions
+        game_state.get("character_transitions", {}).pop(target, None)
+        if position_changed and move_ms > 0:
+            move_character_to(
+                game_state, target, target_pos, move_ms, target_zoom
+            )
+        else:
+            game_state.get("character_anim", {}).pop(target, None)
+            character_pos[target] = list(target_pos)
+            character_zoom[target] = target_zoom
+
+        if changed_parts and fade_ms > 0:
+            from .character_manager import prewarm_character_fade_images
+            prewarm_character_fade_images(game_state, target, changed_parts)
+            for part_type, (old_id, new_id) in changed_parts.items():
+                start_character_part_fade(
+                    game_state, target, part_type, old_id, new_id, fade_ms
+                )
+        else:
+            game_state.get("character_part_fades", {}).pop(target, None)
+            game_state.get("character_fade_pending_render", {}).pop(target, None)
+        return max(move_ms, fade_ms if changed_parts else 0)
 
     # A zero fade is an explicit immediate update and must not leave an older
     # transition or per-part fade controlling the new state.
@@ -658,7 +693,15 @@ def _ir_handle_se_play(game_state, params):
     volume = _to_float(params.get("volume"), 0.5)
     frequency = _to_int(params.get("frequency"), 1)
     block = _to_bool(params.get("block"), False)
-    channel = se_manager.play_se(filename, volume, frequency)
+    start = _to_float(params.get("start"), 0.0)
+    end_value = params.get("end")
+    end = _to_float(end_value, 0.0) if end_value not in (None, "") else None
+    play_kwargs = {}
+    if start > 0:
+        play_kwargs["start"] = start
+    if end is not None:
+        play_kwargs["end"] = end
+    channel = se_manager.play_se(filename, volume, frequency, **play_kwargs)
 
     if block and channel is not None:
         import pygame as _pg
@@ -689,6 +732,7 @@ def _ir_handle_bgm_play(game_state, params):
     volume = _to_float(params.get("volume"), 0.5)
     loop = _to_bool(params.get("loop"), True)
     fade_time = _to_float(params.get("fade_time"), 0.0)
+    start = _to_float(params.get("start"), 0.0)
 
     actual_bgm_filename = bgm_manager.get_bgm_for_scene(filename) or filename
     if (
@@ -696,7 +740,10 @@ def _ir_handle_bgm_play(game_state, params):
         or not pygame.mixer.music.get_busy()
         or getattr(bgm_manager, "current_loop", True) != loop
     ):
-        bgm_manager.play_bgm(actual_bgm_filename, volume, loop, fade_time=fade_time)
+        play_kwargs = {"fade_time": fade_time}
+        if start > 0:
+            play_kwargs["start"] = start
+        bgm_manager.play_bgm(actual_bgm_filename, volume, loop, **play_kwargs)
 
 def _ir_handle_bgm_pause(game_state, params):
     bgm_manager = game_state.get("bgm_manager")
@@ -798,6 +845,23 @@ def _get_fade_ms(params, default_ms):
 
 def _ir_get_action_duration_ms(action_type, params):
     if action_type in ("chara_show", "chara_shift", "chara_hide"):
+        if action_type == "chara_shift" and str((params or {}).get("move", "")).lower() == "linear":
+            fade_ms = (
+                _get_fade_ms(params or {}, CHARA_TRANSITION_DEFAULT_MS)
+                if "fade" in (params or {})
+                else CHARA_TRANSITION_DEFAULT_MS
+            )
+            has_visual_change = any(
+                key in (params or {})
+                for key in (
+                    "torso", "eye", "mouth", "brow", "cheek",
+                    "effect", "accessory",
+                )
+            )
+            return max(
+                _to_int((params or {}).get("time"), 0),
+                fade_ms if has_visual_change else 0,
+            )
         return _get_fade_ms(params or {}, CHARA_TRANSITION_DEFAULT_MS)
     if action_type == "chara_move":
         return _to_int((params or {}).get("time"), 600)
@@ -1321,7 +1385,13 @@ def _handle_bgm_play(game_state, dialogue_text, current_dialogue=None):
                 or not pygame.mixer.music.get_busy()
                 or getattr(bgm_manager, "current_loop", True) != bgm_loop
             ):
-                bgm_manager.play_bgm(actual_bgm_filename, bgm_volume, bgm_loop, fade_time=fade_time)
+                bgm_start = _to_float(metadata.get("start"), 0.0)
+                play_kwargs = {"fade_time": fade_time}
+                if bgm_start > 0:
+                    play_kwargs["start"] = bgm_start
+                bgm_manager.play_bgm(
+                    actual_bgm_filename, bgm_volume, bgm_loop, **play_kwargs
+                )
 
     return advance_dialogue(game_state)
 
@@ -1351,11 +1421,21 @@ def _handle_se_play(game_state, dialogue_text, current_dialogue=None):
             se_frequency = 1
         se_volume = _to_float(metadata.get("volume"), se_volume)
         se_frequency = _to_int(metadata.get("frequency"), se_frequency)
+        se_start = _to_float(metadata.get("start"), 0.0)
+        se_end_value = metadata.get("end")
+        se_end = _to_float(se_end_value, 0.0) if se_end_value not in (None, "") else None
         
         # SEManagerを使ってSEを再生
         se_manager = game_state.get('se_manager')
         if se_manager:
-            success = se_manager.play_se(se_filename, se_volume, se_frequency)
+            play_kwargs = {}
+            if se_start > 0:
+                play_kwargs["start"] = se_start
+            if se_end is not None:
+                play_kwargs["end"] = se_end
+            success = se_manager.play_se(
+                se_filename, se_volume, se_frequency, **play_kwargs
+            )
             if DEBUG:
                 if success:
                     print(f"SE再生成功: {se_filename} (volume={se_volume}, frequency={se_frequency})")

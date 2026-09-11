@@ -106,6 +106,27 @@ def test_tutorial_answer_is_normalized_but_not_guessed(tmp_path):
     assert manager.judge_answer("TP1", "増田は包茎ではない")["result"] == "incorrect"
 
 
+def test_only_semantic_turning_points_require_the_model(tmp_path):
+    _write_project(
+        tmp_path,
+        [_seed("S1")],
+        [
+            {"id": "TP1"},
+            {"id": "RULE_TP", "accepted_answers": ["答え"]},
+            {
+                "id": "SEMANTIC_TP",
+                "semantic_judge": {"enabled": True},
+            },
+        ],
+    )
+    manager = SeedManager(str(tmp_path))
+
+    assert manager.requires_semantic_judge("RULE_TP") is False
+    assert manager.requires_semantic_judge("SEMANTIC_TP") is True
+    assert manager.model_status_for_turning_point("RULE_TP") == "not_required"
+    assert manager.model_status_for_turning_point("SEMANTIC_TP") == "not_loaded"
+
+
 def test_cycle_is_rejected(tmp_path):
     _write_project(
         tmp_path,

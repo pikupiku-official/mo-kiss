@@ -12,20 +12,34 @@ import os
 import re
 from collections import OrderedDict
 
-from PyQt5.QtCore import QTimer, Qt, pyqtSignal
-from PyQt5.QtGui import QColor, QImage, QPainter, QPen, QPixmap
+from PyQt5.QtCore import QTimer, QPointF, QRectF, Qt, pyqtSignal
+from PyQt5.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
 from PyQt5.QtWidgets import (
     QGraphicsItem,
     QGraphicsPixmapItem,
     QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsSimpleTextItem,
+    QGraphicsTextItem,
     QGraphicsView,
     QLabel,
     QSizePolicy,
 )
 
-from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
+from core.config import (
+    FONT_NAME_SIZE,
+    FONT_TEXT_SIZE,
+    NAME_START_X,
+    NAME_START_Y,
+    TEXT_COLOR,
+    TEXT_COLOR_FEMALE,
+    TEXT_LINE_SPACING,
+    TEXT_MAX_DISPLAY_LINES,
+    TEXT_START_X,
+    TEXT_START_Y,
+    VIRTUAL_HEIGHT,
+    VIRTUAL_WIDTH,
+)
 from tools.event_editor_part_templates import CharaPartTemplateStore
 
 
@@ -38,6 +52,210 @@ CHARACTER_PARTS = (
     "accessory",
     "effect",
 )
+
+
+TEXT_OBJECT_NAME = "dialogue"
+
+
+_DIALOGUE_RENDERER = None
+_DIALOGUE_RENDERER_SURFACE = None
+
+
+def _render_dialogue_pixmap(dialogue):
+    """Render dialogue with the same renderer used by the running game."""
+
+    global _DIALOGUE_RENDERER, _DIALOGUE_RENDERER_SURFACE
+
+    try:
+        import pygame
+        from dialogue.text_renderer import TextRenderer
+
+        if not pygame.get_init():
+            pygame.init()
+        if not pygame.display.get_init():
+            os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+            pygame.display.init()
+        if pygame.display.get_surface() is None:
+            pygame.display.set_mode((1, 1), pygame.HIDDEN)
+
+        surface_size = (VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+        if (
+            _DIALOGUE_RENDERER is None
+            or _DIALOGUE_RENDERER_SURFACE is None
+            or _DIALOGUE_RENDERER_SURFACE.get_size() != surface_size
+        ):
+            _DIALOGUE_RENDERER_SURFACE = pygame.Surface(
+                surface_size, pygame.SRCALPHA
+            )
+            _DIALOGUE_RENDERER = TextRenderer(
+                _DIALOGUE_RENDERER_SURFACE, debug=False
+            )
+        else:
+            _DIALOGUE_RENDERER.screen = _DIALOGUE_RENDERER_SURFACE
+
+        _DIALOGUE_RENDERER_SURFACE.fill((0, 0, 0, 0))
+        _DIALOGUE_RENDERER.set_dialogue(
+            str(dialogue.get("body") or ""),
+            str(dialogue.get("speaker") or ""),
+            force_female=bool(dialogue.get("force_female", False)),
+        )
+        _DIALOGUE_RENDERER.skip_text()
+        _DIALOGUE_RENDERER.render_paragraph()
+
+        try:
+            rgba_data = pygame.image.tobytes(_DIALOGUE_RENDERER_SURFACE, "RGBA")
+        except AttributeError:
+            rgba_data = pygame.image.tostring(_DIALOGUE_RENDERER_SURFACE, "RGBA")
+        image = QImage(
+            rgba_data,
+            VIRTUAL_WIDTH,
+            VIRTUAL_HEIGHT,
+            QImage.Format_RGBA8888,
+        ).copy()
+        return QPixmap.fromImage(image)
+    except Exception:
+        # Qt's editable fallback remains available if Pygame cannot create a
+        # display surface in a restricted environment.
+        return QPixmap()
+
+
+class FixedDialogueTextItem(QGraphicsTextItem):
+    """Editable dialogue part whose position and scale are immutable."""
+
+    contents_changed = pyqtSignal(str, str)
+
+    def __init__(self, role, text, font, color, position, parent=None):
+        super().__init__(parent)
+        self.role = role
+        self.setFlag(QGraphicsItem.ItemIsMovable, False)
+        self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
+        self.setTextInteractionFlags(Qt.TextEditorInteraction)
+        self.setDefaultTextColor(color)
+        self.setFont(font)
+        self.setPlainText(text)
+        self.document().contentsChanged.connect(self._emit_contents_changed)
+        self.setPos(position)
+        self._fixed_position = QPointF(position)
+        self._fixed_scale = 1.0
+
+    def _emit_contents_changed(self):
+        self.contents_changed.emit(self.role, self.toPlainText())
+
+    def itemChange(self, change, value):
+        fixed_position = getattr(self, "_fixed_position", None)
+        if change == QGraphicsItem.ItemPositionChange and fixed_position is not None:
+            return fixed_position
+        if change == QGraphicsItem.ItemScaleChange:
+            return getattr(self, "_fixed_scale", 1.0)
+        return super().itemChange(change, value)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self.textCursor().insertText(" ")
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
+class DialogueGraphicsItem(QGraphicsItem):
+    """Fixed-position dialogue object drawn at the game's text coordinates."""
+
+    def __init__(self, dialogue, parent=None):
+        super().__init__(parent)
+        self.dialogue = dict(dialogue or {})
+        self.setFlag(QGraphicsItem.ItemIsSelectable, False)
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
+        # Position and scale are intentionally not editable.  The object is
+        # still selectable so the existing speaker/body controls are obvious.
+        self.setFlag(QGraphicsItem.ItemIsMovable, False)
+        self.setData(0, "text")
+        self.setData(1, TEXT_OBJECT_NAME)
+        self.setData(2, "current")
+        self.setData(3, dict(self.dialogue))
+
+        self._name = str(self.dialogue.get("speaker") or "")
+        self._font_name = QFont("M PLUS 1p", FONT_NAME_SIZE)
+        self._font_text = QFont("M PLUS 1p", FONT_TEXT_SIZE)
+        self._bounds = QRectF(
+            max(0, NAME_START_X - 16),
+            max(0, TEXT_START_Y - TEXT_LINE_SPACING - 56),
+            VIRTUAL_WIDTH - max(0, NAME_START_X - 16) - 24,
+            min(VIRTUAL_HEIGHT, TEXT_START_Y + TEXT_LINE_SPACING * TEXT_MAX_DISPLAY_LINES + 32)
+            - max(0, TEXT_START_Y - TEXT_LINE_SPACING - 56),
+        )
+        self.setToolTip("text: 話者名・本文のみ編集（位置変更不可）")
+
+        color = QColor(
+            *(TEXT_COLOR_FEMALE if self.dialogue.get("force_female") else TEXT_COLOR)
+        )
+        self.speaker_item = FixedDialogueTextItem(
+            "speaker",
+            self._name,
+            self._font_name,
+            color,
+            QPointF(NAME_START_X, NAME_START_Y - FONT_NAME_SIZE),
+            self,
+        )
+        self.speaker_item.setData(0, "dialogue_part")
+        self.speaker_item.setData(1, "speaker")
+        self.speaker_item.setData(2, "current")
+        self.speaker_item.setData(3, dict(self.dialogue))
+
+        self.body_item = FixedDialogueTextItem(
+            "body",
+            str(self.dialogue.get("body") or ""),
+            self._font_text,
+            color,
+            QPointF(TEXT_START_X, TEXT_START_Y - FONT_TEXT_SIZE),
+            self,
+        )
+        self.body_item.setTextWidth(VIRTUAL_WIDTH - TEXT_START_X - 32)
+        self.body_item.setData(0, "dialogue_part")
+        self.body_item.setData(1, "body")
+        self.body_item.setData(2, "current")
+        self.body_item.setData(3, dict(self.dialogue))
+
+        # The visible layer is rendered by the game's TextRenderer.  The
+        # QGraphicsTextItems above remain the direct-edit layer.
+        self._dialogue_pixmap_item = QGraphicsPixmapItem(self)
+        self._dialogue_pixmap_item.setPos(0, 0)
+        self._dialogue_pixmap_item.setZValue(-1)
+        self._dialogue_pixmap_item.setAcceptedMouseButtons(Qt.NoButton)
+        self._editor_color = color
+        self._set_dialogue_pixmap(_render_dialogue_pixmap(self.dialogue))
+
+    def _set_dialogue_pixmap(self, pixmap):
+        self._dialogue_pixmap_item.setPixmap(pixmap)
+        if pixmap.isNull():
+            self.speaker_item.setDefaultTextColor(self._editor_color)
+            self.body_item.setDefaultTextColor(self._editor_color)
+        else:
+            transparent = QColor(self._editor_color)
+            transparent.setAlpha(0)
+            self.speaker_item.setDefaultTextColor(transparent)
+            self.body_item.setDefaultTextColor(transparent)
+
+    def update_dialogue(self, dialogue):
+        self.dialogue = dict(dialogue or {})
+        self.setData(3, dict(self.dialogue))
+        self.speaker_item.setData(3, dict(self.dialogue))
+        self.body_item.setData(3, dict(self.dialogue))
+        self._set_dialogue_pixmap(_render_dialogue_pixmap(self.dialogue))
+
+    def boundingRect(self):
+        return self._bounds
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.ItemPositionChange:
+            return QPointF(0, 0)
+        if change == QGraphicsItem.ItemScaleChange:
+            return 1.0
+        return super().itemChange(change, value)
+
+    def paint(self, painter, option, widget=None):
+        # The child QGraphicsTextItems render and edit the dialogue.
+        pass
 
 
 class FitPixmapLabel(QLabel):
@@ -292,6 +510,24 @@ class StepSceneStateBuilder:
             "background": None,
             "characters": {},
             "cg": None,
+            # Dialogue belongs to the current step only; it is populated in
+            # the finalized after-state and never carried into the next step's
+            # spatial prefix.
+            "text": None,
+        }
+
+    @staticmethod
+    def _dialogue_state(dialogue):
+        if not dialogue:
+            return None
+        speaker = str(dialogue.get("speaker") or "").strip()
+        body = str(dialogue.get("body") or "").strip()
+        if not speaker and not body:
+            return None
+        return {
+            "speaker": speaker,
+            "body": body,
+            "force_female": bool(dialogue.get("force_female", False)),
         }
 
     def _cg_image_size(self, storage):
@@ -524,7 +760,7 @@ class StepSceneStateBuilder:
             self._update_character_center(character)
         changes[name] = "shift"
 
-    def _finalize_result(self, target, before, state, changes):
+    def _finalize_result(self, target, before, state, changes, dialogue=None):
         inherited_names = set(before["characters"])
         for name, character in state["characters"].items():
             change = changes.get(name)
@@ -549,6 +785,8 @@ class StepSceneStateBuilder:
             else:
                 cg["origin"] = "inherited"
 
+        before["text"] = None
+        state["text"] = self._dialogue_state(dialogue)
         return {
             "step_index": target,
             "before": before,
@@ -556,7 +794,7 @@ class StepSceneStateBuilder:
             "changes": changes,
         }
 
-    def build_current_step(self, actions, step_index):
+    def build_current_step(self, actions, step_index, dialogue=None):
         """Rebuild only the current step using the already-built prefix.
 
         The editor calls this while typing in the current action.  The prior
@@ -587,9 +825,9 @@ class StepSceneStateBuilder:
             return None
         self._timeline_incremental_override = (target, tuple(actions or ()))
 
-        return self._finalize_result(target, before, state, changes)
+        return self._finalize_result(target, before, state, changes, dialogue)
 
-    def build(self, action_steps, step_index):
+    def build(self, action_steps, step_index, dialogue=None):
         """Return ``before`` and ``after`` states for a visible editor step."""
 
         template_revision = self._template_revision()
@@ -612,10 +850,12 @@ class StepSceneStateBuilder:
                 self._timeline_signature = ()
                 self._timeline_states = []
             self._timeline_incremental_override = None
-        cache_key = (
-            target,
-            timeline_signature,
-        )
+        dialogue_signature = (
+            str((dialogue or {}).get("speaker") or "").strip(),
+            str((dialogue or {}).get("body") or "").strip(),
+            bool((dialogue or {}).get("force_female", False)),
+        ) if dialogue else None
+        cache_key = (target, timeline_signature, dialogue_signature)
         cached = self._build_cache.get(cache_key)
         if cached is not None:
             self._build_cache.move_to_end(cache_key)
@@ -664,7 +904,7 @@ class StepSceneStateBuilder:
             elif target < len(self._timeline_states):
                 self._timeline_states[target] = copy.deepcopy(state)
 
-        result = self._finalize_result(target, before, state, changes)
+        result = self._finalize_result(target, before, state, changes, dialogue)
         self._build_cache[cache_key] = result
         self._build_cache.move_to_end(cache_key)
         while len(self._build_cache) > self._build_cache_limit:
@@ -681,6 +921,7 @@ class StepSceneCanvas(QGraphicsView):
     object_delete_requested = pyqtSignal(str, str, object)
     context_requested = pyqtSignal(str, str, str, object, object)
     step_navigation_requested = pyqtSignal(int)
+    dialogue_changed = pyqtSignal(str, str)
 
     def __init__(self, image_manager=None, parent=None):
         super().__init__(parent)
@@ -709,6 +950,9 @@ class StepSceneCanvas(QGraphicsView):
         self._resize_start_distance = None
         self._resize_current_zoom = None
         self._labels_by_key = {}
+        self._dialogue_items = {}
+        self._dialogue_visual_item = None
+        self._dialogue_syncing = False
         self._character_pixmap_cache = OrderedDict()
         self._character_pixmap_cache_limit = 24
         self._cg_pixmap_cache = OrderedDict()
@@ -886,10 +1130,42 @@ class StepSceneCanvas(QGraphicsView):
         self._scene.addItem(label)
         self._labels_by_key[("character", name)] = label
 
+    def _add_text(self, dialogue):
+        item = DialogueGraphicsItem(dialogue)
+        item.setZValue(200)
+        self._dialogue_visual_item = item
+        self._dialogue_items = {
+            "speaker": item.speaker_item,
+            "body": item.body_item,
+        }
+        item.speaker_item.contents_changed.connect(self._on_dialogue_part_changed)
+        item.body_item.contents_changed.connect(self._on_dialogue_part_changed)
+        self._scene.addItem(item)
+
+    def _on_dialogue_part_changed(self, role, _value):
+        if self._dialogue_syncing or not self._dialogue_items:
+            return
+        speaker = self._dialogue_items["speaker"].toPlainText().strip()
+        body = self._dialogue_items["body"].toPlainText().replace("\n", " ").strip()
+        if self._dialogue_visual_item is not None:
+            self._dialogue_visual_item.update_dialogue(
+                {
+                    "speaker": speaker,
+                    "body": body,
+                    "force_female": bool(
+                        self._dialogue_visual_item.dialogue.get("force_female", False)
+                    ),
+                }
+            )
+        self.dialogue_changed.emit(speaker, body)
+
     def set_scene_state(self, state):
         selected_key = self._selected_key
+        previous_scene_signals = self._scene.blockSignals(True)
         self._scene.clear()
         self._labels_by_key = {}
+        self._dialogue_items = {}
+        self._dialogue_visual_item = None
         self._drag_item = None
         self._drag_start_pos = None
         self._drag_press_scene_pos = None
@@ -919,7 +1195,11 @@ class StepSceneCanvas(QGraphicsView):
             for index, character in enumerate(state.get("characters", {}).values()):
                 self._add_character(character, 10 + index)
 
-        if not background and not state.get("characters") and not cg:
+        dialogue = state.get("text")
+        if dialogue:
+            self._add_text(dialogue)
+
+        if not background and not state.get("characters") and not cg and not dialogue:
             empty = self._scene.addText("このstepまでに表示されるオブジェクトはありません")
             empty.setDefaultTextColor(QColor(170, 170, 170))
             empty.setPos(VIRTUAL_WIDTH / 2 - 250, VIRTUAL_HEIGHT / 2 - 20)
@@ -929,6 +1209,7 @@ class StepSceneCanvas(QGraphicsView):
                 if (item.data(0), item.data(1)) == selected_key:
                     item.setSelected(True)
                     break
+        self._scene.blockSignals(previous_scene_signals)
         self.fit_stage()
 
     def _clear_resize_handles(self):
@@ -1136,6 +1417,11 @@ class StepSceneCanvas(QGraphicsView):
 
     def contextMenuEvent(self, event):
         self.flush_pending_scale()
+        if any(item.data(0) in ("text", "dialogue_part") for item in self.items(event.pos())):
+            # Dialogue has no spatial/context actions.  In particular, do not
+            # let a right-click on it fall through to the stage action menu.
+            event.accept()
+            return
         # Backgrounds normally fill the entire stage, so ordinary right-click
         # treats every non-character point as stage space.  Background editing
         # remains an explicit entry in the stage menu instead of stealing the
@@ -1301,9 +1587,13 @@ class StepSceneCanvas(QGraphicsView):
             self.object_selected.emit("", "", "")
             return
         item = selected[0]
-        object_type = str(item.data(0) or "")
-        object_name = str(item.data(1) or "")
+        raw_type = str(item.data(0) or "")
+        raw_name = str(item.data(1) or "")
+        object_type = "text" if raw_type == "dialogue_part" else raw_type
+        object_name = raw_name
         origin = str(item.data(2) or "")
-        self._selected_key = (object_type, object_name)
+        self._selected_key = (raw_type, raw_name)
+        if raw_type == "dialogue_part":
+            item.setFocus()
         self._update_resize_handles()
         self.object_selected.emit(object_type, object_name, origin)

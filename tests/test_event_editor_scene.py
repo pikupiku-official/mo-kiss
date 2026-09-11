@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
 from event_editor import StepEditorDialog
 from tools.event_editor_scene import (
+    DialogueGraphicsItem,
     FitPixmapLabel,
     StepSceneCanvas,
     StepSceneStateBuilder,
@@ -35,6 +36,24 @@ def _size_lookup(_image_type, image_key):
         "MMK_T00": (500, 1000),
         "MMK_T01": (600, 1000),
     }.get(image_key, (500, 1000))
+
+
+def test_dialogue_graphics_item_accepts_config_rgb_tuples():
+    class Painter:
+        def setPen(self, _pen):
+            pass
+
+        def setFont(self, _font):
+            pass
+
+        def drawText(self, *_args):
+            pass
+
+    item = DialogueGraphicsItem(
+        {"speaker": "A", "body": "本文", "force_female": False}
+    )
+
+    item.paint(Painter(), SimpleNamespace(state=0))
 
 
 def test_scene_builder_distinguishes_before_and_after_objects():
@@ -176,6 +195,127 @@ def test_scene_builder_pages_forward_from_the_cached_prefix(monkeypatch):
 
     assert calls_after_first_build == 2
     assert len(calls) == calls_after_first_build + 1
+
+
+def test_scene_builder_keeps_dialogue_on_the_current_after_state_only():
+    builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+
+    states = builder.build(
+        [[], []],
+        1,
+        {"speaker": "A", "body": "本文", "force_female": True},
+    )
+
+    assert states["before"]["text"] is None
+    assert states["after"]["text"] == {
+        "speaker": "A",
+        "body": "本文",
+        "force_female": True,
+    }
+
+
+def test_text_object_is_fixed_and_contains_editable_dialogue_metadata():
+    canvas = StepSceneCanvas(_empty_image_manager())
+    canvas.set_scene_state(
+        {
+            "background": None,
+            "characters": {},
+            "cg": None,
+            "text": {
+                "speaker": "A",
+                "body": "本文",
+                "force_female": False,
+            },
+        }
+    )
+
+    text_item = next(item for item in canvas.scene().items() if item.data(0) == "text")
+    assert text_item.data(1) == "dialogue"
+    assert not text_item.flags() & QGraphicsItem.ItemIsMovable
+    assert text_item.pos().x() == 0
+    assert text_item.pos().y() == 0
+    text_item.setPos(120, 80)
+    text_item.setScale(2.0)
+    assert text_item.pos().x() == 0
+    assert text_item.pos().y() == 0
+    assert text_item.scale() == 1.0
+    assert text_item.data(3)["speaker"] == "A"
+    assert text_item.data(3)["body"] == "本文"
+
+
+def test_step_dialogue_fields_refresh_the_fixed_text_object():
+    step = {"step_index": 0, "speaker": "A", "body": "本文"}
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=[],
+        all_steps=[step],
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+
+    dialog.speaker_input.setText("B")
+    dialog.body_input.setText("変更後の本文")
+    dialog._refresh_scene_preview()
+
+    text_item = next(item for item in dialog.scene_canvas.scene().items() if item.data(0) == "text")
+    assert text_item.data(3)["speaker"] == "B"
+    assert text_item.data(3)["body"] == "変更後の本文"
+
+
+def test_text_object_parts_are_editable_on_canvas_and_sync_dialogue_fields():
+    canvas = StepSceneCanvas(_empty_image_manager())
+    canvas.set_scene_state(
+        {
+            "text": {"speaker": "A", "body": "本文", "force_female": False},
+            "characters": {},
+        }
+    )
+    changes = []
+    canvas.dialogue_changed.connect(lambda *values: changes.append(values))
+
+    body_item = next(
+        item
+        for item in canvas.scene().items()
+        if item.data(0) == "dialogue_part" and item.data(1) == "body"
+    )
+    body_item.setPlainText("画面上で変更")
+
+    assert changes[-1] == ("A", "画面上で変更")
+    body_item.setPos(100, 100)
+    body_item.setScale(2.0)
+    assert body_item.pos().x() == 298 and body_item.pos().y() == 758
+    assert body_item.scale() == 1.0
+
+
+def test_body_backspace_keeps_focus_and_does_not_select_speaker():
+    step = {"step_index": 0, "speaker": "A", "body": "abc"}
+    dialog = StepEditorDialog(
+        None,
+        step,
+        actions=[],
+        all_steps=[step],
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+    dialog.show()
+    APP.processEvents()
+    dialog.body_input.setFocus()
+    dialog.body_input.setCursorPosition(3)
+
+    QTest.keyClick(dialog.body_input, Qt.Key_Backspace)
+    QTest.qWait(100)
+    APP.processEvents()
+
+    assert dialog.body_input.text() == "ab"
+    assert dialog.body_input.hasFocus()
+    assert not dialog.speaker_input.hasFocus()
+    assert dialog.speaker_input.selectedText() == ""
+    dialog.body_input.setText("abc")
+    dialog._baseline_signature = dialog._current_step_signature()
+    dialog.reject()
 
 
 def test_scene_canvas_resolves_legacy_partial_background_id(tmp_path):
@@ -623,7 +763,7 @@ def test_dragging_inherited_character_adds_relative_move():
     dialog._on_scene_object_moved("桃子", 72.0, 108.0, {"zoom": 2.3})
 
     assert dialog.get_actions() == [
-        'chara_move name="桃子" left="0.05" top="0.1" zoom="2.3" time="600"'
+        'chara_shift name="桃子" x="0.55" y="0.6"'
     ]
 
 
@@ -643,7 +783,7 @@ def test_repeated_drag_updates_existing_move_instead_of_adding_another():
     dialog._on_scene_object_moved("桃子", 72.0, -54.0, {"zoom": 2.3})
 
     assert dialog.get_actions() == [
-        'chara_move name="桃子" left="0.15" top="-0.05" zoom="2.3" time="900"'
+        'chara_shift name="桃子" x="0.55" y="0.45"'
     ]
 
 
@@ -703,7 +843,7 @@ def test_shift_wheel_updates_show_size_or_adds_inherited_move():
     )
     inherited_dialog._on_scene_object_scaled("桃子", 2.5, {"zoom": 2.5})
     assert inherited_dialog.get_actions() == [
-        'chara_move name="桃子" left="0.0" top="0.0" zoom="2.5" time="600"'
+        'chara_shift name="桃子" size="2.5"'
     ]
 
 
@@ -880,6 +1020,22 @@ def test_chara_editor_uses_dropdowns_and_scrollable_action_editor():
     assert dialog.action_editor_scroll.widgetResizable()
 
 
+def test_action_list_does_not_force_a_wide_right_panel():
+    steps = [{"step_index": 0}]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+
+    actions_group = dialog.actions_list.parentWidget()
+    assert actions_group.minimumSizeHint().width() <= 400
+
+
 def test_direct_canvas_scale_does_not_start_pygame_snapshot_timer():
     steps = [{"step_index": 0}]
     show = 'chara_show name="桃子" torso="MMK_T00" size="2.3"'
@@ -899,7 +1055,7 @@ def test_direct_canvas_scale_does_not_start_pygame_snapshot_timer():
     assert not dialog._preview_debounce_timer.isActive()
 
 
-def test_drag_after_position_shift_appends_move_so_final_position_is_not_overridden():
+def test_drag_after_position_shift_updates_existing_shift():
     steps = [{"step_index": 0}, {"step_index": 1}]
     prior_show = 'chara_show name="桃子" torso="MMK_T00" size="2.3"'
     shift = 'chara_shift name="桃子" x="0.4" eye="eye_b"'
@@ -916,8 +1072,7 @@ def test_drag_after_position_shift_appends_move_so_final_position_is_not_overrid
     dialog._on_scene_object_moved("桃子", 144.0, 0.0, {"zoom": 2.3})
 
     assert dialog.get_actions() == [
-        shift,
-        'chara_move name="桃子" left="0.1" top="0.0" zoom="2.3" time="600"',
+        'chara_shift name="桃子" eye="eye_b" x="0.6" y="0.5"',
     ]
 
 

@@ -88,10 +88,15 @@ class DialogueSubsystem(SubsystemBase):
                 self.seed_manager,
                 text_renderer,
             )
-        if any(
-            isinstance(item, dict) and item.get("type") == "seed_answer"
+        requires_semantic_model = any(
+            isinstance(item, dict)
+            and item.get("type") == "seed_answer"
+            and self.seed_manager.requires_semantic_judge(
+                item.get("turning_point_id", "")
+            )
             for item in self.game_state.get("dialogue_data", [])
-        ):
+        )
+        if requires_semantic_model:
             self.seed_manager.preload_answer_model()
 
         from dialogue.event_datetime import apply_event_datetime
@@ -147,11 +152,20 @@ class DialogueSubsystem(SubsystemBase):
             if filename:
                 manager = self.game_state.get("bgm_manager")
                 if manager is not None:
-                    manager.play_bgm(
-                        filename,
-                        bgm.get("volume", 0.5),
-                        bgm.get("loop", True),
-                    )
+                    start = bgm.get("start", 0.0)
+                    if start:
+                        manager.play_bgm(
+                            filename,
+                            bgm.get("volume", 0.5),
+                            bgm.get("loop", True),
+                            start=start,
+                        )
+                    else:
+                        manager.play_bgm(
+                            filename,
+                            bgm.get("volume", 0.5),
+                            bgm.get("loop", True),
+                        )
 
     def cleanup(self):
         """サブシステム終了時: BGM/SE 停止 + 座標系を復元"""

@@ -1,8 +1,7 @@
-//speaker//
-「セリフ」
-
 日常（初出）
-
+[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0011" mouth="MST_F01_MOU_0003" brow="MST_F01_BRO_0006" effect="" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
+[bgm bgm="MokMas42654.mp3" volume="0.5" loop="true" fade="0.0"]
 	//増田//
 	「まったく、つれないなあ。」
 	//純一//
@@ -10,7 +9,7 @@
 [chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0004" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
 	//増田//
 	「そういやそうだったな。」
-[se se="走る足音近づき止まる.mp3" volume="1.0" frequency="1" block="false"]
+[se se="走る足音近づき止まる.mp3" volume="1" frequency="1" block="true"]
 [chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0005" x="0.25759219" y="1.0791757" size="2.4" fade="0.15"]
 	//増田//
 	「修学旅行のときなんかお前…」

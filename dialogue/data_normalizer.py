@@ -118,6 +118,8 @@ def normalize_dialogue_data(raw_data):
                     'y',
                     'size',
                     'fade',
+                    'move',
+                    'time',
                     'effect',
                     'accessory',
                 )
@@ -174,6 +176,7 @@ def normalize_dialogue_data(raw_data):
                 'volume': current_bgm_volume,
                 'loop': current_bgm_loop,
                 'fade_time': entry.get('fade_time', 0.0),
+                'start': entry.get('start', 0.0),
             }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,
@@ -229,6 +232,8 @@ def normalize_dialogue_data(raw_data):
                 'volume': entry['volume'],
                 'frequency': entry['frequency'],
                 'block': entry.get('block', False),
+                'start': entry.get('start', 0.0),
+                'end': entry.get('end'),
             }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,

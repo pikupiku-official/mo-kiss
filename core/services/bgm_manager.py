@@ -3,6 +3,7 @@ import os
 import threading
 import time
 import asyncio
+import re
 from concurrent.futures import ThreadPoolExecutor
 
 from core.services.settings_manager import get_settings_manager
@@ -21,6 +22,8 @@ class BGMManager:
         self.paused_bgm = None  # 一時停止したBGMの情報を保持
         self.paused_volume = 0.5
         self.paused_loop = True
+        self.sequence_thread = None
+        self.sequence_stop = threading.Event()
         
         # 非同期処理用
         self.executor = ThreadPoolExecutor(max_workers=1)
@@ -43,7 +46,68 @@ class BGMManager:
         
         return True
 
-    def play_bgm(self, filename, volume=0.5, loop=True, fade_time=0.0):
+    def _sequence_candidates(self, filename):
+        """Find exact-prefix numeric siblings such as MokLap1/MokLap2."""
+        match = re.match(r"^(.*?)(\d+)(\.[^.]+)$", filename or "")
+        if not match or not os.path.isdir(self.BGM_PATH):
+            return [filename]
+        prefix, _number, extension = match.groups()
+        candidates = []
+        for candidate in os.listdir(self.BGM_PATH):
+            candidate_match = re.match(r"^(.*?)(\d+)(\.[^.]+)$", candidate)
+            if not candidate_match:
+                continue
+            candidate_prefix, candidate_number, candidate_extension = candidate_match.groups()
+            if (
+                candidate_prefix == prefix
+                and candidate_extension.lower() == extension.lower()
+            ):
+                candidates.append((int(candidate_number), candidate))
+        candidates.sort(key=lambda item: (item[0], item[1]))
+        return [candidate for _number, candidate in candidates] or [filename]
+
+    def _stop_sequence(self):
+        self.sequence_stop.set()
+        thread = self.sequence_thread
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
+        self.sequence_thread = None
+        self.sequence_stop = threading.Event()
+
+    def _play_loaded_bgm(self, filename, volume, loop, start=0.0):
+        pygame.mixer.music.load(os.path.join(self.BGM_PATH, filename))
+        get_settings_manager().apply_bgm_volume(volume)
+        loops = -1 if loop else 0
+        if start > 0:
+            pygame.mixer.music.play(loops, start=start)
+        else:
+            pygame.mixer.music.play(loops)
+        self.current_bgm = filename
+        self.current_loop = loop
+        self.current_volume = volume
+        self.target_volume = volume
+        self.is_paused = False
+
+    def _monitor_sequence(self, sequence, volume):
+        """Play numbered tracks in order, repeating the final track."""
+        index = 0
+        while not self.sequence_stop.wait(0.05):
+            if pygame.mixer.music.get_busy():
+                continue
+            if index + 1 < len(sequence):
+                index += 1
+            try:
+                self._play_loaded_bgm(sequence[index], volume, False)
+                # Keep the logical BGM name stable while the physical track
+                # advances through Lap2, Lap2, ... .
+                self.current_bgm = sequence[0]
+                self.current_loop = True
+            except Exception as exc:
+                if self.debug:
+                    print(f"BGM sequence playback error: {exc}")
+                return
+
+    def play_bgm(self, filename, volume=0.5, loop=True, fade_time=0.0, start=0.0):
         print(f"[BGM_DEBUG] play_bgm要求: filename='{filename}', volume={volume}, loop={loop}, fade={fade_time}")
         if not pygame.mixer.get_init():
             try:
@@ -53,6 +117,7 @@ class BGMManager:
                 print(f"[BGM_DEBUG] pygame.mixer init error: {e}")
                 return False
         try:
+            self._stop_sequence()
             self._stop_fade()
             # 音量の正規化
             try:
@@ -64,6 +129,10 @@ class BGMManager:
                 fade_time = max(0.0, float(fade_time))
             except (ValueError, TypeError):
                 fade_time = 0.0
+            try:
+                start = max(0.0, float(start))
+            except (ValueError, TypeError):
+                start = 0.0
             if isinstance(loop, str):
                 loop = loop.strip().lower() in ("true", "1", "yes", "on")
             else:
@@ -101,14 +170,29 @@ class BGMManager:
                     print(f"[BGM_DEBUG] BGMファイルが存在しません: '{bgm_path}'")
                     return False
             
-            pygame.mixer.music.load(bgm_path)
-            start_volume = 0.0 if fade_time > 0 else volume
-            get_settings_manager().apply_bgm_volume(start_volume)
-            # ループ設定に応じて再生
-            if loop:
-                pygame.mixer.music.play(-1)  # ループ再生
+            sequence = self._sequence_candidates(filename)
+            sequence_mode = loop and len(sequence) > 1 and sequence[0] == filename
+            if sequence_mode:
+                self._play_loaded_bgm(filename, 0.0 if fade_time > 0 else volume, False, start=start)
+                self.sequence_thread = threading.Thread(
+                    target=self._monitor_sequence,
+                    args=(sequence, volume),
+                    daemon=True,
+                )
+                self.sequence_thread.start()
             else:
-                pygame.mixer.music.play(0)   # 一回のみ再生
+                self._play_loaded_bgm(filename, 0.0 if fade_time > 0 else volume, loop, start=start)
+            start_volume = 0.0 if fade_time > 0 else volume
+            self.current_bgm = filename
+            self.current_loop = loop
+            self.current_volume = start_volume
+            self.target_volume = volume
+            self.is_paused = False
+            self.paused_bgm = None
+            if fade_time > 0:
+                self.fade_in(volume, fade_time)
+            print(f"[BGM_DEBUG] BGM蜀咲函謌仙粥! file='{filename}', full_path='{bgm_path}', volume={volume}, loop={loop}")
+            return True
             self.current_bgm = filename
             self.current_loop = loop
             self.current_volume = start_volume
@@ -125,6 +209,7 @@ class BGMManager:
             return False
 
     def stop_bgm(self):
+        self._stop_sequence()
         print(f"[BGM_DEBUG] stop_bgm呼び出し (現在再生中='{self.current_bgm}')")
         self._stop_fade()
         if pygame.mixer.get_init():
@@ -273,6 +358,7 @@ class BGMManager:
     
     def fade_out(self, fade_time=1.0):
         """BGMをフェードアウト"""
+        self._stop_sequence()
         self._stop_fade()
         self.is_paused = False
         self.paused_bgm = None
@@ -475,6 +561,7 @@ class BGMManager:
     
     def cleanup(self):
         """リソースのクリーンアップ"""
+        self._stop_sequence()
         # フェード処理を停止
         self._stop_fade()
         

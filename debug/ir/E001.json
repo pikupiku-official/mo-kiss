@@ -14,7 +14,9 @@
             "file": "電車走行中1.mp3",
             "volume": 0.5,
             "frequency": 5,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         },
         {
@@ -251,7 +253,9 @@
             "file": "電車停車.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -283,7 +287,9 @@
             "file": "電車蒸気噴出.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -302,7 +308,9 @@
             "file": "電車の発車ベル.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         },
         {
@@ -311,7 +319,9 @@
             "file": "電車のドアが開く1.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -343,7 +353,9 @@
             "file": "衣擦れ3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -389,7 +401,9 @@
             "file": "休日でごった返す駅構内.mp3",
             "volume": 0.5,
             "frequency": 5,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -460,7 +474,9 @@
             "file": "階段を登る",
             "volume": 0.5,
             "frequency": 5,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -497,7 +513,9 @@
             "file": "station_ticket_gate1",
             "volume": 0.5,
             "frequency": 5,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         },
         {
@@ -751,7 +769,8 @@
             "file": "MokMas42654.mp3",
             "volume": 0.5,
             "loop": true,
-            "fade_time": 0.0
+            "fade_time": 0.0,
+            "start": 0.0
           }
         }
       ],
@@ -838,7 +857,9 @@
             "file": "Motion-Swish03-7.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -1036,7 +1057,9 @@
             "file": "走る足音近づき止まる.mp3",
             "volume": 1.0,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         },
         {
@@ -1325,7 +1348,8 @@
             "file": "MokLap1.mp3",
             "volume": 0.5,
             "loop": true,
-            "fade_time": 0.0
+            "fade_time": 0.0,
+            "start": 0.0
           }
         },
         {
@@ -1710,7 +1734,9 @@
             "file": "二人の歩く足音補装.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -2229,7 +2255,9 @@
             "file": "走る足音遠ざかる.mp3",
             "volume": 0.5,
             "frequency": 1,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         },
         {
@@ -2344,7 +2372,8 @@
             "file": "MokMas42654.mp3",
             "volume": 0.5,
             "loop": true,
-            "fade_time": 0.0
+            "fade_time": 0.0,
+            "start": 0.0
           }
         }
       ],
@@ -3231,7 +3260,9 @@
             "file": "風が流れる音。.mp3",
             "volume": 0.5,
             "frequency": 5,
-            "block": false
+            "block": false,
+            "start": 0.0,
+            "end": null
           }
         },
         {

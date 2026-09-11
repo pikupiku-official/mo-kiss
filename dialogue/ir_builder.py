@@ -219,10 +219,10 @@ def _action_for_expression(
 
 def _normalize_chara_shift_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     params: Dict[str, Any] = {}
-    for key in ("torso", "eye", "mouth", "brow", "cheek", "effect", "accessory", "x", "y", "size", "fade"):
+    for key in ("torso", "eye", "mouth", "brow", "cheek", "effect", "accessory", "x", "y", "size", "fade", "move", "time"):
         if key in entry and entry.get(key) is not None:
             params[key] = entry.get(key)
-    for key in ("x", "y", "size", "fade"):
+    for key in ("x", "y", "size", "fade", "time"):
         if key in params and params[key] is not None:
             params[key] = _to_float(params[key], params[key])
     # An expression shift without an explicit effect means the transient
@@ -263,6 +263,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
             parts[5].lower() == "true" if len(parts) > 5 else True
         )
         fade_time = _to_float(metadata.get("fade_time"), 0.0)
+        start = _to_float(metadata.get("start"), 0.0)
         return make_action(
             action="bgm_play",
             params={
@@ -270,6 +271,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
                 "volume": volume,
                 "loop": loop,
                 "fade_time": fade_time,
+                "start": start,
             },
         )
 
@@ -440,9 +442,19 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         block = _to_bool(metadata.get("block"), False) if metadata else (
             parts[6].lower() == "true" if len(parts) > 6 else False
         )
+        start = _to_float(metadata.get("start"), 0.0)
+        end_value = metadata.get("end")
+        end = _to_float(end_value, 0.0) if end_value not in (None, "") else None
         return make_action(
             action="se_play",
-            params={"file": filename, "volume": volume, "frequency": frequency, "block": block},
+            params={
+                "file": filename,
+                "volume": volume,
+                "frequency": frequency,
+                "block": block,
+                "start": start,
+                "end": end,
+            },
         )
 
     if text.startswith("_SE_STOP"):

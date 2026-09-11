@@ -3,10 +3,10 @@ from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt5.QtCore import QPoint, QSize, Qt
+from PyQt5.QtCore import QPoint, QSize, Qt, qInstallMessageHandler
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtTest import QTest
-from PyQt5.QtWidgets import QApplication, QDialog, QStyleFactory
+from PyQt5.QtWidgets import QApplication, QDialog, QStyleFactory, QTextEdit
 
 from event_editor import (
     EventEditorGUI,
@@ -92,13 +92,16 @@ def test_step_editor_uses_win2000_frame_and_caption_controls():
     APP.processEvents()
     dialog.title_bar.toggle_maximize()
     APP.processEvents()
-    assert dialog.isMaximized()
+    assert dialog._is_work_area_maximized()
+    available = APP.primaryScreen().availableGeometry()
+    assert dialog.geometry().top() >= available.top()
+    assert dialog.geometry().bottom() <= available.bottom()
     assert dialog.title_bar.maximize_button.role == "restore"
     assert dialog._frame_layout.contentsMargins().left() == 0
 
     dialog.title_bar.toggle_maximize()
     APP.processEvents()
-    assert not dialog.isMaximized()
+    assert not dialog._is_work_area_maximized()
     assert dialog.title_bar.maximize_button.role == "maximize"
     assert dialog._frame_layout.contentsMargins().left() == dialog.FRAME_WIDTH
     dialog.title_bar.close_button.click()
@@ -155,9 +158,76 @@ def test_event_editor_main_window_uses_the_reusable_win2000_frame():
     APP.processEvents()
     window.title_bar.toggle_maximize()
     APP.processEvents()
-    assert window.isMaximized()
+    assert window._is_work_area_maximized()
+    assert window.geometry() == APP.primaryScreen().availableGeometry()
     assert window.title_bar.maximize_button.role == "restore"
     assert window.contentsMargins().left() == 0
     window.title_bar.close_button.click()
     APP.processEvents()
     assert not window.isVisible()
+
+
+def test_work_area_maximize_restores_the_previous_geometry():
+    window = Win2000FramelessMainWindow()
+    window.setGeometry(80, 70, 640, 420)
+    window.show()
+    APP.processEvents()
+    normal_geometry = window.geometry()
+
+    window.title_bar.toggle_maximize()
+    APP.processEvents()
+    window.title_bar.toggle_maximize()
+    APP.processEvents()
+
+    assert window.geometry() == normal_geometry
+    window.close()
+
+
+def test_preview_process_poll_clears_stale_running_state():
+    class StatusLabel:
+        def __init__(self):
+            self.text = ""
+            self.color = ""
+
+        def setText(self, text):
+            self.text = text
+
+        def setStyleSheet(self, style):
+            self.color = style
+
+    process = SimpleNamespace(poll=lambda: 2)
+    harness = SimpleNamespace(
+        preview_process=process,
+        preview_running=True,
+        status_label=StatusLabel(),
+    )
+
+    EventEditorGUI._poll_preview_process(harness)
+
+    assert harness.preview_process is None
+    assert harness.preview_running is False
+    assert harness.status_label.text == "プレビュー終了（コード: 2）"
+    assert harness.status_label.color == "color: orange;"
+
+
+def test_step_highlights_do_not_seek_past_the_document_end():
+    text_editor = QTextEdit()
+    text_editor.setPlainText("//A//\n「本文」")
+    harness = SimpleNamespace(text_editor=text_editor, step_memos={})
+    harness._parse_steps_from_ks_text = (
+        lambda text: EventEditorGUI._parse_steps_from_ks_text(harness, text)
+    )
+    messages = []
+    previous_handler = qInstallMessageHandler(
+        lambda _mode, _context, message: messages.append(message)
+    )
+    try:
+        EventEditorGUI.update_step_highlights(harness)
+    finally:
+        qInstallMessageHandler(previous_handler)
+
+    assert not any("QTextCursor::setPosition" in message for message in messages)
+    assert text_editor.extraSelections()[0].cursor.selectionEnd() == (
+        text_editor.document().characterCount() - 1
+    )
+    text_editor.deleteLater()
