@@ -115,7 +115,33 @@ def parse_step_action(text):
 
 
 _QIMAGE_CACHE = OrderedDict()
-_QIMAGE_CACHE_LIMIT = 160
+_QIMAGE_CACHE_LIMIT = 64
+_QIMAGE_CACHE_MAX_BYTES = 128 * 1024 * 1024
+_QIMAGE_CACHE_BYTES = 0
+
+
+def _qimage_bytes(image):
+    size_in_bytes = getattr(image, "sizeInBytes", None)
+    if callable(size_in_bytes):
+        return max(0, int(size_in_bytes()))
+    byte_count = getattr(image, "byteCount", None)
+    return max(0, int(byte_count())) if callable(byte_count) else 0
+
+
+def _cache_qimage(cache_key, image):
+    global _QIMAGE_CACHE_BYTES
+    previous = _QIMAGE_CACHE.pop(cache_key, None)
+    if previous is not None:
+        _QIMAGE_CACHE_BYTES -= _qimage_bytes(previous)
+    _QIMAGE_CACHE[cache_key] = image
+    _QIMAGE_CACHE_BYTES += _qimage_bytes(image)
+    _QIMAGE_CACHE.move_to_end(cache_key)
+    while _QIMAGE_CACHE and (
+        len(_QIMAGE_CACHE) > _QIMAGE_CACHE_LIMIT
+        or _QIMAGE_CACHE_BYTES > _QIMAGE_CACHE_MAX_BYTES
+    ):
+        _old_key, old_image = _QIMAGE_CACHE.popitem(last=False)
+        _QIMAGE_CACHE_BYTES -= _qimage_bytes(old_image)
 
 
 def _resolve_asset_path(image_manager, image_type, image_key):
@@ -168,10 +194,7 @@ def load_qimage(path):
     image = QImage(path)
     if not image.isNull():
         image = image.convertToFormat(QImage.Format_ARGB32)
-        _QIMAGE_CACHE[cache_key] = image
-        _QIMAGE_CACHE.move_to_end(cache_key)
-        while len(_QIMAGE_CACHE) > _QIMAGE_CACHE_LIMIT:
-            _QIMAGE_CACHE.popitem(last=False)
+        _cache_qimage(cache_key, image)
         return image
 
     try:
@@ -186,10 +209,7 @@ def load_qimage(path):
         image = QImage(
             rgba_data, width, height, QImage.Format_RGBA8888
         ).copy()
-        _QIMAGE_CACHE[cache_key] = image
-        _QIMAGE_CACHE.move_to_end(cache_key)
-        while len(_QIMAGE_CACHE) > _QIMAGE_CACHE_LIMIT:
-            _QIMAGE_CACHE.popitem(last=False)
+        _cache_qimage(cache_key, image)
         return image
     except Exception:
         return QImage()
@@ -218,9 +238,10 @@ class StepSceneStateBuilder:
         self._template_revision_value = None
         self._size_cache = {}
         self._build_cache = OrderedDict()
-        self._build_cache_limit = 96
+        self._build_cache_limit = 48
         self._timeline_signature = ()
         self._timeline_states = []
+        self._timeline_incremental_override = None
 
     def _template_revision(self):
         try:
@@ -503,6 +524,71 @@ class StepSceneStateBuilder:
             self._update_character_center(character)
         changes[name] = "shift"
 
+    def _finalize_result(self, target, before, state, changes):
+        inherited_names = set(before["characters"])
+        for name, character in state["characters"].items():
+            change = changes.get(name)
+            if change == "show" or name not in inherited_names:
+                character["origin"] = "current"
+            elif change:
+                character["origin"] = "modified"
+            else:
+                character["origin"] = "inherited"
+
+        background = state.get("background")
+        if background:
+            if changes.get("background"):
+                background["origin"] = "current" if not before.get("background") else "modified"
+            else:
+                background["origin"] = "inherited"
+
+        cg = state.get("cg")
+        if cg:
+            if changes.get("cg"):
+                cg["origin"] = "current" if not before.get("cg") else "modified"
+            else:
+                cg["origin"] = "inherited"
+
+        return {
+            "step_index": target,
+            "before": before,
+            "after": copy.deepcopy(state),
+            "changes": changes,
+        }
+
+    def build_current_step(self, actions, step_index):
+        """Rebuild only the current step using the already-built prefix.
+
+        The editor calls this while typing in the current action.  The prior
+        steps cannot have changed, so replaying the whole timeline would only
+        waste CPU and deep-copy time.
+        """
+        target = max(0, int(step_index or 0))
+        if target > 0 and target - 1 >= len(self._timeline_states):
+            return None
+
+        before = (
+            copy.deepcopy(self._timeline_states[target - 1])
+            if target > 0
+            else self._empty_state()
+        )
+        state = copy.deepcopy(before)
+        changes = {}
+        for action in tuple(actions or ()):
+            tag, pairs = parse_step_action(action)
+            self._apply_action(state, tag, dict(pairs), changes=changes)
+
+        snapshot = copy.deepcopy(state)
+        if len(self._timeline_states) == target:
+            self._timeline_states.append(snapshot)
+        elif target < len(self._timeline_states):
+            self._timeline_states[target] = snapshot
+        else:
+            return None
+        self._timeline_incremental_override = (target, tuple(actions or ()))
+
+        return self._finalize_result(target, before, state, changes)
+
     def build(self, action_steps, step_index):
         """Return ``before`` and ``after`` states for a visible editor step."""
 
@@ -516,6 +602,16 @@ class StepSceneStateBuilder:
         action_steps = list(action_steps or [])
         target = max(0, min(int(step_index or 0), max(len(action_steps) - 1, 0)))
         timeline_signature = tuple(tuple(actions or ()) for actions in action_steps)
+        incremental_override = self._timeline_incremental_override
+        if incremental_override is not None:
+            override_index, override_actions = incremental_override
+            if (
+                override_index >= len(timeline_signature)
+                or timeline_signature[override_index] != override_actions
+            ):
+                self._timeline_signature = ()
+                self._timeline_states = []
+            self._timeline_incremental_override = None
         cache_key = (
             target,
             timeline_signature,
@@ -568,36 +664,7 @@ class StepSceneStateBuilder:
             elif target < len(self._timeline_states):
                 self._timeline_states[target] = copy.deepcopy(state)
 
-        inherited_names = set(before["characters"])
-        for name, character in state["characters"].items():
-            change = changes.get(name)
-            if change == "show" or name not in inherited_names:
-                character["origin"] = "current"
-            elif change:
-                character["origin"] = "modified"
-            else:
-                character["origin"] = "inherited"
-
-        background = state.get("background")
-        if background:
-            if changes.get("background"):
-                background["origin"] = "current" if not before.get("background") else "modified"
-            else:
-                background["origin"] = "inherited"
-
-        cg = state.get("cg")
-        if cg:
-            if changes.get("cg"):
-                cg["origin"] = "current" if not before.get("cg") else "modified"
-            else:
-                cg["origin"] = "inherited"
-
-        result = {
-            "step_index": target,
-            "before": before,
-            "after": copy.deepcopy(state),
-            "changes": changes,
-        }
+        result = self._finalize_result(target, before, state, changes)
         self._build_cache[cache_key] = result
         self._build_cache.move_to_end(cache_key)
         while len(self._build_cache) > self._build_cache_limit:
@@ -611,6 +678,7 @@ class StepSceneCanvas(QGraphicsView):
     object_selected = pyqtSignal(str, str, str)
     object_moved = pyqtSignal(str, float, float, object)
     object_scaled = pyqtSignal(str, float, object)
+    object_delete_requested = pyqtSignal(str, str, object)
     context_requested = pyqtSignal(str, str, str, object, object)
     step_navigation_requested = pyqtSignal(int)
 
@@ -642,9 +710,11 @@ class StepSceneCanvas(QGraphicsView):
         self._resize_current_zoom = None
         self._labels_by_key = {}
         self._character_pixmap_cache = OrderedDict()
-        self._character_pixmap_cache_limit = 48
+        self._character_pixmap_cache_limit = 24
+        self._cg_pixmap_cache = OrderedDict()
+        self._cg_pixmap_cache_limit = 8
         self._background_pixmap_cache = OrderedDict()
-        self._background_pixmap_cache_limit = 24
+        self._background_pixmap_cache_limit = 8
         self._pending_scale = None
         self._scale_commit_timer = QTimer(self)
         self._scale_commit_timer.setSingleShot(True)
@@ -680,6 +750,7 @@ class StepSceneCanvas(QGraphicsView):
             return cached
 
         result = None
+        painter = None
         for part in CHARACTER_PARTS:
             file_id = (character.get(part) or "").strip()
             if not file_id:
@@ -690,9 +761,10 @@ class StepSceneCanvas(QGraphicsView):
             if result is None:
                 result = QImage(image.size(), QImage.Format_ARGB32)
                 result.fill(0)
-            painter = QPainter(result)
-            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+                painter = QPainter(result)
+                painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
             painter.drawImage(0, 0, image)
+        if painter is not None:
             painter.end()
         pixmap = QPixmap.fromImage(result) if result is not None else QPixmap()
         self._character_pixmap_cache[cache_key] = pixmap
@@ -748,9 +820,18 @@ class StepSceneCanvas(QGraphicsView):
         zoom = max(0.1, _to_float(cg.get("zoom"), 1.0))
         height = max(1, round(VIRTUAL_HEIGHT * zoom))
         width = max(1, round(image.width() * height / max(image.height(), 1)))
-        pixmap = QPixmap.fromImage(
-            image.scaled(width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-        )
+        cache_key = (storage, _image_cache_key(path), width, height)
+        pixmap = self._cg_pixmap_cache.get(cache_key)
+        if pixmap is None:
+            pixmap = QPixmap.fromImage(
+                image.scaled(width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            )
+            self._cg_pixmap_cache[cache_key] = pixmap
+            self._cg_pixmap_cache.move_to_end(cache_key)
+            while len(self._cg_pixmap_cache) > self._cg_pixmap_cache_limit:
+                self._cg_pixmap_cache.popitem(last=False)
+        else:
+            self._cg_pixmap_cache.move_to_end(cache_key)
         item = QGraphicsPixmapItem(pixmap)
         item.setPos(
             VIRTUAL_WIDTH / 2 - width / 2 + float(cg.get("offset_x", 0.0)),
@@ -992,6 +1073,24 @@ class StepSceneCanvas(QGraphicsView):
         key = event.key()
         modifiers = event.modifiers()
         allowed_modifiers = Qt.ShiftModifier | Qt.KeypadModifier
+        if key in (Qt.Key_Delete, Qt.Key_Backspace) and modifiers == Qt.NoModifier:
+            selected_object = next(
+                (
+                    item
+                    for item in self._scene.selectedItems()
+                    if item.data(0) in ("character", "cg")
+                ),
+                None,
+            )
+            if selected_object is not None:
+                self.flush_pending_scale()
+                self.object_delete_requested.emit(
+                    str(selected_object.data(0) or ""),
+                    str(selected_object.data(1) or ""),
+                    dict(selected_object.data(3) or {}),
+                )
+                event.accept()
+                return
         if key not in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down):
             super().keyPressEvent(event)
             return

@@ -1,5 +1,5 @@
-[bg_show storage="教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.5" y="0.90767825" size="2.50528314" fade="0.15"]
+[bg_show storage="教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [bgm bgm="MokLap1.mp3" volume="0.55" loop="true" fade="0.0"]
 	//純一//
 	「「行ってないだろ、部活」」
@@ -26,6 +26,7 @@
 
 
 [chara_shift name="桃子" template="何言ってんだこいつ" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" x="0.40334528" size="2.50528314" fade="0.15"]
+[chara_show name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0010" mouth="SZK_F01_MOU_0012" brow="SZK_F01_BRO_0001" cheek="SZK_F01_CHE_0001" effect="SZK_E01_0002" blink="true" x="0.6892139" y="0.74497257" size="1.61562814" fade="1"]
 	//純一//
 	「（天真爛漫な桃子が、最近はどこか上の空で元気がない。）」
 [chara_shift name="桃子" template="拗ねる・ぷくー斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE03_00" x="0.54731237" y="0.90767825" size="2.50528314" fade="0.15"]
@@ -33,6 +34,9 @@
 	「（何か大きなことに頭を悩ませているみたいに。）」
 	//純一//
 	「（そして、家族の話題を避けているようだ。）」
+[chara_hide name="静" fade="0.15"]
+[chara_move name="桃子" left="0.11106033" top="-0.02559415" zoom="2.50528314" time="600"]
+	//純一//
 	「（普段は嬉々として話していたけど、今は触れられないように立ち回っている。）」
 	//純一//
 	「（最後に、こんな時間まで部活にもいかずに時間を潰している。）」

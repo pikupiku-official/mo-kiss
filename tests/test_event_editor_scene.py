@@ -9,9 +9,11 @@ from PyQt5.QtTest import QTest
 from PyQt5.QtWidgets import (
     QApplication,
     QDialog,
+    QComboBox,
     QGraphicsItem,
     QLineEdit,
     QMessageBox,
+    QScrollArea,
     QWidget,
 )
 
@@ -123,6 +125,34 @@ def test_scene_builder_reuses_an_unchanged_step_state_from_memory():
     second = builder.build(action_steps, 1)
 
     assert second is first
+
+
+def test_scene_builder_rebuilds_only_current_step_after_edit():
+    builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+    action_steps = [
+        ['chara_show name="A" torso="MMK_T00" x="0.5" y="0.5" size="1.0"'],
+        ['chara_move name="A" left="0.1" top="0.0" zoom="1.0"'],
+    ]
+    builder.build(action_steps, 1)
+
+    changed_actions = [
+        'chara_move name="A" left="0.2" top="0.0" zoom="1.0"'
+    ]
+    incremental = builder.build_current_step(changed_actions, 1)
+
+    expected_builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+    expected = expected_builder.build(
+        [action_steps[0], changed_actions],
+        1,
+    )
+    assert incremental["before"] == expected["before"]
+    assert incremental["after"] == expected["after"]
+    assert incremental["changes"] == expected["changes"]
+
+    restored = builder.build(action_steps, 1)
+    original_builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+    original = original_builder.build(action_steps, 1)
+    assert restored["after"] == original["after"]
 
 
 def test_scene_builder_pages_forward_from_the_cached_prefix(monkeypatch):
@@ -412,6 +442,33 @@ def test_scene_canvas_arrow_keys_nudge_selection_and_page_when_unselected(tmp_pa
     canvas.scene().clearSelection()
     canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Right, Qt.NoModifier))
     assert navigated == [1]
+
+
+def test_scene_canvas_delete_requests_hide_for_selected_object():
+    canvas = StepSceneCanvas(_empty_image_manager())
+    canvas.set_scene_state(
+        {
+            "characters": {
+                "A": {
+                    "name": "A",
+                    "torso": "missing",
+                    "left": 100.0,
+                    "top": 100.0,
+                    "zoom": 1.0,
+                }
+            }
+        }
+    )
+    item = next(item for item in canvas.scene().items() if item.data(0) == "character")
+    item.setSelected(True)
+    deleted = []
+    canvas.object_delete_requested.connect(lambda *args: deleted.append(args))
+
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Delete, Qt.NoModifier))
+
+    assert len(deleted) == 1
+    assert deleted[0][:2] == ("character", "A")
+    assert deleted[0][2]["name"] == "A"
 
 
 def test_scene_canvas_corner_drag_scales_selected_character(tmp_path):
@@ -709,6 +766,118 @@ def test_dialog_arrow_nudge_persists_one_virtual_pixel():
     tag, pairs = dialog._parse_action(dialog.get_actions()[0])
     assert tag == "chara_show"
     assert dict(pairs)["x"] == "0.50069444"
+
+
+def test_direct_stage_edit_queues_immediate_scene_refresh_without_deselecting():
+    steps = [{"step_index": 0}]
+    show = 'chara_show name="A" torso="missing" x="0.5" y="0.5" size="1.0"'
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[show],
+        all_steps=steps,
+        all_step_actions=[[show]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+    item = next(
+        item
+        for item in dialog.scene_canvas.scene().items()
+        if item.data(0) == "character"
+    )
+    item.setSelected(True)
+    APP.processEvents()
+
+    dialog._on_scene_object_moved("A", 144.0, 0.0, {"zoom": 1.0})
+
+    assert dialog._scene_preview_timer.isActive()
+    assert dialog.scene_canvas._selected_key == ("character", "A")
+    assert 'x="0.6"' in dialog.get_actions()[0]
+
+
+def test_delete_selected_stage_object_adds_undoable_hide_action():
+    steps = [{"step_index": 0}, {"step_index": 1}]
+    prior_show = 'chara_show name="A" torso="missing"'
+    dialog = StepEditorDialog(
+        None,
+        steps[1],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[prior_show], []],
+        step_index=1,
+        image_manager=_empty_image_manager(),
+    )
+
+    dialog._on_scene_object_delete_requested(
+        "character", "A", {"origin": "inherited"}
+    )
+    assert dialog.get_actions()[-1] == 'chara_hide name="A" fade="0.15"'
+
+    cg_steps = [{"step_index": 0}, {"step_index": 1}]
+    cg_prior = 'cg_show storage="illustration"'
+    cg_dialog = StepEditorDialog(
+        None,
+        cg_steps[1],
+        actions=[],
+        all_steps=cg_steps,
+        all_step_actions=[[cg_prior], []],
+        step_index=1,
+        image_manager=_empty_image_manager(),
+    )
+    cg_dialog._on_scene_object_delete_requested(
+        "cg", "illustration", {"origin": "inherited"}
+    )
+    assert cg_dialog.get_actions()[-1] == 'cg_hide fade="0.3"'
+
+
+def test_delete_newly_shown_character_removes_show_instead_of_adding_hide():
+    steps = [{"step_index": 0}]
+    show = 'chara_show name="A" torso="missing" x="0.5" y="0.5" size="1.0"'
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[show],
+        all_steps=steps,
+        all_step_actions=[[show]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+
+    dialog._on_scene_object_delete_requested(
+        "character", "A", {"origin": "current"}
+    )
+
+    assert dialog.get_actions() == []
+
+
+def test_chara_editor_uses_dropdowns_and_scrollable_action_editor():
+    steps = [{"step_index": 0}]
+    show = (
+        'chara_show name="A" template="smile" torso="body" '
+        'x="0.5" y="0.5" size="1.0" fade="0.15"'
+    )
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[show],
+        all_steps=steps,
+        all_step_actions=[[show]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+
+    assert isinstance(dialog.custom_fields["name"], QComboBox)
+    assert not dialog.custom_fields["name"].isEditable()
+    assert isinstance(dialog.custom_fields["template"], QComboBox)
+    assert not dialog.custom_fields["template"].isEditable()
+    for part in ("torso", "eye", "mouth", "brow", "cheek", "effect", "accessory"):
+        assert isinstance(dialog.custom_fields[part], QComboBox)
+    assert isinstance(dialog.custom_fields["x"], QLineEdit)
+    assert isinstance(dialog.custom_fields["y"], QLineEdit)
+    assert isinstance(dialog.custom_fields["size"], QLineEdit)
+    assert isinstance(dialog.custom_fields["fade"], QLineEdit)
+    assert isinstance(dialog.action_editor_scroll, QScrollArea)
+    assert dialog.action_editor_scroll.widgetResizable()
 
 
 def test_direct_canvas_scale_does_not_start_pygame_snapshot_timer():

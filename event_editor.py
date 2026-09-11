@@ -35,7 +35,7 @@ from PyQt5.QtWidgets import (
     QFormLayout, QDialog, QDialogButtonBox, QMenu, QCheckBox,
     QAbstractItemView, QComboBox, QTableWidget, QTableWidgetItem,
     QFileDialog, QInputDialog, QTabWidget, QSlider, QDoubleSpinBox,
-    QStyleFactory, QAbstractButton,
+    QScrollArea, QStyleFactory, QAbstractButton,
 )
 from PyQt5.QtCore import (
     Qt, QTimer, pyqtSignal, QObject, QRect, QPoint, QProcess, QEvent, QSize,
@@ -1630,7 +1630,8 @@ class CharaCompositePreviewDialog(QDialog):
                     continue
             if img.isNull():
                 continue
-            img = img.convertToFormat(QImage.Format_ARGB32)
+            if img.format() != QImage.Format_ARGB32:
+                img = img.convertToFormat(QImage.Format_ARGB32)
             if result is None:
                 result = QImage(img.size(), QImage.Format_ARGB32)
                 result.fill(0)
@@ -1861,15 +1862,15 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("time", "time", "text"),
         ],
         "chara_show": [
-            ("name", "name", "text"),
-            ("template", "template", "text"),
-            ("torso", "torso", "text"),
-            ("eye", "eye", "text"),
-            ("mouth", "mouth", "text"),
-            ("brow", "brow", "text"),
-            ("cheek", "cheek", "text"),
-            ("effect", "effect", "text"),
-            ("accessory", "accessory", "text"),
+            ("name", "name", "chara_name"),
+            ("template", "template", "chara_template"),
+            ("torso", "torso", "chara_part"),
+            ("eye", "eye", "chara_part"),
+            ("mouth", "mouth", "chara_part"),
+            ("brow", "brow", "chara_part"),
+            ("cheek", "cheek", "chara_part"),
+            ("effect", "effect", "chara_part"),
+            ("accessory", "accessory", "chara_part"),
             ("blink", "blink", "bool"),
             ("x", "x", "text"),
             ("y", "y", "text"),
@@ -1877,29 +1878,29 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("fade", "fade", "text"),
         ],
         "chara_shift": [
-            ("name", "name", "text"),
-            ("template", "template", "text"),
-            ("torso", "torso", "text"),
-            ("eye", "eye", "text"),
-            ("mouth", "mouth", "text"),
-            ("brow", "brow", "text"),
-            ("cheek", "cheek", "text"),
-            ("effect", "effect", "text"),
-            ("accessory", "accessory", "text"),
+            ("name", "name", "chara_name"),
+            ("template", "template", "chara_template"),
+            ("torso", "torso", "chara_part"),
+            ("eye", "eye", "chara_part"),
+            ("mouth", "mouth", "chara_part"),
+            ("brow", "brow", "chara_part"),
+            ("cheek", "cheek", "chara_part"),
+            ("effect", "effect", "chara_part"),
+            ("accessory", "accessory", "chara_part"),
             ("x", "x", "text"),
             ("y", "y", "text"),
             ("size", "size", "text"),
             ("fade", "fade", "text"),
         ],
         "chara_move": [
-            ("name", "name", "text"),
+            ("name", "name", "chara_name"),
             ("left", "left", "text"),
             ("top", "top", "text"),
             ("zoom", "zoom", "text"),
             ("time", "time", "text"),
         ],
         "chara_hide": [
-            ("name", "name", "text"),
+            ("name", "name", "chara_name"),
             ("fade", "fade", "text"),
         ],
         "cg_show": [
@@ -1960,11 +1961,14 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._step_index = step_index
         self._image_manager = image_manager
         self._scene_state_builder = StepSceneStateBuilder(image_manager)
+        self._scene_incremental_ready = False
+        self._scene_last_target = None
         self._loading_step = True
         self._baseline_signature = None
         self._outline_navigation = False
         self.navigation_offset = 0
         self._direct_scene_edit = False
+        self._loading_custom_values = False
         self._bgm_preview_manager = None
         self._se_preview_manager = None
         self._volume_sliders = {}
@@ -1972,7 +1976,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         # already changes immediately; this avoids restarting snapshot work
         # when the user pages back to an unchanged step.
         self._final_preview_cache = OrderedDict()
-        self._final_preview_cache_limit = 24
+        # Full-size final renders are expensive QPixmaps; keep only a short
+        # recent-history window and let the scene tab remain the cheap editor.
+        self._final_preview_cache_limit = 6
         self._editor_history = []
         self._editor_history_index = -1
         self._restoring_editor_history = False
@@ -2000,8 +2006,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.undo_btn.setToolTip("直前の編集を取り消す (Ctrl+Z)")
         self.redo_btn = QPushButton("↷ やり直す")
         self.redo_btn.setToolTip("取り消した編集をやり直す (Ctrl+Y)")
+        self.help_btn = QPushButton("？ 操作")
+        self.help_btn.setToolTip("event_editorの基本操作を表示")
         navigation_layout.addWidget(self.undo_btn)
         navigation_layout.addWidget(self.redo_btn)
+        navigation_layout.addWidget(self.help_btn)
         navigation_layout.addStretch()
         navigation_layout.addWidget(self.step_position_label)
         navigation_layout.addWidget(self.unsaved_label)
@@ -2128,6 +2137,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.remove_btn = QPushButton("削除")
         self.up_btn = QPushButton("↑")
         self.down_btn = QPushButton("↓")
+        self.add_btn.setToolTip("選択中のタグでアクションを追加")
+        self.duplicate_btn.setToolTip("選択中のアクションを複製 (Ctrl+D)")
+        self.remove_btn.setToolTip("選択中のアクションを削除 (Delete)")
+        self.up_btn.setToolTip("アクションを1つ上へ移動 (Ctrl+↑)")
+        self.down_btn.setToolTip("アクションを1つ下へ移動 (Ctrl+↓)")
         actions_buttons.addWidget(self.add_btn)
         actions_buttons.addWidget(self.duplicate_btn)
         actions_buttons.addWidget(self.remove_btn)
@@ -2136,10 +2150,18 @@ class StepEditorDialog(Win2000FramelessDialog):
         actions_layout.addLayout(actions_buttons)
 
         actions_group.setLayout(actions_layout)
+        actions_group.setMinimumHeight(220)
         right_splitter.addWidget(actions_group)
 
         editor_group = QGroupBox("アクション編集")
-        editor_layout = QFormLayout()
+        editor_group_layout = QVBoxLayout(editor_group)
+        editor_scroll = QScrollArea()
+        editor_scroll.setWidgetResizable(True)
+        editor_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        editor_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        editor_scroll.setFrameShape(QScrollArea.NoFrame)
+        editor_content = QWidget()
+        editor_layout = QFormLayout(editor_content)
 
         self.tag_combo = QComboBox()
         self.tag_combo.addItems(self.TAG_NAMES)
@@ -2167,13 +2189,19 @@ class StepEditorDialog(Win2000FramelessDialog):
         params_buttons.addWidget(self.apply_action_btn)
         editor_layout.addRow(params_buttons)
 
-        editor_group.setLayout(editor_layout)
+        editor_scroll.setWidget(editor_content)
+        editor_group_layout.addWidget(editor_scroll)
+        editor_group.setMinimumHeight(180)
+        self.action_editor_scroll = editor_scroll
         right_splitter.addWidget(editor_group)
 
         main_splitter.setSizes([250, 1150])
         editor_splitter.setSizes([760, 390])
         left_splitter.setSizes([620, 180])
-        right_splitter.setSizes([240, 520])
+        right_splitter.setHandleWidth(6)
+        right_splitter.setStretchFactor(0, 1)
+        right_splitter.setStretchFactor(1, 2)
+        right_splitter.setSizes([320, 440])
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         apply_button = buttons.button(QDialogButtonBox.Ok)
@@ -2221,11 +2249,15 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.scene_canvas.object_selected.connect(self._on_scene_object_selected)
         self.scene_canvas.object_moved.connect(self._on_scene_object_moved)
         self.scene_canvas.object_scaled.connect(self._on_scene_object_scaled)
+        self.scene_canvas.object_delete_requested.connect(
+            self._on_scene_object_delete_requested
+        )
         self.scene_canvas.context_requested.connect(self._show_scene_context_menu)
         self.scene_canvas.step_navigation_requested.connect(self._page_step)
         self.preview_tabs.currentChanged.connect(self._on_preview_tab_changed)
         self.undo_btn.clicked.connect(self._undo_editor_change)
         self.redo_btn.clicked.connect(self._redo_editor_change)
+        self.help_btn.clicked.connect(self._show_editor_help)
 
         # Editing software-style live preview: coalesce a burst of keystrokes into
         # one render instead of launching work for every individual change.
@@ -2233,6 +2265,10 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._preview_debounce_timer.setSingleShot(True)
         self._preview_debounce_timer.setInterval(300)
         self._preview_debounce_timer.timeout.connect(self._request_preview_update)
+        self._scene_preview_timer = QTimer(self)
+        self._scene_preview_timer.setSingleShot(True)
+        self._scene_preview_timer.setInterval(40)
+        self._scene_preview_timer.timeout.connect(self._refresh_scene_preview)
         self._history_timer = QTimer(self)
         self._history_timer.setSingleShot(True)
         self._history_timer.setInterval(180)
@@ -2626,6 +2662,9 @@ class StepEditorDialog(Win2000FramelessDialog):
 
         self._loading_step = True
         self._preview_debounce_timer.stop()
+        self._scene_preview_timer.stop()
+        self._scene_incremental_ready = False
+        self._scene_last_target = None
         self._stop_audio_preview()
         self._step_index = target_index
         self.step = self._all_steps[target_index]
@@ -2782,6 +2821,26 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._update_navigation_controls()
         self.save_status_label.setText("保存しました")
 
+    def _show_editor_help(self):
+        QMessageBox.information(
+            self,
+            "event_editor 操作説明",
+            ""
+            "基本:\n"
+            "・左のstep目次をクリックして移動\n"
+            "・ステージ上のキャラ／CGをドラッグして移動\n"
+            "・キャラの四隅をドラッグして拡大縮小\n"
+            "・ステージ上でキャラ／CGを選択してDelete: 非表示（Undo可）\n"
+            "・アクション一覧はドラッグで順序変更\n"
+            "\n"
+            "編集:\n"
+            "・アクション一覧でDelete: 選択アクションを削除\n"
+            "・Ctrl+D: 複製 / Ctrl+↑↓: 順序変更\n"
+            "・Ctrl+Z / Ctrl+Y: Undo / Redo\n"
+            "・Ctrl+S: 保存/適用\n"
+            "・Enterでは閉じません。保存/適用ボタンで確定します。",
+        )
+
     def showEvent(self, event):
         super().showEvent(event)
         # The scene owns ordinary left/right paging when no object is selected.
@@ -2901,9 +2960,20 @@ class StepEditorDialog(Win2000FramelessDialog):
         if self._step_index is None:
             self.scene_canvas.set_scene_state({})
             return
-        scene_states = self._scene_state_builder.build(
-            self._scene_action_steps(), self._step_index
-        )
+        scene_states = None
+        if (
+            self._scene_incremental_ready
+            and self._scene_last_target == self._step_index
+        ):
+            scene_states = self._scene_state_builder.build_current_step(
+                self.get_actions(), self._step_index
+            )
+        if scene_states is None:
+            scene_states = self._scene_state_builder.build(
+                self._scene_action_steps(), self._step_index
+            )
+        self._scene_incremental_ready = True
+        self._scene_last_target = self._step_index
         self._scene_states = scene_states
         self.scene_canvas.set_scene_state(scene_states.get("after", {}))
 
@@ -2925,9 +2995,9 @@ class StepEditorDialog(Win2000FramelessDialog):
             else "背景"
         )
         shortcut_hint = (
-            "（矢印: 1px、Shift+矢印: 10px）"
+            "（矢印: 1px、Shift+矢印: 10px、Delete: 非表示）"
             if object_type == "character"
-            else "（ドラッグ移動、Shift+ホイールでズーム）"
+            else "（ドラッグ移動、Shift+ホイールでズーム、Delete: 非表示）"
             if object_type == "cg"
             else ""
         )
@@ -2952,6 +3022,87 @@ class StepEditorDialog(Win2000FramelessDialog):
             elif object_type == "background" and tag in ("bg", "bg_show", "bg_move"):
                 self.actions_list.setCurrentRow(row)
                 return
+
+    def _finish_direct_scene_edit(self):
+        """Commit a direct stage edit and refresh after the signal burst ends."""
+        self._direct_scene_edit = False
+        self._record_editor_history()
+        # Model signals are suppressed while translating a drag into an action.
+        # Queue one rebuild now that the action is consistent, rather than
+        # rebuilding on every mouse-move event.
+        if not self._loading_step:
+            self._scene_preview_timer.start()
+            self._schedule_preview_update()
+
+    def _on_scene_object_delete_requested(self, object_type, object_name, metadata):
+        """Turn stage Delete into the matching non-destructive script action."""
+        object_name = (object_name or "").strip()
+        if not object_name:
+            return
+        removed = self._remove_current_scene_object_actions(object_type, object_name)
+        if removed:
+            label = "キャラ" if object_type == "character" else "CG"
+            self.scene_selection_label.setText(
+                f"削除: {label}「{object_name}」 / 同じstepの表示・変更を{removed}件削除（Undo可）"
+            )
+            return
+        if object_type == "character":
+            self._execute_scene_context_command(
+                "character_hide", object_name, metadata
+            )
+            self.scene_selection_label.setText(
+                f"非表示: キャラ「{object_name}」 / chara_hideを追加（Undo可）"
+            )
+        elif object_type == "cg":
+            self._execute_scene_context_command("cg_hide", object_name, metadata)
+            self.scene_selection_label.setText(
+                f"非表示: CG「{object_name}」 / cg_hideを追加（Undo可）"
+            )
+        else:
+            self.scene_selection_label.setText(
+                "背景はDeleteでは非表示にできません（背景アクションを編集してください）"
+            )
+
+    def _remove_current_scene_object_actions(self, object_type, object_name):
+        """Remove actions that introduced the selected object in this step."""
+        rows = []
+        if object_type == "character":
+            for row in range(self.actions_list.count()):
+                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                params = dict(pairs)
+                if (
+                    tag in ("chara_show", "chara_shift", "chara_move", "chara_hide")
+                    and params.get("name", "").strip() == object_name
+                ):
+                    rows.append(row)
+        elif object_type == "cg":
+            show_row = -1
+            for row in range(self.actions_list.count()):
+                tag, pairs = self._parse_action(self.actions_list.item(row).text())
+                params = dict(pairs)
+                if tag == "cg_show":
+                    if params.get("storage", "").strip() == object_name:
+                        show_row = row
+                    elif show_row >= 0:
+                        break
+            if show_row >= 0:
+                for row in range(show_row, self.actions_list.count()):
+                    tag, _pairs = self._parse_action(self.actions_list.item(row).text())
+                    if row > show_row and tag == "cg_show":
+                        break
+                    if tag in ("cg_show", "cg_shift", "cg_hide"):
+                        rows.append(row)
+
+        if not rows:
+            return 0
+        self._direct_scene_edit = True
+        try:
+            for row in reversed(rows):
+                self.actions_list.takeItem(row)
+        finally:
+            self._finish_direct_scene_edit()
+        self._on_edit_state_changed()
+        return len(rows)
 
     @staticmethod
     def _format_scene_number(value):
@@ -3011,9 +3162,8 @@ class StepEditorDialog(Win2000FramelessDialog):
                 self.actions_list.setCurrentRow(self.actions_list.count() - 1)
                 action_label = "cg_shiftを追加"
 
-            self._direct_scene_edit = False
-            self._record_editor_history()
             self.scene_canvas.mark_object_modified("cg", name)
+            self._finish_direct_scene_edit()
             self.scene_selection_label.setText(
                 f"移動: CG「{name}」 / {action_label} "
                 f"(Δx={self._format_scene_number(relative_x)}, "
@@ -3071,12 +3221,11 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.actions_list.setCurrentRow(self.actions_list.count() - 1)
             action_label = "chara_moveを追加"
 
-        self._direct_scene_edit = False
-        self._record_editor_history()
         self.scene_canvas.mark_character_modified(
             name,
             {"x": target_x, "y": target_y, "zoom": target_size},
         )
+        self._finish_direct_scene_edit()
         self.scene_selection_label.setText(
             f"移動: キャラ「{name}」 / {action_label} "
             f"(Δx={self._format_scene_number(relative_x)}, "
@@ -3120,9 +3269,8 @@ class StepEditorDialog(Win2000FramelessDialog):
                 self.actions_list.setCurrentRow(self.actions_list.count() - 1)
                 action_label = "拡大縮小用cg_shiftを追加"
 
-            self._direct_scene_edit = False
-            self._record_editor_history()
             self.scene_canvas.mark_object_modified("cg", name)
+            self._finish_direct_scene_edit()
             self.scene_selection_label.setText(
                 f"拡大縮小: CG「{name}」 / {action_label} "
                 f"(zoom={formatted_zoom})"
@@ -3165,9 +3313,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.actions_list.setCurrentRow(self.actions_list.count() - 1)
             action_label = "拡大縮小用chara_moveを追加"
 
-        self._direct_scene_edit = False
-        self._record_editor_history()
         self.scene_canvas.mark_character_modified(name)
+        self._finish_direct_scene_edit()
         self.scene_selection_label.setText(
             f"拡大縮小: キャラ「{name}」 / {action_label} "
             f"(zoom={formatted_zoom})"
@@ -3457,7 +3604,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _schedule_scene_preview_update(self, *args):
         if self._loading_step or self._direct_scene_edit:
             return
-        self._refresh_scene_preview()
+        self._scene_preview_timer.start()
         self._schedule_preview_update()
 
     def _request_preview_update(self, *args):
@@ -3729,7 +3876,129 @@ class StepEditorDialog(Win2000FramelessDialog):
             # custom_fields の値を actions_list に書き戻す
             self._apply_action_editor()
 
-    def _build_custom_editor(self, tag):
+    def _editor_character_options(self, extra_name=""):
+        from core.config import CHAR_CODE
+
+        names = list(CHAR_CODE.keys())
+        for action in self.get_actions():
+            tag, pairs = self._parse_action(action)
+            if tag.startswith("chara_"):
+                name = dict(pairs).get("name", "").strip()
+                if name and name not in names:
+                    names.append(name)
+        extra_name = (extra_name or "").strip()
+        if extra_name and extra_name not in names:
+            names.append(extra_name)
+        return names
+
+    def _chara_part_options(self, part, char_name="", torso=""):
+        from core.config import CHAR_CODE
+
+        paths = getattr(self._image_manager, "image_paths", {}) or {}
+        options = list((paths.get(part, {}) or {}).keys())
+        code = CHAR_CODE.get((char_name or "").strip(), "")
+        if code:
+            options = [value for value in options if value.startswith(code + "_")]
+
+        face_match = re.search(r"_T(\d+)", str(torso or ""))
+        if face_match and part in ("brow", "cheek", "eye", "mouth", "effect", "accessory"):
+            marker = {
+                "brow": "F",
+                "cheek": "F",
+                "eye": "F",
+                "mouth": "F",
+                "effect": "E",
+                "accessory": "A",
+            }[part]
+            pattern = f"_{marker}{face_match.group(1)}_"
+            filtered = [value for value in options if pattern in value]
+            if filtered:
+                options = filtered
+        return sorted(options)
+
+    def _chara_template_options(self, char_name, extra_template=""):
+        store = CharaPartTemplateStore(
+            os.path.join(project_root, "editor_data", "chara_part_templates.json")
+        )
+        options = [""]
+        options.extend(
+            str(template.get("name", "")).strip()
+            for template in store.for_character((char_name or "").strip())
+            if str(template.get("name", "")).strip()
+        )
+        extra_template = (extra_template or "").strip()
+        if extra_template and extra_template not in options:
+            options.append(extra_template)
+        return list(dict.fromkeys(options))
+
+    @staticmethod
+    def _replace_combo_items(combo, values, current=""):
+        current = str(current or "").strip()
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItems(values)
+        if current and combo.findText(current) < 0:
+            combo.addItem(current)
+        combo.setCurrentText(current)
+        combo.blockSignals(False)
+
+    def _refresh_chara_editor_options(self, preserve_parts=True):
+        name_field = self.custom_fields.get("name")
+        if not isinstance(name_field, QComboBox):
+            return
+        name = name_field.currentText().strip()
+        template_field = self.custom_fields.get("template")
+        if isinstance(template_field, QComboBox):
+            current_template = template_field.currentText() if preserve_parts else ""
+            self._replace_combo_items(
+                template_field,
+                self._chara_template_options(name, current_template),
+                current_template,
+            )
+        torso_field = self.custom_fields.get("torso")
+        torso = torso_field.currentText().strip() if isinstance(torso_field, QComboBox) else ""
+        for part in self.CHARA_PREVIEW_PARTS:
+            field = self.custom_fields.get(part)
+            if not isinstance(field, QComboBox):
+                continue
+            current = field.currentText() if preserve_parts else ""
+            self._replace_combo_items(
+                field,
+                [""] + self._chara_part_options(part, name, torso),
+                current,
+            )
+
+    def _on_chara_editor_name_changed(self, _text):
+        if not self._loading_custom_values:
+            self._refresh_chara_editor_options(preserve_parts=False)
+
+    def _on_chara_editor_part_changed(self, part, _text):
+        if part == "torso" and not self._loading_custom_values:
+            self._refresh_chara_editor_options(preserve_parts=True)
+
+    def _on_chara_editor_template_changed(self, text):
+        if self._loading_custom_values or not text.strip():
+            return
+        name_field = self.custom_fields.get("name")
+        name = name_field.currentText().strip() if isinstance(name_field, QComboBox) else ""
+        if not name:
+            return
+        store = CharaPartTemplateStore(
+            os.path.join(project_root, "editor_data", "chara_part_templates.json")
+        )
+        template = store.find(name, text)
+        if not template:
+            return
+        parts = template.get("parts", {}) or {}
+        for part in self.CHARA_PREVIEW_PARTS:
+            field = self.custom_fields.get(part)
+            if isinstance(field, QComboBox):
+                field.setCurrentText(str(parts.get(part, "")).strip())
+        blink = self.custom_fields.get("blink")
+        if isinstance(blink, QComboBox):
+            blink.setCurrentText("true" if template.get("blink", True) else "false")
+
+    def _build_custom_editor(self, tag, params=None):
         self._clear_custom_editor()
         schema = self.CUSTOM_EDITORS.get(tag)
         if not schema:
@@ -3738,11 +4007,41 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.params_table.show()
             return
 
+        param_map = dict(params or [])
         for key, label, field_type in schema:
             if field_type == "bool":
                 field = QComboBox()
                 field.addItems(["true", "false"])
                 field.setProperty("booleanField", True)
+            elif field_type == "chara_name":
+                field = QComboBox()
+                field.addItems(self._editor_character_options(param_map.get("name", "")))
+                field.setCurrentText(param_map.get("name", ""))
+                field.currentTextChanged.connect(self._on_chara_editor_name_changed)
+            elif field_type == "chara_template":
+                field = QComboBox()
+                field.addItems(
+                    self._chara_template_options(
+                        param_map.get("name", ""), param_map.get("template", "")
+                    )
+                )
+                field.setCurrentText(param_map.get("template", ""))
+                field.currentTextChanged.connect(self._on_chara_editor_template_changed)
+            elif field_type == "chara_part":
+                field = QComboBox()
+                part_options = [""] + self._chara_part_options(
+                    key,
+                    param_map.get("name", ""),
+                    param_map.get("torso", ""),
+                )
+                current_part = str(param_map.get(key, "")).strip()
+                if current_part and current_part not in part_options:
+                    part_options.append(current_part)
+                field.addItems(part_options)
+                field.setCurrentText(current_part)
+                field.currentTextChanged.connect(
+                    lambda text, part=key: self._on_chara_editor_part_changed(part, text)
+                )
             elif field_type == "volume_slider":
                 field = QDoubleSpinBox()
                 field.setRange(0.0, 1.0)
@@ -3771,6 +4070,8 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.addItems(options)
             else:
                 field = QLineEdit()
+                if field_type == "text" and key in ("x", "y", "size", "fade", "left", "top", "zoom", "time"):
+                    field.setPlaceholderText("未指定" if tag == "chara_shift" else "数値")
             self.custom_fields[key] = field
             if field_type == "volume_slider":
                 wrapper = QWidget()
@@ -4057,9 +4358,13 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def _load_action_into_editors(self, tag, params, from_template=False):
         merged = self._merge_with_template(tag, params)
-        self._build_custom_editor(tag)
+        self._build_custom_editor(tag, merged)
         if self._is_custom_tag(tag):
-            self._set_custom_values(merged)
+            self._loading_custom_values = True
+            try:
+                self._set_custom_values(merged)
+            finally:
+                self._loading_custom_values = False
             if self.advanced_toggle.isChecked():
                 self._load_params(merged)
             elif from_template:
@@ -4297,6 +4602,10 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         stop_action.triggered.connect(self.stop_preview)
         toolbar.addAction(stop_action)
 
+        help_action = QAction("？ 操作説明", self)
+        help_action.triggered.connect(self._show_main_help)
+        toolbar.addAction(help_action)
+
         toolbar.addSeparator()
 
         toolbar.addWidget(QLabel("開始step:"))
@@ -4389,6 +4698,23 @@ class EventEditorGUI(Win2000FramelessMainWindow):
 
         main_splitter.setSizes([400, 1200])
         right_splitter.setSizes([250, 650])
+
+    def _show_main_help(self):
+        QMessageBox.information(
+            self,
+            "KSイベントエディタ 操作説明",
+            ""
+            "基本操作:\n"
+            "・左の一覧からKSファイルを選択\n"
+            "・中央の本文を直接編集\n"
+            "・保存: Ctrl+S / リロード: F5\n"
+            "・プレビュー開始／停止でゲーム画面を確認\n"
+            "・本文上でF2: 話者、F3: セリフのひな形\n"
+            "・stepを右クリックするとシーン編集を開けます\n"
+            "\n"
+            "シーン編集では、ステージ上の立ち絵・CGをドラッグできます。\n"
+            "詳しい操作はシーン編集画面の「？ 操作」から確認できます。",
+        )
 
     def load_file_list(self):
         """eventsフォルダからKSファイル一覧を読み込み"""
