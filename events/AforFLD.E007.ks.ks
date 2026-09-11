@@ -4,8 +4,12 @@
 日常（家族登場）
 
 [bg_show storage="デパート内の画像⑤" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="静" torso="SZK_T01_0005" eye="SZK_F01_EYE_0010" mouth="SZK_F01_MOU_0012" brow="SZK_F01_BRO_0001" cheek="SZK_F01_CHE_0001" effect="SZK_E01_0002" blink="true" x="0.2" y="0.5" size="1.0" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T00_ARM16_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.5" y="0.5" size="1.0" fade="0.15"]
+[chara_show name="杏" torso="ANZ_T00_0003" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0014" brow="ANZ_F00_BRO_0002" cheek="ANZ_F00_CHE_0001" blink="true" x="0.8" y="0.5" size="1.0" fade="0.15"]
 	//静//
 	「やぁねぇ、あんた。いくら私でもそれはしないわよ！」
+	//静//
 	「そっちじゃなくて、服のほう。」
 	//杏//
 	「あっ、そっちね！」
