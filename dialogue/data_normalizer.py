@@ -177,6 +177,7 @@ def normalize_dialogue_data(raw_data):
                 'loop': current_bgm_loop,
                 'fade_time': entry.get('fade_time', 0.0),
                 'start': entry.get('start', 0.0),
+                'end': entry.get('end'),
             }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,

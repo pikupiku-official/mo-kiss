@@ -90,6 +90,13 @@ from dialogue.event_datetime import (
 from core.config import VIRTUAL_WIDTH, VIRTUAL_HEIGHT, DEBUG, USE_IR, IR_DUMP_JSON, IR_DUMP_DIR
 from core.services.bgm_manager import BGMManager
 from core.services.se_manager import SEManager
+from core.services.settings_manager import get_settings_manager
+from core.services.audio_utils import (
+    ensure_mixer,
+    get_audio_duration,
+    peak_limited_gain_sound,
+    trim_sound,
+)
 from core.services.image_manager import ImageManager
 from tools.event_editor_scene import (
     FitPixmapLabel,
@@ -1835,6 +1842,357 @@ class StepSlideViewport(QWidget):
         group.start()
 
 
+class AudioRangeSlider(QWidget):
+    """Two-handle timeline for selecting an audio range in milliseconds."""
+
+    rangeChanged = pyqtSignal(int, int)
+
+    def __init__(self, maximum=1000, parent=None):
+        super().__init__(parent)
+        self._maximum = max(1, int(maximum))
+        self._start = 0
+        self._end = self._maximum
+        self._drag_handle = None
+        self.setMinimumHeight(38)
+        self.setMinimumWidth(260)
+        self.setMouseTracking(True)
+
+    def setMaximum(self, maximum):
+        maximum = max(1, int(maximum))
+        self._maximum = maximum
+        self._start = max(0, min(self._start, maximum))
+        self._end = max(self._start, min(self._end, maximum))
+        self.update()
+
+    def maximum(self):
+        return self._maximum
+
+    def setValues(self, start, end):
+        start = max(0, min(int(start), self._maximum))
+        end = max(start, min(int(end), self._maximum))
+        changed = (start, end) != (self._start, self._end)
+        self._start, self._end = start, end
+        self.update()
+        if changed:
+            self.rangeChanged.emit(start, end)
+
+    def values(self):
+        return self._start, self._end
+
+    def _track_bounds(self):
+        return 12, max(13, self.width() - 12)
+
+    def _x_for_value(self, value):
+        left, right = self._track_bounds()
+        return left + (right - left) * value / float(self._maximum)
+
+    def _value_for_x(self, x):
+        left, right = self._track_bounds()
+        ratio = (max(left, min(right, x)) - left) / float(max(1, right - left))
+        return int(round(ratio * self._maximum))
+
+    def _pick_handle(self, x):
+        start_x = self._x_for_value(self._start)
+        end_x = self._x_for_value(self._end)
+        if abs(x - start_x) <= 11:
+            return "start"
+        if abs(x - end_x) <= 11:
+            return "end"
+        return "start" if abs(x - start_x) <= abs(x - end_x) else "end"
+
+    def _set_drag_value(self, value):
+        if self._drag_handle == "start":
+            self.setValues(min(value, self._end), self._end)
+        elif self._drag_handle == "end":
+            self.setValues(self._start, max(value, self._start))
+
+    def mousePressEvent(self, event):
+        if event.button() != Qt.LeftButton:
+            return
+        self._drag_handle = self._pick_handle(event.pos().x())
+        self._set_drag_value(self._value_for_x(event.pos().x()))
+        self.setCursor(Qt.SizeHorCursor)
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._drag_handle:
+            self._set_drag_value(self._value_for_x(event.pos().x()))
+            event.accept()
+            return
+        handle = self._pick_handle(event.pos().x())
+        self.setCursor(Qt.SizeHorCursor if handle else Qt.ArrowCursor)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_handle = None
+        self.setCursor(Qt.ArrowCursor)
+        event.accept()
+
+    def paintEvent(self, event):
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        left, right = self._track_bounds()
+        center_y = self.height() // 2
+        track = QRect(left, center_y - 4, max(1, right - left), 8)
+        painter.fillRect(track, QColor(128, 128, 128))
+        start_x = round(self._x_for_value(self._start))
+        end_x = round(self._x_for_value(self._end))
+        painter.fillRect(
+            QRect(start_x, center_y - 5, max(1, end_x - start_x), 10),
+            QColor(10, 36, 106),
+        )
+        for x in (start_x, end_x):
+            painter.fillRect(QRect(x - 5, center_y - 11, 10, 22), QColor(212, 208, 200))
+            painter.setPen(QColor(0, 0, 0))
+            painter.drawRect(QRect(x - 5, center_y - 11, 9, 21))
+        painter.end()
+
+
+class AudioRangePreviewDialog(Win2000FramelessDialog):
+    """Play and trim one selected BGM/SE file while editing its action."""
+
+    def __init__(
+        self,
+        parent,
+        audio_path,
+        audio_kind,
+        start=0.0,
+        end=None,
+        volume=0.5,
+    ):
+        super().__init__(parent)
+        self.audio_path = audio_path
+        self.audio_kind = audio_kind
+        self._source_sound = None
+        self._play_sound = None
+        self._channel = None
+        self._updating_controls = False
+        self._duration = get_audio_duration(audio_path) or 0.0
+        self._error_message = ""
+        try:
+            ensure_mixer()
+            self._source_sound = pygame.mixer.Sound(audio_path)
+            self._duration = max(self._duration, float(self._source_sound.get_length()))
+        except (OSError, pygame.error, TypeError, ValueError) as exc:
+            self._error_message = str(exc)
+
+        self._duration = max(0.01, self._duration)
+        self._start = max(0.0, min(float(start or 0.0), self._duration))
+        if end in (None, ""):
+            self._end = self._duration
+        else:
+            self._end = max(self._start, min(float(end), self._duration))
+        if self._end <= self._start:
+            self._start = 0.0
+            self._end = self._duration
+
+        self.setWindowTitle(
+            f"{('BGM' if audio_kind == 'bgm' else 'SE')} 範囲編集 - "
+            f"{os.path.basename(audio_path)}"
+        )
+        self._fit_initial_size(680, 300)
+        layout = self.client_layout
+
+        self.file_label = QLabel(os.path.basename(audio_path))
+        self.file_label.setToolTip(audio_path)
+        layout.addWidget(self.file_label)
+
+        self.duration_label = QLabel()
+        layout.addWidget(self.duration_label)
+
+        self.range_slider = AudioRangeSlider(round(self._duration * 1000), self)
+        self.range_slider.setValues(round(self._start * 1000), round(self._end * 1000))
+        self.range_slider.rangeChanged.connect(self._on_slider_range_changed)
+        layout.addWidget(self.range_slider)
+
+        range_layout = QHBoxLayout()
+        self.start_spin = self._make_time_spin(self._start)
+        self.end_spin = self._make_time_spin(self._end)
+        self.start_spin.setMaximum(self._duration)
+        self.end_spin.setMaximum(self._duration)
+        self.start_spin.valueChanged.connect(self._on_start_spin_changed)
+        self.end_spin.valueChanged.connect(self._on_end_spin_changed)
+        range_layout.addWidget(QLabel("開始"))
+        range_layout.addWidget(self.start_spin)
+        range_layout.addWidget(QLabel("秒"))
+        range_layout.addSpacing(16)
+        range_layout.addWidget(QLabel("終了"))
+        range_layout.addWidget(self.end_spin)
+        range_layout.addWidget(QLabel("秒"))
+        range_layout.addStretch()
+        layout.addLayout(range_layout)
+
+        volume_layout = QHBoxLayout()
+        volume_layout.addWidget(QLabel("音量"))
+        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider.setRange(0, 200)
+        self.volume_slider.setSingleStep(1)
+        self.volume_slider.setPageStep(10)
+        self.volume_slider.setValue(round(max(0.0, min(2.0, float(volume))) * 100))
+        self.volume_slider.valueChanged.connect(self._on_volume_slider_changed)
+        volume_layout.addWidget(self.volume_slider, 1)
+        self.volume_spin = QDoubleSpinBox()
+        self.volume_spin.setRange(0.0, 2.0)
+        self.volume_spin.setDecimals(2)
+        self.volume_spin.setSingleStep(0.01)
+        self.volume_spin.setValue(self.volume_slider.value() / 100.0)
+        self.volume_spin.valueChanged.connect(self._on_volume_spin_changed)
+        volume_layout.addWidget(self.volume_spin)
+        volume_layout.addWidget(QLabel("(最大200% / ピーク制限)"))
+        layout.addLayout(volume_layout)
+
+        controls = QHBoxLayout()
+        self.play_button = QPushButton("▶ 選択範囲を再生")
+        self.stop_button = QPushButton("■ 停止")
+        self.play_button.clicked.connect(self.play_selection)
+        self.stop_button.clicked.connect(self.stop_selection)
+        controls.addWidget(self.play_button)
+        controls.addWidget(self.stop_button)
+        controls.addStretch()
+        layout.addLayout(controls)
+
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("color: #404040;")
+        layout.addWidget(self.status_label)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("適用")
+        buttons.button(QDialogButtonBox.Cancel).setText("キャンセル")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self._play_timer = QTimer(self)
+        self._play_timer.setInterval(60)
+        self._play_timer.timeout.connect(self._poll_playback)
+        self._update_range_labels()
+        if self._error_message or self._source_sound is None:
+            self.status_label.setText(f"音声を読み込めません: {self._error_message}")
+            self.play_button.setEnabled(False)
+            self.range_slider.setEnabled(False)
+
+    @staticmethod
+    def _make_time_spin(value):
+        field = QDoubleSpinBox()
+        field.setRange(0.0, 999999.0)
+        field.setDecimals(2)
+        field.setSingleStep(0.01)
+        field.setValue(value)
+        field.setMaximumWidth(100)
+        return field
+
+    def _clamp_range(self, start, end):
+        start = max(0.0, min(float(start), self._duration))
+        end = max(0.0, min(float(end), self._duration))
+        if end < start:
+            start, end = end, start
+        return start, end
+
+    def _set_range(self, start, end, restart=True):
+        start, end = self._clamp_range(start, end)
+        self._start, self._end = start, end
+        self._updating_controls = True
+        try:
+            self.start_spin.setValue(start)
+            self.end_spin.setValue(end)
+            self.range_slider.setValues(round(start * 1000), round(end * 1000))
+        finally:
+            self._updating_controls = False
+        self._update_range_labels()
+        if restart:
+            self._restart_if_playing()
+
+    def _update_range_labels(self):
+        self.duration_label.setText(
+            f"音源 {self._duration:.2f}s　選択 {self._start:.2f}s ～ {self._end:.2f}s"
+        )
+
+    def _on_slider_range_changed(self, start_ms, end_ms):
+        if self._updating_controls:
+            return
+        self._set_range(start_ms / 1000.0, end_ms / 1000.0)
+
+    def _on_start_spin_changed(self, value):
+        if not self._updating_controls:
+            self._set_range(value, self._end)
+
+    def _on_end_spin_changed(self, value):
+        if not self._updating_controls:
+            self._set_range(self._start, value)
+
+    def _on_volume_slider_changed(self, value):
+        if self._updating_controls:
+            return
+        self._updating_controls = True
+        try:
+            self.volume_spin.setValue(value / 100.0)
+        finally:
+            self._updating_controls = False
+        self._restart_if_playing()
+
+    def _on_volume_spin_changed(self, value):
+        if self._updating_controls:
+            return
+        self._updating_controls = True
+        try:
+            self.volume_slider.setValue(round(float(value) * 100))
+        finally:
+            self._updating_controls = False
+        self._restart_if_playing()
+
+    def _restart_if_playing(self):
+        if self._channel is not None and self._channel.get_busy():
+            self.play_selection()
+
+    def play_selection(self):
+        self.stop_selection()
+        if self._source_sound is None or self._end <= self._start:
+            self.status_label.setText("再生範囲が空です")
+            return
+        selected = trim_sound(self._source_sound, self._start, self._end)
+        if selected is None:
+            self.status_label.setText("選択範囲を作れません")
+            return
+        volume = self.volume_spin.value()
+        self._play_sound = peak_limited_gain_sound(selected, volume)
+        self._channel = self._play_sound.play()
+        if self._channel is None:
+            self.status_label.setText("再生デバイスを開けません")
+            return
+        settings = get_settings_manager()
+        scale_name = "music_scale" if self.audio_kind == "bgm" else "se_scale"
+        preview_scale = float(getattr(settings, scale_name, 1.0))
+        self._channel.set_volume(min(1.0, volume) * preview_scale)
+        self._play_timer.start()
+        self.status_label.setText("再生中… 範囲や音量を動かすと即時反映")
+
+    def stop_selection(self):
+        self._play_timer.stop()
+        if self._channel is not None:
+            self._channel.stop()
+        self._channel = None
+        self._play_sound = None
+        if not self._error_message:
+            self.status_label.setText("停止")
+
+    def _poll_playback(self):
+        if self._channel is None or not self._channel.get_busy():
+            self.stop_selection()
+
+    def get_values(self):
+        end = None if self._end >= self._duration - 0.005 else self._end
+        return self._start, end, self.volume_spin.value()
+
+    def reject(self):
+        self.stop_selection()
+        super().reject()
+
+    def accept(self):
+        self.stop_selection()
+        super().accept()
+
+
 class StepEditorDialog(Win2000FramelessDialog):
     """step編集用ダイアログ"""
 
@@ -1882,7 +2240,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 detail.append(asset)
             if params.get("start") not in (None, "", "0", "0.0"):
                 detail.append(f"開始 {params['start']}s")
-            if tag == "se" and params.get("end") not in (None, ""):
+            if params.get("end") not in (None, ""):
                 detail.append(f"範囲 {params.get('start', '0')}–{params['end']}s")
             if tag == "bgm" and params.get("loop", "true").lower() == "true":
                 detail.append("ループ")
@@ -1988,7 +2346,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         "cg_hide": [("fade", "0.3")],
         "bgm": [
             ("bgm", ""), ("volume", "0.5"), ("loop", "true"),
-            ("fade", "0.0"), ("start", ""),
+            ("fade", "0.0"), ("start", ""), ("end", ""),
         ],
         "bgmend": [("time", "1.0")],
         "bgmstop": [("time", "1.0")],
@@ -2086,6 +2444,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("loop", "loop", "bool"),
             ("fade", "fade", "text"),
             ("start", "start", "audio_time"),
+            ("end", "end", "audio_time"),
         ],
         "se": [
             ("se", "se", "se_asset"),
@@ -2138,7 +2497,6 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._bgm_preview_manager = None
         self._se_preview_manager = None
         self._volume_sliders = {}
-        self._audio_time_sliders = {}
         # Keep recently visited final renders in memory.  The interactive scene
         # already changes immediately; this avoids restarting snapshot work
         # when the user pages back to an unchanged step.
@@ -2837,6 +3195,12 @@ class StepEditorDialog(Win2000FramelessDialog):
             return False
 
         self._loading_step = True
+        # A snapshot worker may still be rendering the previous step.  Its
+        # result must never be accepted after the editor has moved on, or the
+        # preview briefly shows old/new/old/new images while requests finish
+        # out of order.  ``_finish_step_preview_request`` already checks this
+        # token; invalidate it before changing the step.
+        self._preview_request_id = None
         self._preview_debounce_timer.stop()
         self._scene_preview_timer.stop()
         self._scene_incremental_ready = False
@@ -3939,7 +4303,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.custom_editor_layout.removeRow(0)
         self.custom_fields = {}
         self._volume_sliders = {}
-        self._audio_time_sliders = {}
+        self._audio_range_buttons = {}
+        self._audio_durations = {}
         self.custom_editor_widget.adjustSize()
         self.custom_editor_widget.updateGeometry()
 
@@ -4285,10 +4650,10 @@ class StepEditorDialog(Win2000FramelessDialog):
                 )
             elif field_type == "volume_slider":
                 field = QDoubleSpinBox()
-                field.setRange(0.0, 1.0)
+                field.setRange(0.0, 2.0)
                 field.setDecimals(2)
                 field.setSingleStep(0.01)
-                field.setMaximumWidth(76)
+                field.setMaximumWidth(84)
             elif field_type == "movement_mode":
                 field = QComboBox()
                 field.addItems(["", "linear"])
@@ -4299,6 +4664,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setDecimals(2)
                 field.setSingleStep(0.01)
                 field.setProperty("optionalAudioTime", True)
+                field.setMaximumWidth(100)
             elif field_type == "bg_asset":
                 # Backgrounds are selected through the native file dialog.
                 # Do not enumerate/load all background images while opening a
@@ -4319,6 +4685,9 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.addItem("")
                 options = self._editor_asset_options(field_type)
                 field.addItems(options)
+                field.currentTextChanged.connect(
+                    lambda text, k=key: self._on_audio_asset_changed(k, text)
+                )
             else:
                 field = QLineEdit()
                 if field_type == "text" and key in ("x", "y", "size", "fade", "left", "top", "zoom", "time"):
@@ -4329,9 +4698,9 @@ class StepEditorDialog(Win2000FramelessDialog):
                 wrapper_layout = QHBoxLayout(wrapper)
                 wrapper_layout.setContentsMargins(0, 0, 0, 0)
                 slider = QSlider(Qt.Horizontal)
-                slider.setRange(0, 100)
+                slider.setRange(0, 200)
                 slider.setSingleStep(1)
-                slider.setPageStep(5)
+                slider.setPageStep(10)
                 slider.setTracking(True)
                 slider.setObjectName(f"{key}Slider")
                 self._volume_sliders[key] = slider
@@ -4345,25 +4714,10 @@ class StepEditorDialog(Win2000FramelessDialog):
                 wrapper_layout.addWidget(field)
                 self.custom_editor_layout.addRow(label, wrapper)
             elif field_type == "audio_time":
-                wrapper = QWidget()
-                wrapper_layout = QHBoxLayout(wrapper)
-                wrapper_layout.setContentsMargins(0, 0, 0, 0)
-                slider = QSlider(Qt.Horizontal)
-                slider.setRange(0, 360000)
-                slider.setSingleStep(1)
-                slider.setPageStep(100)
-                slider.setTracking(True)
-                slider.setObjectName(f"{key}Slider")
-                self._audio_time_sliders[key] = slider
-                slider.valueChanged.connect(
-                    lambda value, k=key: self._on_audio_time_slider_changed(k, value)
-                )
-                field.valueChanged.connect(
-                    lambda value, k=key: self._on_audio_time_number_changed(k, value)
-                )
-                wrapper_layout.addWidget(slider, 1)
-                wrapper_layout.addWidget(field)
-                self.custom_editor_layout.addRow(label, wrapper)
+                # The timeline belongs in the dedicated popup.  Keep these
+                # compact numeric fields as a precise fallback, rather than
+                # presenting a misleading 0..3600s slider for every file.
+                self.custom_editor_layout.addRow(label, field)
             elif field_type in ("bg_asset", "cg_asset", "bgm_asset", "se_asset"):
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
@@ -4380,6 +4734,13 @@ class StepEditorDialog(Win2000FramelessDialog):
                     browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_cg(k))
                     wrapper_layout.addWidget(browse_btn)
                 else:
+                    range_btn = QPushButton("範囲編集…")
+                    range_btn.setObjectName(f"{key}RangeButton")
+                    range_btn.clicked.connect(
+                        lambda _=False, k=key: self._open_audio_range_editor(k)
+                    )
+                    self._audio_range_buttons[key] = range_btn
+                    wrapper_layout.addWidget(range_btn)
                     play_btn = QPushButton("▶ 試聴")
                     stop_btn = QPushButton("■")
                     play_btn.setObjectName(f"{key}PreviewButton")
@@ -4408,6 +4769,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.custom_editor_widget.show()
         self.advanced_toggle.show()
         self.params_table.setVisible(self.advanced_toggle.isChecked())
+        for key in ("bgm", "se"):
+            if key in self.custom_fields:
+                self._on_audio_asset_changed(
+                    key,
+                    self.custom_fields[key].currentText(),
+                )
         self.custom_editor_widget.adjustSize()
         self.custom_editor_widget.updateGeometry()
 
@@ -4425,7 +4792,14 @@ class StepEditorDialog(Win2000FramelessDialog):
                     numeric_value = 0.5 if key in self._volume_sliders else 0.0
                 field.blockSignals(True)
                 if key in self._volume_sliders:
-                    numeric_value = max(0.0, min(1.0, numeric_value))
+                    # Older scripts used 0..10 (and occasionally percent)
+                    # values. Normalize those legacy values before exposing
+                    # the new 0..2 editor range.
+                    if numeric_value > 2.0 and numeric_value <= 10.0:
+                        numeric_value /= 10.0
+                    elif numeric_value > 10.0:
+                        numeric_value /= 100.0
+                    numeric_value = max(0.0, min(2.0, numeric_value))
                 else:
                     numeric_value = max(field.minimum(), min(field.maximum(), numeric_value))
                 field.setValue(numeric_value)
@@ -4435,16 +4809,11 @@ class StepEditorDialog(Win2000FramelessDialog):
                     slider.blockSignals(True)
                     slider.setValue(round(field.value() * 100))
                     slider.blockSignals(False)
-                audio_slider = self._audio_time_sliders.get(key)
-                if audio_slider is not None:
-                    audio_slider.blockSignals(True)
-                    audio_slider.setValue(round(field.value() * 100))
-                    audio_slider.blockSignals(False)
             else:
                 field.setText(value)
 
     def _on_volume_slider_changed(self, key, value):
-        volume = max(0.0, min(1.0, float(value) / 100.0))
+        volume = max(0.0, min(2.0, float(value) / 100.0))
         field = self.custom_fields.get(key)
         if isinstance(field, QDoubleSpinBox):
             field.blockSignals(True)
@@ -4453,7 +4822,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._apply_live_preview_volume(volume)
 
     def _on_volume_number_changed(self, key, value):
-        volume = max(0.0, min(1.0, float(value)))
+        volume = max(0.0, min(2.0, float(value)))
         slider = self._volume_sliders.get(key)
         if slider is not None:
             slider.blockSignals(True)
@@ -4461,26 +4830,105 @@ class StepEditorDialog(Win2000FramelessDialog):
             slider.blockSignals(False)
         self._apply_live_preview_volume(volume)
 
-    def _on_audio_time_slider_changed(self, key, value):
-        field = self.custom_fields.get(key)
-        if isinstance(field, QDoubleSpinBox):
-            field.blockSignals(True)
-            field.setValue(float(value) / 100.0)
-            field.blockSignals(False)
-
-    def _on_audio_time_number_changed(self, key, value):
-        slider = self._audio_time_sliders.get(key)
-        if slider is not None:
-            slider.blockSignals(True)
-            slider.setValue(round(float(value) * 100))
-            slider.blockSignals(False)
-
     def _apply_live_preview_volume(self, volume):
         tag = self.tag_combo.currentText().strip().lower()
         if tag == "bgm" and self._bgm_preview_manager is not None:
             self._bgm_preview_manager.set_volume(volume)
         elif tag == "se" and self._se_preview_manager is not None:
             self._se_preview_manager.set_current_volume(volume)
+
+    def _audio_asset_path(self, key, filename):
+        """Resolve an editor audio field without allowing path traversal."""
+        filename = os.path.basename(str(filename or "").strip())
+        if not filename:
+            return None
+        subdir = "bgms" if key == "bgm" else "ses"
+        audio_dir = os.path.abspath(os.path.join(project_root, "sounds", subdir))
+        candidate = os.path.abspath(os.path.join(audio_dir, filename))
+        try:
+            if os.path.commonpath((audio_dir, candidate)) != audio_dir:
+                return None
+        except ValueError:
+            return None
+        return candidate if os.path.isfile(candidate) else None
+
+    def _on_audio_asset_changed(self, key, filename):
+        if key not in ("bgm", "se"):
+            return
+        path = self._audio_asset_path(key, filename)
+        duration = get_audio_duration(path) if path else None
+        if duration is not None:
+            duration = max(0.01, float(duration))
+            self._audio_durations[key] = duration
+            for time_key in ("start", "end"):
+                field = self.custom_fields.get(time_key)
+                if not isinstance(field, QDoubleSpinBox):
+                    continue
+                field.blockSignals(True)
+                field.setRange(0.0, duration)
+                field.setValue(min(field.value(), duration))
+                field.blockSignals(False)
+            button = self._audio_range_buttons.get(key)
+            if button is not None:
+                button.setEnabled(True)
+                button.setText(f"範囲編集… ({duration:.2f}s)")
+                button.setToolTip(
+                    f"音源の実尺 {duration:.2f} 秒。再生しながら開始/終了を調整"
+                )
+        else:
+            self._audio_durations.pop(key, None)
+            button = self._audio_range_buttons.get(key)
+            if button is not None:
+                button.setEnabled(False)
+                button.setText("範囲編集…")
+                button.setToolTip("音源を読み込んで、再生しながら範囲を調整")
+
+    def _optional_audio_time(self, key):
+        field = self.custom_fields.get(key)
+        if not isinstance(field, QDoubleSpinBox) or field.value() <= 0:
+            return None
+        return field.value()
+
+    def _open_audio_range_editor(self, key):
+        if key not in ("bgm", "se"):
+            return
+        field = self.custom_fields.get(key)
+        if not isinstance(field, QComboBox):
+            return
+        filename = field.currentText().strip()
+        path = self._audio_asset_path(key, filename)
+        duration = get_audio_duration(path) if path else None
+        if not path or duration is None:
+            QMessageBox.warning(
+                self,
+                "音声範囲編集",
+                "有効な音声ファイルを選択してください。\n"
+                "ファイルの実尺を取得できませんでした。",
+            )
+            return
+        volume_field = self.custom_fields.get("volume")
+        volume = volume_field.value() if isinstance(volume_field, QDoubleSpinBox) else 0.5
+        dialog = AudioRangePreviewDialog(
+            self,
+            path,
+            key,
+            start=self._optional_audio_time("start") or 0.0,
+            end=self._optional_audio_time("end"),
+            volume=volume,
+        )
+        self._stop_audio_preview()
+        if dialog.exec_() != QDialog.Accepted:
+            return
+        start, end, volume = dialog.get_values()
+        start_field = self.custom_fields.get("start")
+        end_field = self.custom_fields.get("end")
+        if isinstance(start_field, QDoubleSpinBox):
+            start_field.setValue(start)
+        if isinstance(end_field, QDoubleSpinBox):
+            end_field.setValue(end or 0.0)
+        if isinstance(volume_field, QDoubleSpinBox):
+            volume_field.setValue(volume)
+        self._on_audio_asset_changed(key, filename)
 
     def _editor_asset_options(self, field_type):
         if field_type == "bg_asset":
@@ -4532,6 +4980,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             start = float(self._custom_text_value(self.custom_fields.get("start"), "0.0"))
         except (TypeError, ValueError):
             start = 0.0
+        end = self._optional_audio_time("end")
         if self._bgm_preview_manager is None:
             self._bgm_preview_manager = BGMManager(False)
             self._bgm_preview_manager.BGM_PATH = os.path.join(project_root, "sounds", "bgms")
@@ -4539,6 +4988,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         preview_kwargs = {"fade_time": fade_time}
         if start > 0:
             preview_kwargs["start"] = start
+        if end is not None:
+            preview_kwargs["end"] = end
         if self._bgm_preview_manager.play_bgm(
             filename, volume, loop, **preview_kwargs
         ):

@@ -8,9 +8,19 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from core.config import get_textbox_position, get_ui_button_positions
 from core.path_utils import get_project_root
+from dialogue.render_monitor import trace_event
 
 # キャラクターディレクトリのパターン: 01MMK, 02SNK 等
 _CHAR_DIR_RE = re.compile(r'^\d{2}[A-Z]{3}$')
+
+
+def _safe_ticks():
+    try:
+        import pygame
+
+        return pygame.time.get_ticks()
+    except Exception:
+        return None
 
 
 def _classify_stem(stem: str):
@@ -251,12 +261,35 @@ class ImageManager:
             return None
     
     def get_image(self, image_type, image_key, size=None):
+        requested_key = image_key
         """画像を取得（必要に応じて遅延ロード）スレッドセーフ"""
         if self.debug:
             print(f"[IMG_REQUEST] 要求: {image_type}/{image_key}")
 
+        trace_event(
+            "image_request",
+            ticks=_safe_ticks(),
+            image_type=image_type,
+            requested_key=requested_key,
+            requested_size=size,
+        )
+
+        def finish(result, status, **extra):
+            trace_event(
+                "image_result",
+                ticks=_safe_ticks(),
+                image_type=image_type,
+                requested_key=requested_key,
+                resolved_key=image_key,
+                status=status,
+                ok=result is not None,
+                image_size=list(result.get_size()) if result is not None else None,
+                **extra,
+            )
+            return result
+
         if not image_key or image_type not in self.image_paths:
-            return None
+            return finish(None, "invalid_request")
 
         if image_key not in self.image_paths[image_type]:
             wanted = str(image_key).lower().replace(".webp", "").replace(".png", "")
@@ -277,7 +310,7 @@ class ImageManager:
                             found = True
                             break
             if not found:
-                return None
+                return finish(None, "missing_key")
 
         filepath = self.image_paths[image_type][image_key]
         optimal_size = self._get_optimal_size(filepath, size)
@@ -294,7 +327,7 @@ class ImageManager:
                 cached_image = self.image_cache[cache_key]
                 if self.debug:
                     print(f"[IMG_CACHE_HIT] ヒット: {image_type}/{image_key}")
-                return cached_image
+                return finish(cached_image, "cache_hit", cache_key=cache_key)
 
             # ロード中かチェック
             if cache_key in self.loading_tasks:
@@ -318,7 +351,12 @@ class ImageManager:
                 result = self._load_image_immediately(filepath, optimal_size, cache_key)
                 if result is None:
                     print(f"[IMG_ERROR] ロード失敗: {image_type}/{image_key} from {filepath}")
-                return result
+                return finish(
+                    result,
+                    "loaded" if result is not None else "load_error",
+                    filepath=filepath,
+                    cache_key=cache_key,
+                )
             finally:
                 # ロード完了後、イベントをシグナルして削除
                 with self.lock:
@@ -336,9 +374,13 @@ class ImageManager:
                     self.image_cache.move_to_end(cache_key)
                     if self.debug:
                         print(f"[IMG_CACHE_HIT] ヒット: {image_type}/{image_key}")
-                    return self.image_cache[cache_key]
+                    return finish(
+                        self.image_cache[cache_key],
+                        "wait_cache_hit",
+                        cache_key=cache_key,
+                    )
             # タイムアウトまたはロード失敗
-            return None
+            return finish(None, "wait_timeout", cache_key=cache_key)
     
     async def get_image_async(self, image_type, image_key, size=None):
         """画像を非同期で取得"""

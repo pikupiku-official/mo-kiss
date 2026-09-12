@@ -45,6 +45,59 @@ from core.services.bgm_manager import BGMManager
 from core.services.se_manager import SEManager
 from core.services.image_manager import ImageManager
 from core.path_utils import get_font_path
+from dialogue.render_monitor import (
+    capture_surface_bytes,
+    surface_summary,
+    trace_enabled,
+    trace_event,
+)
+
+
+def _preview_trace_state(game_state):
+    """Return the temporal state needed to audit the external preview loop."""
+    transitions = game_state.get("character_transitions", {})
+
+    def surface_info(surface):
+        if surface is None:
+            return None
+        try:
+            return {"size": list(surface.get_size())}
+        except (AttributeError, pygame.error):
+            return None
+
+    return {
+        "ir_step_index": game_state.get("ir_step_index"),
+        "current_paragraph": game_state.get("current_paragraph"),
+        "ir_waiting_for_anim": bool(game_state.get("ir_waiting_for_anim")),
+        "ir_anim_pending": bool(game_state.get("ir_anim_pending")),
+        "ir_anim_end_time": game_state.get("ir_anim_end_time"),
+        "active_characters": list(game_state.get("active_characters", [])),
+        "transitions": {
+            name: {
+                "mode": transition.get("mode"),
+                "phase": transition.get("phase"),
+                "pending_render": bool(transition.get("pending_render")),
+                "start_time": transition.get("start_time"),
+                "duration": transition.get("duration"),
+                "from_torso": transition.get("from_torso"),
+                "to_torso": transition.get("to_torso"),
+                "from_expressions": transition.get("from_expressions"),
+                "to_expressions": transition.get("to_expressions"),
+                "from_surface": surface_info(transition.get("from_surface")),
+                "to_surface": surface_info(transition.get("to_surface")),
+            }
+            for name, transition in transitions.items()
+        },
+        "part_fades": {
+            name: sorted(part_map.keys())
+            for name, part_map in game_state.get("character_part_fades", {}).items()
+        },
+        "fade_state": {
+            "active": bool(game_state.get("fade_state", {}).get("active")),
+            "type": game_state.get("fade_state", {}).get("type"),
+            "alpha": game_state.get("fade_state", {}).get("alpha"),
+        },
+    }
 
 def create_step_preview_runtime():
     """Create the expensive, reusable part of step preview rendering."""
@@ -688,8 +741,34 @@ def preview_ks_file(ks_file_path, start_step=1):
     # メインループ
     running = True
     frame_count = 0
+    previous_window_bytes = None
+    try:
+        trace_max_frames = int(
+            os.environ.get("DIALOGUE_PREVIEW_TRACE_MAX_FRAMES", "0")
+        )
+    except (TypeError, ValueError):
+        trace_max_frames = 0
+    if trace_enabled():
+        trace_event(
+            "preview_runtime_ready",
+            ticks=pygame.time.get_ticks(),
+            window_size=[window_width, window_height],
+            virtual_size=list(virtual_screen.get_size()),
+            final_game_size=[640, 480],
+            start_step=int(start_step or 1),
+            ir_step_index=game_state.get("ir_step_index"),
+            current_paragraph=game_state.get("current_paragraph"),
+            state=_preview_trace_state(game_state),
+        )
     while running:
         frame_count += 1
+        if trace_enabled():
+            trace_event(
+                "preview_frame_begin",
+                ticks=pygame.time.get_ticks(),
+                frame=frame_count,
+                state=_preview_trace_state(game_state),
+            )
         # スケーリング情報を計算（マウス座標変換用）
         window_aspect = window_width / window_height
         virtual_aspect = VIRTUAL_WIDTH / VIRTUAL_HEIGHT
@@ -754,6 +833,13 @@ def preview_ks_file(ks_file_path, start_step=1):
         # ゲーム状態の更新（main.pyと同じ）
         from dialogue.controller2 import update_game
         update_game(game_state)
+        if trace_enabled():
+            trace_event(
+                "preview_after_update",
+                ticks=pygame.time.get_ticks(),
+                frame=frame_count,
+                state=_preview_trace_state(game_state),
+            )
 
         # 描画処理（仮想画面に描画）
         # 背景描画（エラーログ抑制）
@@ -788,8 +874,28 @@ def preview_ks_file(ks_file_path, start_step=1):
         # キャラクター描画（エラー回避のためtry-except）
         draw_cg(game_state)
 
+        character_layer_before = (
+            capture_surface_bytes(virtual_screen) if trace_enabled() else None
+        )
         try:
             draw_characters(game_state)
+            if trace_enabled():
+                after_character_layer = capture_surface_bytes(virtual_screen)
+                changed_pixels = None
+                if character_layer_before is not None and after_character_layer is not None:
+                    changed_pixels = sum(
+                        character_layer_before[offset:offset + 4]
+                        != after_character_layer[offset:offset + 4]
+                        for offset in range(0, len(character_layer_before), 4)
+                    )
+                trace_event(
+                    "preview_characters_drawn",
+                    ticks=pygame.time.get_ticks(),
+                    frame=frame_count,
+                    changed_pixels=changed_pixels,
+                    state=_preview_trace_state(game_state),
+                    virtual_surface=surface_summary(virtual_screen),
+                )
         except (KeyError, IndexError, TypeError) as e:
             # character_manager.pyがリスト形式を期待しているが、
             # DialogueLoaderは辞書形式を返すため、エラーを無視
@@ -855,11 +961,52 @@ def preview_ks_file(ks_file_path, start_step=1):
         window.fill((0, 0, 0))
 
         # スケーリングして描画
-        scaled_surface = pygame.transform.scale(virtual_screen, (scaled_width, scaled_height))
+        # Keep the interactive preview consistent with the game window's
+        # filtered 640x480 presentation path.
+        scaled_surface = pygame.transform.smoothscale(
+            virtual_screen, (scaled_width, scaled_height)
+        )
         window.blit(scaled_surface, (offset_x, offset_y))
+
+        if trace_enabled():
+            final_game_surface = pygame.transform.smoothscale(
+                virtual_screen, (640, 480)
+            )
+            window_bytes = capture_surface_bytes(window)
+            trace_event(
+                "preview_display_present",
+                ticks=pygame.time.get_ticks(),
+                frame=frame_count,
+                ir_step_index=game_state.get("ir_step_index"),
+                current_paragraph=game_state.get("current_paragraph"),
+                state=_preview_trace_state(game_state),
+                virtual_surface=surface_summary(virtual_screen),
+                final_game_surface=surface_summary(final_game_surface),
+                window_surface=surface_summary(window),
+                window_changed_pixels=(
+                    None
+                    if previous_window_bytes is None or window_bytes is None
+                    else sum(
+                        previous_window_bytes[offset:offset + 4]
+                        != window_bytes[offset:offset + 4]
+                        for offset in range(0, len(previous_window_bytes), 4)
+                    )
+                ),
+            )
+            previous_window_bytes = window_bytes
 
         pygame.display.flip()
         clock.tick(60)
+
+        if trace_max_frames > 0 and frame_count >= trace_max_frames:
+            if trace_enabled():
+                trace_event(
+                    "preview_trace_limit_reached",
+                    ticks=pygame.time.get_ticks(),
+                    frame=frame_count,
+                    state=_preview_trace_state(game_state),
+                )
+            running = False
 
     pygame.quit()
     print("プレビュー終了")

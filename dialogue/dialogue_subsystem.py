@@ -475,13 +475,14 @@ class DialogueSubsystem(SubsystemBase):
     def update(self):
         """ゲームロジック更新"""
         from dialogue.controller2 import update_game
-        from dialogue.model import update_background_animation
-        from dialogue.character_manager import update_character_animations
 
         try:
+            # update_game owns the single per-frame update of character,
+            # background, CG, and global fade animations. Calling the
+            # character/background update functions again here advances their
+            # wall-clock state twice and can split a simultaneous shift at a
+            # frame boundary.
             update_game(self.game_state)
-            update_background_animation(self.game_state)
-            update_character_animations(self.game_state)
             seed_input = self.game_state.get("seed_answer_overlay")
             if seed_input is not None:
                 from core.ui.debug_hud import get_debug_hud
@@ -508,6 +509,19 @@ class DialogueSubsystem(SubsystemBase):
         draw_cg(gs)
         draw_characters(gs)
         draw_fade_overlay(gs)
+
+        from dialogue.render_monitor import trace_event, surface_summary
+        trace_event(
+            "virtual_frame_present",
+            ticks=pygame.time.get_ticks(),
+            frame_seq=gs.get("_render_trace_frame_seq"),
+            fade_state={
+                "active": bool(gs.get("fade_state", {}).get("active")),
+                "type": gs.get("fade_state", {}).get("type"),
+                "alpha": gs.get("fade_state", {}).get("alpha"),
+            },
+            surface=surface_summary(self.virtual_screen),
+        )
 
         # UI エレメント（テキストボックス等）
         # if 'image_manager' in gs and 'images' in gs:

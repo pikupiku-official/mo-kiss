@@ -694,6 +694,7 @@ class DialogueLoader:
                         bgm_loop = re.search(r'loop="([^"]+)"', line, re.IGNORECASE)
                         bgm_fade = re.search(r'(?:fade|fade_time)="([^"]+)"', line, re.IGNORECASE)
                         bgm_start = re.search(r'start="([^"]+)"', line, re.IGNORECASE)
+                        bgm_end = re.search(r'end="([^"]+)"', line, re.IGNORECASE)
                         if bgm_parts:
                             # BGMファイル名をそのまま使用
                             current_bgm = bgm_parts.group(1)
@@ -702,6 +703,7 @@ class DialogueLoader:
                             current_bgm_loop = bgm_loop.group(1).lower() == "true" if bgm_loop else DEFAULT_BGM_LOOP
                             fade_time = float(bgm_fade.group(1)) if bgm_fade else 0.0
                             start_time = float(bgm_start.group(1)) if bgm_start else 0.0
+                            end_time = float(bgm_end.group(1)) if bgm_end else None
                             
                             # デバッグ出力削除
 
@@ -712,6 +714,7 @@ class DialogueLoader:
                                 'loop': current_bgm_loop,
                                 'fade_time': fade_time,
                                 'start': start_time,
+                                'end': end_time,
                             })
                                 
                     except Exception as e:

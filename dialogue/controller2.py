@@ -666,6 +666,17 @@ def _update_ir_active_anims(game_state):
             if anim.get("end_time", 0) <= now:
                 return False  # タイムアウト
             return ch.get_busy()
+        if anim.get("visual_pending"):
+            target = anim.get("target")
+            transition = game_state.get("character_transitions", {}).get(target)
+            pending_parts = game_state.get(
+                "character_fade_pending_render", {}
+            ).get(target, set())
+            if (transition and transition.get("pending_render")) or pending_parts:
+                return True
+            # The first visual frame has now been drawn and its real deadline
+            # has been retimed by the character renderer.
+            anim["visual_pending"] = False
         # 通常の時間ベースアニメ
         return anim.get("end_time", 0) > now
 
@@ -851,15 +862,30 @@ def update_game(game_state):
                 
                 if (actual_bgm_filename and 
                     actual_bgm_filename != bgm_manager.current_bgm):
-                    bgm_start = float(bgm_metadata.get("start", 0.0) or 0.0)
+                    try:
+                        bgm_start = max(
+                            0.0, float(bgm_metadata.get("start", 0.0) or 0.0)
+                        )
+                    except (TypeError, ValueError):
+                        bgm_start = 0.0
+                    try:
+                        bgm_end = (
+                            max(0.0, float(bgm_metadata["end"]))
+                            if bgm_metadata.get("end") not in (None, "")
+                            else None
+                        )
+                    except (TypeError, ValueError):
+                        bgm_end = None
+                    if bgm_end is not None and bgm_end <= bgm_start:
+                        bgm_end = None
+                    play_kwargs = {}
                     if bgm_start > 0:
-                        success = bgm_manager.play_bgm(
-                            actual_bgm_filename, bgm_volume, bgm_loop, start=bgm_start
-                        )
-                    else:
-                        success = bgm_manager.play_bgm(
-                            actual_bgm_filename, bgm_volume, bgm_loop
-                        )
+                        play_kwargs["start"] = bgm_start
+                    if bgm_end is not None:
+                        play_kwargs["end"] = bgm_end
+                    success = bgm_manager.play_bgm(
+                        actual_bgm_filename, bgm_volume, bgm_loop, **play_kwargs
+                    )
 
 # 新しい遅延設定用のヘルパー関数
 def configure_text_delays(game_state, punctuation_delay=None, paragraph_transition_delay=None):

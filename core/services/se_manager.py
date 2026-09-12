@@ -6,6 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from core.services.settings_manager import get_settings_manager
+from core.services.audio_utils import peak_limited_gain_sound
 
 class SEManager:
     def __init__(self, debug=False):
@@ -19,6 +20,7 @@ class SEManager:
         self.cache_lock = threading.Lock()
         self.max_cache_size = 20
         self.current_sound = None
+        self.current_source_sound = None
         self.current_channel = None
 
     def is_valid_se_filename(self, filename):
@@ -96,12 +98,23 @@ class SEManager:
                 return False
             
             # 効果音を読み込み
-            sound = pygame.mixer.Sound(se_path)
-            sound = self._trim_sound(sound, start, end)
+            source_sound = pygame.mixer.Sound(se_path)
+            sound = self._trim_sound(source_sound, start, end)
             if sound is None:
                 return False
-            sound.set_volume(volume)
-            self.current_sound = sound
+            try:
+                volume = float(volume)
+                if volume > 2.0 and volume <= 10.0:
+                    volume /= 10.0
+                elif volume > 10.0:
+                    volume /= 100.0
+                volume = max(0.0, min(2.0, volume))
+            except (TypeError, ValueError):
+                volume = 0.5
+            play_sound = peak_limited_gain_sound(sound, volume)
+            play_sound.set_volume(min(1.0, volume))
+            self.current_source_sound = sound
+            self.current_sound = play_sound
             
             # frequency回数分再生（間隔を開けて）
             import time
@@ -109,16 +122,16 @@ class SEManager:
             
             def play_sequential():
                 for i in range(int(frequency)):
-                    channel = sound.play()
+                    channel = play_sound.play()
                     get_settings_manager().apply_se_channel_volume(channel)
                     if i < int(frequency) - 1:  # 最後以外は待機
-                        time.sleep(sound.get_length())
+                        time.sleep(play_sound.get_length())
             
             # バックグラウンドで連続再生（複数回はブロック追跡不可）
             if int(frequency) > 1:
-                channel = sound.play(loops=int(frequency) - 1)
+                channel = play_sound.play(loops=int(frequency) - 1)
             else:
-                channel = sound.play()
+                channel = play_sound.play()
                 get_settings_manager().apply_se_channel_volume(channel)
             self.current_channel = channel
             
@@ -134,12 +147,34 @@ class SEManager:
     def set_current_volume(self, volume):
         """直近に再生したSEの音量を即時変更する。"""
         try:
-            volume = max(0.0, min(1.0, float(volume)))
+            volume = max(0.0, min(2.0, float(volume)))
         except (TypeError, ValueError):
             return False
         if self.current_sound is None:
             return False
-        self.current_sound.set_volume(volume)
+        if volume <= 1.0:
+            if (
+                self.current_source_sound is not None
+                and self.current_sound is not self.current_source_sound
+            ):
+                if self.current_channel is not None:
+                    self.current_channel.stop()
+                self.current_sound = self.current_source_sound
+                self.current_channel = self.current_sound.play()
+                get_settings_manager().apply_se_channel_volume(self.current_channel)
+            self.current_sound.set_volume(volume)
+        elif self.current_source_sound is not None:
+            # Mixer channel volume cannot exceed 1. Rebuild the last trimmed
+            # PCM slice with a peak-safe gain and restart it at the new level.
+            amplified = peak_limited_gain_sound(self.current_source_sound, volume)
+            if amplified is not self.current_sound:
+                if self.current_channel is not None:
+                    self.current_channel.stop()
+                self.current_sound = amplified
+                self.current_sound.set_volume(1.0)
+                self.current_channel = self.current_sound.play()
+                get_settings_manager().apply_se_channel_volume(self.current_channel)
+        self.current_volume = volume
         return True
 
     def get_se_for_scene(self, scene_name):
@@ -244,7 +279,9 @@ class SEManager:
             # pygameのすべてのサウンドチャンネルを停止
             pygame.mixer.stop()
             self.current_sound = None
+            self.current_source_sound = None
             self.current_channel = None
+            self.current_volume = 0.5
             if self.debug:
                 print("SEManager: すべてのSEを停止しました")
         except Exception as e:

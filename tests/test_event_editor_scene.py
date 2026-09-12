@@ -197,6 +197,28 @@ def test_scene_builder_pages_forward_from_the_cached_prefix(monkeypatch):
     assert len(calls) == calls_after_first_build + 1
 
 
+def test_step_change_invalidates_inflight_final_preview_result():
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "old"},
+        {"step_index": 1, "speaker": "A", "body": "new"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], []],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+    dialog._preview_request_id = 17
+
+    assert dialog._load_step_index(1)
+    assert dialog._preview_request_id is None
+
+    dialog.reject()
+
+
 def test_scene_builder_keeps_dialogue_on_the_current_after_state_only():
     builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
 

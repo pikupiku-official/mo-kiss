@@ -780,6 +780,21 @@
         "effect": "ANZ_E01_0002"
       },
       "blink": true
+    },
+    {
+      "id": "0b4d8715bdd44e8cb4cd8bdc9bbd0386",
+      "name": "不安",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM00_CLO00",
+        "brow": "MMK_F00_BRO05_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE00_00",
+        "mouth": "MMK_F00_MOU05_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }

@@ -2,6 +2,14 @@ import pygame
 import random
 from collections import OrderedDict
 from core.config import *
+from .render_monitor import (
+    capture_surface_bytes,
+    changed_pixel_count,
+    surface_summary,
+    trace_enabled,
+    trace_light_enabled,
+    trace_event,
+)
 
 # 画像スケーリングキャッシュ
 _SCALED_IMAGE_CACHE_LIMIT = 100
@@ -9,6 +17,179 @@ _scaled_image_cache = OrderedDict()
 _opaque_bounds_cache = OrderedDict()
 _PREMULTIPLIED_CROP_CACHE_LIMIT = 12
 _premultiplied_crop_cache = OrderedDict()
+
+
+def _trace_surface_info(surface):
+    if surface is None:
+        return {"present": False}
+    try:
+        bounds = surface.get_bounding_rect(min_alpha=1)
+        return {
+            "present": True,
+            "size": list(surface.get_size()),
+            "opaque_rect": [bounds.x, bounds.y, bounds.width, bounds.height],
+        }
+    except (AttributeError, pygame.error):
+        return {"present": False}
+
+
+def _trace_transition_info(transition):
+    if not transition:
+        return None
+    return {
+        "mode": transition.get("mode"),
+        "phase": transition.get("phase"),
+        "pending_render": bool(transition.get("pending_render")),
+        "start_time": transition.get("start_time"),
+        "duration": transition.get("duration"),
+        "from_surface": _trace_surface_info(transition.get("from_surface")),
+        "to_surface": _trace_surface_info(transition.get("to_surface")),
+        "from_pos": list(transition.get("from_surface_pos", (0, 0))),
+        "to_pos": list(transition.get("to_surface_pos", (0, 0))),
+    }
+
+
+def _trace_transition_region(screen, transition):
+    if not transition:
+        return None
+    region = None
+    for surface_key, position_key in (
+        ("from_surface", "from_surface_pos"),
+        ("to_surface", "to_surface_pos"),
+    ):
+        surface = transition.get(surface_key)
+        if surface is None:
+            continue
+        bounds = surface.get_bounding_rect(min_alpha=1)
+        if bounds.width <= 0 or bounds.height <= 0:
+            continue
+        destination = bounds.move(transition.get(position_key, (0, 0)))
+        region = destination if region is None else region.union(destination)
+    if region is None:
+        return None
+    region = region.clip(screen.get_rect())
+    if region.width <= 0 or region.height <= 0:
+        return None
+    return {
+        "rect": [region.x, region.y, region.width, region.height],
+        "surface": (
+            None
+            if trace_light_enabled()
+            else surface_summary(screen.subsurface(region))
+        ),
+    }
+
+
+def _trace_screen_region(screen, region):
+    if region is None:
+        return None
+    try:
+        clipped = region.clip(screen.get_rect())
+    except (AttributeError, pygame.error):
+        return None
+    if clipped.width <= 0 or clipped.height <= 0:
+        return None
+    return {
+        "rect": [clipped.x, clipped.y, clipped.width, clipped.height],
+        "surface": (
+            None
+            if trace_light_enabled()
+            else surface_summary(screen.subsurface(clipped))
+        ),
+    }
+
+
+def _trace_frame_start(game_state):
+    if not trace_enabled():
+        return None
+    transitions = game_state.get("character_transitions", {})
+    fades = game_state.get("character_part_fades", {})
+    fade_state = game_state.get("fade_state", {})
+    frame_id = trace_event(
+        "character_frame",
+        ticks=pygame.time.get_ticks(),
+        ir_step_index=game_state.get("ir_step_index"),
+        current_paragraph=game_state.get("current_paragraph"),
+        active_characters=list(game_state.get("active_characters", [])),
+        ir_active_anims=[
+            {
+                "action": anim.get("action"),
+                "target": anim.get("target"),
+                "end_time": anim.get("end_time"),
+            }
+            for anim in game_state.get("ir_active_anims", [])
+        ],
+        transitions={
+            name: _trace_transition_info(transition)
+            for name, transition in transitions.items()
+        },
+        part_fades={
+            name: sorted(part_map.keys())
+            for name, part_map in fades.items()
+        },
+        fade_state={
+            "active": bool(fade_state.get("active")),
+            "type": fade_state.get("type"),
+            "alpha": fade_state.get("alpha"),
+            "start_time": fade_state.get("start_time"),
+            "duration": fade_state.get("duration"),
+        },
+    )
+    game_state["_render_trace_frame_seq"] = frame_id
+    return frame_id
+
+
+def _trace_character_result(
+    game_state,
+    frame_id,
+    char_name,
+    before,
+    status,
+    draw_called,
+    current_time,
+    transition=None,
+    display_region=None,
+):
+    if frame_id is None:
+        return
+    trace_event(
+        "character_display",
+        ticks=current_time,
+        frame_seq=frame_id,
+        char_name=char_name,
+        status=status,
+        draw_called=bool(draw_called),
+        changed_pixels=(
+            None
+            if trace_light_enabled()
+            else changed_pixel_count(before, game_state.get("screen"))
+        ),
+        transition=_trace_transition_info(
+            transition
+            if transition is not None
+            else game_state.get("character_transitions", {}).get(char_name)
+        ),
+        display_region=(
+            _trace_screen_region(game_state.get("screen"), display_region)
+            if display_region is not None
+            else _trace_transition_region(
+                game_state.get("screen"),
+                transition
+                if transition is not None
+                else game_state.get("character_transitions", {}).get(char_name),
+            )
+        ),
+        part_fades=sorted(
+            game_state.get("character_part_fades", {})
+            .get(char_name, {})
+            .keys()
+        ),
+        fade_state={
+            "active": bool(game_state.get("fade_state", {}).get("active")),
+            "type": game_state.get("fade_state", {}).get("type"),
+            "alpha": game_state.get("fade_state", {}).get("alpha"),
+        },
+    )
 
 def get_scaled_image(image, zoom_scale):
     """画像をキャッシュ付きでスケーリング"""
@@ -27,7 +208,12 @@ def get_scaled_image(image, zoom_scale):
     # スケーリングして新しい画像を作成
     new_width = int(image.get_width() * zoom_scale)
     new_height = int(image.get_height() * zoom_scale)
-    scaled_image = pygame.transform.scale(image, (new_width, new_height))
+    # Character art is commonly reduced to a small dialogue size.  Nearest
+    # neighbour scaling leaves those silhouettes and expression parts looking
+    # like pixel art, especially after the final 640x480 presentation scale.
+    # Use the filtered scaler for every cached resize so torso, face parts,
+    # and transition snapshots share the same anti-aliased result.
+    scaled_image = pygame.transform.smoothscale(image, (new_width, new_height))
     
     # 元Surfaceへの参照もキー内に保持し、LRUで上限を管理する。
     _scaled_image_cache[cache_key] = scaled_image
@@ -392,12 +578,20 @@ def _begin_character_transition_on_first_render(game_state, char_name, current_t
             and anim.get('action') == 'chara_shift'
         ):
             anim['end_time'] = end_time
-    if any(
+    matched_animation = any(
         anim.get('target') == char_name and anim.get('action') == 'chara_shift'
         for anim in game_state.get('ir_active_anims', [])
-    ):
+    )
+    if matched_animation:
         game_state['ir_anim_pending'] = True
-        game_state['ir_anim_end_time'] = end_time
+        # Multiple chara_shift actions can belong to the same IR step.  Keep
+        # the longest deadline; the last character rendered must not shorten
+        # the step while the other character is still transitioning.
+        active_anims = game_state.get('ir_active_anims', [])
+        game_state['ir_anim_end_time'] = max(
+            (anim.get('end_time', 0) for anim in active_anims),
+            default=end_time,
+        )
 
 
 def draw_character_transition(game_state, char_name, screen, current_time=None):
@@ -408,6 +602,20 @@ def draw_character_transition(game_state, char_name, screen, current_time=None):
     elapsed = max(0, now - transition.get('start_time', now))
     duration = max(int(transition.get('duration', 0)), 0)
     progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
+    if trace_enabled():
+        trace_event(
+            "character_transition_draw",
+            ticks=now,
+            frame_seq=game_state.get("_render_trace_frame_seq"),
+            char_name=char_name,
+            mode=transition.get("mode"),
+            phase=transition.get("phase"),
+            progress=round(progress, 6),
+            from_alpha=round(255 * (1.0 - progress)),
+            to_alpha=round(255 * progress),
+            from_surface=_trace_surface_info(transition.get("from_surface")),
+            to_surface=_trace_surface_info(transition.get("to_surface")),
+        )
     if transition.get('mode') == 'relocate':
         if transition.get('phase') == 'out':
             _blit_with_alpha(
@@ -912,13 +1120,43 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         )
         _blit_with_alpha(screen, part_img, part_pos, alpha)
 
-    def draw_part(part_type, part_id, alpha=255):
+    def draw_part(part_type, part_id, alpha=255, fade_info=None):
         if not part_id:
-            return
+            if trace_enabled():
+                trace_event(
+                    "character_part_draw",
+                    ticks=current_time,
+                    frame_seq=game_state.get("_render_trace_frame_seq"),
+                    char_name=char_name,
+                    part_type=part_type,
+                    requested_id=part_id,
+                    drawn=False,
+                    alpha=alpha,
+                    fade=fade_info,
+                    status="empty_id",
+                )
+            return False
         part_img = image_manager.get_image(part_type, part_id)
         if part_img:
             scaled_img = get_scaled_image(part_img, zoom_scale)
             draw_part_image(scaled_img, alpha)
+            drawn = True
+        else:
+            drawn = False
+        if trace_enabled():
+            trace_event(
+                "character_part_draw",
+                ticks=current_time,
+                frame_seq=game_state.get("_render_trace_frame_seq"),
+                char_name=char_name,
+                part_type=part_type,
+                requested_id=part_id,
+                drawn=drawn,
+                alpha=alpha,
+                fade=fade_info,
+                status="drawn" if drawn else "missing_image",
+            )
+        return drawn
 
     def draw_part_with_fade(part_type, current_id):
         fade = (fade_map or {}).get(part_type)
@@ -930,8 +1168,27 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
         now = current_time if current_time is not None else pygame.time.get_ticks()
         elapsed = max(0, now - fade.get('start_time', 0))
         progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
-        draw_part(part_type, fade.get('from'), round(255 * (1.0 - progress)))
-        draw_part(part_type, fade.get('to'), round(255 * progress))
+        fade_info = {
+            "from_id": fade.get("from"),
+            "to_id": fade.get("to"),
+            "progress": round(progress, 6),
+            "from_alpha": round(255 * (1.0 - progress)),
+            "to_alpha": round(255 * progress),
+            "duration": duration,
+            "start_time": fade.get("start_time"),
+        }
+        draw_part(
+            part_type,
+            fade.get('from'),
+            fade_info["from_alpha"],
+            fade_info=fade_info,
+        )
+        draw_part(
+            part_type,
+            fade.get('to'),
+            fade_info["to_alpha"],
+            fade_info=fade_info,
+        )
 
     final_eye_type = eye_type
     if char_name in game_state.get('character_blink_state', {}) and \
@@ -951,6 +1208,7 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
 
 def draw_characters(game_state):
     """Draw characters with optional part fades."""
+    frame_id = _trace_frame_start(game_state)
     # A CG replaces the normal character layer while it is visible or
     # transitioning.  Character state remains in the game state so cg_hide
     # can reveal the latest expressions/positions again.
@@ -979,8 +1237,18 @@ def draw_characters(game_state):
 
     for char_name in game_state['active_characters']:
         if char_name not in game_state['character_pos']:
+            _trace_character_result(
+                game_state,
+                frame_id,
+                char_name,
+                None,
+                "missing_position",
+                False,
+                pygame.time.get_ticks(),
+            )
             continue
 
+        trace_before = capture_surface_bytes(screen) if frame_id is not None else None
         fade_map = game_state.get('character_part_fades', {}).get(char_name, {})
         current_time = pygame.time.get_ticks()
         has_pending_fade = bool(
@@ -991,13 +1259,27 @@ def draw_characters(game_state):
 
         transition = game_state.get('character_transitions', {}).get(char_name)
         if transition:
-            draw_character_transition(game_state, char_name, screen, current_time)
             if transition.get('pending_render'):
-                # Start the clock after the endpoint surface was actually
-                # drawn, so a slow first frame cannot consume the fade.
+                # The transition clock starts at the first actual draw.  This
+                # must happen before calculating progress; otherwise a preview
+                # that spent time loading assets can render the new endpoint
+                # at progress=1 on its first frame, then jump back to 0.
                 _begin_character_transition_on_first_render(
-                    game_state, char_name, pygame.time.get_ticks()
+                    game_state, char_name, current_time
                 )
+            draw_called = draw_character_transition(
+                game_state, char_name, screen, current_time
+            )
+            _trace_character_result(
+                game_state,
+                frame_id,
+                char_name,
+                trace_before,
+                "transition",
+                draw_called,
+                current_time,
+                transition=transition,
+            )
             continue
 
         torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
@@ -1006,6 +1288,15 @@ def draw_characters(game_state):
         if not char_img:
             if DEBUG:
                 print(f"??: ????????'{char_name}' ????????")
+            _trace_character_result(
+                game_state,
+                frame_id,
+                char_name,
+                trace_before,
+                "missing_torso",
+                False,
+                current_time,
+            )
             continue
 
         x, y = game_state['character_pos'][char_name]
@@ -1020,6 +1311,7 @@ def draw_characters(game_state):
             return get_scaled_image(torso_img, final_zoom)
 
         torso_fade = fade_map.get('torso')
+        trace_region = None
         if torso_fade:
             duration = max(torso_fade.get('duration', 0), 0)
             elapsed = max(0, current_time - torso_fade.get('start_time', 0))
@@ -1032,10 +1324,29 @@ def draw_characters(game_state):
                 (x, y),
                 progress,
             )
+            trace_surfaces = [
+                get_torso_image(torso_fade.get('from')),
+                get_torso_image(torso_fade.get('to')),
+            ]
+            trace_width = max(
+                (image.get_width() for image in trace_surfaces if image),
+                default=0,
+            )
+            trace_height = max(
+                (image.get_height() for image in trace_surfaces if image),
+                default=0,
+            )
+            trace_region = pygame.Rect(x, y, trace_width, trace_height)
         else:
             torso_surface = get_torso_image(torso_id)
             if torso_surface:
                 screen.blit(torso_surface, (x, y))
+                trace_region = pygame.Rect(
+                    x,
+                    y,
+                    torso_surface.get_width(),
+                    torso_surface.get_height(),
+                )
 
         char_base_scale = VIRTUAL_HEIGHT / char_img.get_height()
 
@@ -1069,4 +1380,14 @@ def draw_characters(game_state):
             _begin_character_fade_on_first_render(
                 game_state, char_name, pygame.time.get_ticks()
             )
+        _trace_character_result(
+            game_state,
+            frame_id,
+            char_name,
+            trace_before,
+            "regular",
+            True,
+            current_time,
+            display_region=trace_region,
+        )
 

@@ -1,6 +1,3 @@
-	//speaker//
-	「セリフ」
-
 スチル見せれる場所
 
 [cg_show storage="MMK_07_000" fade="0.3"]

@@ -1,7 +1,22 @@
-//speaker//
-「セリフ」
-
-
+[bg_show storage="connectingCorridor" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_show name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" blink="true" x="0.35" y="0.5" size="0.7" fade="0.15"]
+[fadein time="1.0"]
+	//純一//
+	「（お、桃子。）」
+	「（……ん？なんだアイツ、珍しく所在なげに。）」
+	「おーい桃子。」
+	//桃子//
+	「…………」
+	//純一//
+	「（……聞こえてないのか？）」
+	「桃子さ～ん？」
+	//桃子//
+	「…………」
+	//純一//
+	「（…………？）」
+	「（ちょっと話しに行ってみるか。）」
+[bg_move storage="connectingCorridor" bg_left="0.0" bg_top="0.0" bg_zoom="1.4" time="600"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" blink="true" x="0.24" y="0.6" size="1.3" fade="0.15"]
 不穏な前触れ
 
 [bg_move storage="connectingCorridor" bg_left="0.0" bg_top="0.0" bg_zoom="1.4" time="600"]

@@ -264,6 +264,8 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         )
         fade_time = _to_float(metadata.get("fade_time"), 0.0)
         start = _to_float(metadata.get("start"), 0.0)
+        end_value = metadata.get("end")
+        end = _to_float(end_value, 0.0) if end_value not in (None, "") else None
         return make_action(
             action="bgm_play",
             params={
@@ -272,6 +274,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
                 "loop": loop,
                 "fade_time": fade_time,
                 "start": start,
+                "end": end,
             },
         )
 

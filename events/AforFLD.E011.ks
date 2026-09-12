@@ -1,8 +1,17 @@
-//speaker//
-「セリフ」
-
 日常（イタリアンデート）
-
+[bgm bgm="MokLap1.mp3" volume="0.5" loop="true" fade="0.0"]
+[bg_move storage="school" bg_left="0.1" bg_top="0.1" time="1000" bg_zoom="1.5"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[fadeout color="black" time="1.0"]
+[bg_show storage="イタリアン店内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[chara_shift name="桃子" x="0.5" y="0.85" size="2.1" fade="0.15"]
+;@standalone-step
+[fadein time="1.0"]
+	//店員//
+	「いらっしゃいませ。後ほど注文をお伺いしますね。」
+	//純一//
+	「はいっ、アリガトウゴザイマス。」
+[chara_shift name="桃子" torso="MMK_T00_ARM04_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" fade="0.15"]
 //桃子//
 	「凄いお洒落なお店だね～！」
 [chara_shift name="桃子" mouth="MMK_F00_MOU00_00" fade="0.15"]

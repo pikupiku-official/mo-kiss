@@ -770,7 +770,8 @@
             "volume": 0.5,
             "loop": true,
             "fade_time": 0.0,
-            "start": 0.0
+            "start": 0.0,
+            "end": null
           }
         }
       ],
@@ -1349,7 +1350,8 @@
             "volume": 0.5,
             "loop": true,
             "fade_time": 0.0,
-            "start": 0.0
+            "start": 0.0,
+            "end": null
           }
         },
         {
@@ -2373,7 +2375,8 @@
             "volume": 0.5,
             "loop": true,
             "fade_time": 0.0,
-            "start": 0.0
+            "start": 0.0,
+            "end": null
           }
         }
       ],

@@ -257,12 +257,49 @@ def _initialize_bgm(game_state):
     
     # 最初の会話エントリからのみBGMを探す
     bgm_from_dialogue = None
+    bgm_volume = 0.5
+    bgm_loop = True
+    bgm_start = 0.0
+    bgm_end = None
     if dialogue_data and len(dialogue_data) > 0:
         first_entry = dialogue_data[0]
         if isinstance(first_entry, list) and len(first_entry) > 7 and first_entry[7]:
             bgm_from_dialogue = first_entry[7]
+            bgm_volume = first_entry[8] if len(first_entry) > 8 else 0.5
+            bgm_loop = first_entry[9] if len(first_entry) > 9 else True
+            metadata = (
+                first_entry[13]
+                if len(first_entry) > 13 and isinstance(first_entry[13], dict)
+                else {}
+            )
+            try:
+                bgm_start = max(0.0, float(metadata.get("start", 0.0) or 0.0))
+            except (TypeError, ValueError):
+                bgm_start = 0.0
+            try:
+                bgm_end = (
+                    max(0.0, float(metadata["end"]))
+                    if metadata.get("end") not in (None, "")
+                    else None
+                )
+            except (TypeError, ValueError):
+                bgm_end = None
         elif isinstance(first_entry, dict) and first_entry.get('bgm'):
             bgm_from_dialogue = first_entry.get('bgm')
+            bgm_volume = first_entry.get("volume", 0.5)
+            bgm_loop = first_entry.get("loop", True)
+            try:
+                bgm_start = max(0.0, float(first_entry.get("start", 0.0) or 0.0))
+            except (TypeError, ValueError):
+                bgm_start = 0.0
+            try:
+                bgm_end = (
+                    max(0.0, float(first_entry["end"]))
+                    if first_entry.get("end") not in (None, "")
+                    else None
+                )
+            except (TypeError, ValueError):
+                bgm_end = None
     
     # BGMの再生を試行
     if bgm_from_dialogue:
@@ -274,7 +311,17 @@ def _initialize_bgm(game_state):
         
         if actual_bgm_filename:
             try:
-                bgm_manager.play_bgm(actual_bgm_filename)
+                play_kwargs = {}
+                if bgm_start > 0:
+                    play_kwargs["start"] = bgm_start
+                if bgm_end is not None and bgm_end > bgm_start:
+                    play_kwargs["end"] = bgm_end
+                bgm_manager.play_bgm(
+                    actual_bgm_filename,
+                    bgm_volume,
+                    bgm_loop,
+                    **play_kwargs,
+                )
                 if DEBUG:
                     print(f"BGM再生成功: {actual_bgm_filename}")
                 return True
