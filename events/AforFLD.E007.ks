@@ -12,16 +12,20 @@
 [chara_shift name="杏" torso="ANZ_T01_0006" eye="ANZ_F01_EYE_0008" x="0.5" y="0.65" fade="0.15"]
 	//杏//
 	「あっ、そっちね！」
-[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" x="0.5" y="0.65" fade="0.15"]
+
 	//純一//
 	「（・・・）」
+	「（・・・ん？）」
+	「（あ、桃子とご家族だ。）」
+	「おーい、桃子！」
 [chara_shift name="桃子" template="通常・口閉じ" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_01" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
 [chara_shift name="静" torso="SZK_T00_0002" eye="SZK_F00_EYE_0001" mouth="SZK_F00_MOU_0004" brow="SZK_F00_BRO_0001" cheek="SZK_F00_CHE_0001" effect="SZK_E00_0002" fade="0.15"]
-	//純一//
-	「（・・・ん？）」
+[chara_shift name="杏" template="杏会話聞き上手" torso="ANZ_T00_0001" eye="ANZ_F00_EYE_0001" mouth="ANZ_F00_MOU_0001" brow="ANZ_F00_BRO_0001" cheek="ANZ_F00_CHE_0001" x="0.5" y="0.65" fade="0.15"]
+
+	//静//
+	「あら、純一くん？」
 [chara_shift name="桃子" template="微笑" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE03_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" fade="0.15"]
 [chara_shift name="静" torso="SZK_T00_0001" eye="SZK_F00_EYE_0010" mouth="SZK_F00_MOU_0012" effect="" fade="0.15"]
-	//静//
 	「さっきまでね、桃子も夏服を選んでたのよ。」
 [chara_shift name="静" torso="SZK_T01_0004" eye="SZK_F01_EYE_0001" mouth="SZK_F01_MOU_0004" brow="SZK_F01_BRO_0001" cheek="SZK_F01_CHE_0001" fade="0.15"]
 	//静//
