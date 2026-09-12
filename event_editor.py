@@ -2488,12 +2488,15 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._scene_incremental_ready = False
         self._scene_last_target = None
         self._loading_step = True
+        self._step_load_generation = 0
+        self._pending_step_view_generation = None
         self._baseline_signature = None
         self._outline_navigation = False
         self.navigation_offset = 0
         self._direct_scene_edit = False
         self._direct_text_edit = False
         self._loading_custom_values = False
+        self._effect_clear_checkbox = None
         self._bgm_preview_manager = None
         self._se_preview_manager = None
         self._volume_sliders = {}
@@ -2644,6 +2647,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         actions_layout = QVBoxLayout()
 
         self.actions_list = QListWidget()
+        self.actions_list.setUniformItemSizes(True)
+        self.actions_list.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         for action in self.actions:
             self.actions_list.addItem(self._make_action_item(action))
         self.actions_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -2803,6 +2808,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._history_timer.setSingleShot(True)
         self._history_timer.setInterval(180)
         self._history_timer.timeout.connect(self._record_editor_history)
+        # Let large action lists paint before rebuilding the selected action
+        # editor and the scene.  Restarting this timer coalesces rapid paging.
+        self._step_view_timer = QTimer(self)
+        self._step_view_timer.setSingleShot(True)
+        self._step_view_timer.timeout.connect(self._finish_deferred_step_view)
         self.speaker_input.textChanged.connect(self._schedule_preview_update)
         self.body_input.textChanged.connect(self._schedule_preview_update)
         self.speaker_input.textChanged.connect(self._schedule_scene_preview_update)
@@ -2923,15 +2933,11 @@ class StepEditorDialog(Win2000FramelessDialog):
             self.memo_input.setText(memo)
             self.standalone_checkbox.setChecked(standalone)
 
-            self.actions_list.blockSignals(True)
-            self.actions_list.clear()
-            for action in actions:
-                self.actions_list.addItem(self._make_action_item(action))
-            if actions:
-                self.actions_list.setCurrentRow(
-                    max(0, min(current_row, len(actions) - 1))
-                )
-            self.actions_list.blockSignals(False)
+            self._replace_action_list(
+                actions,
+                current_row=current_row,
+                select_editor=False,
+            )
             if self.actions_list.currentItem():
                 self._on_action_selected(self.actions_list.currentItem(), None)
         finally:
@@ -3137,6 +3143,59 @@ class StepEditorDialog(Win2000FramelessDialog):
             ]
         self._all_step_actions = all_actions
 
+    def _replace_action_list(self, actions, current_row=0, select_editor=True):
+        """Replace all action rows as one layout/repaint batch.
+
+        ``QListWidget.addItem`` performs viewport work for every row.  Long
+        steps can contain hundreds of actions, so doing that during a step
+        navigation event makes the editor appear to ignore the click and can
+        leave only the already-painted prefix visible.  No rows are dropped;
+        updates are held until the complete model has been populated.
+        """
+        actions = [str(action or "").strip() for action in (actions or ())]
+        actions = [action for action in actions if action]
+        self.actions = actions
+
+        action_model = self.actions_list.model()
+        self.actions_list.setUpdatesEnabled(False)
+        self.actions_list.blockSignals(True)
+        action_model.blockSignals(True)
+        try:
+            self.actions_list.clear()
+            for action in actions:
+                self.actions_list.addItem(self._make_action_item(action))
+            if actions:
+                row = max(0, min(int(current_row), len(actions) - 1))
+                self.actions_list.setCurrentRow(row)
+        finally:
+            action_model.blockSignals(False)
+            self.actions_list.blockSignals(False)
+            self.actions_list.setUpdatesEnabled(True)
+
+        # Lay out the complete list once and make the selected row reachable.
+        self.actions_list.doItemsLayout()
+        current = self.actions_list.currentItem()
+        if current is not None:
+            self.actions_list.scrollToItem(current, QAbstractItemView.EnsureVisible)
+            if select_editor:
+                self._on_action_selected(current, None)
+
+    def _finish_deferred_step_view(self):
+        """Finish the expensive part of a step change after the list paints."""
+        generation = self._pending_step_view_generation
+        self._pending_step_view_generation = None
+        if generation != self._step_load_generation or self._loading_step:
+            return
+
+        current = self.actions_list.currentItem()
+        if current is not None:
+            self._on_action_selected(current, None)
+        else:
+            self._apply_param_template(self.tag_combo.currentText())
+        self._refresh_scene_preview()
+        if self.preview_tabs.currentIndex() == 1 and not self._restore_cached_final_preview():
+            self._request_preview_update()
+
     def _apply_current_step_to_parent(self):
         self.scene_canvas.flush_pending_scale()
         speaker, body, scroll_stop, force_female = self.get_dialogue_values()
@@ -3195,6 +3254,9 @@ class StepEditorDialog(Win2000FramelessDialog):
             return False
 
         self._loading_step = True
+        self._step_load_generation += 1
+        self._pending_step_view_generation = self._step_load_generation
+        self._step_view_timer.stop()
         # A snapshot worker may still be rendering the previous step.  Its
         # result must never be accepted after the editor has moved on, or the
         # preview briefly shows old/new/old/new images while requests finish
@@ -3232,24 +3294,10 @@ class StepEditorDialog(Win2000FramelessDialog):
             checkbox.setChecked(value)
             checkbox.blockSignals(False)
 
-        action_model = self.actions_list.model()
-        action_model.blockSignals(True)
-        self.actions_list.blockSignals(True)
-        self.actions_list.clear()
-        for action in self.actions:
-            self.actions_list.addItem(self._make_action_item(action))
-        if self.actions_list.count():
-            self.actions_list.setCurrentRow(0)
-        self.actions_list.blockSignals(False)
-        action_model.blockSignals(False)
-        if self.actions_list.currentItem():
-            self._on_action_selected(self.actions_list.currentItem(), None)
-        else:
-            self._apply_param_template(self.tag_combo.currentText())
+        self._replace_action_list(self.actions, current_row=0, select_editor=False)
 
         self._loading_step = False
         self._sync_standalone_control()
-        self._refresh_scene_preview()
         self._baseline_signature = self._current_step_signature()
         self._reset_editor_history()
         self._select_current_outline_step()
@@ -3259,8 +3307,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         if not has_cached_preview:
             self.preview_label.clear()
             self.preview_label.setText("このタブを開くと最終確認画像を生成します")
-        if self.preview_tabs.currentIndex() == 1 and not has_cached_preview:
-            self._request_preview_update()
+        # Yield once so the complete action list is painted before the
+        # selected-action editor, scene replay, and optional snapshot work.
+        self._step_view_timer.start(0)
         return True
 
     def _prepare_step_transition(self):
@@ -3351,6 +3400,8 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def accept(self):
         self.scene_canvas.flush_pending_scale()
+        self._step_view_timer.stop()
+        self._pending_step_view_generation = None
         self._stop_audio_preview()
         super().accept()
 
@@ -3496,6 +3547,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             if decision == QMessageBox.Save and not self._apply_current_step_to_parent():
                 return
         self.scene_canvas.discard_pending_scale()
+        self._step_view_timer.stop()
+        self._pending_step_view_generation = None
         self._stop_audio_preview()
         super().reject()
 
@@ -4190,7 +4243,18 @@ class StepEditorDialog(Win2000FramelessDialog):
             params = self._collect_custom_params()
         else:
             params = self._collect_params()
-        text = self._build_action(tag, params)
+        clear_effect = (
+            tag == "chara_shift"
+            and self._effect_clear_checkbox is not None
+            and self._effect_clear_checkbox.isChecked()
+        )
+        if clear_effect and not any(key == "effect" for key, _ in params):
+            params.append(("effect", ""))
+        text = self._build_action(
+            tag,
+            params,
+            preserve_empty_effect=clear_effect,
+        )
         self._set_action_item_source(self.actions_list.item(current_row), text)
 
     def _schedule_preview_update(self, *args):
@@ -4223,7 +4287,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _parse_action(self, text):
         return parse_step_action(text)
 
-    def _build_action(self, tag, params):
+    def _build_action(self, tag, params, preserve_empty_effect=False):
         tag = tag.strip()
         if not tag:
             return ""
@@ -4242,7 +4306,15 @@ class StepEditorDialog(Win2000FramelessDialog):
 
         for key in ordered_keys:
             value = param_map.get(key, "")
-            if value == "":
+            # An empty effect is meaningful only when the user explicitly
+            # selected the clear-effect control in the custom editor.
+            keep_empty = (
+                preserve_empty_effect
+                and tag == "chara_shift"
+                and key == "effect"
+                and key in param_map
+            )
+            if value == "" and not keep_empty:
                 continue
             parts.append(f'{key}="{value}"')
         return " ".join(parts)
@@ -4302,6 +4374,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                     layout.deleteLater()
             self.custom_editor_layout.removeRow(0)
         self.custom_fields = {}
+        self._effect_clear_checkbox = None
         self._volume_sliders = {}
         self._audio_range_buttons = {}
         self._audio_durations = {}
@@ -4472,6 +4545,11 @@ class StepEditorDialog(Win2000FramelessDialog):
                             field.setCurrentIndex(idx)
                         else:
                             field.setCurrentText(val)
+                    if (
+                        part == "effect"
+                        and self._effect_clear_checkbox is not None
+                    ):
+                        self._effect_clear_checkbox.setChecked(not str(val).strip())
             # custom_fields の値を actions_list に書き戻す
             self._apply_action_editor()
 
@@ -4597,7 +4675,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         if isinstance(blink, QComboBox):
             blink.setCurrentText("true" if template.get("blink", True) else "false")
 
-    def _build_custom_editor(self, tag, params=None):
+    def _build_custom_editor(self, tag, params=None, explicit_params=None):
         self._clear_custom_editor()
         schema = self.CUSTOM_EDITORS.get(tag)
         if not schema:
@@ -4607,6 +4685,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             return
 
         param_map = dict(params or [])
+        explicit_param_map = dict(explicit_params or [])
         if tag in ('chara_show', 'chara_shift'):
             is_shift = (tag == 'chara_shift')
             preview_btn = QPushButton('🎨 立ち絵プレビュー & パーツ選択')
@@ -4765,6 +4844,19 @@ class StepEditorDialog(Win2000FramelessDialog):
                 self.custom_editor_layout.addRow(label, wrapper)
             else:
                 self.custom_editor_layout.addRow(label, field)
+
+            if tag == "chara_shift" and key == "effect":
+                self._effect_clear_checkbox = QCheckBox(
+                    'エフェクトを解除する（effect=""）'
+                )
+                self._effect_clear_checkbox.setToolTip(
+                    "現在の立ち絵に付いているエフェクトを明示的に消します"
+                )
+                self._effect_clear_checkbox.setChecked(
+                    "effect" in explicit_param_map
+                    and not str(explicit_param_map.get("effect") or "").strip()
+                )
+                self.custom_editor_layout.addRow("", self._effect_clear_checkbox)
 
         self.custom_editor_widget.show()
         self.advanced_toggle.show()
@@ -5071,6 +5163,13 @@ class StepEditorDialog(Win2000FramelessDialog):
                 value = field.text().strip()
             if value != "":
                 params.append((key, value))
+        if (
+            self.tag_combo.currentText().strip() == "chara_shift"
+            and self._effect_clear_checkbox is not None
+            and self._effect_clear_checkbox.isChecked()
+        ):
+            params = [(key, value) for key, value in params if key != "effect"]
+            params.append(("effect", ""))
         return params
 
     def _browse_for_asset(self, key):
@@ -5147,8 +5246,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._browse_for_cg(key)
 
     def _load_action_into_editors(self, tag, params, from_template=False):
+        explicit_params = dict(params or [])
         merged = self._merge_with_template(tag, params)
-        self._build_custom_editor(tag, merged)
+        self._build_custom_editor(tag, merged, explicit_params=explicit_params)
         if self._is_custom_tag(tag):
             self._loading_custom_values = True
             try:

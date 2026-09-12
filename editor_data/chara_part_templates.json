@@ -795,6 +795,96 @@
         "effect": ""
       },
       "blink": true
+    },
+    {
+      "id": "f7edef0f93594baf85197095071e7168",
+      "name": "桃子発見",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM16_CLO00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE04_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU00_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "32edefdf7cae45789b71f0fc2e6f9333",
+      "name": "杏横会話笑い",
+      "character": "杏",
+      "parts": {
+        "torso": "ANZ_T01_0005",
+        "brow": "ANZ_F01_BRO_0001",
+        "cheek": "ANZ_F01_CHE_0001",
+        "eye": "ANZ_F01_EYE_0004",
+        "mouth": "ANZ_F01_MOU_0011",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "abbd4c095dcc439399b9ce2ddde08c58",
+      "name": "静問いかけ",
+      "character": "静",
+      "parts": {
+        "torso": "SZK_T01_0004",
+        "brow": "SZK_F01_BRO_0001",
+        "cheek": "SZK_F01_CHE_0001",
+        "eye": "SZK_F01_EYE_0001",
+        "mouth": "SZK_F01_MOU_0001",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "9237f68d9365499eb464116a4a9fcf98",
+      "name": "静ほほえみ",
+      "character": "静",
+      "parts": {
+        "torso": "SZK_T00_0001",
+        "brow": "SZK_F00_BRO_0001",
+        "cheek": "SZK_F00_CHE_0001",
+        "eye": "SZK_F00_EYE_0010",
+        "mouth": "SZK_F00_MOU_0012",
+        "accessory": "",
+        "effect": "SZK_E00_0002"
+      },
+      "blink": true
+    },
+    {
+      "id": "5a714b42d5b1479ca1a604e019562575",
+      "name": "桃子恥ずかしがるバッグ無し",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T00_ARM03_CLO00",
+        "brow": "MMK_F00_BRO02_00",
+        "cheek": "MMK_F00_CHE01_00",
+        "eye": "MMK_F00_EYE02_00",
+        "mouth": "MMK_F00_MOU01_01",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
+    },
+    {
+      "id": "f2f65e8ce30b46259cef152845ac8261",
+      "name": "桃子斜め照れ納得",
+      "character": "桃子",
+      "parts": {
+        "torso": "MMK_T01_ARM01_CLO00",
+        "brow": "MMK_F01_BRO00_00",
+        "cheek": "MMK_F01_CHE02_00",
+        "eye": "MMK_F01_EYE01_00",
+        "mouth": "MMK_F01_MOU03_00",
+        "accessory": "",
+        "effect": ""
+      },
+      "blink": true
     }
   ]
 }

@@ -1042,6 +1042,31 @@ def test_chara_editor_uses_dropdowns_and_scrollable_action_editor():
     assert dialog.action_editor_scroll.widgetResizable()
 
 
+def test_chara_shift_can_explicitly_clear_an_existing_effect():
+    steps = [{"step_index": 0}]
+    action = 'chara_shift name="A" effect="MMK_E00_01" fade="0.15"'
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[action],
+        all_steps=steps,
+        all_step_actions=[[action]],
+        step_index=0,
+        image_manager=_empty_image_manager(),
+    )
+
+    assert dialog._effect_clear_checkbox is not None
+    assert not dialog._effect_clear_checkbox.isChecked()
+
+    dialog._effect_clear_checkbox.setChecked(True)
+    dialog._apply_action_editor()
+
+    tag, params = dialog._parse_action(dialog.get_actions()[0])
+    assert tag == "chara_shift"
+    assert dict(params)["effect"] == ""
+    dialog.reject()
+
+
 def test_action_list_does_not_force_a_wide_right_panel():
     steps = [{"step_index": 0}]
     dialog = StepEditorDialog(
@@ -1125,6 +1150,40 @@ def test_step_navigation_stays_in_same_dialog_and_loads_adjacent_step():
     assert dialog.body_input.text() == "second"
     assert dialog.step_outline.currentRow() == 1
     assert "新規step" in dialog.next_step_btn.text()
+
+
+def test_step_navigation_keeps_all_large_action_lists_and_yields_for_editor_refresh():
+    manager = _empty_image_manager()
+    target_actions = [
+        f'flag_set name="flag_{index}" value="1"'
+        for index in range(320)
+    ]
+    steps = [
+        {"step_index": 0, "speaker": "A", "body": "first"},
+        {"step_index": 1, "speaker": "B", "body": "second"},
+    ]
+    dialog = StepEditorDialog(
+        None,
+        steps[0],
+        actions=[],
+        all_steps=steps,
+        all_step_actions=[[], target_actions],
+        step_index=0,
+        image_manager=manager,
+    )
+
+    dialog._navigate_step(1)
+
+    assert dialog._step_index == 1
+    assert dialog.actions_list.count() == len(target_actions)
+    last_item = dialog.actions_list.item(len(target_actions) - 1)
+    assert last_item.data(dialog.ACTION_SOURCE_ROLE) == target_actions[-1]
+    assert dialog.actions_list.verticalScrollBar().maximum() > 0
+    assert dialog._step_view_timer.isActive()
+
+    APP.processEvents()
+    assert not dialog._step_view_timer.isActive()
+    dialog.reject()
 
 
 def test_dialog_arrow_key_pages_steps_without_requiring_canvas_focus():
