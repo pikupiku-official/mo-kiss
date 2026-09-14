@@ -298,6 +298,18 @@ def _ir_dispatch_action(game_state, action):
         if result is False:
             return
         cg_duration_override = result
+    elif action_type == "movie_show":
+        _ir_handle_movie_show(game_state, params)
+    elif action_type == "movie_hide":
+        _ir_handle_movie_hide(game_state, params)
+    elif action_type == "rain_sound":
+        _ir_handle_rain_sound(game_state, params)
+    elif action_type == "rain_sound_stop":
+        _ir_handle_rain_sound_stop(game_state, params)
+    elif action_type == "haze_show":
+        _ir_handle_haze_show(game_state, params)
+    elif action_type == "haze_hide":
+        _ir_handle_haze_hide(game_state, params)
     elif action_type == "bg_show":
         _ir_handle_background_show(game_state, params)
     elif action_type == "bg_move":
@@ -714,6 +726,52 @@ def _ir_handle_cg_shift(game_state, params):
 def _ir_handle_cg_hide(game_state, params):
     return hide_cg(game_state, params)
 
+
+def _ir_handle_movie_show(game_state, params):
+    from .movie_manager import get_movie_manager
+
+    manager = get_movie_manager(game_state)
+    if not manager.show(params or {}):
+        print(f"[MOVIE] {manager.state.get('error') or 'movie could not be started'}")
+
+
+def _ir_handle_movie_hide(game_state, params):
+    manager = game_state.get("movie_manager")
+    if manager is not None:
+        manager.hide(params or {})
+
+
+def _ir_handle_rain_sound(game_state, params):
+    from .rain_manager import get_rain_manager
+
+    manager = get_rain_manager(game_state)
+    if not manager.show(params or {}):
+        print(f"[RAIN] {manager.state.get('error') or 'rain sound could not be started'}")
+
+
+def _ir_handle_rain_sound_stop(game_state, params):
+    manager = game_state.get("rain_manager")
+    if manager is not None:
+        manager.hide(params or {})
+
+
+def _ir_handle_haze_show(game_state, params):
+    from .haze_manager import get_haze_manager
+
+    haze_params = dict(params or {})
+    # The leading scene setup is committed as one IR step so the first
+    # visible background frame is already hazed.  Later haze_show commands
+    # retain their authored fade behavior.
+    if game_state.get("ir_step_index") == 0:
+        haze_params["fade"] = 0.0
+    get_haze_manager(game_state).show(haze_params)
+
+
+def _ir_handle_haze_hide(game_state, params):
+    manager = game_state.get("haze_manager")
+    if manager is not None:
+        manager.hide(params or {})
+
 def _ir_handle_background_show(game_state, params):
     storage = params.get("storage")
     if not storage:
@@ -928,6 +986,12 @@ def _ir_get_action_duration_ms(action_type, params):
         return cg_transition_duration_ms(params or {}, action_type)
     if action_type in ("fadeout", "fadein"):
         return int(_to_float((params or {}).get("time"), 1.0) * 1000)
+    if action_type in ("movie_show", "movie_hide"):
+        params = params or {}
+        value = params.get("fade_in" if action_type == "movie_show" else "fade_out")
+        if value is None:
+            value = params.get("fade", params.get("time", 0.0))
+        return max(0, int(_to_float(value, 0.0) * 1000))
     return 0
 
 def _ir_default_on_advance(action_type):
@@ -935,6 +999,8 @@ def _ir_default_on_advance(action_type):
         return "block"
     if action_type in ("fadeout", "fadein"):
         return "complete"
+    if action_type in ("movie_show", "movie_hide"):
+        return "block"
     if action_type in ("chara_move", "bg_show", "bg_move"):
         return "complete"
     return None

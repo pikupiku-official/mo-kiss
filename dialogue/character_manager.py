@@ -1206,7 +1206,53 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     draw_part_with_fade('effect', effect_type)
     draw_part_with_fade('accessory', accessory_type)
 
-def draw_characters(game_state):
+def _safe_float(value, default):
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed == parsed else default
+
+
+def _character_haze_factor(size):
+    """Return the relative haze amount for the currently displayed size.
+
+    The two linear segments preserve the requested anchor points:
+    size 0.5 -> 100%, size 1.0 -> 50%, size 2.0 -> 0%.
+    Values outside the authored range are clamped at those endpoints.
+    """
+    size = _safe_float(size, 1.0)
+    if size <= 0.5:
+        return 1.0
+    if size <= 1.0:
+        return 1.5 - size
+    if size <= 2.0:
+        return 1.0 - (size / 2.0)
+    return 0.0
+
+
+def _character_display_zoom(game_state, char_name, current_time=None):
+    """Get the zoom represented by the pixels drawn in this frame."""
+    transition = game_state.get('character_transitions', {}).get(char_name)
+    if transition:
+        from_zoom = _safe_float(transition.get('from_zoom'), 1.0)
+        to_zoom = _safe_float(transition.get('to_zoom'), from_zoom)
+        if transition.get('mode') == 'relocate':
+            return to_zoom if transition.get('phase') == 'in' else from_zoom
+        now = pygame.time.get_ticks() if current_time is None else current_time
+        duration = max(int(transition.get('duration', 0)), 0)
+        progress = 1.0 if duration <= 0 else min(
+            max(0, now - transition.get('start_time', now)) / duration,
+            1.0,
+        )
+        return from_zoom + (to_zoom - from_zoom) * progress
+    return _safe_float(
+        game_state.get('character_zoom', {}).get(char_name, 1.0),
+        1.0,
+    )
+
+
+def _draw_characters_direct(game_state, character_names=None):
     """Draw characters with optional part fades."""
     frame_id = _trace_frame_start(game_state)
     # A CG replaces the normal character layer while it is visible or
@@ -1235,7 +1281,12 @@ def draw_characters(game_state):
     image_manager = game_state['image_manager']
     screen = game_state['screen']
 
-    for char_name in game_state['active_characters']:
+    characters_to_draw = (
+        game_state['active_characters']
+        if character_names is None
+        else character_names
+    )
+    for char_name in characters_to_draw:
         if char_name not in game_state['character_pos']:
             _trace_character_result(
                 game_state,
@@ -1390,4 +1441,50 @@ def draw_characters(game_state):
             current_time,
             display_region=trace_region,
         )
+
+
+def draw_characters(game_state):
+    """Draw characters, applying distance-based haze per character.
+
+    The direct renderer remains responsible for the complete character pose,
+    including transitions and expression-part fades.  When haze is active,
+    each character is rendered to its own transparent layer first, then the
+    layer is veiled before being composited in the original character order.
+    This keeps character ordering unchanged and leaves the later rain movie
+    layer untouched.
+    """
+    haze_manager = game_state.get('haze_manager')
+    apply_haze = getattr(haze_manager, 'apply_to_transparent_surface', None)
+    base_opacity = _safe_float(
+        (haze_manager.state if haze_manager is not None else {}).get(
+            'opacity',
+        ),
+        0.0,
+    )
+    cg_state = game_state.get('cg_state') or {}
+
+    # CGs replace the normal character layer.  Keep the established CG path
+    # and do not apply character haze to CG pixels.
+    if not callable(apply_haze) or base_opacity <= 0.0 or (
+        cg_state.get('storage') or cg_state.get('transition')
+    ):
+        _draw_characters_direct(game_state)
+        return
+
+    screen = game_state['screen']
+    active_characters = list(game_state.get('active_characters', []))
+    try:
+        for char_name in active_characters:
+            layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA, 32)
+            game_state['screen'] = layer
+            _draw_characters_direct(game_state, [char_name])
+            game_state['screen'] = screen
+
+            haze_factor = _character_haze_factor(
+                _character_display_zoom(game_state, char_name)
+            )
+            apply_haze(layer, haze_factor)
+            screen.blit(layer, (0, 0))
+    finally:
+        game_state['screen'] = screen
 

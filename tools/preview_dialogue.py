@@ -33,6 +33,8 @@ from dialogue.character_manager import (
 from dialogue.background_manager import draw_background, update_background_animation
 from dialogue.cg_manager import draw_cg
 from dialogue.fade_manager import draw_fade_overlay
+from dialogue.movie_manager import draw_movie
+from dialogue.haze_manager import draw_haze
 from dialogue.notification_manager import NotificationManager
 from dialogue.backlog_manager import BacklogManager
 from dialogue.name_manager import get_name_manager
@@ -513,8 +515,10 @@ def preview_step_image(
 
         virtual_screen.fill((0, 0, 0))
         draw_background(game_state)
+        draw_haze(game_state)
         draw_cg(game_state)
         draw_characters(game_state)
+        draw_movie(game_state)
         draw_fade_overlay(game_state)
 
         if 'image_manager' in game_state and 'images' in game_state:
@@ -871,6 +875,8 @@ def preview_ks_file(ks_file_path, start_step=1):
                 print(f"[PREVIEW] draw_background error: {e} (以降このエラーは抑制)")
                 error_logged['background'] = True
 
+        draw_haze(game_state)
+
         # キャラクター描画（エラー回避のためtry-except）
         draw_cg(game_state)
 
@@ -903,6 +909,7 @@ def preview_ks_file(ks_file_path, start_step=1):
                 print(f"[PREVIEW] draw_characters warning: {e} (以降このエラーは抑制)")
                 error_logged['character'] = True
 
+        draw_movie(game_state)
         draw_fade_overlay(game_state)
 
         # UI要素描画（テキストボックス、auto/skipボタン等）

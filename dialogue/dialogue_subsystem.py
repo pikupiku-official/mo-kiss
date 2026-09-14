@@ -178,6 +178,12 @@ class DialogueSubsystem(SubsystemBase):
                 self.game_state['bgm_manager'].stop_bgm()
             if self.game_state.get('se_manager'):
                 self.game_state['se_manager'].stop_all_se()
+            if self.game_state.get('rain_manager'):
+                self.game_state['rain_manager'].stop()
+            if self.game_state.get('haze_manager'):
+                self.game_state['haze_manager'].stop()
+            if self.game_state.get('movie_manager'):
+                self.game_state['movie_manager'].stop()
             print("🔇 DialogueSubsystem cleanup: BGM/SE 停止")
         except Exception as e:
             print(f"⚠️ DialogueSubsystem cleanup 音声停止エラー: {e}")
@@ -496,6 +502,8 @@ class DialogueSubsystem(SubsystemBase):
         from dialogue.background_manager import draw_background
         from dialogue.character_manager import draw_characters
         from dialogue.cg_manager import draw_cg
+        from dialogue.movie_manager import draw_movie
+        from dialogue.haze_manager import draw_haze
         from dialogue.fade_manager import draw_fade_overlay
         from core.config import CONTENT_WIDTH, CONTENT_HEIGHT, OFFSET_X, OFFSET_Y
 
@@ -506,8 +514,11 @@ class DialogueSubsystem(SubsystemBase):
 
         # 背景・キャラクター・フェード
         draw_background(gs)
+        # Haze is a BG veil: keep characters, rain and UI crisp above it.
+        draw_haze(gs)
         draw_cg(gs)
         draw_characters(gs)
+        draw_movie(gs)
         draw_fade_overlay(gs)
 
         from dialogue.render_monitor import trace_event, surface_summary

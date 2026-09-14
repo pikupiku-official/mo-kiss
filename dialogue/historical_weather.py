@@ -9,6 +9,10 @@ PERIOD_TO_HOUR = {
     "夜": "19",
 }
 
+HISTORICAL_WEATHER_UNKNOWN_FROM = (1999, 6, 28)
+HISTORICAL_WEATHER_LAST_DATE = (1999, 7, 2)
+UNKNOWN_WEATHER_DISPLAY_TEXT = "？ ？？℃"
+
 
 class HistoricalWeather:
     def __init__(self, data_path=None):
@@ -38,6 +42,12 @@ class HistoricalWeather:
         return self._load().get(key)
 
     def get_display_text(self, year, month, day, period):
+        game_date = (year, month, day)
+        if game_date > HISTORICAL_WEATHER_LAST_DATE:
+            return ""
+        if game_date >= HISTORICAL_WEATHER_UNKNOWN_FROM:
+            return UNKNOWN_WEATHER_DISPLAY_TEXT
+
         entry = self.get_entry(year, month, day)
         if not entry:
             return ""

@@ -23,6 +23,7 @@ import platform
 import traceback
 import logging
 import subprocess
+import shutil
 import json
 from collections import OrderedDict
 from datetime import datetime
@@ -1462,9 +1463,7 @@ class CharaCompositePreviewDialog(QDialog):
         self._blink_combo = QComboBox()
         self._blink_combo.addItems(['true', 'false'])
         self._blink_combo.setCurrentText('true' if self._blink else 'false')
-        self._blink_combo.currentTextChanged.connect(
-            lambda value: setattr(self, '_blink', value == 'true')
-        )
+        self._blink_combo.currentTextChanged.connect(self._on_blink_changed)
         parts_form.addRow('blink', self._blink_combo)
 
         right_layout.addWidget(parts_group)
@@ -1495,6 +1494,11 @@ class CharaCompositePreviewDialog(QDialog):
     # ------------------------------------------------------------------
     # イベントハンドラ
     # ------------------------------------------------------------------
+
+    def _on_blink_changed(self, value):
+        if self._applied_template_name:
+            self._applied_template_name = ""
+        self._blink = value == "true"
 
     def _on_name_changed(self, text):
         self._char_name = text.strip()
@@ -1623,6 +1627,10 @@ class CharaCompositePreviewDialog(QDialog):
         self._refresh_template_combo()
 
     def _on_field_changed(self, part, text):
+        # A manual choice is an explicit override.  Do not let a previously
+        # loaded template be expanded again during the next action write.
+        if self._applied_template_name:
+            self._applied_template_name = ""
         self._fields[part] = text.strip()
 
         combo = self._combos[part]
@@ -1747,15 +1755,11 @@ class CharaCompositePreviewDialog(QDialog):
                 result['blink'] = 'true' if self._blink else 'false'
             if result_name:
                 result['name'] = result_name
-            if self._is_shift and self._applied_template_name:
-                result['template'] = self._applied_template_name
             return result
         result = dict(self._fields)
         result['blink'] = 'true' if self._blink else 'false'
         if result_name:
             result['name'] = result_name
-        if self._is_shift and self._applied_template_name:
-            result['template'] = self._applied_template_name
         return result
 
 
@@ -2208,6 +2212,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         "cg_show": "CG表示",
         "cg_shift": "CG変更",
         "cg_hide": "CG非表示",
+        "movie_show": "動画オーバーレイ表示",
+        "movie_hide": "動画オーバーレイ停止",
+        "rain_sound": "雨音開始",
+        "rain_sound_stop": "雨音停止",
+        "haze_show": "背景の霞み開始",
+        "haze_hide": "背景の霞み停止",
         "bgm": "BGM再生",
         "bgmend": "BGM終了",
         "bgmstop": "BGM一時停止",
@@ -2253,6 +2263,17 @@ class StepEditorDialog(Win2000FramelessDialog):
             detail.append(params.get("storage", ""))
         elif tag.startswith("cg_"):
             detail.append(params.get("storage", ""))
+        elif tag == "movie_show":
+            detail.append(params.get("file", params.get("storage", "")))
+            if params.get("opacity"):
+                detail.append(f"濃度 {params['opacity']}")
+        elif tag == "rain_sound":
+            detail.append(params.get("preset", "normal"))
+            if params.get("volume"):
+                detail.append(f"音量 {params['volume']}")
+        elif tag == "haze_show":
+            if params.get("opacity"):
+                detail.append(f"濃度 {params['opacity']}")
         elif tag == "choice":
             detail.append(" / ".join(value for key, value in pairs if key.startswith("option")))
         text = " ".join(part for part in detail if part)
@@ -2281,6 +2302,12 @@ class StepEditorDialog(Win2000FramelessDialog):
         "cg_show",
         "cg_shift",
         "cg_hide",
+        "movie_show",
+        "movie_hide",
+        "rain_sound",
+        "rain_sound_stop",
+        "haze_show",
+        "haze_hide",
         "bgm",
         "bgmend",
         "bgmstop",
@@ -2344,6 +2371,28 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("fade", "0.3"),
         ],
         "cg_hide": [("fade", "0.3")],
+        "movie_show": [
+            ("file", "heavy_rain.mp4"),
+            ("loop", "true"),
+            ("opacity", "0.55"),
+            ("fade", "0.8"),
+            ("mode", "alpha"),
+            ("fit", "cover"),
+            ("x", "0.5"),
+            ("y", "0.5"),
+            ("zoom", "1.0"),
+            ("speed", "1.0"),
+        ],
+        "movie_hide": [("fade", "0.8")],
+        "rain_sound": [
+            ("preset", "heavy"), ("volume", "0.32"), ("fade", "0.8"),
+        ],
+        "rain_sound_stop": [("fade", "0.8")],
+        "haze_show": [
+            ("color", "218,226,232"), ("opacity", "0.16"),
+            ("fade", "0.8"), ("drift", "0.25"),
+        ],
+        "haze_hide": [("fade", "0.8")],
         "bgm": [
             ("bgm", ""), ("volume", "0.5"), ("loop", "true"),
             ("fade", "0.0"), ("start", ""), ("end", ""),
@@ -2438,6 +2487,38 @@ class StepEditorDialog(Win2000FramelessDialog):
         "cg_hide": [
             ("fade", "fade", "text"),
         ],
+        "movie_show": [
+            ("file", "動画ファイル", "movie_asset"),
+            ("loop", "ループ", "bool"),
+            ("opacity", "不透明度", "movie_opacity"),
+            ("fade", "フェードイン (秒)", "movie_seconds"),
+            ("speed", "再生速度", "movie_speed"),
+            ("mode", "透過方式", "movie_mode"),
+            ("fit", "画面への合わせ方", "movie_fit"),
+            ("x", "中心 X", "movie_number"),
+            ("y", "中心 Y", "movie_number"),
+            ("zoom", "倍率", "movie_number"),
+        ],
+        "movie_hide": [
+            ("fade", "フェードアウト (秒)", "movie_seconds"),
+        ],
+        "rain_sound": [
+            ("preset", "雨量", "rain_preset"),
+            ("volume", "音量", "volume_slider"),
+            ("fade", "フェード (秒)", "movie_seconds"),
+        ],
+        "rain_sound_stop": [
+            ("fade", "フェードアウト (秒)", "movie_seconds"),
+        ],
+        "haze_show": [
+            ("color", "霞み色 (R,G,B / #hex)", "text"),
+            ("opacity", "霞み濃度", "movie_opacity"),
+            ("fade", "フェード (秒)", "movie_seconds"),
+            ("drift", "ゆらぎ", "movie_number"),
+        ],
+        "haze_hide": [
+            ("fade", "フェードアウト (秒)", "movie_seconds"),
+        ],
         "bgm": [
             ("bgm", "bgm", "bgm_asset"),
             ("volume", "volume", "volume_slider"),
@@ -2499,6 +2580,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._effect_clear_checkbox = None
         self._bgm_preview_manager = None
         self._se_preview_manager = None
+        self._rain_preview_sound = None
+        self._rain_preview_channel = None
+        self._movie_preview_process = None
         self._volume_sliders = {}
         # Keep recently visited final renders in memory.  The interactive scene
         # already changes immediately; this avoids restarting snapshot work
@@ -2651,6 +2735,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.actions_list.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         for action in self.actions:
             self.actions_list.addItem(self._make_action_item(action))
+        self._consolidate_loaded_chara_shifts()
         self.actions_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.actions_list.setDragDropMode(QAbstractItemView.InternalMove)
         self.actions_list.setDefaultDropAction(Qt.MoveAction)
@@ -3295,6 +3380,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             checkbox.blockSignals(False)
 
         self._replace_action_list(self.actions, current_row=0, select_editor=False)
+        self._consolidate_loaded_chara_shifts()
 
         self._loading_step = False
         self._sync_standalone_control()
@@ -3762,9 +3848,90 @@ class StepEditorDialog(Win2000FramelessDialog):
             return float(default)
 
     def _set_action_row(self, row, tag, params):
-        action_text = self._build_action(tag, list(params.items()))
+        preserve_empty_effect = (
+            tag == "chara_shift"
+            and "effect" in params
+            and not str(params.get("effect") or "").strip()
+        )
+        action_text = self._build_action(
+            tag,
+            list(params.items()),
+            preserve_empty_effect=preserve_empty_effect,
+        )
         self._set_action_item_source(self.actions_list.item(row), action_text)
         self.actions_list.setCurrentRow(row)
+
+    def _consolidate_chara_shifts(self, name):
+        """Keep one deterministic chara_shift per character in this step.
+
+        Scene dragging and expression editing can happen in either order.  The
+        later action wins for duplicate keys, while keys omitted by the later
+        action are retained from the earlier one.  Template values are
+        materialized before merging so a template can never overwrite an
+        explicit part selection later.
+        """
+        name = (name or "").strip()
+        if not name:
+            return -1
+        rows = []
+        merged = {}
+        for row in range(self.actions_list.count()):
+            tag, pairs = self._parse_action(
+                self._action_item_source(self.actions_list.item(row))
+            )
+            params = dict(pairs)
+            if tag != "chara_shift" or params.get("name", "").strip() != name:
+                continue
+            rows.append(row)
+            materialized = self._expand_chara_template_params(params)
+            materialized.pop("template", None)
+            merged.update(materialized)
+
+        if not rows:
+            return -1
+        if len(rows) == 1:
+            return rows[0]
+
+        merged["name"] = name
+        keep_row = rows[0]
+        self._set_action_row(keep_row, "chara_shift", merged)
+        for row in reversed(rows[1:]):
+            self.actions_list.takeItem(row)
+        self.actions_list.setCurrentRow(keep_row)
+        return keep_row
+
+    def _consolidate_loaded_chara_shifts(self):
+        """Normalize all duplicate character shifts when a step is loaded."""
+        names = []
+        for row in range(self.actions_list.count()):
+            tag, pairs = self._parse_action(
+                self._action_item_source(self.actions_list.item(row))
+            )
+            name = dict(pairs).get("name", "").strip()
+            if tag == "chara_shift" and name and name not in names:
+                names.append(name)
+        if not names:
+            return
+
+        current_row = self.actions_list.currentRow()
+        model = self.actions_list.model()
+        self.actions_list.blockSignals(True)
+        model.blockSignals(True)
+        try:
+            for name in names:
+                self._consolidate_chara_shifts(name)
+            self.actions = self.get_actions()
+            if self._step_index is not None:
+                while len(self._all_step_actions) <= self._step_index:
+                    self._all_step_actions.append([])
+                self._all_step_actions[self._step_index] = list(self.actions)
+        finally:
+            model.blockSignals(False)
+            self.actions_list.blockSignals(False)
+        if self.actions_list.count():
+            self.actions_list.setCurrentRow(
+                max(0, min(current_row, self.actions_list.count() - 1))
+            )
 
     def _on_scene_object_moved(self, name, delta_x, delta_y, metadata):
         """Persist a canvas drag without splitting a current-step show."""
@@ -3819,6 +3986,9 @@ class StepEditorDialog(Win2000FramelessDialog):
         target_y = self._parse_scene_number(metadata.get("y"), 0.5) + relative_y
         target_size = self._parse_scene_number(metadata.get("zoom"), 1.0)
         self._direct_scene_edit = True
+        # Dragging after an expression edit, or editing an expression after a
+        # drag, must address the same consolidated shift row.
+        self._consolidate_chara_shifts(name)
 
         last_placement_row = -1
         parsed_by_row = {}
@@ -3923,6 +4093,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             return
 
         self._direct_scene_edit = True
+        self._consolidate_chara_shifts(name)
         scale_rows = []
         parsed_by_row = {}
         for row in range(self.actions_list.count()):
@@ -3933,7 +4104,10 @@ class StepEditorDialog(Win2000FramelessDialog):
                 continue
             if tag == "chara_show":
                 scale_rows.append((row, "size"))
-            elif tag == "chara_shift" and "size" in params:
+            elif tag == "chara_shift":
+                # Reuse the single shift row even when it previously only
+                # carried expression fields; do not append a second shift for
+                # a scale-only edit.
                 scale_rows.append((row, "size"))
             elif tag == "chara_move":
                 scale_rows.append((row, "zoom"))
@@ -4011,6 +4185,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             )
             return
         if command == "character_shift":
+            self._consolidate_chara_shifts(object_name)
             row = self._find_latest_character_action("chara_shift", object_name)
             if row < 0:
                 row = self._append_action_from_template(
@@ -4172,7 +4347,14 @@ class StepEditorDialog(Win2000FramelessDialog):
             return
         tag, params = self._parse_action(self._action_item_source(current))
         if tag:
-            self.tag_combo.setCurrentText(tag)
+            # Changing the tag normally loads a fresh parameter template.  A
+            # selected existing row must load its own values atomically, or a
+            # template signal can briefly overwrite the row being inspected.
+            self.tag_combo.blockSignals(True)
+            try:
+                self.tag_combo.setCurrentText(tag)
+            finally:
+                self.tag_combo.blockSignals(False)
         self._load_action_into_editors(tag, params)
 
     def _apply_param_template(self, tag):
@@ -4239,10 +4421,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         if current_row < 0:
             return
         tag = self.tag_combo.currentText().strip()
-        if self._is_custom_tag(tag) and not self.advanced_toggle.isChecked():
-            params = self._collect_custom_params()
-        else:
-            params = self._collect_params()
+        params = self._collect_editor_params(tag)
         clear_effect = (
             tag == "chara_shift"
             and self._effect_clear_checkbox is not None
@@ -4255,7 +4434,27 @@ class StepEditorDialog(Win2000FramelessDialog):
             params,
             preserve_empty_effect=clear_effect,
         )
+        if tag in ("chara_show", "chara_shift"):
+            # Persist the resolved parts, not a template reference.  This
+            # makes a later one-part edit a real override instead of a value
+            # that can be replaced when the template is expanded again.
+            materialized = self._expand_chara_template_params(dict(params))
+            materialized.pop("template", None)
+            params = list(materialized.items())
+            text = self._build_action(
+                tag,
+                params,
+                preserve_empty_effect=clear_effect or (
+                    tag == "chara_shift"
+                    and "effect" in materialized
+                    and not str(materialized.get("effect") or "").strip()
+                ),
+            )
         self._set_action_item_source(self.actions_list.item(current_row), text)
+        if tag == "chara_shift":
+            self._consolidate_chara_shifts(
+                dict(self._parse_action(text)[1]).get("name", "")
+            )
 
     def _schedule_preview_update(self, *args):
         if self._loading_step or self.preview_tabs.currentIndex() != 1:
@@ -4356,6 +4555,8 @@ class StepEditorDialog(Win2000FramelessDialog):
         return tag in self.CUSTOM_EDITORS
 
     def _clear_custom_editor(self):
+        self._stop_movie_preview()
+        self._stop_rain_preview()
         while self.custom_editor_layout.rowCount():
             for role in (QFormLayout.LabelRole, QFormLayout.FieldRole):
                 item = self.custom_editor_layout.itemAt(0, role)
@@ -4667,13 +4868,35 @@ class StepEditorDialog(Win2000FramelessDialog):
         if not template:
             return
         parts = template.get("parts", {}) or {}
-        for part in self.CHARA_PREVIEW_PARTS:
-            field = self.custom_fields.get(part)
-            if isinstance(field, QComboBox):
-                field.setCurrentText(str(parts.get(part, "")).strip())
-        blink = self.custom_fields.get("blink")
-        if isinstance(blink, QComboBox):
-            blink.setCurrentText("true" if template.get("blink", True) else "false")
+        self._loading_custom_values = True
+        try:
+            torso = self.custom_fields.get("torso")
+            if isinstance(torso, QComboBox):
+                torso_value = str(parts.get("torso", "")).strip()
+                if torso_value and torso.findText(torso_value) < 0:
+                    torso.addItem(torso_value)
+                torso.setCurrentText(torso_value)
+                # Face/effect options depend on the newly selected torso.
+                # Refresh them before applying the rest of the template.
+                self._refresh_chara_editor_options(preserve_parts=True)
+
+            for part in self.CHARA_PREVIEW_PARTS:
+                if part == "torso":
+                    continue
+                field = self.custom_fields.get(part)
+                if isinstance(field, QComboBox):
+                    value = str(parts.get(part, "")).strip()
+                    # Keep an intentional torso/face mismatch selectable; it
+                    # must not silently fall back to the previous expression.
+                    if value and field.findText(value) < 0:
+                        field.addItem(value)
+                    field.setCurrentText(value)
+            blink = self.custom_fields.get("blink")
+            if isinstance(blink, QComboBox):
+                blink.setCurrentText("true" if template.get("blink", True) else "false")
+        finally:
+            self._loading_custom_values = False
+        self._refresh_chara_editor_options(preserve_parts=True)
 
     def _build_custom_editor(self, tag, params=None, explicit_params=None):
         self._clear_custom_editor()
@@ -4693,11 +4916,46 @@ class StepEditorDialog(Win2000FramelessDialog):
             # Keep the preview/action context immediately below tag and above
             # the name field, where it is discoverable before the long part list.
             self.custom_editor_layout.addRow('', preview_btn)
+        elif tag == "rain_sound":
+            preview_row = QWidget()
+            preview_layout = QHBoxLayout(preview_row)
+            preview_layout.setContentsMargins(0, 0, 0, 0)
+            preview_btn = QPushButton("▶ 雨音を試聴")
+            stop_btn = QPushButton("■ 停止")
+            preview_btn.clicked.connect(self._preview_selected_rain)
+            stop_btn.clicked.connect(self._stop_rain_preview)
+            preview_layout.addWidget(preview_btn)
+            preview_layout.addWidget(stop_btn)
+            preview_layout.addStretch(1)
+            self.custom_editor_layout.addRow("確認", preview_row)
+        elif tag == "movie_show":
+            preview_row = QWidget()
+            preview_layout = QHBoxLayout(preview_row)
+            preview_layout.setContentsMargins(0, 0, 0, 0)
+            preview_btn = QPushButton("▶ 動画をプレビュー")
+            preview_btn.setObjectName("moviePreviewButton")
+            preview_btn.clicked.connect(self._preview_selected_movie)
+            stop_btn = QPushButton("■ 停止")
+            stop_btn.setObjectName("moviePreviewStopButton")
+            stop_btn.clicked.connect(self._stop_movie_preview)
+            preview_layout.addWidget(preview_btn)
+            preview_layout.addWidget(stop_btn)
+            preview_layout.addStretch(1)
+            self.custom_editor_layout.addRow("確認", preview_row)
+            self.custom_editor_layout.addRow(
+                "", QLabel("alpha: 黒を透過して雨を重ねる / opaque: 動画全体を表示")
+            )
         for key, label, field_type in schema:
             if field_type == "bool":
                 field = QComboBox()
                 field.addItems(["true", "false"])
                 field.setProperty("booleanField", True)
+            elif field_type == "rain_preset":
+                field = QComboBox()
+                field.addItems(["normal", "heavy"])
+            elif field_type == "movie_fit":
+                field = QComboBox()
+                field.addItems(["cover", "stretch"])
             elif field_type == "chara_name":
                 field = QComboBox()
                 field.addItems(self._editor_character_options(param_map.get("name", "")))
@@ -4743,6 +5001,30 @@ class StepEditorDialog(Win2000FramelessDialog):
                 field.setDecimals(2)
                 field.setSingleStep(0.01)
                 field.setProperty("optionalAudioTime", True)
+                field.setMaximumWidth(100)
+            elif field_type == "movie_asset":
+                field = QComboBox()
+                field.setEditable(True)
+                field.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+                field.setMinimumContentsLength(18)
+                field.setMinimumWidth(0)
+                field.addItem("")
+                field.addItems(self._editor_asset_options("movie_asset"))
+            elif field_type == "movie_mode":
+                field = QComboBox()
+                field.addItems(["alpha", "opaque"])
+            elif field_type in ("movie_opacity", "movie_seconds", "movie_speed", "movie_number"):
+                field = QDoubleSpinBox()
+                field.setDecimals(2)
+                field.setSingleStep(0.05 if field_type == "movie_opacity" else 0.1)
+                if field_type == "movie_opacity":
+                    field.setRange(0.0, 1.0)
+                elif field_type == "movie_speed":
+                    field.setRange(0.05, 4.0)
+                elif field_type == "movie_number":
+                    field.setRange(-10.0, 10.0)
+                else:
+                    field.setRange(0.0, 99999.0)
                 field.setMaximumWidth(100)
             elif field_type == "bg_asset":
                 # Backgrounds are selected through the native file dialog.
@@ -4797,7 +5079,7 @@ class StepEditorDialog(Win2000FramelessDialog):
                 # compact numeric fields as a precise fallback, rather than
                 # presenting a misleading 0..3600s slider for every file.
                 self.custom_editor_layout.addRow(label, field)
-            elif field_type in ("bg_asset", "cg_asset", "bgm_asset", "se_asset"):
+            elif field_type in ("bg_asset", "cg_asset", "bgm_asset", "se_asset", "movie_asset"):
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
                 wrapper_layout.setContentsMargins(0, 0, 0, 0)
@@ -4811,6 +5093,11 @@ class StepEditorDialog(Win2000FramelessDialog):
                     browse_btn = QPushButton("差分一覧…")
                     browse_btn.setObjectName(f"{key}BrowseButton")
                     browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_cg(k))
+                    wrapper_layout.addWidget(browse_btn)
+                elif field_type == "movie_asset":
+                    browse_btn = QPushButton("参照...")
+                    browse_btn.setObjectName(f"{key}BrowseButton")
+                    browse_btn.clicked.connect(lambda _=False, k=key: self._browse_for_movie(k))
                     wrapper_layout.addWidget(browse_btn)
                 else:
                     range_btn = QPushButton("範囲編集…")
@@ -4928,6 +5215,8 @@ class StepEditorDialog(Win2000FramelessDialog):
             self._bgm_preview_manager.set_volume(volume)
         elif tag == "se" and self._se_preview_manager is not None:
             self._se_preview_manager.set_current_volume(volume)
+        elif tag == "rain_sound" and self._rain_preview_channel is not None:
+            self._rain_preview_channel.set_volume(max(0.0, min(1.0, float(volume))))
 
     def _audio_asset_path(self, key, filename):
         """Resolve an editor audio field without allowing path traversal."""
@@ -5040,6 +5329,16 @@ class StepEditorDialog(Win2000FramelessDialog):
                 for filename in os.listdir(audio_dir)
                 if filename.lower().endswith(extensions)
             )
+        if field_type == "movie_asset":
+            movie_dir = os.path.join(project_root, "movies")
+            if not os.path.isdir(movie_dir):
+                return []
+            extensions = (".mov", ".webm", ".mp4", ".m4v", ".avi")
+            return sorted(
+                filename
+                for filename in os.listdir(movie_dir)
+                if filename.lower().endswith(extensions)
+            )
         return []
 
     @staticmethod
@@ -5149,6 +5448,99 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _stop_audio_preview(self):
         self._stop_bgm_preview()
         self._stop_se_preview()
+        self._stop_rain_preview()
+        self._stop_movie_preview()
+
+    def _preview_selected_rain(self):
+        field = self.custom_fields.get("preset")
+        preset = field.currentText().strip().lower() if isinstance(field, QComboBox) else "normal"
+        from dialogue.rain_manager import RAIN_PRESETS
+
+        filename = RAIN_PRESETS.get(preset, RAIN_PRESETS["normal"])
+        path = os.path.join(project_root, "sounds", "ambience", filename)
+        if not os.path.isfile(path):
+            self.scene_selection_label.setText(f"雨音を参照できません: {filename}")
+            return
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            self._stop_rain_preview()
+            self._rain_preview_sound = pygame.mixer.Sound(path)
+            volume_field = self.custom_fields.get("volume")
+            volume = volume_field.value() if isinstance(volume_field, QDoubleSpinBox) else 0.32
+            self._rain_preview_sound.set_volume(max(0.0, min(1.0, float(volume))))
+            self._rain_preview_channel = self._rain_preview_sound.play(loops=-1)
+            if self._rain_preview_channel is None:
+                raise RuntimeError("pygame could not allocate a preview channel")
+            self.scene_selection_label.setText(f"雨音試聴中: {preset}")
+        except Exception as exc:
+            self._stop_rain_preview()
+            self.scene_selection_label.setText(f"雨音を再生できません: {exc}")
+
+    def _stop_rain_preview(self):
+        if self._rain_preview_channel is not None:
+            try:
+                self._rain_preview_channel.stop()
+            except Exception:
+                pass
+        self._rain_preview_channel = None
+        self._rain_preview_sound = None
+
+    def _movie_asset_path(self, filename):
+        filename = os.path.basename(str(filename or "").strip())
+        if not filename:
+            return None
+        movie_dir = os.path.abspath(os.path.join(project_root, "movies"))
+        candidate = os.path.abspath(os.path.join(movie_dir, filename))
+        try:
+            if os.path.commonpath((movie_dir, candidate)) != movie_dir:
+                return None
+        except ValueError:
+            return None
+        return candidate if os.path.isfile(candidate) else None
+
+    def _preview_selected_movie(self):
+        filename = self._custom_text_value(self.custom_fields.get("file"))
+        path = self._movie_asset_path(filename)
+        if not path:
+            self.scene_selection_label.setText(f"動画を参照できません: {filename or '(未選択)'}")
+            return
+        ffplay_path = shutil.which("ffplay")
+        if not ffplay_path:
+            self.scene_selection_label.setText("動画プレビューには ffplay が必要です")
+            return
+        self._stop_movie_preview()
+        creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        try:
+            self._movie_preview_process = subprocess.Popen(
+                [
+                    ffplay_path,
+                    "-autoexit",
+                    "-loglevel", "error",
+                    "-window_title", f"KS movie preview: {filename}",
+                    path,
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=creation_flags,
+            )
+        except OSError as exc:
+            self._movie_preview_process = None
+            self.scene_selection_label.setText(f"動画プレビューを開始できません: {exc}")
+            return
+        self.scene_selection_label.setText(f"動画プレビュー中: {filename}")
+
+    def _stop_movie_preview(self):
+        process = getattr(self, "_movie_preview_process", None)
+        if process is None:
+            return
+        try:
+            if process.poll() is None:
+                process.terminate()
+        except OSError:
+            pass
+        self._movie_preview_process = None
 
     def _collect_custom_params(self):
         params = []
@@ -5171,6 +5563,20 @@ class StepEditorDialog(Win2000FramelessDialog):
             params = [(key, value) for key, value in params if key != "effect"]
             params.append(("effect", ""))
         return params
+
+    def _collect_editor_params(self, tag):
+        """Collect visible custom fields and preserve advanced-only keys."""
+        if not self._is_custom_tag(tag):
+            return self._collect_params()
+        custom_params = self._collect_custom_params()
+        if not self.advanced_toggle.isChecked():
+            return custom_params
+        known_keys = set(self.custom_fields)
+        return custom_params + [
+            (key, value)
+            for key, value in self._collect_params()
+            if key not in known_keys
+        ]
 
     def _browse_for_asset(self, key):
         from core.config import CHAR_CODE
@@ -5215,6 +5621,35 @@ class StepEditorDialog(Win2000FramelessDialog):
             else:
                 field.setText(stem)
 
+    def _browse_for_movie(self, key="file"):
+        field = self.custom_fields.get(key)
+        if field is None:
+            return
+        movie_dir = os.path.join(project_root, "movies")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "動画ファイルを選択",
+            movie_dir,
+            "Movies (*.mov *.webm *.mp4 *.m4v *.avi)",
+        )
+        if not file_path:
+            return
+        try:
+            movie_root = os.path.abspath(movie_dir)
+            selected = os.path.abspath(file_path)
+            if os.path.commonpath((movie_root, selected)) != movie_root:
+                self.scene_selection_label.setText("moviesフォルダ内の動画を選択してください")
+                return
+        except ValueError:
+            self.scene_selection_label.setText("動画ファイルの場所を確認できません")
+            return
+        filename = os.path.basename(selected)
+        if isinstance(field, QComboBox):
+            field.setCurrentText(filename)
+        else:
+            field.setText(filename)
+        self._apply_action_editor()
+
     def _browse_for_cg(self, key):
         field = self.custom_fields.get(key)
         if field is None:
@@ -5248,6 +5683,13 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _load_action_into_editors(self, tag, params, from_template=False):
         explicit_params = dict(params or [])
         merged = self._merge_with_template(tag, params)
+        if tag in ("chara_show", "chara_shift"):
+            # Show the actual template result in the controls.  Otherwise an
+            # existing `template=...` row appears partly blank and a later
+            # Apply writes only the small delta back to the script.
+            resolved = self._expand_chara_template_params(dict(merged))
+            resolved.pop("template", None)
+            merged = list(resolved.items())
         self._build_custom_editor(tag, merged, explicit_params=explicit_params)
         if self._is_custom_tag(tag):
             self._loading_custom_values = True
@@ -5266,12 +5708,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         tag = self.tag_combo.currentText().strip()
         if not self._is_custom_tag(tag):
             return
+        params = self._collect_editor_params(tag)
         if self.advanced_toggle.isChecked():
-            params = self._collect_custom_params()
-            self._load_params(self._merge_with_template(tag, params))
+            self._load_params(params)
             self.params_table.show()
         else:
-            params = self._collect_params()
             self._set_custom_values(self._merge_with_template(tag, params))
             self.params_table.hide()
 

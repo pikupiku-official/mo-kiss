@@ -189,6 +189,11 @@ def draw_background(game_state):
     # 現在の背景を取得
     bg_name = bg_state['current_bg']
 
+    # 初期状態では背景キーがまだない。NoneをImageManagerへ渡すと、
+    # 毎フレーム「bg/None」という誤解を招く検索ログと無駄な分岐が発生する。
+    if not bg_name:
+        return
+
     # 頻繁に呼ばれるのでログ出力しない
 
     # 遅延ロードで背景画像を取得

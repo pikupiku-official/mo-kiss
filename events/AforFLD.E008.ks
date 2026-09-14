@@ -24,6 +24,7 @@
 	//純一//
 	「よう。」
 [chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU19_00" brow="MMK_F01_BRO00_00" fade="0.15"]
+[bgm bgm="MokLap1.mp3" volume="0.5" loop="true" fade="0.0"]
 	//桃子//
 	「あ……純一。」
 	//純一//
@@ -80,6 +81,7 @@
 	「…………！あ、あぁ、悪い。」
 [chara_hide name="桃子" fade="0.15"]
 [se se="静かな一人の足音" volume="0.5" frequency="1" block="false"]
+[bgmend time="1.0"]
 	//純一//
 	「（今日の桃子、やっぱりいつもと少し違う……）」
 	「（どうしちゃったんだろう、アイツ……）」

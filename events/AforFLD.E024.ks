@@ -1,6 +1,3 @@
-	//speaker//
-	「セリフ」
-
 ; ラスト大団円（スチル見せれる）
 
 [cg_show storage="MMK_10_000" fade="0.3"]
@@ -40,9 +37,5 @@
 	「純一・・・」
 	//純一//
 	「桃子・・・」[scroll-stop]
-; --- new step ---
 
-; --- new step ---
 [cg_shift storage="MMK_10_001" time="600" fade="0.3"]
-;@standalone-step
-; --- new step ---

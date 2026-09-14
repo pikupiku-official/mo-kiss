@@ -795,6 +795,16 @@ def update_game(game_state):
 
     # CGフェード・差分・移動アニメーションの更新
     update_cg_animation(game_state)
+
+    # Movie overlays advance independently of dialogue text.
+    from dialogue.movie_manager import update_movie
+    update_movie(game_state)
+
+    from dialogue.rain_manager import update_rain
+    update_rain(game_state)
+
+    from dialogue.haze_manager import update_haze
+    update_haze(game_state)
     
     # フェードアニメーションの更新
     update_fade_animation(game_state)
