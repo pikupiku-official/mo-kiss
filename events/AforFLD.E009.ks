@@ -34,21 +34,22 @@
 	「（何か大きなことに頭を悩ませているみたいに。）」
 	//純一//
 	「（[seed id="MOMOKO_TP1_001"]そして、家族の話題を避けているようだ。[/seed]）」
-[chara_move name="桃子" left="0.11106033" top="-0.02559415" zoom="2.50528314" time="600"]
+[chara_shift name="桃子" time="600" left="0.11106033" zoom="2.50528314"]
 	//純一//
 	「（普段は嬉々として話していたけど、今は触れられないように立ち回っている。）」
 	//純一//
 	「（[seed id="MOMOKO_TP1_002"]最後に、こんな時間まで部活にもいかずに時間を潰している。[/seed]）」
 	「（[seed id="MOMOKO_TP1_003"]これは桃子に家に帰りたくない事情があるとみていいだろう。[/seed]）」
+[chara_shift name="桃子" template="無の顔" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE04_00" x="0.36824663" y="0.90767825" fade="0.15"]
 	//純一//
 	「（この三つをつなげれば、桃子が隠していることが分かるはずだ。）」
 
 ; ～種システム発動！入力！収束～
 
-[seed_answer turning_point="MOMOKO_TP1" prompt="桃子が家に帰りたくない理由は何だろう？"]
 
+[seed_answer turning_point="MOMOKO_TP1" prompt="桃子が家に帰りたくない理由は何だろう？"]
+[chara_shift name="桃子" template="驚き" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" x="0.49930199" y="0.90767825" fade="0.15"]
 	//純一//
-	「桃子は家族と上手くいっていない。」
 	「・・・そうだろ？」
 [chara_shift name="桃子" template="驚き" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE01_00" fade="0.15"]
 	//桃子//
