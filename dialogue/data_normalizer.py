@@ -33,7 +33,34 @@ def normalize_dialogue_data(raw_data):
     current_bgm_volume = 0.1
     current_bgm_loop = True
     
-    for i, entry in enumerate(raw_data):
+    # An overlay setup is commonly authored as movie first, then background.
+    # The background must be published before the first movie frame is drawn;
+    # otherwise IR mode spends the movie fade on the initial black canvas.
+    # Normalize that adjacent setup pair into background -> movie order while
+    # preserving all other source ordering.
+    ordered_raw_data = []
+    raw_index = 0
+    raw_entries = list(raw_data)
+    while raw_index < len(raw_entries):
+        entry = raw_entries[raw_index]
+        next_entry = (
+            raw_entries[raw_index + 1]
+            if raw_index + 1 < len(raw_entries)
+            else None
+        )
+        if (
+            isinstance(entry, dict)
+            and entry.get('type') == 'movie_show'
+            and isinstance(next_entry, dict)
+            and next_entry.get('type') in ('background', 'bg_show')
+        ):
+            ordered_raw_data.extend((next_entry, entry))
+            raw_index += 2
+            continue
+        ordered_raw_data.append(entry)
+        raw_index += 1
+
+    for i, entry in enumerate(ordered_raw_data):
         if not entry or not isinstance(entry, dict):
             continue
         
@@ -41,6 +68,16 @@ def normalize_dialogue_data(raw_data):
         
         if entry_type == 'background':
             current_bg = entry['value']
+            # Legacy [bg] tags used to update only the dialogue metadata. In
+            # IR mode that meant the background never reached the renderer.
+            # Emit the same explicit action as [bg_show] so both runtime paths
+            # publish the background immediately.
+            bg_show_command = f"_BG_SHOW_{current_bg}_0.5_0.5_1.0"
+            normalized_data.append([
+                current_bg, current_char, current_eye, current_mouth,
+                current_brow, current_cheek, bg_show_command, current_bgm,
+                current_bgm_volume, current_bgm_loop, current_char, False
+            ])
             if DEBUG:
                 print(f"背景設定: {current_bg}")
 
@@ -54,6 +91,14 @@ def normalize_dialogue_data(raw_data):
             current_bg = entry['storage']
             # デバッグ出力削除
                 
+        elif entry_type in (
+            'movie_show', 'movie_hide',
+            'rain_sound', 'rain_sound_stop',
+            'haze_show', 'haze_hide',
+        ):
+            # Preserve continuous overlay/ambience commands for the IR builder.
+            normalized_data.append(dict(entry))
+
         elif entry_type == 'bg_move':
             # 背景移動コマンドを追加
             bg_move_command = f"_BG_MOVE_{entry['left']}_{entry['top']}_{entry['time']}_{entry['zoom']}"
@@ -177,6 +222,7 @@ def normalize_dialogue_data(raw_data):
                 'loop': current_bgm_loop,
                 'fade_time': entry.get('fade_time', 0.0),
                 'start': entry.get('start', 0.0),
+                'end': entry.get('end'),
             }
             normalized_data.append([
                 current_bg, current_char, current_eye, current_mouth, current_brow, current_cheek,

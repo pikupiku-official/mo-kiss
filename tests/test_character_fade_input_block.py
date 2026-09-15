@@ -7,8 +7,13 @@ from dialogue.controller2 import (
     is_ir_idle,
     is_input_blocked,
 )
-from dialogue.character_manager import _begin_character_fade_on_first_render
+from dialogue.character_manager import (
+    _begin_character_fade_on_first_render,
+    _begin_character_transition_on_first_render,
+    draw_characters,
+)
 from dialogue.scenario_manager import _ir_default_on_advance
+from dialogue.controller2 import _update_ir_active_anims
 
 
 def test_blocked_advance_events_are_discarded_until_keyup():
@@ -120,6 +125,113 @@ def test_first_render_retimes_ir_step_guard(monkeypatch):
 
     assert game_state["character_part_fades"]["momoko"]["torso"]["start_time"] == 2000
     assert game_state["ir_active_anims"][0]["end_time"] == 2150
+
+
+def test_simultaneous_character_shifts_keep_the_longest_deadline():
+    game_state = {
+        "character_transitions": {
+            "桃子": {
+                "pending_render": True,
+                "mode": "crossfade",
+                "duration": 300,
+            },
+            "増田": {
+                "pending_render": True,
+                "mode": "crossfade",
+                "duration": 150,
+            },
+        },
+        "ir_active_anims": [
+            {
+                "action": "chara_shift",
+                "target": "桃子",
+                "end_time": 1300,
+            },
+            {
+                "action": "chara_shift",
+                "target": "増田",
+                "end_time": 1150,
+            },
+        ],
+    }
+
+    _begin_character_transition_on_first_render(game_state, "桃子", 1000)
+    _begin_character_transition_on_first_render(game_state, "増田", 1000)
+
+    assert game_state["ir_anim_end_time"] == 1300
+
+
+def test_pending_transition_draws_from_endpoint_before_starting_clock(monkeypatch):
+    old_surface = pygame.Surface((4, 4), pygame.SRCALPHA)
+    old_surface.fill((255, 0, 0, 255))
+    new_surface = pygame.Surface((4, 4), pygame.SRCALPHA)
+    new_surface.fill((0, 0, 255, 255))
+    screen = pygame.Surface((8, 8), pygame.SRCALPHA)
+    game_state = {
+        "dialogue_data": [],
+        "active_characters": ["momoko"],
+        "character_pos": {"momoko": [0, 0]},
+        "character_transitions": {
+            "momoko": {
+                "mode": "crossfade",
+                "phase": "blend",
+                "pending_render": True,
+                "start_time": 0,
+                "duration": 150,
+                "from_surface": old_surface,
+                "from_surface_pos": (0, 0),
+                "to_surface": new_surface,
+                "to_surface_pos": (0, 0),
+            }
+        },
+        "character_part_fades": {},
+        "character_fade_pending_render": {},
+        "character_expressions": {},
+        "character_torso": {},
+        "character_zoom": {},
+        "image_manager": object(),
+        "screen": screen,
+    }
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 2000)
+    draw_characters(game_state)
+
+    transition = game_state["character_transitions"]["momoko"]
+    assert transition["pending_render"] is False
+    assert transition["start_time"] == 2000
+    assert screen.get_at((1, 1))[:3] == (255, 0, 0)
+
+
+def test_visual_pending_animation_is_not_expired_before_first_draw(monkeypatch):
+    game_state = {
+        "character_transitions": {
+            "momoko": {"pending_render": True},
+            "masuda": {"pending_render": True},
+        },
+        "character_fade_pending_render": {},
+        "ir_active_anims": [
+            {
+                "action": "chara_shift",
+                "target": "momoko",
+                "on_advance": "block",
+                "end_time": 100,
+                "visual_pending": True,
+            },
+            {
+                "action": "chara_shift",
+                "target": "masuda",
+                "on_advance": "block",
+                "end_time": 100,
+                "visual_pending": True,
+            },
+        ],
+    }
+
+    monkeypatch.setattr(pygame.time, "get_ticks", lambda: 2000)
+    _update_ir_active_anims(game_state)
+
+    assert len(game_state["ir_active_anims"]) == 2
+    assert game_state["ir_anim_pending"] is True
 
 
 def test_enter_cannot_skip_text_during_character_image_fade(monkeypatch):

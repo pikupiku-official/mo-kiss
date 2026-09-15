@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "acquired": {
+    "MOMOKO_TP1_001": {
+      "source_event_id": "DEV_MOMOKO_SEEDS",
+      "acquired_game_date": "1999-05-31",
+      "journaled_game_date": null
+    },
+    "MOMOKO_TP1_002": {
+      "source_event_id": "DEV_MOMOKO_SEEDS",
+      "acquired_game_date": "1999-05-31",
+      "journaled_game_date": null
+    },
+    "MOMOKO_TP1_003": {
+      "source_event_id": "DEV_MOMOKO_SEEDS",
+      "acquired_game_date": "1999-05-31",
+      "journaled_game_date": null
+    }
+  },
+  "journal_days": [],
+  "turning_point_results": {}
+}

@@ -27,6 +27,24 @@ def test_scaled_cache_keys_by_surface_not_integer_id():
     assert _scaled_image_cache[cache_key] is scaled
 
 
+def test_character_resize_uses_filtered_scaling_for_small_dialogue_art(monkeypatch):
+    source = pygame.Surface((8, 8), pygame.SRCALPHA)
+    source.fill((255, 0, 0, 255))
+    calls = []
+    original_smoothscale = pygame.transform.smoothscale
+
+    def tracked_smoothscale(image, size):
+        calls.append(size)
+        return original_smoothscale(image, size)
+
+    monkeypatch.setattr(pygame.transform, "smoothscale", tracked_smoothscale)
+
+    scaled = get_scaled_image(source, 0.25)
+
+    assert scaled.get_size() == (2, 2)
+    assert calls == [(2, 2)]
+
+
 def test_different_surfaces_never_share_a_scaled_entry():
     red = pygame.Surface((2, 2), pygame.SRCALPHA)
     red.fill((255, 0, 0, 255))

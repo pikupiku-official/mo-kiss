@@ -380,6 +380,103 @@ class DialogueLoader:
                             print(f"背景移動解析エラー（行 {line_num}）: {e} - {line}")
 
                 # キャラクターを検出
+                elif "[movie_show" in line.lower():
+                    try:
+                        def movie_attr(name):
+                            match = re.search(rf'{name}="([^"]*)"', line, re.IGNORECASE)
+                            return match.group(1) if match else None
+
+                        movie_file = movie_attr("file") or movie_attr("storage")
+                        if movie_file:
+                            entry = {
+                                "type": "movie_show",
+                                "file": movie_file,
+                                "loop": movie_attr("loop"),
+                                "opacity": movie_attr("opacity"),
+                                "mode": movie_attr("mode"),
+                                "x": movie_attr("x"),
+                                "y": movie_attr("y"),
+                                "zoom": movie_attr("zoom"),
+                                "fit": movie_attr("fit"),
+                                "speed": movie_attr("speed"),
+                                "start": movie_attr("start"),
+                                "fade": movie_attr("fade"),
+                                "fade_in": movie_attr("fade_in"),
+                            }
+                            dialogue_data.append({key: value for key, value in entry.items() if value is not None})
+                    except Exception as e:
+                        if self.debug:
+                            print(f"movie_show parse error (line {line_num}): {e} - {line}")
+
+                elif "[movie_hide" in line.lower():
+                    try:
+                        fade = re.search(r'(?:fade|fade_out|time)="([^"]+)"', line, re.IGNORECASE)
+                        entry = {"type": "movie_hide"}
+                        if fade:
+                            entry["fade"] = self._parse_float_or_none(fade.group(1))
+                        dialogue_data.append(entry)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"movie_hide parse error (line {line_num}): {e} - {line}")
+
+                elif "[rain_sound_stop" in line.lower():
+                    try:
+                        fade = re.search(r'(?:fade|time)="([^"]+)"', line, re.IGNORECASE)
+                        entry = {"type": "rain_sound_stop"}
+                        if fade:
+                            entry["fade"] = self._parse_float_or_none(fade.group(1))
+                        dialogue_data.append(entry)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"rain_sound_stop parse error (line {line_num}): {e} - {line}")
+
+                elif "[rain_sound" in line.lower():
+                    try:
+                        def rain_attr(name):
+                            match = re.search(rf'{name}="([^"]*)"', line, re.IGNORECASE)
+                            return match.group(1) if match else None
+
+                        entry = {
+                            "type": "rain_sound",
+                            "preset": rain_attr("preset") or rain_attr("mode") or "normal",
+                            "file": rain_attr("file"),
+                            "volume": rain_attr("volume"),
+                            "fade": rain_attr("fade") or rain_attr("time"),
+                        }
+                        dialogue_data.append({key: value for key, value in entry.items() if value is not None})
+                    except Exception as e:
+                        if self.debug:
+                            print(f"rain_sound parse error (line {line_num}): {e} - {line}")
+
+                elif "[haze_hide" in line.lower():
+                    try:
+                        fade = re.search(r'(?:fade|time)="([^"]+)"', line, re.IGNORECASE)
+                        entry = {"type": "haze_hide"}
+                        if fade:
+                            entry["fade"] = self._parse_float_or_none(fade.group(1))
+                        dialogue_data.append(entry)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"haze_hide parse error (line {line_num}): {e} - {line}")
+
+                elif "[haze_show" in line.lower():
+                    try:
+                        def haze_attr(name):
+                            match = re.search(rf'{name}="([^"]*)"', line, re.IGNORECASE)
+                            return match.group(1) if match else None
+
+                        entry = {
+                            "type": "haze_show",
+                            "color": haze_attr("color"),
+                            "opacity": haze_attr("opacity"),
+                            "fade": haze_attr("fade") or haze_attr("time"),
+                            "drift": haze_attr("drift"),
+                        }
+                        dialogue_data.append({key: value for key, value in entry.items() if value is not None})
+                    except Exception as e:
+                        if self.debug:
+                            print(f"haze_show parse error (line {line_num}): {e} - {line}")
+
                 elif "[chara_show" in line:
                     try:
                         # name属性（キャラクター論理名）を検索
@@ -694,6 +791,7 @@ class DialogueLoader:
                         bgm_loop = re.search(r'loop="([^"]+)"', line, re.IGNORECASE)
                         bgm_fade = re.search(r'(?:fade|fade_time)="([^"]+)"', line, re.IGNORECASE)
                         bgm_start = re.search(r'start="([^"]+)"', line, re.IGNORECASE)
+                        bgm_end = re.search(r'end="([^"]+)"', line, re.IGNORECASE)
                         if bgm_parts:
                             # BGMファイル名をそのまま使用
                             current_bgm = bgm_parts.group(1)
@@ -702,6 +800,7 @@ class DialogueLoader:
                             current_bgm_loop = bgm_loop.group(1).lower() == "true" if bgm_loop else DEFAULT_BGM_LOOP
                             fade_time = float(bgm_fade.group(1)) if bgm_fade else 0.0
                             start_time = float(bgm_start.group(1)) if bgm_start else 0.0
+                            end_time = float(bgm_end.group(1)) if bgm_end else None
                             
                             # デバッグ出力削除
 
@@ -712,6 +811,7 @@ class DialogueLoader:
                                 'loop': current_bgm_loop,
                                 'fade_time': fade_time,
                                 'start': start_time,
+                                'end': end_time,
                             })
                                 
                     except Exception as e:

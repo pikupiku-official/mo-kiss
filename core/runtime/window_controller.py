@@ -118,6 +118,13 @@ class WindowController:
             (config.WINDOW_OFFSET_X, config.WINDOW_OFFSET_Y),
         )
         self._draw_pointer()
+        from dialogue.render_monitor import trace_event, surface_summary
+        trace_event(
+            "window_frame_present",
+            ticks=pygame.time.get_ticks(),
+            virtual_surface=surface_summary(self.virtual_screen),
+            window_surface=surface_summary(self.window_surface),
+        )
 
     def _draw_pointer(self):
         """Draw the pointer with its fingertip fixed to the real mouse position."""

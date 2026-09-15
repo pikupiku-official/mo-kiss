@@ -132,7 +132,7 @@ def build_dataset(start_date, end_date):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--start", default="1999-05-31")
-    parser.add_argument("--end", default="1999-12-31")
+    parser.add_argument("--end", default="1999-07-02")
     parser.add_argument(
         "--output",
         default=os.path.join("data", "historical_weather", "jma_tokyo_fuchu_1999.json"),

@@ -12,6 +12,17 @@ from .ir_model import (
 )
 
 
+# These commands are scene setup, not user-facing beats.  Keep a leading
+# background/movie/rain/haze bundle in one initial IR step so the first
+# rendered frame already contains the complete rainy-scene treatment.
+_LEADING_SCENE_SETUP_ACTIONS = frozenset({
+    "bg_show",
+    "movie_show",
+    "rain_sound",
+    "haze_show",
+})
+
+
 def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
     steps: List[Dict[str, Any]] = []
     source_to_step: Dict[int, int] = {}
@@ -22,6 +33,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
     pending_sources: List[int] = []
     last_expressions: Dict[str, Dict[str, str]] = {}
     step_counter = 1
+    leading_scene_setup = True
 
     def emit_step(
         *,
@@ -56,6 +68,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
         if isinstance(entry, dict):
             action_type = entry.get("type", "unknown")
             if action_type == "standalone_step":
+                leading_scene_setup = False
                 if pending_actions:
                     emit_step(
                         actions=pending_actions,
@@ -72,7 +85,30 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
                 params = _normalize_chara_shift_params(entry)
             if action_type in ("cg_show", "cg_shift", "cg_hide"):
                 params = _normalize_cg_params(entry)
-            if action_type in ("chara_shift", "chara_show", "chara_hide", "cg_show", "cg_shift", "cg_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer", "seed_retry"):
+            if action_type in ("movie_show", "movie_hide"):
+                params = _normalize_movie_params(entry)
+            if action_type in ("rain_sound", "rain_sound_stop"):
+                params = _normalize_rain_params(entry)
+            if action_type in ("haze_show", "haze_hide"):
+                params = _normalize_haze_params(entry)
+            if action_type in ("chara_shift", "chara_show", "chara_hide", "cg_show", "cg_shift", "cg_hide", "movie_show", "movie_hide", "rain_sound", "rain_sound_stop", "haze_show", "haze_hide", "character", "if_start", "if_end", "flag_set", "event_unlock", "event_control", "seed_answer", "seed_retry"):
+                action = make_action(
+                    action=action_type,
+                    target=target,
+                    params=params,
+                    animation=(
+                        make_animation(on_advance=ON_ADVANCE_BLOCK)
+                        if action_type in (
+                            "chara_shift", "chara_show", "cg_show", "cg_shift",
+                            "cg_hide", "movie_show", "movie_hide",
+                        )
+                        else None
+                    ),
+                )
+                if leading_scene_setup and action_type in _LEADING_SCENE_SETUP_ACTIONS:
+                    pending_actions.append(action)
+                    pending_sources.append(source_index)
+                    continue
                 if pending_actions:
                     emit_step(
                         actions=pending_actions,
@@ -81,17 +117,16 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
                     )
                     pending_actions = []
                     pending_sources = []
-                animation = None
-                if action_type in ("chara_shift", "chara_show", "cg_show", "cg_shift", "cg_hide"):
-                    animation = make_animation(on_advance=ON_ADVANCE_BLOCK)
                 emit_step(
-                    actions=[make_action(action=action_type, target=target, params=params, animation=animation)],
+                    actions=[action],
                     source_index=source_index,
                     source_indices=[source_index],
                 )
+                leading_scene_setup = False
                 if action_type in ("chara_shift", "chara_show") and target:
                     _update_last_expressions(last_expressions, target, params)
             else:
+                leading_scene_setup = False
                 animation = None
                 if action_type == "chara_shift":
                     animation = make_animation(on_advance=ON_ADVANCE_BLOCK)
@@ -112,6 +147,8 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             if not action:
                 continue
             action_type = action.get("action")
+            if action_type not in _LEADING_SCENE_SETUP_ACTIONS:
+                leading_scene_setup = False
             if action_type in ("chara_show", "chara_shift"):
                 target = action.get("target") or entry[1]
                 params = action.get("params") or {}
@@ -133,6 +170,7 @@ def build_ir_from_normalized(dialogue_data: List[Any]) -> Dict[str, Any]:
             continue
 
         speaker = entry[10] if len(entry) > 10 and entry[10] else entry[1]
+        leading_scene_setup = False
         text = make_text(
             speaker=speaker or "",
             body=text_or_cmd or "",
@@ -244,6 +282,44 @@ def _normalize_cg_params(entry: Dict[str, Any]) -> Dict[str, Any]:
     return params
 
 
+def _normalize_movie_params(entry: Dict[str, Any]) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    for key in (
+        "file", "storage", "loop", "opacity", "mode", "x", "y", "zoom", "fit",
+        "speed", "start", "fade", "fade_in", "fade_out",
+    ):
+        if key in entry and entry.get(key) is not None:
+            params[key] = entry.get(key)
+    for key in ("opacity", "x", "y", "zoom", "speed", "start", "fade", "fade_in", "fade_out"):
+        if key in params:
+            params[key] = _to_float(params[key], params[key])
+    if "loop" in params:
+        params["loop"] = _to_bool(params["loop"], True)
+    return params
+
+
+def _normalize_rain_params(entry: Dict[str, Any]) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    for key in ("preset", "file", "volume", "fade", "time"):
+        if key in entry and entry.get(key) is not None:
+            params[key] = entry.get(key)
+    for key in ("volume", "fade", "time"):
+        if key in params:
+            params[key] = _to_float(params[key], params[key])
+    return params
+
+
+def _normalize_haze_params(entry: Dict[str, Any]) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    for key in ("color", "opacity", "fade", "drift", "time"):
+        if key in entry and entry.get(key) is not None:
+            params[key] = entry.get(key)
+    for key in ("opacity", "fade", "drift", "time"):
+        if key in params:
+            params[key] = _to_float(params[key], params[key])
+    return params
+
+
 def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]]:
     if text.startswith("_SCROLL_STOP"):
         return make_action(action="scroll_stop")
@@ -264,6 +340,8 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
         )
         fade_time = _to_float(metadata.get("fade_time"), 0.0)
         start = _to_float(metadata.get("start"), 0.0)
+        end_value = metadata.get("end")
+        end = _to_float(end_value, 0.0) if end_value not in (None, "") else None
         return make_action(
             action="bgm_play",
             params={
@@ -272,6 +350,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
                 "loop": loop,
                 "fade_time": fade_time,
                 "start": start,
+                "end": end,
             },
         )
 
@@ -384,10 +463,20 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
 
     if text.startswith("_BG_SHOW_"):
         parts = text.split("_")
-        storage = parts[3] if len(parts) > 3 else None
-        x = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
-        y = _to_float(parts[5], 0.5) if len(parts) > 5 else 0.5
-        zoom = _to_float(parts[6], 1.0) if len(parts) > 6 else 1.0
+        # The legacy command is underscore-delimited, but storage IDs may
+        # themselves contain underscores.  The last three fields are always
+        # numeric, so recover the storage from the middle rather than taking
+        # only parts[3].
+        if len(parts) >= 7:
+            storage = "_".join(parts[3:-3]) or None
+            x = _to_float(parts[-3], 0.5)
+            y = _to_float(parts[-2], 0.5)
+            zoom = _to_float(parts[-1], 1.0)
+        else:
+            storage = parts[3] if len(parts) > 3 else None
+            x = _to_float(parts[4], 0.5) if len(parts) > 4 else 0.5
+            y = _to_float(parts[5], 0.5) if len(parts) > 5 else 0.5
+            zoom = _to_float(parts[6], 1.0) if len(parts) > 6 else 1.0
         return make_action(
             action="bg_show",
             params={"storage": storage, "x": x, "y": y, "zoom": zoom},

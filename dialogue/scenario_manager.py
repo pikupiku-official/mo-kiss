@@ -18,6 +18,7 @@ from .cg_manager import (
     hide_cg,
     cg_transition_duration_ms,
 )
+from .render_monitor import trace_event
 
 def advance_dialogue(game_state):
     """次の対話に進む"""
@@ -169,6 +170,20 @@ def advance_dialogue_ir(game_state):
     game_state["ir_anim_end_time"] = None
 
     actions = step.get("actions") if isinstance(step, dict) else None
+    trace_event(
+        "ir_step_enter",
+        ticks=pygame.time.get_ticks(),
+        ir_step_index=next_index,
+        current_paragraph=game_state.get("current_paragraph"),
+        actions=[
+            {
+                "action": action.get("action"),
+                "target": action.get("target"),
+            }
+            for action in (actions or [])
+        ],
+        has_text=bool(step.get("text")) if isinstance(step, dict) else False,
+    )
     choice_shown = False
     if actions:
         for action in actions:
@@ -247,6 +262,15 @@ def _ir_dispatch_action(game_state, action):
     target = action.get("target")
     params = action.get("params") or {}
 
+    trace_event(
+        "ir_action_dispatch",
+        ticks=pygame.time.get_ticks(),
+        ir_step_index=game_state.get("ir_step_index"),
+        action=action_type,
+        target=target,
+        params=params,
+    )
+
     cg_duration_override = None
     character_duration_override = None
     if action_type == "chara_show":
@@ -274,6 +298,18 @@ def _ir_dispatch_action(game_state, action):
         if result is False:
             return
         cg_duration_override = result
+    elif action_type == "movie_show":
+        _ir_handle_movie_show(game_state, params)
+    elif action_type == "movie_hide":
+        _ir_handle_movie_hide(game_state, params)
+    elif action_type == "rain_sound":
+        _ir_handle_rain_sound(game_state, params)
+    elif action_type == "rain_sound_stop":
+        _ir_handle_rain_sound_stop(game_state, params)
+    elif action_type == "haze_show":
+        _ir_handle_haze_show(game_state, params)
+    elif action_type == "haze_hide":
+        _ir_handle_haze_hide(game_state, params)
     elif action_type == "bg_show":
         _ir_handle_background_show(game_state, params)
     elif action_type == "bg_move":
@@ -413,12 +449,6 @@ def _ir_handle_character_shift(game_state, target, params):
     hide_pending = game_state.get("character_hide_pending")
     if hide_pending and target in hide_pending:
         hide_pending.pop(target, None)
-    fade_ms = _get_fade_ms(params, CHARA_TRANSITION_DEFAULT_MS)
-    if (
-        str(params.get("move", "")).strip().lower() == "linear"
-        and "fade" not in params
-    ):
-        fade_ms = CHARA_TRANSITION_DEFAULT_MS
     old_expressions = game_state.get("character_expressions", {}).get(target, {
         "eye": "",
         "mouth": "",
@@ -450,6 +480,11 @@ def _ir_handle_character_shift(game_state, target, params):
         image_manager.get_image("torso", target_torso)
         if image_manager else None
     )
+    if torso_id and placement_img is None and old_torso:
+        # A malformed/legacy torso key must not be published as the live
+        # character body. Keep the last drawable torso while still allowing
+        # valid expression-part changes in this shift to proceed.
+        target_torso = old_torso
 
     target_pos = list(old_pos) if old_pos is not None else None
     target_zoom = old_zoom
@@ -490,6 +525,19 @@ def _ir_handle_character_shift(game_state, target, params):
                 params.get(part_type) if params.get(part_type) is not None else ""
             )
 
+    # Do not publish expression IDs that cannot be rendered. Otherwise the
+    # next frame fades the old layer out, the missing new layer contributes
+    # nothing, and the character can visibly blink during a simultaneous
+    # shift. Keep the last drawable part, just as we do for a missing torso.
+    if image_manager:
+        for part_type in ("eye", "mouth", "brow", "cheek", "effect", "accessory"):
+            requested_part = target_expressions.get(part_type)
+            if (
+                requested_part
+                and image_manager.get_image(part_type, requested_part) is None
+            ):
+                target_expressions[part_type] = old_expressions.get(part_type, "")
+
     if target_pos is None:
         target_pos = [0, 0]
     # A missing incoming torso cannot be composed; preserve the old
@@ -515,8 +563,17 @@ def _ir_handle_character_shift(game_state, target, params):
     character_pos = game_state.setdefault("character_pos", {})
     character_zoom = game_state.setdefault("character_zoom", {})
     character_expressions = game_state.setdefault("character_expressions", {})
+    move_is_linear = str(params.get("move", "")).strip().lower() == "linear"
+    default_fade_ms = (
+        CHARA_TORSO_CROSSFADE_DEFAULT_MS
+        if torso_changed and not move_is_linear
+        else CHARA_TRANSITION_DEFAULT_MS
+    )
+    fade_ms = _get_fade_ms(params, default_fade_ms)
+    if move_is_linear and "fade" not in params:
+        fade_ms = CHARA_TRANSITION_DEFAULT_MS
 
-    if str(params.get("move", "")).strip().lower() == "linear":
+    if move_is_linear:
         # Linear movement is a positional animation layered under the normal
         # shift fade.  In particular, time=0 is an immediate coordinate set;
         # it must not start the legacy relative move animation.
@@ -558,8 +615,10 @@ def _ir_handle_character_shift(game_state, target, params):
         return 0
 
     if position_changed:
-        # Keep the old pose visible until FO has completed. Then publish all
-        # target state at once and FI from the target coordinate.
+        # Crossfade the old and new poses over the full FO+FI duration. A
+        # sequential fade-out/fade-in has a real zero-alpha frame at the
+        # handoff, which becomes a visible flash when two characters shift in
+        # the same IR step.
         character_torso[target] = old_torso
         character_pos[target] = list(old_pos)
         character_zoom[target] = old_zoom
@@ -577,8 +636,8 @@ def _ir_handle_character_shift(game_state, target, params):
             to_expressions=target_expressions,
             to_pos=target_pos,
             to_zoom=target_zoom,
-            duration_ms=fade_ms,
-            relocation=True,
+            duration_ms=fade_ms * 2,
+            relocation=False,
         )
 
     # Torso changes use one composited full-body crossfade. Keep the legacy
@@ -667,6 +726,52 @@ def _ir_handle_cg_shift(game_state, params):
 def _ir_handle_cg_hide(game_state, params):
     return hide_cg(game_state, params)
 
+
+def _ir_handle_movie_show(game_state, params):
+    from .movie_manager import get_movie_manager
+
+    manager = get_movie_manager(game_state)
+    if not manager.show(params or {}):
+        print(f"[MOVIE] {manager.state.get('error') or 'movie could not be started'}")
+
+
+def _ir_handle_movie_hide(game_state, params):
+    manager = game_state.get("movie_manager")
+    if manager is not None:
+        manager.hide(params or {})
+
+
+def _ir_handle_rain_sound(game_state, params):
+    from .rain_manager import get_rain_manager
+
+    manager = get_rain_manager(game_state)
+    if not manager.show(params or {}):
+        print(f"[RAIN] {manager.state.get('error') or 'rain sound could not be started'}")
+
+
+def _ir_handle_rain_sound_stop(game_state, params):
+    manager = game_state.get("rain_manager")
+    if manager is not None:
+        manager.hide(params or {})
+
+
+def _ir_handle_haze_show(game_state, params):
+    from .haze_manager import get_haze_manager
+
+    haze_params = dict(params or {})
+    # The leading scene setup is committed as one IR step so the first
+    # visible background frame is already hazed.  Later haze_show commands
+    # retain their authored fade behavior.
+    if game_state.get("ir_step_index") == 0:
+        haze_params["fade"] = 0.0
+    get_haze_manager(game_state).show(haze_params)
+
+
+def _ir_handle_haze_hide(game_state, params):
+    manager = game_state.get("haze_manager")
+    if manager is not None:
+        manager.hide(params or {})
+
 def _ir_handle_background_show(game_state, params):
     storage = params.get("storage")
     if not storage:
@@ -733,16 +838,26 @@ def _ir_handle_bgm_play(game_state, params):
     loop = _to_bool(params.get("loop"), True)
     fade_time = _to_float(params.get("fade_time"), 0.0)
     start = _to_float(params.get("start"), 0.0)
+    end_value = params.get("end")
+    end = _to_float(end_value, 0.0) if end_value not in (None, "") else None
 
     actual_bgm_filename = bgm_manager.get_bgm_for_scene(filename) or filename
     if (
         actual_bgm_filename != bgm_manager.current_bgm
-        or not pygame.mixer.music.get_busy()
+        or not (
+            bgm_manager.is_playing()
+            if hasattr(bgm_manager, "is_playing")
+            else pygame.mixer.music.get_busy()
+        )
         or getattr(bgm_manager, "current_loop", True) != loop
+        or abs(getattr(bgm_manager, "current_start", 0.0) - start) > 0.001
+        or getattr(bgm_manager, "current_end", None) != end
     ):
         play_kwargs = {"fade_time": fade_time}
         if start > 0:
             play_kwargs["start"] = start
+        if end is not None:
+            play_kwargs["end"] = end
         bgm_manager.play_bgm(actual_bgm_filename, volume, loop, **play_kwargs)
 
 def _ir_handle_bgm_pause(game_state, params):
@@ -871,6 +986,12 @@ def _ir_get_action_duration_ms(action_type, params):
         return cg_transition_duration_ms(params or {}, action_type)
     if action_type in ("fadeout", "fadein"):
         return int(_to_float((params or {}).get("time"), 1.0) * 1000)
+    if action_type in ("movie_show", "movie_hide"):
+        params = params or {}
+        value = params.get("fade_in" if action_type == "movie_show" else "fade_out")
+        if value is None:
+            value = params.get("fade", params.get("time", 0.0))
+        return max(0, int(_to_float(value, 0.0) * 1000))
     return 0
 
 def _ir_default_on_advance(action_type):
@@ -878,6 +999,8 @@ def _ir_default_on_advance(action_type):
         return "block"
     if action_type in ("fadeout", "fadein"):
         return "complete"
+    if action_type in ("movie_show", "movie_hide"):
+        return "block"
     if action_type in ("chara_move", "bg_show", "bg_move"):
         return "complete"
     return None
@@ -897,11 +1020,27 @@ def _ir_register_action_animation(game_state, action, duration_override=None):
         return
     end_time = pygame.time.get_ticks() + duration_ms
     active_anims = game_state.setdefault("ir_active_anims", [])
+    visual_pending = False
+    if action_type in ("chara_show", "chara_shift", "chara_hide"):
+        target = action.get("target")
+        transition = game_state.get("character_transitions", {}).get(target)
+        pending_parts = game_state.get("character_fade_pending_render", {}).get(
+            target, set()
+        )
+        visual_pending = bool(
+            (transition and transition.get("pending_render"))
+            or pending_parts
+        )
     active_anims.append({
         "action": action_type,
         "target": action.get("target"),
         "on_advance": on_advance,
         "end_time": end_time,
+        # The action timer starts when it is dispatched, while the visual
+        # transition starts on its first real draw. Keep the IR animation alive
+        # across a slow frame/setup gap so a two-shift step cannot become idle
+        # before either endpoint has been presented.
+        "visual_pending": visual_pending,
     })
     game_state["ir_anim_pending"] = True
     current_end = game_state.get("ir_anim_end_time")
@@ -1250,8 +1389,37 @@ def _handle_dialogue_text(game_state, current_dialogue):
         bgm_manager = game_state.get('bgm_manager')
         if bgm_manager:
             actual_bgm = bgm_manager.get_bgm_for_scene(bgm_name) or bgm_name
-            if actual_bgm != bgm_manager.current_bgm or not pygame.mixer.music.get_busy():
-                bgm_manager.play_bgm(actual_bgm, bgm_volume, bgm_loop)
+            metadata = (
+                current_dialogue[13]
+                if len(current_dialogue) > 13
+                and isinstance(current_dialogue[13], dict)
+                else {}
+            )
+            bgm_start = _to_float(metadata.get("start"), 0.0)
+            bgm_end_value = metadata.get("end")
+            bgm_end = (
+                _to_float(bgm_end_value, 0.0)
+                if bgm_end_value not in (None, "")
+                else None
+            )
+            if bgm_end is not None and bgm_end <= bgm_start:
+                bgm_end = None
+            if actual_bgm != bgm_manager.current_bgm or not (
+                bgm_manager.is_playing()
+                if hasattr(bgm_manager, "is_playing")
+                else pygame.mixer.music.get_busy()
+            ) or (
+                abs(getattr(bgm_manager, "current_start", 0.0) - bgm_start) > 0.001
+                or getattr(bgm_manager, "current_end", None) != bgm_end
+            ):
+                play_kwargs = {}
+                if bgm_start > 0:
+                    play_kwargs["start"] = bgm_start
+                if bgm_end is not None:
+                    play_kwargs["end"] = bgm_end
+                bgm_manager.play_bgm(
+                    actual_bgm, bgm_volume, bgm_loop, **play_kwargs
+                )
     
     # アクティブキャラクターリストを適切な形式で取得
     active_characters = game_state.get('active_characters', [])
@@ -1376,19 +1544,35 @@ def _handle_bgm_play(game_state, dialogue_text, current_dialogue=None):
         bgm_volume = _to_float(metadata.get("volume"), bgm_volume)
         bgm_loop = _to_bool(metadata.get("loop"), parts[5].lower() == "true" if len(parts) > 5 else True)
         fade_time = _to_float(metadata.get("fade_time"), 0.0)
+        bgm_start = _to_float(metadata.get("start"), 0.0)
+        bgm_end_value = metadata.get("end")
+        bgm_end = (
+            _to_float(bgm_end_value, 0.0)
+            if bgm_end_value not in (None, "")
+            else None
+        )
+        if bgm_end is not None and bgm_end <= bgm_start:
+            bgm_end = None
 
         bgm_manager = game_state.get('bgm_manager')
         if bgm_manager:
             actual_bgm_filename = bgm_manager.get_bgm_for_scene(bgm_filename) or bgm_filename
             if (
                 actual_bgm_filename != bgm_manager.current_bgm
-                or not pygame.mixer.music.get_busy()
+                or not (
+                    bgm_manager.is_playing()
+                    if hasattr(bgm_manager, "is_playing")
+                    else pygame.mixer.music.get_busy()
+                )
                 or getattr(bgm_manager, "current_loop", True) != bgm_loop
+                or abs(getattr(bgm_manager, "current_start", 0.0) - bgm_start) > 0.001
+                or getattr(bgm_manager, "current_end", None) != bgm_end
             ):
-                bgm_start = _to_float(metadata.get("start"), 0.0)
                 play_kwargs = {"fade_time": fade_time}
                 if bgm_start > 0:
                     play_kwargs["start"] = bgm_start
+                if bgm_end is not None:
+                    play_kwargs["end"] = bgm_end
                 bgm_manager.play_bgm(
                     actual_bgm_filename, bgm_volume, bgm_loop, **play_kwargs
                 )

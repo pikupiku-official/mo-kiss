@@ -1,4 +1,5 @@
 import os
+import wave
 from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -139,6 +140,8 @@ def test_se_uses_dropdown_and_preview_buttons(monkeypatch, tmp_path):
     assert volume_field.value() == 0.35
     assert calls[-1] == ("volume", 0.35)
     assert dict(dialog._collect_custom_params())["volume"] == "0.35"
+    assert volume_slider.maximum() == 200
+    assert volume_field.maximum() == 2.0
 
 
 def test_bgm_uses_dropdown_and_inline_preview_buttons(monkeypatch, tmp_path):
@@ -190,3 +193,36 @@ def test_bgm_uses_dropdown_and_inline_preview_buttons(monkeypatch, tmp_path):
     assert volume_slider.value() == 42
     assert calls[-1] == ("volume", 0.42)
     assert dict(dialog._collect_custom_params())["volume"] == "0.42"
+
+
+def test_audio_range_editor_uses_the_selected_file_duration(monkeypatch, tmp_path):
+    se_dir = tmp_path / "sounds" / "ses"
+    se_dir.mkdir(parents=True)
+    audio_path = se_dir / "short.wav"
+    with wave.open(str(audio_path), "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(1000)
+        audio.writeframes(b"\x00\x00" * 10000)
+    monkeypatch.setattr(event_editor, "project_root", str(tmp_path))
+
+    dialog = _dialog('se se="short.wav" start="2" end="9"')
+    assert dialog._audio_durations["se"] == 10.0
+    assert dialog.custom_fields["start"].maximum() == 10.0
+    assert dialog.custom_fields["end"].maximum() == 10.0
+    range_button = dialog.findChild(QPushButton, "seRangeButton")
+    assert range_button is not None
+    assert "10.00s" in range_button.text()
+    assert dialog.findChild(QSlider, "startSlider") is None
+
+
+def test_bgm_range_end_is_kept_in_custom_action_params(monkeypatch, tmp_path):
+    bgm_dir = tmp_path / "sounds" / "bgms"
+    bgm_dir.mkdir(parents=True)
+    (bgm_dir / "loop.ogg").write_bytes(b"not decoded in this editor test")
+    monkeypatch.setattr(event_editor, "project_root", str(tmp_path))
+
+    dialog = _dialog('bgm bgm="loop.ogg" start="1.25" end="4.5"')
+    params = dict(dialog._collect_custom_params())
+    assert params["start"] == "1.25"
+    assert params["end"] == "4.5"

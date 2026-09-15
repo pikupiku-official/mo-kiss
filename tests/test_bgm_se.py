@@ -49,6 +49,24 @@ class TestBgmSe(unittest.TestCase):
         self.assertEqual(len(bgm_actions), 1)
         self.assertEqual(bgm_actions[0]["params"]["file"], "MmkBgm1")
 
+    def test_bgm_range_metadata_survives_loader_normalizer_and_ir(self):
+        raw = self._loader()._parse_ks_content(
+            '[BGM bgm="school.ogg" volume="0.8" loop="true" start="2.5" end="8.0"]\n'
+            '//桃子//\n'
+            '「範囲付きBGM」\n'
+        )
+        normalized = normalize_dialogue_data(raw)
+        ir = build_ir_from_normalized(normalized)
+        actions = [
+            action
+            for step in ir["steps"]
+            for action in step.get("actions", [])
+            if action.get("action") == "bgm_play"
+        ]
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0]["params"]["start"], 2.5)
+        self.assertEqual(actions[0]["params"]["end"], 8.0)
+
     def test_se_specified_creates_action(self):
         raw = self._loader()._parse_ks_content(
             "[SE se=\"click.wav\" volume=\"0.8\"]\n"

@@ -7,6 +7,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 from core.services.settings_manager import get_settings_manager
+from core.services.audio_utils import peak_limited_gain_sound, trim_sound
 
 class BGMManager:
     def __init__(self, debug=False):
@@ -16,6 +17,12 @@ class BGMManager:
         self.current_loop = True
         self.current_volume = 0.5
         self.target_volume = 0.5
+        self.current_start = 0.0
+        self.current_end = None
+        self.current_channel = None
+        self.current_source_sound = None
+        self.current_sound = None
+        self._sound_backend = False
         self.fade_thread = None
         self.is_fading = False
         self.is_paused = False
@@ -24,6 +31,9 @@ class BGMManager:
         self.paused_loop = True
         self.sequence_thread = None
         self.sequence_stop = threading.Event()
+        self.range_thread = None
+        self.range_stop = threading.Event()
+        self._range_deadline = None
         
         # 非同期処理用
         self.executor = ThreadPoolExecutor(max_workers=1)
@@ -74,6 +84,33 @@ class BGMManager:
         self.sequence_thread = None
         self.sequence_stop = threading.Event()
 
+    def _stop_range(self):
+        self.range_stop.set()
+        thread = self.range_thread
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
+        self.range_thread = None
+        self.range_stop = threading.Event()
+        self._range_deadline = None
+
+    def _monitor_range(self, duration, channel=None):
+        deadline = time.monotonic() + max(0.0, float(duration))
+        while not self.range_stop.wait(0.05):
+            busy = (
+                channel.get_busy()
+                if channel is not None
+                else pygame.mixer.music.get_busy()
+            )
+            if not pygame.mixer.get_init() or not busy:
+                return
+            if time.monotonic() >= deadline:
+                if channel is not None:
+                    channel.stop()
+                else:
+                    pygame.mixer.music.stop()
+                self.current_bgm = None
+                return
+
     def _play_loaded_bgm(self, filename, volume, loop, start=0.0):
         pygame.mixer.music.load(os.path.join(self.BGM_PATH, filename))
         get_settings_manager().apply_bgm_volume(volume)
@@ -107,7 +144,15 @@ class BGMManager:
                     print(f"BGM sequence playback error: {exc}")
                 return
 
-    def play_bgm(self, filename, volume=0.5, loop=True, fade_time=0.0, start=0.0):
+    def play_bgm(
+        self,
+        filename,
+        volume=0.5,
+        loop=True,
+        fade_time=0.0,
+        start=0.0,
+        end=None,
+    ):
         print(f"[BGM_DEBUG] play_bgm要求: filename='{filename}', volume={volume}, loop={loop}, fade={fade_time}")
         if not pygame.mixer.get_init():
             try:
@@ -118,7 +163,14 @@ class BGMManager:
                 return False
         try:
             self._stop_sequence()
+            self._stop_range()
             self._stop_fade()
+            if self._sound_backend and self.current_channel is not None:
+                self.current_channel.stop()
+            self.current_channel = None
+            self.current_source_sound = None
+            self.current_sound = None
+            self._sound_backend = False
             # 音量の正規化
             try:
                 volume = float(volume)
@@ -138,15 +190,22 @@ class BGMManager:
             else:
                 loop = bool(loop)
 
+            if volume > 2.0 and volume <= 10.0:
+                volume /= 10.0
+            elif volume > 10.0:
+                volume /= 100.0
+            volume = max(0.0, min(2.0, volume))
             if volume <= 0:
                 print(f"[BGM_DEBUG] volume={volume} (0以下) 指定のため BGM 停止/消音処理: filename='{filename}'")
                 self.stop_bgm()
                 return True
-            elif volume > 1.0:
-                if volume <= 10.0:
-                    volume = volume / 10.0
-                else:
-                    volume = min(volume / 100.0, 1.0)
+
+            try:
+                end = None if end in (None, "") else max(0.0, float(end))
+            except (TypeError, ValueError):
+                end = None
+            if end is not None and end <= start:
+                end = None
 
             # ファイル名の有効性をチェック
             if not self.is_valid_bgm_filename(filename):
@@ -171,8 +230,37 @@ class BGMManager:
                     return False
             
             sequence = self._sequence_candidates(filename)
-            sequence_mode = loop and len(sequence) > 1 and sequence[0] == filename
-            if sequence_mode:
+            use_sound_backend = volume > 1.0 or end is not None
+            if use_sound_backend:
+                # The PCM path is also used when a live streaming preview is
+                # raised above 100%; do not leave the old music stream under
+                # the replacement channel.
+                pygame.mixer.music.stop()
+                source_sound = pygame.mixer.Sound(bgm_path)
+                selected_sound = trim_sound(source_sound, start, end)
+                if selected_sound is None:
+                    return False
+                play_sound = peak_limited_gain_sound(selected_sound, volume)
+                channel = play_sound.play(loops=-1 if loop else 0)
+                if channel is None:
+                    return False
+                self.current_channel = channel
+                self.current_source_sound = selected_sound
+                self.current_sound = play_sound
+                self._sound_backend = True
+                channel_volume = min(1.0, volume)
+                settings = get_settings_manager()
+                channel_volume *= float(getattr(settings, "music_scale", 1.0))
+                channel.set_volume(0.0 if fade_time > 0 else channel_volume)
+                if end is not None:
+                    self._range_deadline = time.monotonic() + (end - start)
+                    self.range_thread = threading.Thread(
+                        target=self._monitor_range,
+                        args=(end - start, channel),
+                        daemon=True,
+                    )
+                    self.range_thread.start()
+            elif loop and len(sequence) > 1 and sequence[0] == filename:
                 self._play_loaded_bgm(filename, 0.0 if fade_time > 0 else volume, False, start=start)
                 self.sequence_thread = threading.Thread(
                     target=self._monitor_sequence,
@@ -187,21 +275,16 @@ class BGMManager:
             self.current_loop = loop
             self.current_volume = start_volume
             self.target_volume = volume
+            self.current_start = start
+            self.current_end = end
             self.is_paused = False
             self.paused_bgm = None
             if fade_time > 0:
-                self.fade_in(volume, fade_time)
+                if self._sound_backend:
+                    self._fade_sound_channel(volume, fade_time)
+                else:
+                    self.fade_in(volume, fade_time)
             print(f"[BGM_DEBUG] BGM蜀咲函謌仙粥! file='{filename}', full_path='{bgm_path}', volume={volume}, loop={loop}")
-            return True
-            self.current_bgm = filename
-            self.current_loop = loop
-            self.current_volume = start_volume
-            self.target_volume = volume
-            self.is_paused = False
-            self.paused_bgm = None
-            if fade_time > 0:
-                self.fade_in(volume, fade_time)
-            print(f"[BGM_DEBUG] BGM再生成功! file='{filename}', full_path='{bgm_path}', volume={volume}, loop={loop}")
             return True
             
         except Exception as e:
@@ -210,28 +293,78 @@ class BGMManager:
 
     def stop_bgm(self):
         self._stop_sequence()
+        self._stop_range()
         print(f"[BGM_DEBUG] stop_bgm呼び出し (現在再生中='{self.current_bgm}')")
         self._stop_fade()
         if pygame.mixer.get_init():
             pygame.mixer.music.stop()
+        if self.current_channel is not None:
+            self.current_channel.stop()
         self.current_bgm = None
         self.current_loop = True
         self.current_volume = 0.5
         self.target_volume = 0.5
+        self.current_start = 0.0
+        self.current_end = None
+        self.current_channel = None
+        self.current_source_sound = None
+        self.current_sound = None
+        self._sound_backend = False
         self.is_paused = False
         self.paused_bgm = None
 
     def set_volume(self, volume):
         """再生中のBGM音量を即時変更する。"""
         try:
-            volume = max(0.0, min(1.0, float(volume)))
+            volume = max(0.0, min(2.0, float(volume)))
         except (TypeError, ValueError):
             return False
         self._stop_fade()
+        if not self._sound_backend and volume > 1.0 and self.current_bgm:
+            # pygame.mixer.music cannot amplify above 100%. Re-enter through
+            # the PCM path at the current stream position so the editor's
+            # live fader does what its value says.
+            position = max(0.0, pygame.mixer.music.get_pos() / 1000.0)
+            filename = self.current_bgm
+            loop = self.current_loop
+            return self.play_bgm(filename, volume, loop, start=position)
         self.current_volume = volume
         self.target_volume = volume
-        get_settings_manager().apply_bgm_volume(volume)
+        if self._sound_backend and self.current_channel is not None:
+            remaining = (
+                max(0.0, self._range_deadline - time.monotonic())
+                if self._range_deadline is not None
+                else None
+            )
+            if self.current_source_sound is not None:
+                play_sound = peak_limited_gain_sound(self.current_source_sound, volume)
+                if play_sound is not self.current_sound:
+                    self._stop_range()
+                    self.current_channel.stop()
+                    self.current_sound = play_sound
+                    self.current_channel = play_sound.play(
+                        loops=-1 if self.current_loop else 0
+                    )
+                    if remaining is not None and self.current_channel is not None:
+                        self._range_deadline = time.monotonic() + remaining
+                        self.range_thread = threading.Thread(
+                            target=self._monitor_range,
+                            args=(remaining, self.current_channel),
+                            daemon=True,
+                        )
+                        self.range_thread.start()
+            if self.current_channel is not None:
+                music_scale = float(getattr(get_settings_manager(), "music_scale", 1.0))
+                self.current_channel.set_volume(min(1.0, volume) * music_scale)
+        else:
+            get_settings_manager().apply_bgm_volume(volume)
         return True
+
+    def is_playing(self):
+        """Return whether either the streaming or PCM preview backend is live."""
+        if self._sound_backend:
+            return self.current_channel is not None and self.current_channel.get_busy()
+        return bool(pygame.mixer.get_init() and pygame.mixer.music.get_busy())
     
     def pause_bgm(self):
         """BGMを一時停止"""
@@ -240,7 +373,10 @@ class BGMManager:
             self.paused_volume = self.target_volume
             self.paused_loop = self.current_loop
             self.is_paused = True
-            pygame.mixer.music.pause()
+            if self._sound_backend and self.current_channel is not None:
+                self.current_channel.pause()
+            else:
+                pygame.mixer.music.pause()
             self.current_bgm = None
             if self.debug:
                 print("BGMを一時停止しました")
@@ -249,7 +385,10 @@ class BGMManager:
         """BGMの再生を再開"""
         if self.is_paused and self.paused_bgm:
             # 一時停止状態から再開
-            if not self.current_bgm:
+            if self._sound_backend and self.current_channel is not None:
+                self.current_channel.unpause()
+                self.current_bgm = self.paused_bgm
+            elif not self.current_bgm:
                 # BGMが停止している場合は再度読み込んで再生
                 self.play_bgm(self.paused_bgm, self.paused_volume, self.paused_loop)
             else:
@@ -266,6 +405,37 @@ class BGMManager:
         if self.fade_thread and self.fade_thread.is_alive():
             self.is_fading = False
             self.fade_thread.join(timeout=1.0)
+
+    def _fade_sound_channel(self, target_volume, fade_time):
+        """Fade a PCM-backed BGM preview channel using the music scale."""
+        channel = self.current_channel
+        if channel is None:
+            return
+        try:
+            target_volume = max(0.0, min(2.0, float(target_volume)))
+            fade_time = max(0.0, float(fade_time))
+        except (TypeError, ValueError):
+            return
+        self.is_fading = True
+
+        def fade_worker():
+            steps = max(1, int(fade_time * 30))
+            step_duration = fade_time / steps if steps else 0.0
+            try:
+                scale = float(getattr(get_settings_manager(), "music_scale", 1.0))
+                for index in range(steps):
+                    if not self.is_fading:
+                        break
+                    progress = (index + 1) / steps
+                    current = target_volume * progress
+                    channel.set_volume(min(1.0, current) * scale)
+                    self.current_volume = current
+                    time.sleep(step_duration)
+            finally:
+                self.is_fading = False
+
+        self.fade_thread = threading.Thread(target=fade_worker, daemon=True)
+        self.fade_thread.start()
     
     def _fade_volume(self, target_volume, fade_time):
         """音量をフェードするスレッド（最適化版）"""

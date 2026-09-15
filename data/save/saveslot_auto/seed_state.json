@@ -18,5 +18,15 @@
     }
   },
   "journal_days": [],
-  "turning_point_results": {}
+  "turning_point_results": {
+    "MOMOKO_TP1": {
+      "result": "correct",
+      "attempt_count": 1,
+      "resolved_game_date": "1999-05-31",
+      "answer_text": "桃子は家族と上手くいっていない",
+      "judge_version": "seed-rule-v1",
+      "confidence": 1.0,
+      "reason_codes": []
+    }
+  }
 }
