@@ -295,6 +295,7 @@ class DialogueSubsystem(SubsystemBase):
                 "target_zoom", background.get("zoom", 1.0)
             )
         background["anim"] = None
+        background["fade"] = None
 
         active_characters = list(gs.get("active_characters") or [])
         pending_hides = set((gs.get("character_hide_pending") or {}).keys())
@@ -405,6 +406,7 @@ class DialogueSubsystem(SubsystemBase):
         if isinstance(background, dict):
             gs["background_state"] = background
             gs["background_state"]["anim"] = None
+            gs["background_state"]["fade"] = None
 
         characters = snapshot.get("characters") or {}
         gs["active_characters"] = list(characters.get("active") or [])

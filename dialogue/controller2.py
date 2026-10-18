@@ -737,6 +737,13 @@ def _ir_fast_forward_animations(game_state, duration_ms):
         start, dur = retime(bg_anim.get("start_time", now), bg_anim.get("duration", 0))
         bg_anim["start_time"] = start
         bg_anim["duration"] = dur
+    bg_fade = bg_state.get("fade")
+    if bg_fade:
+        start, dur = retime(
+            bg_fade.get("start_time", now), bg_fade.get("duration", 0)
+        )
+        bg_fade["start_time"] = start
+        bg_fade["duration"] = dur
 
     cg_state = game_state.get("cg_state", {})
     cg_transition = cg_state.get("transition")

@@ -41,6 +41,7 @@ from core.config import (
     VIRTUAL_WIDTH,
 )
 from tools.event_editor_part_templates import CharaPartTemplateStore
+from dialogue.background_manager import get_background_display_size
 
 
 CHARACTER_PARTS = (
@@ -612,16 +613,18 @@ class StepSceneStateBuilder:
         )
 
     def _show_background(self, params):
-        zoom = max(0.5, min(3.0, _to_float(params.get("bg_zoom"), 1.0)))
+        zoom = max(0.1, min(3.0, _to_float(params.get("bg_zoom"), 1.0)))
         center_x = max(0.0, min(1.0, _to_float(params.get("bg_x"), 0.5)))
         center_y = max(0.0, min(1.0, _to_float(params.get("bg_y"), 0.5)))
-        limit_x, limit_y = self._background_limits(zoom)
+        _, limit_y = self._background_limits(zoom)
         return {
             "storage": params.get("storage", ""),
             "x": center_x,
             "y": center_y,
             "zoom": zoom,
-            "offset_x": (center_x - 0.5) * limit_x * 2,
+            # bg_x is the normalized screen position of the image center,
+            # independent of zoom: 0=left edge, .5=center, 1=right edge.
+            "offset_x": VIRTUAL_WIDTH * center_x - VIRTUAL_WIDTH / 2,
             "offset_y": (center_y - 0.5) * limit_y * 2,
         }
 
@@ -629,7 +632,7 @@ class StepSceneStateBuilder:
         if not background:
             return background
         next_background = dict(background)
-        zoom = max(0.5, min(3.0, _to_float(params.get("bg_zoom"), 1.0)))
+        zoom = max(0.1, min(3.0, _to_float(params.get("bg_zoom"), 1.0)))
         relative_x = max(-0.3, min(0.3, _to_float(params.get("bg_left"), 0.0)))
         relative_y = max(-0.3, min(0.3, _to_float(params.get("bg_top"), 0.0)))
         limit_x, limit_y = self._background_limits(zoom)
@@ -1026,10 +1029,13 @@ class StepSceneCanvas(QGraphicsView):
             image = load_qimage(path)
             if image.isNull():
                 return
+            display_width, display_height = get_background_display_size(
+                image.width(), image.height()
+            )
             pixmap = QPixmap.fromImage(image).scaled(
-                VIRTUAL_WIDTH,
-                VIRTUAL_HEIGHT,
-                Qt.IgnoreAspectRatio,
+                display_width,
+                display_height,
+                Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
             self._background_pixmap_cache[cache_key] = pixmap
@@ -1042,8 +1048,8 @@ class StepSceneCanvas(QGraphicsView):
         zoom = background.get("zoom", 1.0)
         item.setScale(zoom)
         item.setPos(
-            VIRTUAL_WIDTH / 2 - VIRTUAL_WIDTH * zoom / 2 + background.get("offset_x", 0.0),
-            VIRTUAL_HEIGHT / 2 - VIRTUAL_HEIGHT * zoom / 2 + background.get("offset_y", 0.0),
+            VIRTUAL_WIDTH / 2 - pixmap.width() * zoom / 2 + background.get("offset_x", 0.0),
+            VIRTUAL_HEIGHT / 2 - pixmap.height() * zoom / 2 + background.get("offset_y", 0.0),
         )
         item.setZValue(0)
         self._tag_item(

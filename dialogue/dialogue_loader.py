@@ -303,7 +303,7 @@ class DialogueLoader:
                 # 背景設定を検出
                 if "[bg" in line.lower() and "[bg_show" not in line.lower() and "[bg_move" not in line.lower() and "[bgm" not in line.lower():
                     try:
-                        bg_parts = re.search(r'storage="([^"]+)"', line)
+                        bg_parts = re.search(r'storage="([^"]*)"', line)
                         if bg_parts:
                             current_bg = bg_parts.group(1)
                             # デバッグ出力削除
@@ -320,16 +320,18 @@ class DialogueLoader:
                 # 背景表示コマンドを検出
                 elif "[bg_show" in line:
                     try:
-                        storage = re.search(r'storage="([^"]+)"', line)
+                        storage = re.search(r'storage="([^"]*)"', line)
                         x_pos = re.search(r'bg_x="([^"]+)"', line)
                         y_pos = re.search(r'bg_y="([^"]+)"', line)
                         zoom = re.search(r'bg_zoom="([^"]+)"', line)
+                        fade = re.search(r'fade="([^"]+)"', line)
 
                         if storage:
                             bg_name = storage.group(1)
                             bg_x = float(x_pos.group(1)) if x_pos else 0.5
                             bg_y = float(y_pos.group(1)) if y_pos else 0.5
                             bg_zoom = float(zoom.group(1)) if zoom else 1.0
+                            bg_fade = float(fade.group(1)) if fade else 0.0
 
                             # デバッグ出力削除
 
@@ -338,7 +340,8 @@ class DialogueLoader:
                                 'storage': bg_name,
                                 'x': bg_x,
                                 'y': bg_y,
-                                'zoom': bg_zoom
+                                'zoom': bg_zoom,
+                                'fade': max(0.0, bg_fade),
                             })
 
                             current_bg = bg_name

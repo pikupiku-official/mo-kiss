@@ -4,6 +4,25 @@ from core.config import *
 # 背景画像スケーリングキャッシュ
 _bg_scaled_cache = {}
 
+
+def get_background_display_size(image_width, image_height, zoom=1.0):
+    """Return a stage-sized background rectangle without distorting it.
+
+    ``zoom=1`` means that the whole source image fits inside the virtual
+    screen.  Smaller values add black letterbox/pillarbox space; larger
+    values enlarge the same aspect-correct rectangle.
+    """
+    image_width = max(1, int(image_width))
+    image_height = max(1, int(image_height))
+    fit_scale = min(
+        VIRTUAL_WIDTH / image_width,
+        VIRTUAL_HEIGHT / image_height,
+    )
+    return (
+        max(1, round(image_width * fit_scale * zoom)),
+        max(1, round(image_height * fit_scale * zoom)),
+    )
+
 def get_scaled_background(image, new_width, new_height):
     """背景をキャッシュ付きでスケーリング"""
     # キャッシュキーを作成
@@ -26,42 +45,64 @@ def get_scaled_background(image, new_width, new_height):
     _bg_scaled_cache[cache_key] = scaled_image
     return scaled_image
 
-def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom):
+def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom, fade=0.0):
     """背景を指定位置とズームで表示する"""
     bg_state = game_state['background_state']
     
     # パラメータの範囲制限
     bg_x = max(0.0, min(1.0, bg_x))
     bg_y = max(0.0, min(1.0, bg_y))
-    bg_zoom = max(0.5, min(3.0, bg_zoom))
+    bg_zoom = max(0.1, min(3.0, bg_zoom))
 
     # 背景名を更新
     bg_state['current_bg'] = bg_name
 
-    # ズーム倍率に応じて移動可能範囲を調整
+    # bg_x は背景画像の中心を置く画面内X座標。
+    # 0.0=画面左端、0.5=中央、1.0=画面右端として、ズームに依存させない。
+    target_center_x, _ = scale_pos(VIRTUAL_WIDTH * bg_x, 0)
+    screen_center_x, _ = scale_pos(VIRTUAL_WIDTH / 2, 0)
+    offset_x = target_center_x - screen_center_x
+
+    # bg_y は従来どおり、ズーム倍率に応じた移動範囲で扱う。
     if bg_zoom >= 1.0:
         # 拡大時：ズーム倍率に応じて移動可能範囲を制限
         # 仮想解像度基準でオフセットを計算してスケーリング
-        virtual_max_offset_x = VIRTUAL_WIDTH * (bg_zoom - 1.0) / 2
         virtual_max_offset_y = VIRTUAL_HEIGHT * (bg_zoom - 1.0) / 2
         
         # スケーリングした実際のオフセットを計算
-        max_offset_x, max_offset_y = scale_pos(virtual_max_offset_x, virtual_max_offset_y)
+        _, max_offset_y = scale_pos(0, virtual_max_offset_y)
     else:
         # 縮小時：画面中央に余白ができるが、少しの位置調整は可能
         # 仮想解像度基準でオフセットを計算してスケーリング（縮小時）
-        virtual_max_offset_x = VIRTUAL_WIDTH * (1.0 - bg_zoom) / 4  # 縮小時は移動範囲を制限
         virtual_max_offset_y = VIRTUAL_HEIGHT * (1.0 - bg_zoom) / 4
         
         # スケーリングした実際のオフセットを計算
-        max_offset_x, max_offset_y = scale_pos(virtual_max_offset_x, virtual_max_offset_y)
+        _, max_offset_y = scale_pos(0, virtual_max_offset_y)
 
-    offset_x = (bg_x - 0.5) * max_offset_x * 2
     offset_y = (bg_y - 0.5) * max_offset_y * 2
     
     bg_state['pos'] = [offset_x, offset_y]
     bg_state['zoom'] = bg_zoom
     bg_state['anim'] = None
+
+    try:
+        fade_seconds = max(0.0, float(fade))
+    except (TypeError, ValueError):
+        fade_seconds = 0.0
+    fade_duration = int(fade_seconds * 1000)
+    bg_state['fade'] = (
+        {
+            'start_time': pygame.time.get_ticks(),
+            'duration': fade_duration,
+        }
+        if bg_name and fade_duration > 0
+        else None
+    )
+
+    # storage="" explicitly clears the current background.  Rendering starts
+    # from black every frame, so there is no asset to preload in this case.
+    if not bg_name:
+        return
 
     # Load and scale the background before returning.  A background command
     # is often followed immediately by a short character crossfade (notably
@@ -71,8 +112,9 @@ def show_background(game_state, bg_name, bg_x, bg_y, bg_zoom):
     if image_manager:
         bg_image = image_manager.get_image('bg', bg_name)
         if bg_image:
-            virtual_new_width = int(VIRTUAL_WIDTH * bg_zoom)
-            virtual_new_height = int(VIRTUAL_HEIGHT * bg_zoom)
+            virtual_new_width, virtual_new_height = get_background_display_size(
+                bg_image.get_width(), bg_image.get_height(), bg_zoom
+            )
             new_width, new_height = scale_size(
                 virtual_new_width, virtual_new_height
             )
@@ -89,7 +131,7 @@ def move_background(game_state, target_x, target_y, duration=600, zoom=1.0):
     # パラメータの範囲制限
     target_x = max(-0.3, min(0.3, target_x))
     target_y = max(-0.3, min(0.3, target_y))
-    zoom = max(0.5, min(3.0, zoom))
+    zoom = max(0.1, min(3.0, zoom))
     
     # 現在の状態を取得
     current_x, current_y = bg_state['pos']
@@ -150,6 +192,10 @@ def update_background_animation(game_state):
     """背景アニメーションを更新する"""
     bg_state = game_state['background_state']
     
+    fade = bg_state.get('fade')
+    if fade and pygame.time.get_ticks() - fade['start_time'] >= fade['duration']:
+        bg_state['fade'] = None
+
     if not bg_state['anim']:
         return
     
@@ -214,23 +260,14 @@ def draw_background(game_state):
     try:
         zoom = bg_state['zoom']
 
-        # ズームを適用してサイズを計算
-        if zoom >= 1.0:
-            # 拡大時：画面サイズ以上になるように
-            # 仮想解像度基準でサイズを計算してスケーリング
-            virtual_new_width = int(VIRTUAL_WIDTH * zoom)
-            virtual_new_height = int(VIRTUAL_HEIGHT * zoom)
-            
-            # スケーリングした実際のサイズを計算
-            new_width, new_height = scale_size(virtual_new_width, virtual_new_height)
-        else:
-            # 縮小時：画面サイズより小さくなる（余白が生まれる）
-            # 仮想解像度基準でサイズを計算してスケーリング（縮小時）
-            virtual_new_width = int(VIRTUAL_WIDTH * zoom)
-            virtual_new_height = int(VIRTUAL_HEIGHT * zoom)
-            
-            # スケーリングした実際のサイズを計算
-            new_width, new_height = scale_size(virtual_new_width, virtual_new_height)
+        # zoom=1.0 で元画像全体が画面内に収まる大きさにする。
+        # 画面サイズへ直接引き伸ばすと、縦長素材が横長に潰れてしまう。
+        virtual_new_width, virtual_new_height = get_background_display_size(
+            bg_image.get_width(), bg_image.get_height(), zoom
+        )
+        new_width, new_height = scale_size(
+            virtual_new_width, virtual_new_height
+        )
         
         # 背景画像をスケール（キャッシュ使用）
         if bg_image.get_size() != (new_width, new_height):
@@ -250,12 +287,22 @@ def draw_background(game_state):
         pos_x = int(center_x - new_width // 2 + bg_state['pos'][0])
         pos_y = int(center_y - new_height // 2 + bg_state['pos'][1])
         
-        # 縮小時は背景色で塗りつぶし（余白部分）
-        if zoom < 1.0:
-            screen.fill((20, 20, 40))  # 暗い青で余白を塗りつぶし
-        
-        # 背景を描画
-        screen.blit(scaled_bg, (pos_x, pos_y))
+        # 背景を描画。fade 中だけ一時 Surface に alpha を設定し、
+        # 共有スケールキャッシュ自体は変更しない。
+        fade = bg_state.get('fade')
+        if fade:
+            duration = max(1, fade.get('duration', 0))
+            elapsed = max(0, pygame.time.get_ticks() - fade.get('start_time', 0))
+            alpha = max(0, min(255, round(255 * elapsed / duration)))
+            if alpha < 255:
+                faded_bg = scaled_bg.copy()
+                faded_bg.set_alpha(alpha)
+                screen.blit(faded_bg, (pos_x, pos_y))
+            else:
+                bg_state['fade'] = None
+                screen.blit(scaled_bg, (pos_x, pos_y))
+        else:
+            screen.blit(scaled_bg, (pos_x, pos_y))
             
     except Exception as e:
         if DEBUG:

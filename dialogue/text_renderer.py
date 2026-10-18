@@ -35,6 +35,15 @@ RUBY_FONT_RATIO = float(TEXT_RENDERER_CONFIG.get('ruby_font_ratio', 0.45))
 RUBY_MARGIN_PX  = int(TEXT_RENDERER_CONFIG.get('ruby_margin_px', 2))
 SERIF_FONT_FILENAME = "MPLUS1p-Medium.ttf"
 
+# A deliberately plain, late-1990s-style prompt shown beside the final glyph.
+# It is drawn separately from the dialogue surface so blinking never reflows
+# or shifts the authored text.
+ADVANCE_INDICATOR_GLYPH = "■"
+ADVANCE_INDICATOR_COLOR = (255, 255, 255)
+ADVANCE_INDICATOR_FONT_RATIO = 0.70
+ADVANCE_INDICATOR_GAP_EM = 0.20
+ADVANCE_INDICATOR_BLINK_INTERVAL_MS = 500
+
 def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int):
     """ルビ文字列を span_width 内に両端揃えで blit する。
     1文字のときは中央揃え。ルビ幅がスパン幅を超える場合は左詰め。"""
@@ -73,6 +82,7 @@ class TextRenderer:
             init_qt_application()
 
         self.fonts = self._init_fonts()
+        self.advance_indicator_font = self._init_advance_indicator_font()
         self.text_color = TEXT_COLOR
         self.text_color_female = TEXT_COLOR_FEMALE
         self.text_bg_color = TEXT_BG_COLOR
@@ -145,6 +155,7 @@ class TextRenderer:
         self.last_char_time = 0
         self.char_delay = TEXT_CHAR_DELAY
         self.is_text_complete = False
+        self._advance_indicator_started_at = None
 
         # 新しい遅延設定を追加
         self.punctuation_delay = TEXT_PUNCTUATION_DELAY  # 句読点「。」での追加遅延時間（ミリ秒）
@@ -289,6 +300,16 @@ class TextRenderer:
                 FONT_TEXT_SIZE,
                 FONT_DEFAULT_SIZE
             )
+
+    def _init_advance_indicator_font(self):
+        """Load the dialogue face at 70% for the unadorned square prompt."""
+        indicator_size = max(
+            1, int(round(FONT_TEXT_SIZE * ADVANCE_INDICATOR_FONT_RATIO))
+        )
+        try:
+            return pygame.font.Font(self._get_dialogue_font_path(), indicator_size)
+        except Exception:
+            return pygame.font.SysFont("msgothic", indicator_size)
         
     def _get_fallback_fonts(self, name_size, text_size, default_size):
         """フォールバックフォントを取得"""
@@ -638,8 +659,13 @@ class TextRenderer:
             if value:
                 setattr(self, attribute, value + paused_ms)
 
+    def reset_advance_indicator(self):
+        """Stop the current blink; the next eligible wait starts from visible."""
+        self._advance_indicator_started_at = None
+
     def toggle_auto_mode(self):
         self.auto_mode = not self.auto_mode
+        self.reset_advance_indicator()
         if self.auto_mode:
             self.skip_mode = False  # autoモードONの時はskipモードOFF
         if self.debug:
@@ -648,6 +674,7 @@ class TextRenderer:
     
     def toggle_skip_mode(self):
         self.skip_mode = not self.skip_mode
+        self.reset_advance_indicator()
         if self.skip_mode:
             self.auto_mode = False  # skipモードONの時はautoモードOFF
         if self.debug:
@@ -683,6 +710,8 @@ class TextRenderer:
         active_characters=None,
         force_female=False,
     ):
+        # A new scenario step must never inherit the previous wait animation.
+        self.reset_advance_indicator()
         if self.debug:
             print(f"[TEXT] set_dialogue呼び出し: テキスト='{text[:50] if text else None}...', 話者='{character_name}'")
         
@@ -760,13 +789,15 @@ class TextRenderer:
             return
         
         # スクロール表示の処理（新規開始）
-        if should_scroll and character_name:
+        # Narration and document-like text can intentionally have no speaker.
+        # They still need to enter scroll mode so consecutive lines share the
+        # same three-row page.
+        if should_scroll:
             if self.debug:
                 print(f"[SCROLL] 新規スクロール開始: {character_name}")
 
             # 前のテキストがある場合は、話者に関係なく前のテキストも含めてスクロール開始
-            if (hasattr(self, 'previous_text') and self.previous_text and
-                hasattr(self, 'last_speaker') and self.last_speaker):
+            if hasattr(self, 'previous_text') and self.previous_text:
                 if self.debug:
                     print(f"[SCROLL] 前のテキストを含めてスクロール開始: {self.last_speaker} -> {character_name}")
 
@@ -952,6 +983,7 @@ class TextRenderer:
 
     def skip_text(self):
         if self.current_text:
+            self.reset_advance_indicator()
             self.displayed_chars = self._total_base_chars
             self.is_text_complete = True
             self.text_complete_time = pygame.time.get_ticks()
@@ -1209,19 +1241,88 @@ class TextRenderer:
         
         return y
 
-    def render(self):
+    def _advance_indicator_is_visible(self, current_time):
+        """Return the repeating hard on/off phase for the 500 ms blink."""
+        if self._advance_indicator_started_at is None:
+            self._advance_indicator_started_at = current_time
+        elapsed = max(0, current_time - self._advance_indicator_started_at)
+        return (elapsed // ADVANCE_INDICATOR_BLINK_INTERVAL_MS) % 2 == 0
+
+    def _can_show_advance_indicator(self, game_state=None):
+        if (
+            not self.current_text
+            or not self.is_text_complete
+            or self.auto_mode
+            or self.skip_mode
+        ):
+            return False
+        if game_state is None:
+            return True
+        if not game_state.get("show_text", True):
+            return False
+        if game_state.get("ks_finished", False):
+            return False
+        if game_state.get("hide_advance_indicator", False):
+            return False
+        choice_renderer = game_state.get("choice_renderer")
+        if choice_renderer is not None and choice_renderer.is_choice_showing():
+            return False
+        seed_answer = game_state.get("seed_answer_overlay")
+        if seed_answer is not None and not getattr(seed_answer, "suspended", False):
+            return False
+        seed_list = game_state.get("seed_list_overlay")
+        if seed_list is not None and getattr(seed_list, "is_showing", False):
+            return False
+
+        # Enter only advances a completed line after all step-level animation
+        # has become idle. Import lazily to avoid a module import cycle.
+        from .controller2 import is_input_blocked, is_ir_idle
+        return not is_input_blocked(game_state) and is_ir_idle(game_state)
+
+    def get_advance_indicator_position(self):
+        """Return the prompt origin beside the final visible dialogue glyph."""
+        wrapped_lines = self._wrap_text(self.current_text)
+        last_line = wrapped_lines[-1] if wrapped_lines else ""
+        last_line_chars = total_base_chars(parse_inline_markup(last_line))
+        gap = int(round(FONT_TEXT_SIZE * ADVANCE_INDICATOR_GAP_EM))
+        x = int(round(self.text_start_x + last_line_chars * self.text_grid_width() + gap))
+
+        body_height = self.pygame_fonts["text"].get_height()
+        marker_height = self.advance_indicator_font.get_height()
+        line_y = int(round(self.get_current_dialogue_last_line_y()))
+        y = line_y + (body_height - marker_height) // 2
+        return x, y
+
+    def render_advance_indicator(self, game_state=None, current_time=None):
+        """Draw the final-glyph prompt without taking part in text layout."""
+        if not self._can_show_advance_indicator(game_state):
+            self.reset_advance_indicator()
+            return False
+        if current_time is None:
+            current_time = pygame.time.get_ticks()
+        if not self._advance_indicator_is_visible(current_time):
+            return False
+        marker = self.advance_indicator_font.render(
+            ADVANCE_INDICATOR_GLYPH, True, ADVANCE_INDICATOR_COLOR
+        )
+        self.screen.blit(marker, self.get_advance_indicator_position())
+        return True
+
+    def render(self, game_state=None):
         if self.backlog_manager and self.backlog_manager.is_showing_backlog():
+            self.reset_advance_indicator()
             # Date/weather remain part of the scene and are dimmed by the
             # backlog overlay, while dialogue is redrawn above that overlay.
             self.render_date()
             return
         self.render_paragraph()
+        self.render_advance_indicator(game_state)
         # 日付表示（バックログ表示時以外）
         self.render_date()
     
     def render_text_window(self, game_state):
         """テキストウィンドウを描画する（メインループから呼び出し用）"""
-        self.render()
+        self.render(game_state)
     
     def set_char_delay(self, delay_ms):
         self.char_delay = delay_ms

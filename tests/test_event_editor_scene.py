@@ -84,6 +84,18 @@ def test_scene_builder_distinguishes_before_and_after_objects():
     assert states["after"]["characters"]["桃子"]["zoom"] == 1.5
 
 
+def test_scene_builder_background_x_is_normalized_image_center():
+    builder = StepSceneStateBuilder(image_size_lookup=_size_lookup)
+    states = builder.build(
+        [[
+            'bg_show storage="room" bg_x="0.4" bg_y="0.5" bg_zoom="0.5"'
+        ]],
+        0,
+    )
+
+    assert states["after"]["background"]["offset_x"] == VIRTUAL_WIDTH * (0.4 - 0.5)
+
+
 def test_scene_builder_expands_chara_shift_template(tmp_path):
     store = CharaPartTemplateStore(tmp_path / "templates.json")
     store.create(
@@ -342,7 +354,7 @@ def test_body_backspace_keeps_focus_and_does_not_select_speaker():
 
 def test_scene_canvas_resolves_legacy_partial_background_id(tmp_path):
     background_path = tmp_path / "classroom.png"
-    image = QImage(320, 240, QImage.Format_ARGB32)
+    image = QImage(200, 400, QImage.Format_ARGB32)
     image.fill(QColor(40, 100, 160))
     assert image.save(str(background_path))
 
@@ -377,6 +389,10 @@ def test_scene_canvas_resolves_legacy_partial_background_id(tmp_path):
     ]
     assert len(background_items) == 1
     assert background_items[0].data(1) == "教室"
+    assert background_items[0].pixmap().size().width() == 540
+    assert background_items[0].pixmap().size().height() == VIRTUAL_HEIGHT
+    assert background_items[0].pos().x() == 450
+    assert background_items[0].pos().y() == 0
 
 
 def test_scene_canvas_keeps_character_as_selectable_object(tmp_path):

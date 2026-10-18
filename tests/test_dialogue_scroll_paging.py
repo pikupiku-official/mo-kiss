@@ -73,6 +73,43 @@ def test_text_renderer_reserves_the_completed_dialogue_line_count_up_front():
     assert captured["args"][3:] == (3, 3)
 
 
+def test_unnamed_text_can_start_scroll_mode_with_previous_text():
+    captured = []
+
+    class ScrollSpy:
+        def is_scroll_mode(self):
+            return False
+
+        def start_scroll_mode(self, *args):
+            captured.append(("start", args))
+
+        def add_text_to_scroll(self, *args):
+            captured.append(("add", args))
+
+    renderer = TextRenderer.__new__(TextRenderer)
+    renderer.debug = False
+    renderer.name_manager = type(
+        "Names", (), {"substitute_variables": lambda self, value: value or ""}
+    )()
+    renderer.seed_manager = None
+    renderer.seed_event_id = None
+    renderer.backlog_manager = None
+    renderer.scroll_manager = ScrollSpy()
+    renderer.max_display_lines = 3
+    renderer._wrap_text = lambda text: [text]
+    renderer.reset_auto_timer = lambda: None
+    renderer.previous_text = "＜課題提出日＞"
+    renderer.previous_force_female = False
+    renderer.last_speaker = ""
+
+    renderer.set_dialogue("1999年6月某日", "", should_scroll=True)
+
+    assert captured == [
+        ("start", ("", "＜課題提出日＞", False, 1, 3)),
+        ("add", ("1999年6月某日", "", False, 1, 3)),
+    ]
+
+
 def test_text_steps_are_recorded_once_and_empty_steps_do_nothing():
     recorded = []
 

@@ -66,7 +66,7 @@ def advance_dialogue(game_state):
     
     # 背景表示コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BG_SHOW_"):
-        return _handle_background_show(game_state, dialogue_text)
+        return _handle_background_show(game_state, dialogue_text, current_dialogue)
     
     # 背景移動コマンドかどうかチェック
     elif dialogue_text and dialogue_text.startswith("_BG_MOVE_"):
@@ -316,8 +316,7 @@ def _ir_dispatch_action(game_state, action):
         _ir_handle_background_move(game_state, params)
     elif action_type == "background":
         bg_name = params.get("value") or params.get("storage")
-        if bg_name:
-            show_background(game_state, bg_name, 0.5, 0.5, 1.0)
+        show_background(game_state, bg_name or "", 0.5, 0.5, 1.0)
     elif action_type == "fadeout":
         color = params.get("color", "black")
         time = _to_float(params.get("time"), 1.0)
@@ -773,13 +772,13 @@ def _ir_handle_haze_hide(game_state, params):
         manager.hide(params or {})
 
 def _ir_handle_background_show(game_state, params):
-    storage = params.get("storage")
-    if not storage:
-        return
+    # Empty storage is an explicit background clear, not a missing action.
+    storage = params.get("storage") or ""
     x = _to_float(params.get("x"), 0.5)
     y = _to_float(params.get("y"), 0.5)
     zoom = _to_float(params.get("zoom"), 1.0)
-    show_background(game_state, storage, x, y, zoom)
+    fade = max(0.0, _to_float(params.get("fade"), 0.0))
+    show_background(game_state, storage, x, y, zoom, fade)
 
 def _ir_handle_background_move(game_state, params):
     left = _to_float(params.get("left"), 0.0)
@@ -982,6 +981,8 @@ def _ir_get_action_duration_ms(action_type, params):
         return _to_int((params or {}).get("time"), 600)
     if action_type == "bg_move":
         return _to_int((params or {}).get("time"), 600)
+    if action_type == "bg_show":
+        return max(0, int(_to_float((params or {}).get("fade"), 0.0) * 1000))
     if action_type in ("cg_show", "cg_shift", "cg_hide"):
         return cg_transition_duration_ms(params or {}, action_type)
     if action_type in ("fadeout", "fadein"):
@@ -1001,7 +1002,9 @@ def _ir_default_on_advance(action_type):
         return "complete"
     if action_type in ("movie_show", "movie_hide"):
         return "block"
-    if action_type in ("chara_move", "bg_show", "bg_move"):
+    if action_type == "bg_show":
+        return "block"
+    if action_type in ("chara_move", "bg_move"):
         return "complete"
     return None
 
@@ -1233,7 +1236,7 @@ def _handle_character_move(game_state, dialogue_text, current_dialogue):
     # 移動コマンドの場合は次の対話に進む（スクロール状態維持）
     return advance_dialogue(game_state)
 
-def _handle_background_show(game_state, dialogue_text):
+def _handle_background_show(game_state, dialogue_text, current_dialogue=None):
     """背景表示コマンドを処理（スクロール状態に影響しない）"""
     parts = dialogue_text.split('_')
     if DEBUG:
@@ -1252,7 +1255,15 @@ def _handle_background_show(game_state, dialogue_text):
             bg_y = 0.5
             bg_zoom = 1.0
 
-        show_background(game_state, bg_name, bg_x, bg_y, bg_zoom)
+        metadata = (
+            current_dialogue[13]
+            if isinstance(current_dialogue, list)
+            and len(current_dialogue) > 13
+            and isinstance(current_dialogue[13], dict)
+            else {}
+        )
+        bg_fade = max(0.0, _to_float(metadata.get("fade"), 0.0))
+        show_background(game_state, bg_name, bg_x, bg_y, bg_zoom, bg_fade)
         if DEBUG:
             print(f"背景 '{bg_name}' を表示しました (x={bg_x}, y={bg_y}, zoom={bg_zoom})")
         

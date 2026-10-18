@@ -104,6 +104,22 @@ def test_legacy_background_storage_with_underscore_is_not_truncated():
     assert actions[0]["params"]["storage"] == "BG_TEST"
 
 
+def test_empty_background_storage_is_preserved_as_clear_action():
+    for tag in ('[bg storage=""]', '[bg_show storage=""]'):
+        raw = DialogueLoader().parse_ks_script(tag)
+        normalized = normalize_dialogue_data(raw)
+        ir = build_ir_from_normalized(normalized)
+        actions = [
+            action
+            for step in ir["steps"]
+            for action in step.get("actions", [])
+        ]
+
+        assert len(actions) == 1
+        assert actions[0]["action"] == "bg_show"
+        assert actions[0]["params"]["storage"] is None
+
+
 def test_rain_sound_and_haze_are_independent_ir_actions():
     raw = DialogueLoader().parse_ks_script(
         '[rain_sound preset="heavy" volume="0.32" fade="0.8"]\n'

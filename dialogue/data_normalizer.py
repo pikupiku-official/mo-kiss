@@ -86,7 +86,8 @@ def normalize_dialogue_data(raw_data):
             bg_show_command = f"_BG_SHOW_{entry['storage']}_{entry['x']}_{entry['y']}_{entry['zoom']}"
             normalized_data.append([
                 entry['storage'], current_char, current_eye, current_mouth, current_brow, current_cheek,
-                bg_show_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False
+                bg_show_command, current_bgm, current_bgm_volume, current_bgm_loop, current_char, False,
+                False, {"fade": entry.get("fade", 0.0)},
             ])
             current_bg = entry['storage']
             # デバッグ出力削除

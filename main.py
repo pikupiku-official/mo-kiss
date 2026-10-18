@@ -231,9 +231,16 @@ class GameApplication:
     def show_option(self):
         """OPTIONモーダルSubsystemを表示（BGM継続）。"""
         if self.option_subsystem is None:
-            if self.current_subsystem:
-                self.current_subsystem.render()
-            self._option_snapshot = self.screen.copy()
+            game_state = getattr(self.current_subsystem, "game_state", None)
+            if game_state is not None:
+                game_state["hide_advance_indicator"] = True
+            try:
+                if self.current_subsystem:
+                    self.current_subsystem.render()
+                self._option_snapshot = self.screen.copy()
+            finally:
+                if game_state is not None:
+                    game_state.pop("hide_advance_indicator", None)
             self.option_subsystem = OptionSubsystem.image_option(
                 self.screen,
                 fullscreen_callback=self._set_fullscreen,

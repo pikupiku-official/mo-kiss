@@ -1,3 +1,5 @@
+編集用に作ったがもういらないです、このファイル。
+
 ;@expression-status: ai_draft
 [chara_show name="桃子" template="照れ笑い" torso="MMK_T00_ARM00_CLO00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE02_00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU11_00" accessory="" effect="" blink="true" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//

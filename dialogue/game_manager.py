@@ -138,7 +138,8 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'current_bg': None,  # 初期背景はなし
         'pos': [0, 0],  # 背景の位置（オフセット）
         'zoom': 1.0,    # 背景のズーム倍率
-        'anim': None    # アニメーション情報
+        'anim': None,   # 移動アニメーション情報
+        'fade': None,   # bg_show のフェードイン情報
     }
 
     cg_state = {

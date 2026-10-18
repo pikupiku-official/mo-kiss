@@ -425,7 +425,10 @@ class ImageManager:
             "icon":         {},
         }
 
-        self.default_sizes['background'] = (screen_width, screen_height)
+        # Background placement owns scaling.  Loading every background at the
+        # stage dimensions destroys the source aspect ratio before either the
+        # runtime or editor can lay it out correctly.
+        self.default_sizes['background'] = None
 
         project_root = get_project_root()
         images_dir = os.path.join(project_root, "images")

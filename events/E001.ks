@@ -1,4 +1,3 @@
-//名前//
 *start
 ;@expression-status: human_confirmed
 

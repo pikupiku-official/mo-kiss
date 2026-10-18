@@ -2340,7 +2340,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     ]
     PARAM_TEMPLATES = {
         "bg": [("storage", "")],
-        "bg_show": [("storage", ""), ("bg_x", "0.5"), ("bg_y", "0.5"), ("bg_zoom", "1.0")],
+        "bg_show": [("storage", ""), ("bg_x", "0.5"), ("bg_y", "0.5"), ("bg_zoom", "1.0"), ("fade", "0.0")],
         "bg_move": [("storage", ""), ("bg_left", "0.0"), ("bg_top", "0.0"), ("bg_zoom", "1.0"), ("time", "600")],
         "chara_show": [
             ("name", ""),
@@ -2436,6 +2436,7 @@ class StepEditorDialog(Win2000FramelessDialog):
             ("bg_x", "bg_x", "text"),
             ("bg_y", "bg_y", "text"),
             ("bg_zoom", "bg_zoom", "text"),
+            ("fade", "fade", "text"),
         ],
         "bg_move": [
             ("storage", "storage", "bg_asset"),

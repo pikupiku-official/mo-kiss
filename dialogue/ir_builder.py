@@ -463,6 +463,7 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
 
     if text.startswith("_BG_SHOW_"):
         parts = text.split("_")
+        metadata = entry[13] if len(entry) > 13 and isinstance(entry[13], dict) else {}
         # The legacy command is underscore-delimited, but storage IDs may
         # themselves contain underscores.  The last three fields are always
         # numeric, so recover the storage from the middle rather than taking
@@ -479,7 +480,13 @@ def _action_from_command(entry: List[Any], text: str) -> Optional[Dict[str, Any]
             zoom = _to_float(parts[6], 1.0) if len(parts) > 6 else 1.0
         return make_action(
             action="bg_show",
-            params={"storage": storage, "x": x, "y": y, "zoom": zoom},
+            params={
+                "storage": storage,
+                "x": x,
+                "y": y,
+                "zoom": zoom,
+                "fade": _to_float(metadata.get("fade"), 0.0),
+            },
             animation=make_animation(on_advance=ON_ADVANCE_BLOCK),
         )
 
