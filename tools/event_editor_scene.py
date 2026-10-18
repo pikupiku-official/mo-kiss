@@ -1269,6 +1269,20 @@ class StepSceneCanvas(QGraphicsView):
     def fit_stage(self):
         self.fitInView(self.sceneRect(), Qt.KeepAspectRatio)
 
+    def drawForeground(self, painter, rect):
+        super().drawForeground(painter, rect)
+        # The stage edge must remain visible when a zoomed BG covers the
+        # original scene rectangle. Cosmetic pens keep it legible at any fit.
+        stage = QRectF(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2)
+        painter.save()
+        for color, width in ((QColor(0, 0, 0), 5), (QColor(255, 255, 255), 2)):
+            pen = QPen(color, width)
+            pen.setCosmetic(True)
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(stage)
+        painter.restore()
+
     def flush_pending_scale(self):
         """Commit only the last value from a burst of wheel input."""
         self._scale_commit_timer.stop()

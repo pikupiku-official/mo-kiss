@@ -25,6 +25,7 @@ import logging
 import subprocess
 import shutil
 import json
+import importlib.util
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
@@ -50,6 +51,21 @@ from PyQt5.QtGui import (
 # プロジェクトルートをパスに追加
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
+
+# The command-line formatter is also the canonical implementation used by
+# the editor button, so manual formatting and one-click formatting cannot
+# drift apart.
+_ks_formatter_path = os.path.join(
+    project_root, ".agents", "skills", "ks-script-format", "scripts", "format_ks.py"
+)
+_ks_formatter_spec = importlib.util.spec_from_file_location(
+    "ks_script_format", _ks_formatter_path
+)
+if _ks_formatter_spec is not None and _ks_formatter_spec.loader is not None:
+    _ks_formatter_module = importlib.util.module_from_spec(_ks_formatter_spec)
+    _ks_formatter_spec.loader.exec_module(_ks_formatter_module)
+else:
+    _ks_formatter_module = None
 
 # ログファイルの設定
 log_file = os.path.join(project_root, "debug/event_editor.log")
@@ -2577,6 +2593,7 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._direct_scene_edit = False
         self._direct_text_edit = False
         self._loading_custom_values = False
+        self._action_editor_dirty = False
         self._effect_clear_checkbox = None
         self._bgm_preview_manager = None
         self._se_preview_manager = None
@@ -2698,18 +2715,21 @@ class StepEditorDialog(Win2000FramelessDialog):
 
         self.scroll_checkbox = QCheckBox("scroll-stop")
         self.scroll_checkbox.setChecked(bool(self.step.get("has_scroll_stop")))
-        dialogue_layout.addRow(self.scroll_checkbox)
 
         self.female_checkbox = QCheckBox("female（話者名とセリフを桃色）")
         self.female_checkbox.setChecked(bool(self.step.get("force_female")))
-        dialogue_layout.addRow(self.female_checkbox)
 
         self.standalone_checkbox = QCheckBox("セリフなしの単独stepとして区切る")
         self.standalone_checkbox.setChecked(bool(self.step.get("standalone")))
         self.standalone_checkbox.setToolTip(
             "すべてのタグを、次のセリフへ結合せず1stepにできます"
         )
-        dialogue_layout.addRow(self.standalone_checkbox)
+        dialogue_options = QHBoxLayout()
+        dialogue_options.addWidget(self.scroll_checkbox)
+        dialogue_options.addWidget(self.female_checkbox)
+        dialogue_options.addWidget(self.standalone_checkbox)
+        dialogue_options.addStretch()
+        dialogue_layout.addRow(dialogue_options)
 
         self.memo_input = QLineEdit()
         self.memo_input.setText(self.step.get("memo", ""))
@@ -2798,7 +2818,10 @@ class StepEditorDialog(Win2000FramelessDialog):
         params_buttons = QHBoxLayout()
         self.param_add_btn = QPushButton("+ 行追加")
         self.param_remove_btn = QPushButton("削除")
-        self.apply_action_btn = QPushButton("選択中に適用")
+        self.apply_action_btn = QPushButton("適用（未選択なら追加）")
+        self.apply_action_btn.setToolTip(
+            "選択中のアクションに反映します。未選択なら新しいアクションとして追加します"
+        )
         params_buttons.addWidget(self.param_add_btn)
         params_buttons.addWidget(self.param_remove_btn)
         params_buttons.addWidget(self.apply_action_btn)
@@ -2854,9 +2877,13 @@ class StepEditorDialog(Win2000FramelessDialog):
         self.down_btn.clicked.connect(self._move_action_down)
         self.param_add_btn.clicked.connect(self._add_param_row)
         self.param_remove_btn.clicked.connect(self._remove_param_row)
-        self.apply_action_btn.clicked.connect(self._apply_action_editor)
+        self.apply_action_btn.clicked.connect(
+            lambda: self._apply_action_editor(force_add=True)
+        )
         self.actions_list.currentItemChanged.connect(self._on_action_selected)
         self.tag_combo.currentTextChanged.connect(self._apply_param_template)
+        self.tag_combo.currentTextChanged.connect(self._mark_action_editor_dirty)
+        self.params_table.itemChanged.connect(self._mark_action_editor_dirty)
         self.advanced_toggle.stateChanged.connect(self._on_advanced_toggle)
         self.preview_refresh_btn.clicked.connect(self._request_preview_update)
         self.prev_step_btn.clicked.connect(lambda: self._navigate_step(-1))
@@ -3283,6 +3310,11 @@ class StepEditorDialog(Win2000FramelessDialog):
 
     def _apply_current_step_to_parent(self):
         self.scene_canvas.flush_pending_scale()
+        # Apply pending action-pane edits as part of the step save.  If no
+        # action row exists yet, this creates one only when the pane was
+        # actually edited, so untouched empty steps stay empty.
+        if self._action_editor_dirty:
+            self._apply_action_editor()
         speaker, body, scroll_stop, force_female = self.get_dialogue_values()
         actions = self.get_actions()
         memo = self.get_memo()
@@ -4309,6 +4341,11 @@ class StepEditorDialog(Win2000FramelessDialog):
         self._execute_scene_context_command(command, object_name, metadata)
 
     def _add_action(self):
+        # Preserve edits made in the pane before inserting another row.  This
+        # covers the common case where the user starts editing first and only
+        # remembers the "+ 追加" button afterwards.
+        if self._action_editor_dirty:
+            self._apply_action_editor()
         tag = self.tag_combo.currentText().strip() or "bg"
         self.actions_list.addItem(self._make_action_item(tag))
         self.actions_list.setCurrentRow(self.actions_list.count() - 1)
@@ -4345,6 +4382,7 @@ class StepEditorDialog(Win2000FramelessDialog):
     def _on_action_selected(self, current, previous):
         if not current:
             return
+        self._action_editor_dirty = False
         tag, params = self._parse_action(self._action_item_source(current))
         if tag:
             # Changing the tag normally loads a fresh parameter template.  A
@@ -4416,9 +4454,14 @@ class StepEditorDialog(Win2000FramelessDialog):
                 params.append((key, value))
         return params
 
-    def _apply_action_editor(self):
+    def _mark_action_editor_dirty(self, *args):
+        if self._loading_step or self._loading_custom_values:
+            return
+        self._action_editor_dirty = True
+
+    def _apply_action_editor(self, force_add=False):
         current_row = self.actions_list.currentRow()
-        if current_row < 0:
+        if current_row < 0 and not (force_add or self._action_editor_dirty):
             return
         tag = self.tag_combo.currentText().strip()
         params = self._collect_editor_params(tag)
@@ -4450,11 +4493,17 @@ class StepEditorDialog(Win2000FramelessDialog):
                     and not str(materialized.get("effect") or "").strip()
                 ),
             )
-        self._set_action_item_source(self.actions_list.item(current_row), text)
+        if current_row < 0:
+            self.actions_list.addItem(self._make_action_item(text))
+            current_row = self.actions_list.count() - 1
+            self.actions_list.setCurrentRow(current_row)
+        else:
+            self._set_action_item_source(self.actions_list.item(current_row), text)
         if tag == "chara_shift":
             self._consolidate_chara_shifts(
                 dict(self._parse_action(text)[1]).get("name", "")
             )
+        self._action_editor_dirty = False
 
     def _schedule_preview_update(self, *args):
         if self._loading_step or self.preview_tabs.currentIndex() != 1:
@@ -5054,6 +5103,15 @@ class StepEditorDialog(Win2000FramelessDialog):
                 if field_type == "text" and key in ("x", "y", "size", "fade", "left", "top", "zoom", "time"):
                     field.setPlaceholderText("未指定" if tag == "chara_shift" else "数値")
             self.custom_fields[key] = field
+            # Remember edits made directly in the action pane.  The step's
+            # Save/Apply button can then commit them even when the user forgot
+            # to add an action row first.
+            if isinstance(field, QComboBox):
+                field.currentTextChanged.connect(self._mark_action_editor_dirty)
+            elif isinstance(field, QLineEdit):
+                field.textChanged.connect(self._mark_action_editor_dirty)
+            elif isinstance(field, QDoubleSpinBox):
+                field.valueChanged.connect(self._mark_action_editor_dirty)
             if field_type == "volume_slider":
                 wrapper = QWidget()
                 wrapper_layout = QHBoxLayout(wrapper)
@@ -5965,6 +6023,12 @@ class EventEditorGUI(Win2000FramelessMainWindow):
         dialogue_action.triggered.connect(self._insert_dialogue_template)
         toolbar.addAction(dialogue_action)
 
+        format_action = QAction("KS書式を整える", self)
+        format_action.setToolTip("話者を//...//で囲み、話者・台詞を1タブにそろえます")
+        format_action.setShortcut("Ctrl+Shift+F")
+        format_action.triggered.connect(self.format_current_ks)
+        toolbar.addAction(format_action)
+
         toolbar.addSeparator()
 
         self.current_paragraph_label = QLabel("現在: -")
@@ -6319,6 +6383,51 @@ class EventEditorGUI(Win2000FramelessMainWindow):
     def _has_unsaved_changes(self):
         """未保存の変更があるか判定"""
         return self.text_editor.document().isModified() or self.memos_modified
+
+    def format_current_ks(self):
+        """現在のKS本文を共通フォーマッタで整形する。"""
+        if _ks_formatter_module is None:
+            QMessageBox.critical(
+                self,
+                "エラー",
+                "KS書式フォーマッタを読み込めませんでした。",
+            )
+            return
+
+        before = self.text_editor.toPlainText()
+        after, inferred, ambiguous = _ks_formatter_module.transform(before)
+
+        if ambiguous:
+            details = "\n".join(
+                f"・{line_number}行目: {name}"
+                for line_number, name in ambiguous
+            )
+            QMessageBox.warning(
+                self,
+                "書式を確認してください",
+                "話者か場面見出しか判断できない行があるため、\n"
+                "その行は変更せず、他の明確な行だけ整形します。\n\n"
+                + details,
+            )
+
+        if after == before:
+            self.status_label.setText("書式は既に整っています")
+            self.status_label.setStyleSheet("color: green;")
+            return
+
+        self.text_editor.blockSignals(True)
+        try:
+            self.text_editor.setPlainText(after)
+        finally:
+            self.text_editor.blockSignals(False)
+        self.text_editor.document().setModified(True)
+        self.update_step_highlights()
+        self._schedule_realtime_save()
+
+        inferred_count = len(inferred)
+        suffix = f"（話者候補 {inferred_count} 行を確定）" if inferred_count else ""
+        self.status_label.setText(f"KS書式を整えました{suffix}")
+        self.status_label.setStyleSheet("color: green;")
 
     def _restore_file_list_selection(self):
         """ファイルリストの選択を現在ファイルに戻す"""
