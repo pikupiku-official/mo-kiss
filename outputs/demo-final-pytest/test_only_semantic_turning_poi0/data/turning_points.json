@@ -1,0 +1,1 @@
+{"schema_version": 1, "turning_points": [{"id": "TP1"}, {"id": "RULE_TP", "accepted_answers": ["答え"]}, {"id": "SEMANTIC_TP", "semantic_judge": {"enabled": true}}]}

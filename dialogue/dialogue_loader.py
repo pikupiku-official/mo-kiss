@@ -1,6 +1,7 @@
 import re
 import os
 import asyncio
+from core.path_utils import get_current_state_dir, get_story_flags_path
 from concurrent.futures import ThreadPoolExecutor
 from core.services.bgm_manager import BGMManager
 from core.config import *
@@ -1320,7 +1321,7 @@ class DialogueLoader:
     def load_story_flags(self):
         """ストーリーフラグを読み込み"""
         import json
-        flags_file = os.path.join("events", "story_flags.json")
+        flags_file = get_story_flags_path()
         
         try:
             if os.path.exists(flags_file):
@@ -1340,11 +1341,11 @@ class DialogueLoader:
     def save_story_flags(self):
         """ストーリーフラグを保存"""
         import json
-        flags_file = os.path.join("events", "story_flags.json")
+        flags_file = get_story_flags_path()
         
         try:
             # eventsディレクトリが存在しない場合は作成
-            os.makedirs("events", exist_ok=True)
+            os.makedirs(os.path.dirname(flags_file), exist_ok=True)
             
             with open(flags_file, 'w', encoding='utf-8') as f:
                 json.dump(self.story_flags, f, ensure_ascii=False, indent=2)
@@ -1357,11 +1358,11 @@ class DialogueLoader:
     async def save_story_flags_async(self):
         """ストーリーフラグを非同期で保存"""
         import json
-        flags_file = os.path.join("events", "story_flags.json")
+        flags_file = get_story_flags_path()
         
         try:
             # eventsディレクトリが存在しない場合は作成
-            await asyncio.to_thread(os.makedirs, "events", exist_ok=True)
+            await asyncio.to_thread(os.makedirs, os.path.dirname(flags_file), exist_ok=True)
             
             # JSON文字列作成を別スレッドで実行
             json_content = await asyncio.to_thread(
@@ -1499,7 +1500,7 @@ class DialogueLoader:
             import csv
             # 静的DBは読み込み専用、動的データはcompleted_events.csvに書き込み
             events_csv_path = os.path.join("events", "events.csv")
-            completed_csv_path = os.path.join("data", "current_state", "completed_events.csv")
+            completed_csv_path = os.path.join(get_current_state_dir(), "completed_events.csv")
             
             if not os.path.exists(completed_csv_path):
                 print(f"❌ completed_events.csvが見つかりません: {completed_csv_path}")
@@ -1590,7 +1591,7 @@ class DialogueLoader:
     def update_completed_events_flags(self, unlock_events=[], lock_events=[]):
         """completed_events.csvの有効フラグを動的に更新（events.csvは読み込み専用）"""
         import csv
-        completed_csv_path = os.path.join("data", "current_state", "completed_events.csv")
+        completed_csv_path = os.path.join(get_current_state_dir(), "completed_events.csv")
         
         try:
             # completed_events.csvを読み込み

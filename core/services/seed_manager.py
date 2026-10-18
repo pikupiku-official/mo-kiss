@@ -11,7 +11,7 @@ import unicodedata
 from copy import deepcopy
 from typing import Any
 
-from core.path_utils import get_project_root
+from core.path_utils import get_project_root, get_current_state_dir
 
 
 EMPTY_SEED_STATE = {
@@ -36,7 +36,7 @@ class SeedManager:
             self.project_root, "data", "turning_points.json"
         )
         self.state_path = os.path.join(
-            self.project_root, "data", "current_state", "seed_state.json"
+            get_current_state_dir(self.project_root), "seed_state.json"
         )
         self.catalog = self._load_json(
             self.catalog_path, {"schema_version": 1, "seeds": []}

@@ -1,6 +1,7 @@
 **/__pycache__/**
 event_editor.log
 debug/
+.venv-gd/
 
 # デプロイ認証情報（絶対コミット不可）
 tools/dev/*/api_config.php

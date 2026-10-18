@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime, timedelta
+from core.path_utils import get_current_state_dir
 
 
 WEEKDAY_NAMES = ["月", "火", "水", "木", "金", "土", "日"]
@@ -42,7 +43,7 @@ class TimeManager:
     
     def __init__(self, debug=False):
         self.debug = debug
-        self.data_file = os.path.join("data", "current_state", "time_state.json")
+        self.data_file = os.path.join(get_current_state_dir(), "time_state.json")
         
         # 時間帯の定義
         self.time_periods = ["朝", "昼", "放課後", "夜"]

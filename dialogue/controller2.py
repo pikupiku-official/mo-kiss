@@ -551,11 +551,18 @@ def _submit_seed_answer(game_state, answer_text):
     scroll_manager = getattr(text_renderer, "scroll_manager", None)
     if scroll_manager is not None:
         scroll_manager.process_scroll_stop_command()
-    text_renderer.set_dialogue(answer_text, "{苗字}")
+    definition = getattr(seed_manager, "turning_points", {}).get(turning_point_id, {})
+    echo = definition.get("answer_echo", {})
+    echo_text = str(echo.get(result, "{answer}")).replace("{answer}", answer_text)
+    text_renderer.set_dialogue(echo_text, echo.get("speaker", "{苗字}"))
     print(f"[SEED] 推理判定: {turning_point_id} -> {result}")
 
 def advance_to_next_dialogue(game_state):
     """次の対話に進む"""
+    # The answer overlay owns this step until submission. Auto/skip and a
+    # finishing animation must not evaluate the result branches beforehand.
+    if game_state.get("seed_answer_overlay") is not None:
+        return True
     if DEBUG:
         print(f"[ADVANCE] advance_to_next_dialogue呼び出し: current={game_state['current_paragraph']}, total={len(game_state['dialogue_data'])}")
     

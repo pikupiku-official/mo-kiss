@@ -1860,6 +1860,15 @@ def _handle_seed_answer(game_state, command_data, initial_text=""):
     from .seed_answer_overlay import SeedAnswerOverlay
 
     text_renderer = game_state['text_renderer']
+    # Free-text input is an interactive stop. Do not carry auto/skip through
+    # the question and immediately consume the authored response afterwards.
+    if getattr(text_renderer, 'auto_mode', False):
+        text_renderer.auto_mode = False
+    if getattr(text_renderer, 'skip_mode', False):
+        text_renderer.skip_mode = False
+    reset_auto_timer = getattr(text_renderer, 'reset_auto_timer', None)
+    if callable(reset_auto_timer):
+        reset_auto_timer()
     scroll_manager = getattr(text_renderer, 'scroll_manager', None)
     if scroll_manager is not None:
         scroll_manager.process_scroll_stop_command()

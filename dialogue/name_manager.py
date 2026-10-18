@@ -1,6 +1,7 @@
 import os
 import json
 import re
+from core.path_utils import get_current_state_dir
 
 class NameManager:
     """名前データの管理とテキスト内の変数置換を行うクラス"""
@@ -8,7 +9,7 @@ class NameManager:
     def __init__(self):
         self.surname = ""
         self.name = ""
-        self.data_file = os.path.join("data", "current_state", "player_name.json")
+        self.data_file = os.path.join(get_current_state_dir(), "player_name.json")
         self.dialogue_loader = None  # あとで設定
         self.load_names()
     

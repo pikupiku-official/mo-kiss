@@ -13,6 +13,13 @@ import json
 import copy
 import traceback
 
+# Load the native inference DLLs on the main thread before Qt/media workers.
+# Missing semantic dependencies still use the normal retryable error path.
+try:
+    import onnxruntime
+except ImportError:
+    pass
+
 # tools/ の親ディレクトリ（プロジェクトルート）を sys.path に追加
 # こうしないと `from core.config import *` 等が tools/ を基準に探してしまい失敗する
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -53,6 +60,46 @@ from dialogue.render_monitor import (
     trace_enabled,
     trace_event,
 )
+
+
+def configure_seed_preview(game_state, ks_file_path):
+    """Connect free-text input while keeping preview progress in memory."""
+    from core.services.seed_manager import SeedManager
+    from dialogue.seed_list_overlay import SeedListOverlay
+
+    manager = SeedManager()
+    manager.save = lambda: None
+    loader = game_state['dialogue_loader']
+    loader.save_story_flags = lambda: None
+    event_id = os.path.splitext(os.path.basename(ks_file_path))[0]
+    manager.begin_event(event_id)
+    game_state['seed_manager'] = manager
+    game_state['current_event_id'] = event_id
+    renderer = game_state['text_renderer']
+    renderer.configure_seed_context(manager, event_id, loader.seed_annotations)
+    game_state['seed_list_overlay'] = SeedListOverlay(
+        game_state['screen'], manager, renderer,
+    )
+    if any(isinstance(item, dict) and item.get('type') == 'seed_answer'
+           and manager.requires_semantic_judge(item.get('turning_point_id', ''))
+           for item in game_state['dialogue_data']):
+        manager.preload_answer_model()
+
+
+def draw_seed_preview(game_state):
+    """Draw the same input/list overlays as the game dialogue subsystem."""
+    overlay = game_state.get('seed_answer_overlay')
+    active = overlay is not None and not overlay.suspended
+    if active:
+        game_state['text_renderer'].render_date()
+        overlay.render()
+    elif not game_state['choice_renderer'].is_showing_choices:
+        game_state['text_renderer'].render()
+    else:
+        game_state['text_renderer'].render_date()
+    seed_list = game_state.get('seed_list_overlay')
+    if seed_list is not None:
+        seed_list.render()
 
 
 def _preview_trace_state(game_state):
@@ -718,6 +765,7 @@ def preview_ks_file(ks_file_path, start_step=1):
             },
         }
 
+        configure_seed_preview(game_state, ks_file_path)
         print("[INIT] ゲーム状態初期化完了")
 
     except Exception as e:
@@ -926,10 +974,7 @@ def preview_ks_file(ks_file_path, start_step=1):
 
         # テキスト描画（選択肢表示中はトーク文を非表示にし、日付時刻のみ表示）
         if game_state.get('show_text', True):
-            if not choice_renderer.is_showing_choices:
-                text_renderer.render()
-            else:
-                text_renderer.render_date()
+            draw_seed_preview(game_state)
 
         # 選択肢描画
         choice_renderer.render()
@@ -1015,6 +1060,10 @@ def preview_ks_file(ks_file_path, start_step=1):
                 )
             running = False
 
+    overlay = game_state.get('seed_answer_overlay')
+    if overlay is not None:
+        overlay.close()
+    bgm_manager.cleanup()
     pygame.quit()
     print("プレビュー終了")
     return True

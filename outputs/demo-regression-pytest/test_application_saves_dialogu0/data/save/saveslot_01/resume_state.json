@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "mode": "dialogue",
+  "dialogue": {
+    "event_file": "events/E001.ks",
+    "event_id": "E001",
+    "paragraph_index": 7
+  },
+  "completion": null
+}

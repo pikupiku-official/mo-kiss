@@ -270,8 +270,8 @@ class DialogueSubsystem(SubsystemBase):
         """現在の段落インデックスを dialogue_state.json に書き込む（Task 2c）"""
         try:
             import json
-            from core.path_utils import get_project_root
-            state_path = os.path.join(get_project_root(), "data", "current_state", "dialogue_state.json")
+            from core.path_utils import get_current_state_dir
+            state_path = os.path.join(get_current_state_dir(), "dialogue_state.json")
             state = {
                 "event_id": self.current_event_id,
                 "paragraph_index": paragraph_index

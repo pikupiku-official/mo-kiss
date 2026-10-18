@@ -4,7 +4,7 @@ import json
 import csv
 from datetime import datetime
 from typing import Any, List, Dict, Optional
-from core.path_utils import get_project_root
+from core.path_utils import get_project_root, get_current_state_dir
 from core.services.time_manager import to_zenkaku
 
 class SaveManager:
@@ -12,8 +12,11 @@ class SaveManager:
     
     def __init__(self, project_root: str = None):
         self.project_root = project_root or get_project_root()
-        self.current_state_dir = os.path.join(self.project_root, "data", "current_state")
-        self.save_dir = os.path.join(self.project_root, "data", "save")
+        self.current_state_dir = get_current_state_dir(self.project_root)
+        self.save_dir = os.path.join(
+            os.environ.get("MOKISS_PROFILE_ROOT") or os.path.join(self.project_root, "data"),
+            "save",
+        )
         self.templates_dir = os.path.join(self.project_root, "data", "templates")
         
         # 状態ファイルの定義

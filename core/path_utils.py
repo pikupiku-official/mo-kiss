@@ -9,6 +9,20 @@ import os
 import sys
 
 
+def get_current_state_dir(project_root=None):
+    """Separate launch profiles can share assets without sharing progress."""
+    profile = os.environ.get("MOKISS_PROFILE_ROOT")
+    if profile:
+        return os.path.join(os.path.abspath(profile), "current_state")
+    return os.path.join(project_root or get_project_root(), "data", "current_state")
+
+
+def get_story_flags_path():
+    if os.environ.get("MOKISS_PROFILE_ROOT"):
+        return os.path.join(get_current_state_dir(), "story_flags.json")
+    return os.path.join("events", "story_flags.json")
+
+
 def get_project_root():
     """
     プロジェクトルートディレクトリを取得

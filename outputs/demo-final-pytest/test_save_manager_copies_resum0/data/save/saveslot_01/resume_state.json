@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "mode": "dialogue",
+  "dialogue": {
+    "event_id": "E001"
+  }
+}

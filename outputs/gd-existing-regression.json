@@ -1,0 +1,15 @@
+{
+  "definition_unchanged": true,
+  "answer": "増田は真性包茎なんだ",
+  "baseline_verdict": {
+    "result": "incorrect",
+    "confidence": 0.9941196441650391,
+    "judge_version": "ruri-v3-30m-int8-5c329c35-e28677d13ff1",
+    "reason_codes": [
+      "hard_negative_match"
+    ],
+    "semantic_score": 1.0,
+    "hard_negative_score": 0.9941196441650391,
+    "semantic_margin": 0.0058803558349609375
+  }
+}

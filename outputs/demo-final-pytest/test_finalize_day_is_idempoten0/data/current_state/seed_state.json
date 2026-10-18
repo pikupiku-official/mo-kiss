@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "acquired": {
+    "S1": {
+      "source_event_id": "E",
+      "acquired_game_date": "1999-06-01",
+      "journaled_game_date": "1999-06-01"
+    },
+    "S2": {
+      "source_event_id": "E",
+      "acquired_game_date": "1999-06-01",
+      "journaled_game_date": "1999-06-01"
+    }
+  },
+  "journal_days": [
+    {
+      "game_date": "1999-06-01",
+      "seed_ids": [
+        "S1",
+        "S2"
+      ]
+    }
+  ],
+  "turning_point_results": {}
+}

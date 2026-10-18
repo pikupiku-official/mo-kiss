@@ -1,0 +1,480 @@
+{
+  "turning_point_id": "MOMOKO_GD_MONEY",
+  "total": 33,
+  "passed": 31,
+  "rows": [
+    {
+      "split": "validation",
+      "answer": "今月ちょっとピンチなんじゃない？",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9541214108467102,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9541214108467102,
+      "hard_negative_score": 0.9498691558837891,
+      "semantic_margin": 0.004252254962921143
+    },
+    {
+      "split": "validation",
+      "answer": "桃子、今は手持ちが少ないんだろ",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9701339602470398,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9701339602470398,
+      "hard_negative_score": 0.9595171213150024,
+      "semantic_margin": 0.010616838932037354
+    },
+    {
+      "split": "validation",
+      "answer": "お土産を買い込んで財布に余裕がなくなった",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9719964861869812,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9719964861869812,
+      "hard_negative_score": 0.9492343068122864,
+      "semantic_margin": 0.022762179374694824
+    },
+    {
+      "split": "validation",
+      "answer": "妹のお祝いに奮発してしまったから",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9696919918060303,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9696919918060303,
+      "hard_negative_score": 0.9448204040527344,
+      "semantic_margin": 0.0248715877532959
+    },
+    {
+      "split": "validation",
+      "answer": "今月分のおこづかいがもう底をついている",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9559239149093628,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9559239149093628,
+      "hard_negative_score": 0.947456955909729,
+      "semantic_margin": 0.008466958999633789
+    },
+    {
+      "split": "validation",
+      "answer": "旅行で散財して遊ぶ予算がないんだ",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9758574962615967,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9758574962615967,
+      "hard_negative_score": 0.9511145353317261,
+      "semantic_margin": 0.024742960929870605
+    },
+    {
+      "split": "validation",
+      "answer": "舞浜までの電車賃や入場料を出せそうにない",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9738932251930237,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9738932251930237,
+      "hard_negative_score": 0.9421643018722534,
+      "semantic_margin": 0.031728923320770264
+    },
+    {
+      "split": "validation",
+      "answer": "お金が足りなくて誘いに乗れない",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.970109760761261,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.970109760761261,
+      "hard_negative_score": 0.9591342210769653,
+      "semantic_margin": 0.010975539684295654
+    },
+    {
+      "split": "validation",
+      "answer": "金欠かもしれないね",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9711796045303345,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9711796045303345,
+      "hard_negative_score": 0.9637268781661987,
+      "semantic_margin": 0.007452726364135742
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は妹にワンピースを買って出費がかさんだ",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.976596474647522,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.976596474647522,
+      "hard_negative_score": 0.9702819585800171,
+      "semantic_margin": 0.006314516067504883
+    },
+    {
+      "split": "validation",
+      "answer": "お金使いすぎちゃったんだな",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9697191715240479,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9697191715240479,
+      "hard_negative_score": 0.9534258842468262,
+      "semantic_margin": 0.01629328727722168
+    },
+    {
+      "split": "validation",
+      "answer": "今は懐に余裕がないということだろう",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9602518081665039,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9602518081665039,
+      "hard_negative_score": 0.9511630535125732,
+      "semantic_margin": 0.009088754653930664
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は今月、お金がないのでは？",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9877842664718628,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9877842664718628,
+      "hard_negative_score": 0.9761476516723633,
+      "semantic_margin": 0.011636614799499512
+    },
+    {
+      "split": "validation",
+      "answer": "小遣いが残ってないからだと思う",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9698596000671387,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9698596000671387,
+      "hard_negative_score": 0.9460024833679199,
+      "semantic_margin": 0.02385711669921875
+    },
+    {
+      "split": "validation",
+      "answer": "旅行のお土産にお小遣いをつぎ込んだから",
+      "expected": "correct",
+      "passed": true,
+      "result": "correct",
+      "confidence": 0.9753551483154297,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9753551483154297,
+      "hard_negative_score": 0.9423240423202515,
+      "semantic_margin": 0.03303110599517822
+    },
+    {
+      "split": "validation",
+      "answer": "桃子はギャンブルで金欠になった",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は借りた金を返して金欠だ",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "お金がないうえにディズニーが苦手だから",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子はディズニー嫌いだけど金欠でもある",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "お金がないのは増田の方だ",
+      "expected": "incorrect",
+      "passed": false,
+      "result": "correct",
+      "confidence": 0.9709755778312683,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9709755778312683,
+      "hard_negative_score": 0.9670178890228271,
+      "semantic_margin": 0.003957688808441162
+    },
+    {
+      "split": "validation",
+      "answer": "杏は旅行でお金を使いすぎた",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は病気でお金がない",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子はお金を盗まれて金欠になった",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は純一と会いたくないから金欠を理由にしている",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子の家族が貧乏だから払えない",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は金欠じゃないよ",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "お金はたくさんあるけど気乗りしない",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 1.0,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "reject_pattern_match"
+      ],
+      "semantic_score": 0.0
+    },
+    {
+      "split": "validation",
+      "answer": "家族旅行で体調を崩して行けない",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 0.9643550515174866,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "hard_negative_nearer"
+      ],
+      "semantic_score": 0.962523341178894,
+      "hard_negative_score": 0.9643550515174866,
+      "semantic_margin": -0.0018317103385925293
+    },
+    {
+      "split": "validation",
+      "answer": "妹の入学式と予定が重なるから",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 0.9695985317230225,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "hard_negative_nearer"
+      ],
+      "semantic_score": 0.9451354742050171,
+      "hard_negative_score": 0.9695985317230225,
+      "semantic_margin": -0.02446305751800537
+    },
+    {
+      "split": "validation",
+      "answer": "桃子は家族とまた旅行したい",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 0.9677350521087646,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "hard_negative_nearer"
+      ],
+      "semantic_score": 0.9444970488548279,
+      "hard_negative_score": 0.9677350521087646,
+      "semantic_margin": -0.023238003253936768
+    },
+    {
+      "split": "validation",
+      "answer": "三人で行くのが嫌なのだろう",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 0.9532927870750427,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "hard_negative_nearer"
+      ],
+      "semantic_score": 0.9483657479286194,
+      "hard_negative_score": 0.9532927870750427,
+      "semantic_margin": -0.00492703914642334
+    },
+    {
+      "split": "validation",
+      "answer": "ディズニーは遠すぎる",
+      "expected": "incorrect",
+      "passed": true,
+      "result": "incorrect",
+      "confidence": 0.9619991779327393,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "hard_negative_nearer"
+      ],
+      "semantic_score": 0.9561107754707336,
+      "hard_negative_score": 0.9619991779327393,
+      "semantic_margin": -0.005888402462005615
+    },
+    {
+      "split": "validation",
+      "answer": "ワンピースを贈ったことを後悔している",
+      "expected": "incorrect",
+      "passed": false,
+      "result": "correct",
+      "confidence": 0.9588723182678223,
+      "judge_version": "ruri-v3-30m-int8-5c329c35-d8b7bef4b459",
+      "reason_codes": [
+        "semantic_match"
+      ],
+      "semantic_score": 0.9588723182678223,
+      "hard_negative_score": 0.9557700753211975,
+      "semantic_margin": 0.003102242946624756
+    }
+  ]
+}

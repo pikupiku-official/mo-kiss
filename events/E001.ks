@@ -1,3 +1,4 @@
+//名前//
 *start
 ;@expression-status: human_confirmed
 
@@ -140,6 +141,7 @@
 [chara_show name="桃子" torso="MMK_T00_ARM12_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0"]
 [bgmend time="1.0"]
 [fadein time="1.0"]
+[chara_shift name="桃子" torso="MMK_T03_ARM05_CLO00" eye="MMK_F03_EYE01_01" mouth="MMK_F03_MOU04_02" brow="MMK_F03_BRO01_00" cheek="MMK_F03_CHE01_00" effect="MMK_E03_01" fade="0.15"]
 //？？//
 「つ、疲れたあ・・・いったん休憩・・・」[female]
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" effect="" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0.15"]
@@ -187,7 +189,7 @@
 [chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0011" mouth="MST_F00_MOU_0011" brow="MST_F00_BRO_0004" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「桃子ん家は相変わらず仲良しだよな。」
-[chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU11_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T03_ARM00_CLO00" eye="MMK_F03_EYE00_00" mouth="MMK_F03_MOU00_02" brow="MMK_F03_BRO01_00" cheek="MMK_F03_CHE01_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「えへへ…」
 [se se="二人の歩く足音補装.mp3" volume="0.5" frequency="1" block="false"]
