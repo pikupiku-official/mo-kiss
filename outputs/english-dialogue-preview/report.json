@@ -1,0 +1,69 @@
+{
+  "english_font": "Tinos-Regular.ttf",
+  "english_font_size": 40,
+  "dialogue_position": [
+    298,
+    798
+  ],
+  "max_rows": 3,
+  "char_delay_ms": 53,
+  "line_width_px": 940,
+  "english": [
+    {
+      "text": "The rain had finally stopped, but the street was still empty.",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 1
+    },
+    {
+      "text": "I could hear footsteps behind me, slow and steady. \"Did",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 63
+    },
+    {
+      "text": "you find the [seed id=\"LETTER\"]blue envelope[/seed]?\" she asked. Dr. Smith had left",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 119
+    },
+    {
+      "text": "at 3.14, and nobody had seen him since. I looked back at",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 178
+    },
+    {
+      "text": "the house. A single light was still burning in the window.",
+      "width": 909,
+      "justified": false,
+      "paragraph_last": true,
+      "activation": 235
+    }
+  ],
+  "mixed": [
+    {
+      "text": "彼は Good morning と言っ",
+      "english": false,
+      "justified": false
+    },
+    {
+      "text": "て、{封筒|ふうとう}を指した。中には [seed id=\"KEY\"]small[/seed]",
+      "english": false,
+      "justified": false
+    },
+    {
+      "text": "[seed id=\"KEY\"]key[/seed] が入っていた。",
+      "english": false,
+      "justified": false
+    }
+  ],
+  "presentation": [
+    640,
+    480
+  ]
+}

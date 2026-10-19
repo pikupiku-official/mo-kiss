@@ -114,6 +114,15 @@ class BacklogManager:
     def _history_rows(self):
         rows = []
         for entry in self._visible_entries:
+            get_layout = getattr(self.text_renderer, "_get_text_layout", None)
+            text_layout = get_layout(entry.get("text", "")) if get_layout else None
+            if text_layout is not None:
+                for index, line in enumerate(text_layout.lines):
+                    rows.append({
+                        "entry": entry, "line": line.markup,
+                        "layout_line": line, "show_speaker": index == 0,
+                    })
+                continue
             lines = self._entry_rows(entry)
             for index, line in enumerate(lines):
                 rows.append(
@@ -546,14 +555,19 @@ class BacklogManager:
                         name_surface,
                         (int(round(renderer.name_start_x)), int(round(y))),
                     )
-                text_surface = renderer._render_stable_text_line(
-                    item["line"], text_color
-                )
+                if "layout_line" in item:
+                    text_surface = renderer._render_layout_line(item["layout_line"], text_color)
+                    render_margin = renderer._layout_line_render_padding(item["layout_line"])
+                else:
+                    render_margin = 0
+                    text_surface = renderer._render_stable_text_line(
+                        item["line"], text_color
+                    )
                 self.screen.blit(
                     text_surface,
                     (
-                        int(round(renderer.text_start_x)),
-                        int(round(y)) - renderer.ruby_h,
+                        int(round(renderer.text_start_x)) - render_margin,
+                        int(round(y)) - renderer.ruby_h - render_margin,
                     ),
                 )
         finally:

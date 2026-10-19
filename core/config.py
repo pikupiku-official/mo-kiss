@@ -182,6 +182,8 @@ TEXT_PARAGRAPH_TRANSITION_DELAY = 1000  # 段落切り替え遅延時間（ミ�
 FONT_NAME_SIZE = 40    # 名前フォントサイズ（ピクセル）
 FONT_TEXT_SIZE = 40    # テキストフォントサイズ（ピクセル）
 FONT_DEFAULT_SIZE = 26  # デフォルトフォントサイズ（ピクセル）
+ENGLISH_FONT_FILENAME = "MPLUSRounded1c-Medium.ttf"
+ENGLISH_FONT_SIZE = FONT_TEXT_SIZE  # Fixed size; long dialogue wraps instead of shrinking.
 
 # テキスト間隔調整設定
 TEXT_LINE_HEIGHT_MULTIPLIER = 1.1   # 行間の倍率（1.0 = デフォルト）

@@ -47,7 +47,7 @@
 	「これに関連して今回授業で皆さんに見てもらった、『映像の世紀　第7集　勝者の世界分割　〜東西の冷戦はヤルタ会談から始まった〜』の中で、あなたが思ったことを自由に書いてください」
 	[scroll-stop]
 	「＜課題提出日＞」
-	「1999年6月某日」
+	「1999年6月1日」
 	[scroll-stop]
 	「＜氏名＞」
 	「橘純一」
@@ -119,13 +119,12 @@
 	「・・・」
 	「（これってもしかして彗星？）」
 	「（見出しだけでも読んでみるか。）」
+[bg_show storage="彗星接近" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	「Comet Approach: Uncertain Orbital Trajectory」
-	「Preliminary CCD astrometry indicates a 30% probability」
-	「of a comet approaching within 400,000 km」
-	「of Earth in the coming months.」
-	「An independent impact-risk model estimates a 5% chance」
-	「of ground damage,though NASA's JPL warns of significant」
-	「uncertainties in the orbital elements.」
+	「Preliminary CCD astrometry indicates a 30% probability」 
+	「of a comet approaching within 400,000 km of Earth in the coming months.」
+	「An independent impact-risk model estimates a 5% chance of ground damage,」
+	「though NASA's JPL warns of significant uncertainties in the orbital elements.」
 	「えーと・・・」
 	「（彗星の接近・・・軌道が不確か・・・？）」
 	「（数ヶ月以内に地球に接近する確率が30パーセント。5%の確率で・・・地上に被害が出る可能性・・・）」

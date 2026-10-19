@@ -1,5 +1,6 @@
 ﻿import pygame
 from core.config import *
+from collections import OrderedDict
 from .scroll_manager import ScrollManager
 from .name_manager import get_name_manager
 from .date_manager import get_current_game_date
@@ -11,9 +12,19 @@ from .inline_markup import (
     build_display_string, total_base_chars, get_logical_char,
 )
 import os
+from .text_layout import (
+    LayoutLine, base_characters, build_layout, contains_latin, english_only,
+    sentence_pause_after,
+)
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication
 from core.path_utils import get_font_path
+
+
+def _font_stretch_factor():
+    """Use the same horizontal scaling for layout and glyph processing."""
+    return (float(FONT_EFFECTS.get("stretch_factor", 1.25))
+            if FONT_EFFECTS.get("enable_stretched", False) else 1.0)
 
 
 def select_current_line_set(lines, max_lines):
@@ -44,7 +55,7 @@ ADVANCE_INDICATOR_FONT_RATIO = 0.70
 ADVANCE_INDICATOR_GAP_EM = 0.20
 ADVANCE_INDICATOR_BLINK_INTERVAL_MS = 500
 
-def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int):
+def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_width: int, y=0):
     """ルビ文字列を span_width 内に両端揃えで blit する。
     1文字のときは中央揃え。ルビ幅がスパン幅を超える場合は左詰め。"""
     chars = list(ruby_text)
@@ -55,14 +66,14 @@ def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_w
     if n == 1:
         # 1文字は中央揃え
         rx = grid_x + (span_width - surfs[0].get_width()) // 2
-        surface.blit(surfs[0], (rx, 0))
+        surface.blit(surfs[0], (rx, y))
         return
 
     if total_w >= span_width:
         # ルビがスパンより広い場合は左詰め
         rx = float(grid_x)
         for s in surfs:
-            surface.blit(s, (int(rx), 0))
+            surface.blit(s, (int(rx), y))
             rx += s.get_width()
         return
 
@@ -70,7 +81,7 @@ def _blit_ruby_justified(surface, ruby_text: str, render_fn, grid_x: int, span_w
     gap = (span_width - total_w) / (n - 1)
     rx = float(grid_x)
     for s in surfs:
-        surface.blit(s, (int(rx), 0))
+        surface.blit(s, (int(rx), y))
         rx += s.get_width() + gap
 
 class TextRenderer:
@@ -135,6 +146,10 @@ class TextRenderer:
             "name": self.fonts["name_pygame"],
             "ruby": self.fonts["ruby_pygame"],
         }
+        self.english_font = pygame.font.Font(
+            get_font_path(ENGLISH_FONT_FILENAME), ENGLISH_FONT_SIZE
+        )
+        self._layout_cache = OrderedDict()
 
         # ルビ領域の高さを事前計算
         _base_h = self.fonts["text_pygame"].get_height()
@@ -183,8 +198,146 @@ class TextRenderer:
         self.name_manager = get_name_manager()
 
     def _wrap_text(self, text):
-        """テキストをn文字で自動改行する（ルビ・傍点マークアップ対応）"""
+        """Wrap the full dialogue, keeping Latin words together."""
+        layout = self._get_text_layout(text)
+        if layout is not None:
+            return [line.markup for line in layout.lines]
         return wrap_markup_text(text, self.max_chars_per_line)
+
+    def _get_text_layout(self, text):
+        """Keep pure Japanese on its existing renderer; cache Latin layouts."""
+        font = getattr(self, "english_font", None)
+        if font is None or not text:
+            return None
+        grid_width = self.text_grid_width()
+        stretch_factor = _font_stretch_factor()
+        char_spacing = self.char_spacing
+        key = (text, self.max_chars_per_line, grid_width, id(font), stretch_factor,
+               char_spacing)
+        cache = getattr(self, "_layout_cache", None)
+        if cache is None:
+            cache = self._layout_cache = OrderedDict()
+        if key in cache:
+            cache.move_to_end(key)
+            return cache[key]
+        if not contains_latin(text):
+            return None
+        english = english_only(base_characters(text))
+        if english:
+            english = all(c.char.isspace() or font.metrics(c.char)[0] is not None
+                          for c in base_characters(text))
+        if english:
+            def measure(value):
+                width = int(round(font.size(value.replace("\t", "    "))[0]
+                                  * stretch_factor))
+                # Add tracking only between characters. Isolated glyph widths
+                # still describe the processed body, keeping the final edge,
+                # seed hitboxes and advance marker on the same coordinates.
+                return width + max(0, len(value) - 1) * char_spacing
+        else:
+            measure = lambda value: len(value) * grid_width
+        layout = build_layout(text, grid_width * self.max_chars_per_line,
+                              measure, english=english)
+        cache[key] = layout
+        if len(cache) > 512:
+            cache.popitem(last=False)
+        return layout
+
+    def _layout_glyph_padding(self):
+        """Let the resampling filter extend outside a glyph's advance box."""
+        factor = (max(1, int(FONT_EFFECTS.get("pixelate_factor", 2)))
+                  if FONT_EFFECTS.get("enable_pixelated", False) else 1)
+        return factor * 2
+
+    def _layout_line_render_padding(self, line):
+        """Drawing overflow is independent of wrapping and hit-test widths."""
+        if not isinstance(line, LayoutLine) or not line.english:
+            return 0
+        padding = self._layout_glyph_padding()
+        return max(padding, int(round(padding * _font_stretch_factor()))) + 8
+
+    def _render_layout_line(self, line, color, visible_chars=None):
+        """Reveal characters at their final coordinates, without rewrapping."""
+        count = line.end if visible_chars is None else visible_chars
+        if not line.english:
+            # Preserve the existing font, grid, ruby/boten and seed drawing.
+            tokens = parse_inline_markup(line.markup)
+            visible = build_display_string(tokens, max(0, count - line.start))
+            return self._render_stable_text_line(visible, color)
+
+        font = self.english_font
+        baseline_offset = self.pygame_fonts["text"].get_ascent() - font.get_ascent()
+        height = max(self.pygame_fonts["text"].get_height(),
+                     baseline_offset + font.get_height()) + self.ruby_h + 10
+        width = max([line.width] + [g.x + g.width for g in line.glyphs]) + 8
+        margin = self._layout_line_render_padding(line)
+        source_padding = self._layout_glyph_padding()
+        padding_x = int(round(source_padding * _font_stretch_factor()))
+        surface = pygame.Surface((max(1, width) + margin * 2,
+                                  max(1, height) + margin * 2), pygame.SRCALPHA)
+        foreground = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        for glyph in line.glyphs:
+            char = glyph.source
+            if char.index >= count:
+                continue
+            seed_enabled = char.seed_id and self._seed_enabled(char.seed_id)
+            glyph_color = color
+            if seed_enabled:
+                glyph_color = (SEED_TEXT_HOVER_COLOR if char.seed_id == self.hovered_seed_id
+                               else SEED_TEXT_COLOR)
+            if not char.char.isspace():
+                outline, body, border = self._render_outline_layers(
+                    font, char.char, glyph_color, source_padding=source_padding)
+                x = margin + glyph.x - padding_x
+                y = margin + self.ruby_h + baseline_offset - source_padding
+                surface.blit(outline, (x, y))
+                foreground.blit(body, (x + border, y + border))
+            if seed_enabled:
+                y = self.ruby_h + baseline_offset + font.get_height() - 2
+                pygame.draw.line(foreground, glyph_color, (margin + glyph.x, margin + y),
+                                 (margin + glyph.x + max(1, glyph.width) - 1, margin + y), 2)
+            if char.boten:
+                dot = self.pygame_fonts["ruby"].render("·", True, color)
+                foreground.blit(dot, (margin + glyph.x + (glyph.width - dot.get_width()) // 2,
+                                      margin))
+
+        # All outlines stay behind all letters, including kerned neighbours.
+        # Drawing a complete outlined glyph at a time can erase earlier strokes.
+        surface.blit(foreground, (0, 0))
+
+        ruby_groups = {}
+        for glyph in line.glyphs:
+            if glyph.source.ruby is not None:
+                ruby_groups.setdefault(glyph.source.group, []).append(glyph)
+        for group in ruby_groups.values():
+            if group[-1].source.index < count:
+                x = margin + group[0].x
+                span_width = group[-1].x + group[-1].width - group[0].x
+                _blit_ruby_justified(surface, group[0].source.ruby,
+                    lambda ch: self.pygame_fonts["ruby"].render(ch, True, color),
+                    x, span_width, y=margin)
+        return surface
+
+    def _record_layout_seed_hit_rects(self, line, count, pos_x, base_y):
+        """Use the exact glyph positions used to draw the visible seed text."""
+        groups = []
+        for glyph in line.glyphs:
+            char = glyph.source
+            if char.index >= count or not char.seed_id or not self._seed_enabled(char.seed_id):
+                continue
+            if (groups and groups[-1][-1].source.seed_id == char.seed_id
+                    and groups[-1][-1].source.index + 1 == char.index):
+                groups[-1].append(glyph)
+            else:
+                groups.append([glyph])
+        font = self.english_font if line.english else self.pygame_fonts["text"]
+        offset_y = (self.pygame_fonts["text"].get_ascent() - font.get_ascent()
+                    if line.english else 0)
+        for group in groups:
+            start, end = group[0], group[-1]
+            rect = pygame.Rect(pos_x + start.x, base_y + offset_y,
+                               max(1, end.x + end.width - start.x), font.get_height())
+            self.seed_hit_rects.append({"seed_id": start.source.seed_id, "rect": rect})
 
     def configure_seed_context(self, seed_manager, event_id, seed_annotations=None):
         self.seed_manager = seed_manager
@@ -252,6 +405,18 @@ class TextRenderer:
             dialogue_font_path = self._get_dialogue_font_path()
 
             fonts = {}
+            if os.path.exists(dialogue_font_path) and QApplication.instance() is None:
+                # Headless rendering uses the same bundled Pygame fonts,
+                # without asking Qt's application font database to initialize.
+                return {
+                    "name": QFont("M PLUS 1p", name_font_size),
+                    "text": QFont("M PLUS 1p", text_font_size),
+                    "name_pygame": pygame.font.Font(dialogue_font_path, name_font_size),
+                    "text_pygame": pygame.font.Font(dialogue_font_path, text_font_size),
+                    "ruby_pygame": pygame.font.Font(dialogue_font_path,
+                        max(8, int(text_font_size * RUBY_FONT_RATIO))),
+                    "default": pygame.font.SysFont(None, default_font_size),
+                }
             
             # PyQt5フォントの初期化
             if os.path.exists(dialogue_font_path):
@@ -333,8 +498,7 @@ class TextRenderer:
         orig_w, orig_h = original_surface.get_size()
 
         # ここで最終幅を先に決めておく（横伸ばし考慮）
-        stretch_factor = float(FONT_EFFECTS.get("stretch_factor", 1.25)) \
-            if FONT_EFFECTS.get("enable_stretched", False) else 1.0
+        stretch_factor = _font_stretch_factor()
         final_w = int(round(orig_w * stretch_factor))
         final_h = orig_h
 
@@ -359,16 +523,25 @@ class TextRenderer:
         # 透明最適化（描画の滲み対策というより速度向上）
         return processed_surface.convert_alpha()
 
-    def _render_outline_surface(self, font, text, color):
-        """本文テキスト専用の黒縁取りを描画する"""
-        text_surface = font.render(text, True, color)
+    def _render_outline_layers(self, font, text, color, source_padding=0):
+        """Keep body and outline separate so nearby strokes cannot erase text."""
+        def render(paint):
+            raw = font.render(text, True, paint)
+            if not source_padding:
+                return raw
+            padded = pygame.Surface((raw.get_width() + source_padding * 2,
+                                     raw.get_height() + source_padding * 2), pygame.SRCALPHA)
+            padded.blit(raw, (source_padding, source_padding))
+            return padded
+
+        text_surface = render(color)
         text_surface = self._apply_font_effects(text_surface, is_shadow=False)
 
         if not FONT_EFFECTS.get("enable_shadow", False):
-            return text_surface
+            return pygame.Surface(text_surface.get_size(), pygame.SRCALPHA), text_surface, 0
 
         outline_color = (0, 0, 0)
-        outline_surface = font.render(text, True, outline_color)
+        outline_surface = render(outline_color)
         outline_surface = self._apply_font_effects(outline_surface, is_shadow=True)
 
         shadow_offset = FONT_EFFECTS.get("shadow_offset", (6, 6))
@@ -385,8 +558,15 @@ class TextRenderer:
                     continue
                 final_surface.blit(outline_surface, (padding + dx, padding + dy))
 
-        final_surface.blit(text_surface, (padding, padding))
-        return final_surface.convert_alpha()
+        return final_surface, text_surface, padding
+
+    def _render_outline_surface(self, font, text, color):
+        """本文テキスト専用の黒縁取りを描画する"""
+        outline, body, padding = self._render_outline_layers(font, text, color)
+        if not FONT_EFFECTS.get("enable_shadow", False):
+            return body
+        outline.blit(body, (padding, padding))
+        return outline.convert_alpha()
 
     
     def _render_text_with_effects(self, font, text, color, is_name=False):
@@ -741,6 +921,10 @@ class TextRenderer:
         # トークンをキャッシュ（文字送り・描画で共用）
         self._current_tokens = parse_inline_markup(self.current_text)
         self._total_base_chars = total_base_chars(self._current_tokens)
+        self._punctuation_text = "".join(
+            token.char if isinstance(token, PlainChar) else token.base
+            for token in self._current_tokens
+        )
         if self.seed_manager and self.seed_event_id:
             for token in self._current_tokens:
                 if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
@@ -925,24 +1109,14 @@ class TextRenderer:
                             print("[TEXT] 最終文字表示と同時に入力待機へ移行")
                         return
 
-                    # 「。）」のような文末では閉じ括弧の前で止めず、括弧まで
-                    # 通常速度で表示する。後続文がある場合だけ括弧の後で待つ。
-                    following_char = get_logical_char(
-                        self._current_tokens, self.displayed_chars
-                    )
-                    previous_char = get_logical_char(
-                        self._current_tokens, self.displayed_chars - 2
-                    )
-                    should_wait_for_period = (
-                        next_char == '。'
-                        and following_char not in PUNCTUATION_CLOSERS
-                    )
-                    should_wait_after_closer = (
-                        next_char in PUNCTUATION_CLOSERS
-                        and previous_char == '。'
-                    )
+                    plain_text = getattr(self, "_punctuation_text", None)
+                    if plain_text is None:
+                        plain_text = "".join(
+                            token.char if isinstance(token, PlainChar) else token.base
+                            for token in self._current_tokens
+                        )
                     if (
-                        (should_wait_for_period or should_wait_after_closer)
+                        sentence_pause_after(plain_text, self.displayed_chars - 1)
                         and not self.skip_mode
                     ):
                         self.punctuation_waiting = True
@@ -1012,13 +1186,12 @@ class TextRenderer:
         if self.scroll_manager.is_scroll_mode():
             return self.render_scroll_text()
         
-        # 【重要】文字送り時の揺れ対策：完全な文字列でエフェクトを計算してからマスクで切り取る
-        full_text = self.current_text  # 完全なテキスト
-        # ルビ方式A: 論理ベース文字数から表示文字列を構築
-        display_text_segment = build_display_string(self._current_tokens, self.displayed_chars)
-        
-        # テキストを26文字で自動改行
-        all_lines = self._wrap_text(display_text_segment)
+        layout = self._get_text_layout(self.current_text)
+        if layout is not None:
+            all_lines = layout.visible_lines(self.displayed_chars)
+        else:
+            display_text_segment = build_display_string(self._current_tokens, self.displayed_chars)
+            all_lines = self._wrap_text(display_text_segment)
         
         # 最大3行を1セットとして表示する。4行目に入った時点で、直前の
         # 3行をまとめて消し、新しいセットを先頭行から描画する。
@@ -1054,13 +1227,24 @@ class TextRenderer:
             if single_line: # 空の行は描画しない
                 try:
                     # 【揺れ対策】完全な行でエフェクトを適用してから部分表示でマスク
-                    text_surface = self._render_stable_text_line(single_line, text_color_to_use)
+                    if isinstance(single_line, LayoutLine):
+                        text_surface = self._render_layout_line(
+                            single_line, text_color_to_use, self.displayed_chars
+                        )
+                    else:
+                        text_surface = self._render_stable_text_line(single_line, text_color_to_use)
                     # 座標を整数にスナップして揺れを防止
                     pos_x = int(round(self.text_start_x))
                     # サーフェス内 base text は ruby_h 下にあるので、上にシフトして画面 Y を固定
                     pos_y = int(round(y)) - self.ruby_h
-                    self.screen.blit(text_surface, (pos_x, pos_y))
-                    self._record_seed_hit_rects(single_line, pos_x, int(round(y)))
+                    margin = self._layout_line_render_padding(single_line)
+                    self.screen.blit(text_surface, (pos_x - margin, pos_y - margin))
+                    if isinstance(single_line, LayoutLine):
+                        self._record_layout_seed_hit_rects(
+                            single_line, self.displayed_chars, pos_x, int(round(y))
+                        )
+                    else:
+                        self._record_seed_hit_rects(single_line, pos_x, int(round(y)))
                 except Exception as e:
                     if self.debug:
                         print(f"テキスト描画エラー: {e}, テキスト: '{single_line}'")
@@ -1126,8 +1310,13 @@ class TextRenderer:
                     displayed_portion = build_display_string(self._current_tokens, self.displayed_chars)
                     text_to_render_for_block = displayed_portion
 
-            # テキストを26文字で自動改行
-            lines_in_block = self._wrap_text(text_to_render_for_block)
+            layout = self._get_text_layout(text_block_content)
+            visible_count = (self.displayed_chars if is_latest_block and not self.is_text_complete
+                             else layout.total_chars if layout is not None else None)
+            if layout is not None:
+                lines_in_block = layout.visible_lines(visible_count)
+            else:
+                lines_in_block = self._wrap_text(text_to_render_for_block)
             
             # 各行に話者情報をマッピング
             block_speaker = line_speakers[block_index] if block_index < len(line_speakers) else None
@@ -1145,6 +1334,7 @@ class TextRenderer:
                     # スクロール内の過去発言に残ったタネは表示だけ行い、
                     # 現在進行中の最新発言にあるタネだけクリック可能にする。
                     'is_latest_block': is_latest_block,
+                    'visible_chars': visible_count,
                 })
         
         # 最大3行を1セットとして表示する。次セットへ移る際は、本文と
@@ -1222,17 +1412,29 @@ class TextRenderer:
             if single_line:  # 空の行は描画しない
                 try:
                     # 【重要】スクロール時もグリッドシステムを使用
-                    text_surface = self._render_stable_text_line(single_line, speaker_text_color)
+                    if isinstance(single_line, LayoutLine):
+                        text_surface = self._render_layout_line(
+                            single_line, speaker_text_color, mapping['visible_chars']
+                        )
+                    else:
+                        text_surface = self._render_stable_text_line(single_line, speaker_text_color)
                     # スクロール時のテキスト座標も整数にスナップ
                     scroll_text_x = int(round(self.text_start_x))
                     scroll_text_y = int(round(y)) - self.ruby_h
-                    self.screen.blit(text_surface, (scroll_text_x, scroll_text_y))
+                    margin = self._layout_line_render_padding(single_line)
+                    self.screen.blit(text_surface, (scroll_text_x - margin, scroll_text_y - margin))
                     if mapping.get('is_latest_block'):
-                        self._record_seed_hit_rects(
-                            single_line,
-                            scroll_text_x,
-                            int(round(y)),
-                        )
+                        if isinstance(single_line, LayoutLine):
+                            self._record_layout_seed_hit_rects(
+                                single_line, mapping['visible_chars'],
+                                scroll_text_x, int(round(y)),
+                            )
+                        else:
+                            self._record_seed_hit_rects(
+                                single_line,
+                                scroll_text_x,
+                                int(round(y)),
+                            )
                 except Exception as e:
                     if self.debug:
                         print(f"スクロールテキスト描画エラー: {e}, テキスト: '{single_line}'")
@@ -1281,6 +1483,17 @@ class TextRenderer:
 
     def get_advance_indicator_position(self):
         """Return the prompt origin beside the final visible dialogue glyph."""
+        layout = self._get_text_layout(self.current_text)
+        if layout is not None:
+            line = layout.lines[-1]
+            gap = int(round(FONT_TEXT_SIZE * ADVANCE_INDICATOR_GAP_EM))
+            x = int(round(self.text_start_x + line.width + gap))
+            font = self.english_font if layout.english else self.pygame_fonts["text"]
+            offset = (self.pygame_fonts["text"].get_ascent() - font.get_ascent()
+                      if layout.english else 0)
+            line_y = int(round(self.get_current_dialogue_last_line_y()))
+            y = line_y + offset + (font.get_height() - self.advance_indicator_font.get_height()) // 2
+            return x, y
         wrapped_lines = self._wrap_text(self.current_text)
         last_line = wrapped_lines[-1] if wrapped_lines else ""
         last_line_chars = total_base_chars(parse_inline_markup(last_line))

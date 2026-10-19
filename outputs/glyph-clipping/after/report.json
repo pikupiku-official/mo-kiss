@@ -1,0 +1,98 @@
+{
+  "english_font": "MPLUSRounded1c-Medium.ttf",
+  "english_font_size": 40,
+  "char_spacing_px": 5,
+  "dialogue_position": [
+    298,
+    798
+  ],
+  "max_rows": 3,
+  "char_delay_ms": 53,
+  "line_width_px": 940,
+  "english": [
+    {
+      "text": "The rain had finally stopped, but the",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 1
+    },
+    {
+      "text": "street was still empty. I could hear",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 39
+    },
+    {
+      "text": "footsteps behind me, slow and",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 76
+    },
+    {
+      "text": "steady. \"Did you find the [seed id=\"LETTER\"]blue[/seed]",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 106
+    },
+    {
+      "text": "[seed id=\"LETTER\"]envelope[/seed]?\" she asked. Dr. Smith had",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 137
+    },
+    {
+      "text": "left at 3.14, and nobody had seen him",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 173
+    },
+    {
+      "text": "since. I looked back at the house. A",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 211
+    },
+    {
+      "text": "single light was still burning in the",
+      "width": 940,
+      "justified": true,
+      "paragraph_last": false,
+      "activation": 248
+    },
+    {
+      "text": "window.",
+      "width": 193,
+      "justified": false,
+      "paragraph_last": true,
+      "activation": 286
+    }
+  ],
+  "mixed": [
+    {
+      "text": "彼は Good morning と言っ",
+      "english": false,
+      "justified": false
+    },
+    {
+      "text": "て、{封筒|ふうとう}を指した。中には [seed id=\"KEY\"]small[/seed]",
+      "english": false,
+      "justified": false
+    },
+    {
+      "text": "[seed id=\"KEY\"]key[/seed] が入っていた。",
+      "english": false,
+      "justified": false
+    }
+  ],
+  "presentation": [
+    640,
+    480
+  ]
+}
