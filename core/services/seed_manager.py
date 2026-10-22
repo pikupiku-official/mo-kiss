@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import tempfile
@@ -56,6 +57,7 @@ class SeedManager:
         self._validate_catalog()
         self.state = self._load_state()
         self._pending_by_event: dict[str, set[str]] = {}
+        self._pending_sources: dict[str, dict[str, dict[str, Any]]] = {}
         self._answer_judge = None
         self._answer_judge_lock = threading.Lock()
         self._answer_judge_run_lock = threading.Lock()
@@ -83,8 +85,29 @@ class SeedManager:
         if len(ids) != len(set(ids)):
             raise SeedCatalogError("タネIDが重複しています")
 
+        categories = self.catalog.get("board_categories", [])
+        category_ids = [item.get("id") for item in categories]
+        if len(category_ids) != len(set(category_ids)):
+            raise SeedCatalogError("コルクボードのカテゴリIDが重複しています")
+        for category in categories:
+            if not category.get("id") or category.get("group") not in ("momoko", "sanako", "other"):
+                raise SeedCatalogError("コルクボードのカテゴリID・人物区分が不正です")
+            self._validate_board_position(category.get("position"))
+
         locations: set[tuple[str, int, int]] = set()
+        board_locations = set()
         for seed_id, seed in self.seeds.items():
+            board = seed.get("corkboard")
+            if board is not None:
+                if board.get("category_id") not in category_ids:
+                    raise SeedCatalogError(f"{seed_id}: コルクボードのカテゴリが存在しません")
+                if board.get("phase") not in ("before_tp1", "after_tp1"):
+                    raise SeedCatalogError(f"{seed_id}: 付箋の前後区分が不正です")
+                self._validate_board_position(board.get("position"))
+                board_location = (board["category_id"], *board["position"])
+                if board_location in board_locations:
+                    raise SeedCatalogError(f"{seed_id}: 付箋の固定位置が重複しています")
+                board_locations.add(board_location)
             turning_point_id = seed.get("turning_point_id")
             if turning_point_id not in self.turning_points:
                 raise SeedCatalogError(
@@ -123,6 +146,13 @@ class SeedManager:
         for seed_id in self.seeds:
             visit(seed_id)
 
+    @staticmethod
+    def _validate_board_position(position) -> None:
+        if (not isinstance(position, (list, tuple)) or len(position) != 2
+                or any(not isinstance(value, (int, float)) or isinstance(value, bool)
+                       or not math.isfinite(value) for value in position)):
+            raise SeedCatalogError("コルクボード位置には有限の数値2つを指定してください")
+
     def save(self) -> None:
         os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
         fd, temporary_path = tempfile.mkstemp(
@@ -142,6 +172,25 @@ class SeedManager:
     def begin_event(self, event_id: str | None) -> None:
         if event_id:
             self._pending_by_event[event_id] = set()
+            self._pending_sources[event_id] = {}
+
+    def export_pending_event(self, event_id: str | None) -> dict[str, Any]:
+        """Preserve only the route actually encountered in a mid-event save."""
+        return {
+            "seed_ids": sorted(self._pending_by_event.get(event_id, set())),
+            "sources": deepcopy(self._pending_sources.get(event_id, {})),
+        }
+
+    def restore_pending_event(self, event_id: str | None, snapshot: dict) -> None:
+        if not event_id:
+            return
+        ids = {seed_id for seed_id in snapshot.get("seed_ids", []) if seed_id in self.seeds}
+        self._pending_by_event[event_id] = ids
+        self._pending_sources[event_id] = {
+            seed_id: deepcopy(source)
+            for seed_id, source in (snapshot.get("sources") or {}).items()
+            if seed_id in ids and isinstance(source, dict) and source.get("text")
+        }
 
     def parents_met(self, seed_id: str) -> bool:
         seed = self.seeds.get(seed_id)
@@ -163,16 +212,23 @@ class SeedManager:
         semantic_config = definition.get("semantic_judge") or {}
         return bool(semantic_config.get("enabled", False))
 
-    def encounter(self, event_id: str | None, seed_id: str) -> bool:
+    def encounter(self, event_id: str | None, seed_id: str, *,
+                  speaker: str = "", text: str = "", force_female: bool = False) -> bool:
         if not event_id or not self.can_show(seed_id):
             return False
         self._pending_by_event.setdefault(event_id, set()).add(seed_id)
+        if text:
+            self._pending_sources.setdefault(event_id, {}).setdefault(seed_id, {
+                "speaker": str(speaker), "text": str(text),
+                "force_female": bool(force_female),
+            })
         return True
 
     def complete_event(self, event_id: str | None, game_date: str) -> list[str]:
         if not event_id:
             return []
         pending = self._pending_by_event.pop(event_id, set())
+        sources = self._pending_sources.pop(event_id, {})
         newly_acquired: list[str] = []
         acquired = self.state["acquired"]
         for seed_id in sorted(pending, key=self._seed_sort_key):
@@ -183,6 +239,8 @@ class SeedManager:
                 "acquired_game_date": game_date,
                 "journaled_game_date": None,
             }
+            if seed_id in sources:
+                acquired[seed_id]["source_dialogue"] = sources[seed_id]
             newly_acquired.append(seed_id)
         if newly_acquired:
             self.save()
@@ -226,6 +284,38 @@ class SeedManager:
             item["state"] = deepcopy(self.state["acquired"][seed_id])
             result.append(item)
         result.sort(key=lambda item: self._seed_sort_key(item["id"]))
+        return result
+
+    def board_entries(self) -> list[dict[str, Any]]:
+        """Resolve fixed, authored coordinates, never acquisition-order layout."""
+        categories = {item["id"]: item for item in self.catalog.get("board_categories", [])}
+        result = []
+        for seed in self.journal_entries():
+            if not seed["state"].get("journaled_game_date"):
+                continue
+            board = seed.get("corkboard") or {}
+            category = categories.get(board.get("category_id"))
+            if category is None:
+                # Older catalogs remain usable; coordinates use static journal slots.
+                group = {"MOMOKO": "momoko", "SANAKO": "sanako"}.get(
+                    str(seed.get("character_id", "")).upper(), "other")
+                category = {"id": group + "_general", "group": group,
+                            "title": "近況について",
+                            "position": [{"momoko": 80, "sanako": 1680, "other": 3280}[group], 80]}
+                location = seed.get("journal_location") or {}
+                slot = max(0, int(location.get("slot", 1)) - 1)
+                position = [(slot % 3) * 380, (slot // 3) * 280
+                            + max(0, int(location.get("page", 1)) - 1) * 1120]
+            else:
+                position = board["position"]
+            result.append({
+                "id": seed["id"], "text": seed.get("journal_text", seed.get("title", seed["id"])),
+                "category": deepcopy(category),
+                "position": [category["position"][0] + position[0],
+                             category["position"][1] + 58 + position[1]],
+                "phase": board.get("phase", "before_tp1"),
+                "source": deepcopy(seed["state"].get("source_dialogue") or {}),
+            })
         return result
 
     def annotation_lines(self, seed_id: str) -> list[dict[str, str]]:

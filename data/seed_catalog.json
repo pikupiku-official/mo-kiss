@@ -4,9 +4,15 @@
     {"id": "MASUDA", "display_name": "増田", "sort_order": 900},
     {"id": "MOMOKO", "display_name": "愛沼桃子", "sort_order": 100}
   ],
+  "board_categories": [
+    {"id": "MOMOKO_FAMILY", "group": "momoko", "title": "家族について", "position": [80, 80]},
+    {"id": "MOMOKO_RECENT", "group": "momoko", "title": "近況について", "position": [80, 440]},
+    {"id": "MASUDA_RECENT", "group": "other", "title": "増田・近況について", "position": [920, 80]}
+  ],
   "seeds": [
     {
       "id": "MASUDA_TP1_001",
+      "corkboard": {"category_id": "MASUDA_RECENT", "phase": "before_tp1", "position": [0, 0]},
       "character_id": "MASUDA",
       "turning_point_id": "MASUDA_TP1",
       "title": "温泉への誘い",
@@ -19,6 +25,7 @@
     },
     {
       "id": "MASUDA_TP1_002",
+      "corkboard": {"category_id": "MASUDA_RECENT", "phase": "before_tp1", "position": [380, 0]},
       "character_id": "MASUDA",
       "turning_point_id": "MASUDA_TP1",
       "title": "局部を見せることへの拒否",
@@ -31,6 +38,7 @@
     },
     {
       "id": "MASUDA_TP1_003",
+      "corkboard": {"category_id": "MASUDA_RECENT", "phase": "before_tp1", "position": [0, 280]},
       "character_id": "MASUDA",
       "turning_point_id": "MASUDA_TP1",
       "title": "触れられない単語",
@@ -43,6 +51,7 @@
     },
     {
       "id": "MOMOKO_TP1_001",
+      "corkboard": {"category_id": "MOMOKO_FAMILY", "phase": "before_tp1", "position": [0, 0]},
       "character_id": "MOMOKO",
       "turning_point_id": "MOMOKO_TP1",
       "title": "家族の話題を避けている",
@@ -55,6 +64,7 @@
     },
     {
       "id": "MOMOKO_TP1_002",
+      "corkboard": {"category_id": "MOMOKO_RECENT", "phase": "before_tp1", "position": [0, 0]},
       "character_id": "MOMOKO",
       "turning_point_id": "MOMOKO_TP1",
       "title": "部活に行かず時間を潰している",
@@ -67,6 +77,7 @@
     },
     {
       "id": "MOMOKO_TP1_003",
+      "corkboard": {"category_id": "MOMOKO_RECENT", "phase": "before_tp1", "position": [380, 0]},
       "character_id": "MOMOKO",
       "turning_point_id": "MOMOKO_TP1",
       "title": "家に帰りたくない事情",

@@ -91,6 +91,9 @@ class HomeModule(SubsystemBase):
         self._diary_active = False
         self._choice_renderer = None
         self._choice_actions: tuple[str, ...] = ()
+        self._corkboard = None
+        self._board_new_seed_ids = []
+        self.journal_new_seed_ids = []
         self._images = self._load_home_images()
         self.morning_flow = MorningFlow(screen)
 
@@ -173,6 +176,8 @@ class HomeModule(SubsystemBase):
         self._transition = None
         self._phase = self.DIARY
         self._choice_actions = ()
+        self._corkboard = None
+        self._board_new_seed_ids = []
         self._start_diary()
 
     def _start_diary(self):
@@ -218,7 +223,7 @@ class HomeModule(SubsystemBase):
             print(f"[HOME] diary dialogue initialization failed: {exc}")
             self._diary_dialogue = None
             self._diary_active = False
-            self._show_main_choices()
+            self._after_diary()
 
     def _append_new_seed_diary_lines(self, dialogue):
         """Show each seed finalized today as an actual diary conversation line."""
@@ -258,6 +263,32 @@ class HomeModule(SubsystemBase):
             self._diary_dialogue.cleanup()
         self._diary_active = False
 
+    def _after_diary(self):
+        """New clues lead to an automatic board visit; quiet evenings stay short."""
+        new_ids = getattr(self, "journal_new_seed_ids", [])
+        if new_ids:
+            self._board_new_seed_ids = list(new_ids)
+            self.journal_new_seed_ids = []
+            self._start_entry_transition(self.CORKBOARD)
+        else:
+            self._show_main_choices()
+
+    def _open_corkboard(self):
+        from core.services.seed_manager import get_seed_manager
+        from dialogue.text_renderer import TextRenderer
+        from home.corkboard import CorkboardView
+
+        dialogue = getattr(self, "_diary_dialogue", None)
+        renderer = dialogue.game_state.get("text_renderer") if dialogue is not None else None
+        if renderer is None:
+            renderer = TextRenderer(self.screen)
+        self._corkboard = CorkboardView(
+            self.screen, get_seed_manager(), renderer,
+            getattr(self, "_board_new_seed_ids", []), self._clock_ms,
+        )
+        self._board_new_seed_ids = []
+        self._hide_choices()
+
     def _get_choice_renderer(self):
         if self._choice_renderer is None:
             from dialogue.choice_renderer import ChoiceRenderer
@@ -280,6 +311,9 @@ class HomeModule(SubsystemBase):
     def _show_submenu_choices(self, phase: str):
         self._phase = phase
         self._transition = None
+        if phase == self.CORKBOARD:
+            self._open_corkboard()
+            return
         self._show_choices(self.SUBMENU_CHOICES[phase])
 
     def handle_events(self, events=None):
@@ -310,7 +344,7 @@ class HomeModule(SubsystemBase):
                 or self._diary_dialogue.game_state.get("ks_finished", False)
             ):
                 self._finish_diary_dialogue()
-                self._show_main_choices()
+                self._after_diary()
             return None
 
         # Construction-only callers have not entered the scene yet, so there
@@ -319,6 +353,13 @@ class HomeModule(SubsystemBase):
             return None
 
         if self._transition is not None:
+            return None
+
+        board = getattr(self, "_corkboard", None)
+        if self._phase == self.CORKBOARD and board is not None:
+            if board.handle_events(events) == "back":
+                self._corkboard = None
+                self._start_return_transition(self.CORKBOARD)
             return None
 
         renderer = self._get_choice_renderer()
@@ -449,10 +490,18 @@ class HomeModule(SubsystemBase):
                 self._show_submenu_choices(destination)
 
         self.morning_flow.update()
+        board = getattr(self, "_corkboard", None)
+        if board is not None and self._transition is None:
+            board.update()
 
     def render(self):
         if self._phase == self.DIARY and self._diary_active:
             self._diary_dialogue.render()
+            return
+
+        board = getattr(self, "_corkboard", None)
+        if self._phase == self.CORKBOARD and board is not None and self._transition is None:
+            board.render()
             return
 
         self.screen.fill((0, 0, 0))
@@ -499,6 +548,7 @@ class HomeModule(SubsystemBase):
 
     def cleanup(self):
         self._finish_diary_dialogue()
+        self._corkboard = None
 
     def _ensure_morning_flow(self):
         flow = self.__dict__.get("morning_flow")

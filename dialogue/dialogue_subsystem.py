@@ -336,6 +336,10 @@ class DialogueSubsystem(SubsystemBase):
             "version": 1,
             "event_file": self.event_file,
             "event_id": self.current_event_id,
+            "pending_seeds": (
+                self.seed_manager.export_pending_event(self.current_event_id)
+                if getattr(self, "seed_manager", None) is not None else {}
+            ),
             "paragraph_index": gs.get("current_paragraph", -1),
             "ir_step_index": gs.get("ir_step_index", -1),
             "background": background,
@@ -435,6 +439,12 @@ class DialogueSubsystem(SubsystemBase):
 
         renderer = gs.get("text_renderer")
         text = snapshot.get("text") or {}
+        self.current_event_id = snapshot.get("event_id") or self.current_event_id
+        seed_manager = getattr(self, "seed_manager", None)
+        if seed_manager is not None:
+            seed_manager.restore_pending_event(self.current_event_id, snapshot.get("pending_seeds") or {})
+            if renderer is not None:
+                renderer.seed_event_id = self.current_event_id
         if renderer is not None:
             renderer.set_dialogue(
                 text.get("body", ""),

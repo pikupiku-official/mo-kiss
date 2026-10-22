@@ -928,7 +928,12 @@ class TextRenderer:
         if self.seed_manager and self.seed_event_id:
             for token in self._current_tokens:
                 if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
-                    self.seed_manager.encounter(self.seed_event_id, token.seed_id)
+                    self.seed_manager.encounter(
+                        self.seed_event_id, token.seed_id,
+                        speaker=self.current_character_name,
+                        text=self.current_text,
+                        force_female=self.current_force_female,
+                    )
 
         # A text-bearing scenario step has exactly one backlog write path.
         # Empty/control steps never mutate the history.
