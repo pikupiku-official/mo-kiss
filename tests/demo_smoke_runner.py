@@ -123,7 +123,8 @@ def main():
             pygame.image.save(app.virtual_screen, str(output / "monologue.png"))
             app._handle_transition("dialogue_ended")
             assert app.demo_flow.stage.name == "free_text"
-            assert get_time_manager().current_period == "昼"
+            assert get_time_manager().current_period == "放課後"
+            assert app.current_event_id == "GD006"
             assert app.current_subsystem.game_state["seed_list_overlay"] is None
             app.current_subsystem.render()
             pygame.image.save(app.virtual_screen, str(output / "free-text-scene.png"))

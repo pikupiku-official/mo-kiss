@@ -37,7 +37,6 @@ class SeedAnswerOverlay:
         self.cursor_visible = True
         self.last_blink = pygame.time.get_ticks()
         self.suspended = False
-        self.fallback_armed = False
         self.last_verdict = None
         self._changed_at = pygame.time.get_ticks()
         self._diagnostic_text = None
@@ -89,18 +88,6 @@ class SeedAnswerOverlay:
     def close(self):
         self.suspend()
         self._executor.shutdown(wait=False, cancel_futures=True)
-
-    def arm_model_fallback(self):
-        self.fallback_armed = True
-
-    @staticmethod
-    def fallback_verdict():
-        return {
-            "result": "correct",
-            "confidence": 0.0,
-            "judge_version": "model-unavailable-fallback-v1",
-            "reason_codes": ("model_unavailable_fallback",),
-        }
 
     def show_judge_feedback(self, result, message):
         """Compatibility hook for the standalone developer launcher."""

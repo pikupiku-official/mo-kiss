@@ -49,8 +49,9 @@ def test_sequence_and_dates():
         ("1999-05-31", "昼"), ("1999-05-31", "放課後"), ("1999-05-31", "夜"),
     ]
     assert [(s.date, s.period) for s in STAGES[8:10]] == [
-        ("1999-06-15", "朝"), ("1999-06-15", "昼"),
+        ("1999-06-15", "朝"), ("1999-06-15", "放課後"),
     ]
+    assert STAGES[9].source == "GD006.ks"
     assert TITLE_IDLE_MS == 20_000
     flow.reset()
     assert flow.stage is None

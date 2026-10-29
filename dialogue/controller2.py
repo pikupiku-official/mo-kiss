@@ -498,10 +498,7 @@ def _submit_seed_answer(game_state, answer_text):
         game_state["seed_answer_overlay"] = None
         return
 
-    if getattr(overlay, "fallback_armed", False):
-        verdict = overlay.fallback_verdict()
-    else:
-        verdict = seed_manager.judge_answer(turning_point_id, answer_text)
+    verdict = seed_manager.judge_answer(turning_point_id, answer_text)
     overlay.last_verdict = verdict
     result = verdict.get("result", "error")
     if result == "error":
@@ -511,8 +508,6 @@ def _submit_seed_answer(game_state, answer_text):
             if unavailable
             else "判定中に問題が発生しました。もう一度試してください。"
         )
-        if unavailable and hasattr(overlay, "arm_model_fallback"):
-            overlay.arm_model_fallback()
         overlay.suspend()
         game_state["seed_system_message"] = message
         game_state["text_renderer"].set_dialogue(message, "")
