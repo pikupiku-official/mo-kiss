@@ -108,6 +108,32 @@ class SemanticAnswerJudge:
                 "semantic_score": 1.0,
             }
 
+        # Short unrelated inputs can have high cosine similarity in this model.
+        # Authored topic anchors keep those inputs out of semantic acceptance;
+        # exact accepted answers above still preserve intentional shorthand.
+        required_patterns = config.get("required_patterns", [])
+        try:
+            on_topic = not required_patterns or any(
+                re.search(str(pattern), normalized_text, re.IGNORECASE)
+                for pattern in required_patterns
+            )
+        except re.error as exc:
+            return {
+                "result": "error",
+                "confidence": 0.0,
+                "judge_version": version,
+                "reason_codes": ("invalid_required_pattern",),
+                "error_detail": str(exc),
+            }
+        if not on_topic:
+            return {
+                "result": "incorrect",
+                "confidence": 1.0,
+                "judge_version": version,
+                "reason_codes": ("missing_topic_anchor",),
+                "semantic_score": 0.0,
+            }
+
         hard_negatives = [
             str(value).strip()
             for value in config.get("hard_negatives", [])

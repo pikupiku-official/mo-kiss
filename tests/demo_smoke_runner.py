@@ -109,6 +109,8 @@ def main():
         from PyQt5.QtWidgets import QApplication
         qt_app = QApplication.instance() or QApplication([])
         import pygame
+        from core import config
+        config.IR_DUMP_JSON = False
         from demo.application import DemoApplication
         from core.services.time_manager import get_time_manager
         from dialogue.name_manager import get_name_manager
@@ -146,8 +148,32 @@ def main():
             pygame.image.save(app.virtual_screen, str(output / "choice.png"))
             app._handle_transition("demo_next")
             assert app.current_mode == "demo_map"
-            app._handle_transition("demo_next")
+
+            def map_mouse(event_type, point):
+                # Native map pixels -> virtual canvas -> real window pixels.
+                rect = config.virtual_to_window_rect(pygame.Rect(
+                    round(point[0] * 1440 / 640), round(point[1] * 1080 / 480), 1, 1,
+                ))
+                attrs = {"pos": rect.topleft}
+                if event_type == pygame.MOUSEMOTION:
+                    attrs.update(rel=(1, 1), buttons=(0, 0, 0))
+                else:
+                    attrs["button"] = 1
+                pygame.event.post(pygame.event.Event(event_type, attrs))
+                app.run_frame()
+
+            map_mouse(pygame.MOUSEMOTION, (100, 100))
+            assert not app.current_subsystem.hovered
+            pygame.image.save(app.virtual_screen, str(output / "map-normal.png"))
+            map_mouse(pygame.MOUSEMOTION, (460, 245))
+            assert app.current_subsystem.hovered
+            pygame.image.save(app.virtual_screen, str(output / "map-hover.png"))
+            map_mouse(pygame.MOUSEBUTTONDOWN, (530, 274))
+            assert app.current_mode == "demo_map"  # outside the slanted edge
+            map_mouse(pygame.MOUSEMOTION, (460, 245))
+            map_mouse(pygame.MOUSEBUTTONDOWN, (460, 245))
             assert app.demo_flow.stage.name == "noon"
+            assert app.current_event_id == "GD002"
             app._handle_transition("dialogue_ended")
             assert app.demo_flow.stage.name == "evening"
             app._handle_transition("dialogue_ended")
@@ -170,7 +196,8 @@ def main():
             pygame.image.save(app.virtual_screen, str(output / "monologue.png"))
             app._handle_transition("dialogue_ended")
             assert app.demo_flow.stage.name == "free_text"
-            assert get_time_manager().current_period == "昼"
+            assert get_time_manager().current_period == "放課後"
+            assert app.current_event_id == "GD006"
             assert app.current_subsystem.game_state["seed_list_overlay"] is None
             app.current_subsystem.render()
             pygame.image.save(app.virtual_screen, str(output / "free-text-scene.png"))

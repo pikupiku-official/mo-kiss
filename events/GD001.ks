@@ -282,6 +282,7 @@
 [scroll-stop]
 
 
+[seed_answer turning_point="MOMOKO_GD_MONEY" prompt="桃子がディズニーへの誘いを渋る理由は何だろう？"]
 [chara_shift]
 [if condition="MOMOKO_GD_MONEY_RESULT==correct"]
 	//純一//
@@ -352,6 +353,7 @@
 	「となると、桃子が誘いを渋る理由としてわかることは――」
 [seed_retry]
 
+[endif]
 [se se="二人の歩く足音補装.mp3" volume="0.5" frequency="1" block="false"]
 	//純一//
 	「（ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。）」

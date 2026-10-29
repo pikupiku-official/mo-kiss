@@ -28,7 +28,7 @@ STAGES = (
     Stage("home", "home", period="夜"),
     Stage("before_monologue", "choice", period="夜"),
     Stage("monologue", "dialogue", "GD004.ks", "1999-06-15", "朝"),
-    Stage("free_text", "dialogue", "GD005.ks", "1999-06-15", "昼"),
+    Stage("free_text", "dialogue", "GD006.ks", "1999-06-15", "放課後"),
     Stage("ending", "movie", "PV1min.mp4", "1999-06-15", "昼"),
 )
 
