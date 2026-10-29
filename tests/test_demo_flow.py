@@ -56,13 +56,53 @@ def test_sequence_and_dates():
     assert flow.stage is None
 
 
-def test_map_and_pv_choices_use_real_input(screen):
-    field = GDMap(screen)
-    assert field.choices.choices == ["教室"]
-    assert field.handle_events([key(pygame.K_RETURN)]) == "demo_next"
+def test_pv_choices_use_real_input(screen):
     choice = ChoiceScreen(screen, ("進む", "映像"), ("demo_next", "demo_pv"))
     assert choice.handle_events([key(pygame.K_DOWN), key(pygame.K_RETURN)]) == "demo_pv"
     assert choice.handle_events([key(pygame.K_ESCAPE)]) == "show_settings"
+
+
+@pytest.mark.parametrize("size", [(640, 480), (1440, 1080)])
+def test_map_hover_render_and_classroom_click(screen, size):
+    canvas = pygame.Surface(size)
+    field = GDMap(canvas)
+
+    def pos(x, y):
+        return (round(x * size[0] / 640), round(y * size[1] / 480))
+
+    def move(x, y):
+        return pygame.event.Event(pygame.MOUSEMOTION, pos=pos(x, y))
+
+    def click(x, y, button=1):
+        return pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=button, pos=pos(x, y))
+
+    def assert_image(filename):
+        source = pygame.image.load(str(Path(__file__).resolve().parents[1] / "images/maps" / filename))
+        expected = pygame.transform.smoothscale(source.convert(), size)
+        field.render()
+        assert pygame.image.tostring(canvas, "RGB") == pygame.image.tostring(expected, "RGB")
+
+    assert_image("demo01.png")
+    assert field.handle_events([key(pygame.K_RETURN)]) is None
+    # These points lie in the bounding rectangle but outside the slanted room.
+    for point in ((390, 215), (530, 274), (450, 200), (600, 400), (270, 435)):
+        assert field.handle_events([move(*point), click(*point)]) is None
+        assert not field.hovered
+    assert field.handle_events([move(460, 245)]) is None
+    assert field.hovered
+    assert_image("demo02.png")
+    assert field.handle_events([click(460, 245, button=3)]) is None
+    assert field.handle_events([click(530, 274)]) is None
+    assert not field.hovered
+    assert_image("demo01.png")
+    assert field.handle_events([move(460, 245), move(100, 100)]) is None
+    assert_image("demo01.png")
+    assert field.handle_events([move(460, 245), pygame.event.Event(pygame.WINDOWLEAVE)]) is None
+    assert not field.hovered
+    # Use the click's coordinates, including when no motion event preceded it.
+    assert field.handle_events([click(460, 245)]) == "demo_next"
+    assert field.handle_events([key(pygame.K_ESCAPE)]) == "show_settings"
+    assert field.handle_events([pygame.event.Event(pygame.QUIT)]) == "quit"
 
 
 def test_home_disables_other_actions_and_sleep_never_advances_calendar(screen, monkeypatch):
