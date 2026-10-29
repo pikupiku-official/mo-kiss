@@ -13,11 +13,14 @@ class Stage:
     source: str = ""
     date: str = "1999-05-31"
     period: str = "朝"
+    answer_turning_point: str = ""
+    answer_prompt: str = ""
 
 
 STAGES = (
     Stage("op", "dialogue", "GD000.ks"),
-    Stage("morning", "dialogue", "GD001.ks"),
+    Stage("morning", "dialogue", "GD001.ks",
+          answer_turning_point="MOMOKO_GD_MONEY", answer_prompt="桃子が誘いを渋る理由は？"),
     Stage("before_map", "choice"),
     Stage("map", "map", period="昼"),
     Stage("noon", "dialogue", "GD002.ks", period="昼"),

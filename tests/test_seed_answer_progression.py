@@ -92,3 +92,28 @@ def test_progression_resumes_after_answer_overlay_closes(monkeypatch):
 
     assert controller2.advance_to_next_dialogue(gs)
     assert advances == [True]
+
+
+@pytest.mark.parametrize("mode", ["auto_mode", "skip_mode"])
+def test_automatic_playback_marks_the_last_paragraph_finished(monkeypatch, mode):
+    renderer = SimpleNamespace(
+        auto_mode=False, skip_mode=False, debug=False,
+        update=lambda: None, is_ready_for_auto_advance=lambda: True,
+        reset_auto_timer=lambda: None,
+    )
+    setattr(renderer, mode, True)
+    for name in ("setup_text_renderer_settings", "update_character_animations", "update_background_animation",
+                 "update_cg_animation", "update_fade_animation"):
+        monkeypatch.setattr(controller2, name, lambda gs: None)
+    monkeypatch.setattr("dialogue.movie_manager.update_movie", lambda gs: None)
+    monkeypatch.setattr("dialogue.rain_manager.update_rain", lambda gs: None)
+    monkeypatch.setattr("dialogue.haze_manager.update_haze", lambda gs: None)
+    gs = {
+        "text_renderer_initialized": True, "text_renderer": renderer,
+        "choice_renderer": SimpleNamespace(is_choice_showing=lambda: False),
+        "backlog_manager": SimpleNamespace(is_showing_backlog=lambda: False),
+        "current_paragraph": 0, "dialogue_data": [{}],
+    }
+    controller2.update_game(gs)
+    assert gs.get("ks_finished") is True
+    assert not renderer.auto_mode and not renderer.skip_mode

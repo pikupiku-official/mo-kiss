@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+from types import SimpleNamespace
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -174,3 +175,70 @@ def test_real_pv_audio_decode_letterbox_end_and_attract_cancel(screen, tmp_path,
     )]) == "demo_title"
     assert attract.handle_events([key(pygame.K_RETURN)]) == "demo_title"
     attract.cleanup()
+
+
+def test_loading_is_presented_before_construction_and_drops_stale_input(screen, monkeypatch):
+    import demo.application as module
+    from core.ui import loading_screen
+
+    # Use this test's actual display surface, independent of earlier tests.
+    monkeypatch.setattr(loading_screen, "_loading_screen", None)
+    monkeypatch.setattr(module, "get_time_manager", lambda: SimpleNamespace(save_time_state=lambda: None))
+    app = module.DemoApplication()
+    app.screen = app.virtual_screen = app.window_surface = screen
+    screen.fill((255, 0, 0))
+    observed = []
+
+    class Scene:
+        def __init__(self, surface):
+            assert surface.get_at((0, 0))[:3] == (0, 0, 0)
+            assert pygame.surfarray.array3d(surface).any(), "loading text was not painted"
+            observed.append("constructed")
+            pygame.event.post(key(pygame.K_RETURN))
+            pygame.event.post(pygame.event.Event(pygame.QUIT))
+
+        def on_enter(self):
+            pygame.event.post(key(pygame.K_RETURN))
+
+    monkeypatch.setattr(module, "GDMap", Scene)
+    try:
+        app.enter_stage(STAGES[3])
+        assert observed == ["constructed"]
+        assert app.current_mode == "demo_map"
+        assert [e.type for e in pygame.event.get()] == [pygame.QUIT]
+    finally:
+        app.audio_cache.cleanup()
+
+
+def test_morning_requires_answer_before_money_result_branches(screen, monkeypatch):
+    import demo.application as module
+    from dialogue.dialogue_loader import DialogueLoader
+    from dialogue.data_normalizer import normalize_dialogue_data
+    from dialogue.ir_builder import build_ir_from_normalized
+
+    source = Path("events/GD001.ks")
+    before = source.read_bytes()
+    data = normalize_dialogue_data(DialogueLoader().load_dialogue_from_ks(str(source)))
+    preloads = []
+    scene = SimpleNamespace(
+        game_state={"dialogue_data": data, "use_ir": True,
+                    "ir_data": build_ir_from_normalized(data),
+                    "text_renderer": SimpleNamespace(set_event_datetime=lambda value: None)},
+        seed_manager=SimpleNamespace(preload_answer_model=lambda: preloads.append(True)),
+        on_enter=lambda: None,
+    )
+    monkeypatch.setattr(module, "DialogueSubsystem", lambda *args: scene)
+    monkeypatch.setattr(module, "get_time_manager", lambda: SimpleNamespace(save_time_state=lambda: None))
+    app = module.DemoApplication()
+    app.screen = app.virtual_screen = app.window_surface = screen
+    try:
+        app.enter_stage(STAGES[1])
+        actions = [a for s in scene.game_state["ir_data"]["steps"] for a in s.get("actions", [])]
+        question = next(i for i, a in enumerate(actions) if a["action"] == "seed_answer")
+        branch = next(i for i, a in enumerate(actions)
+                      if a["action"] == "if_start" and "MOMOKO_GD_MONEY_RESULT" in a["params"]["condition"])
+        assert question < branch
+        assert preloads == [True]
+        assert source.read_bytes() == before
+    finally:
+        app.audio_cache.cleanup()

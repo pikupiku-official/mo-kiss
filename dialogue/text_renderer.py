@@ -570,7 +570,25 @@ class TextRenderer:
 
     
     def _render_text_with_effects(self, font, text, color, is_name=False):
-        return self._render_outline_surface(font, text, color)
+        return self._cached_text_surface("body", font, text, color, self._render_outline_surface)
+
+    def _cached_text_surface(self, kind, font, text, color, render):
+        # Outline dilation and pixel scaling are expensive. Reuse immutable
+        # pixels between frames, while respecting live style/font changes.
+        style = tuple(getattr(font, name, lambda: None)() for name in
+                      ("get_bold", "get_italic", "get_underline"))
+        key = (kind, font, text, tuple(color), style, repr(sorted(FONT_EFFECTS.items())))
+        cache = getattr(self, "_text_surface_cache", None)
+        if cache is None:
+            cache = self._text_surface_cache = OrderedDict()
+        if key in cache:
+            cache.move_to_end(key)
+            return cache[key]
+        surface = render(font, text, color)
+        cache[key] = surface
+        if len(cache) > 512:
+            cache.popitem(last=False)
+        return surface
 
     def _render_stable_text_line(self, displayed_line, color):
         """文字送り時の揺れを防ぐ安定した行描画（絶対座標グリッドシステム）"""
@@ -802,15 +820,18 @@ class TextRenderer:
                     time_manager.current_day,
                     time_manager.current_period,
                 )
-            date_surface = render_text_with_effects(self.date_font, date_text, self.date_color)
+            date_surface = self._cached_text_surface(
+                "calendar", self.date_font, date_text, self.date_color, render_text_with_effects)
             self.screen.blit(date_surface, self.date_position)
 
             weather_text = self.historical_weather.get_display_text(*weather_args)
             if weather_text:
-                weather_surface = render_text_with_effects(
+                weather_surface = self._cached_text_surface(
+                    "calendar",
                     self.weather_font,
                     weather_text,
                     self.weather_color,
+                    render_text_with_effects,
                 )
                 self.screen.blit(weather_surface, self.weather_position)
         except Exception as e:
@@ -846,6 +867,7 @@ class TextRenderer:
     def toggle_auto_mode(self):
         self.auto_mode = not self.auto_mode
         self.reset_advance_indicator()
+        self.reset_auto_timer()
         if self.auto_mode:
             self.skip_mode = False  # autoモードONの時はskipモードOFF
         if self.debug:
@@ -855,8 +877,10 @@ class TextRenderer:
     def toggle_skip_mode(self):
         self.skip_mode = not self.skip_mode
         self.reset_advance_indicator()
+        self.reset_auto_timer()
         if self.skip_mode:
             self.auto_mode = False  # skipモードONの時はautoモードOFF
+            self.skip_text()
         if self.debug:
             print(f"スキップモード: {'ON' if self.skip_mode else 'OFF'}")
         return self.skip_mode
@@ -916,6 +940,8 @@ class TextRenderer:
         substituted_character_name = self.name_manager.substitute_variables(character_name) if character_name is not None else ""
         
         self.current_text = str(substituted_text)
+        self.punctuation_waiting = False
+        self.punctuation_wait_start = 0
         self.current_character_name = str(substituted_character_name)
         self.current_force_female = bool(force_female)
         # トークンをキャッシュ（文字送り・描画で共用）
@@ -967,10 +993,7 @@ class TextRenderer:
                 current_line_count,
                 self.max_display_lines,
             )
-            self.displayed_chars = 0
-            self.last_char_time = pygame.time.get_ticks()
-            self.is_text_complete = False
-            self.reset_auto_timer()
+            self._begin_text_display()
             self.last_speaker = character_name
             self.last_force_female = bool(force_female)
             self.previous_text = text
@@ -1024,10 +1047,7 @@ class TextRenderer:
                     self.max_display_lines,
                 )
             
-            self.displayed_chars = 0
-            self.last_char_time = pygame.time.get_ticks()
-            self.is_text_complete = False
-            self.reset_auto_timer()
+            self._begin_text_display()
             self.last_speaker = character_name
             self.last_force_female = bool(force_female)
             self.previous_text = text
@@ -1037,14 +1057,19 @@ class TextRenderer:
         # 通常表示
         if self.debug:
             print(f"[TEXT] 通常表示: {character_name}")
-        self.displayed_chars = 0
-        self.last_char_time = pygame.time.get_ticks()
-        self.is_text_complete = False
-        self.reset_auto_timer()
+        self._begin_text_display()
         self.last_speaker = character_name
         self.last_force_female = bool(force_female)
         self.previous_text = text
         self.previous_force_female = bool(force_female)
+
+    def _begin_text_display(self):
+        self.last_char_time = pygame.time.get_ticks()
+        skipping = getattr(self, "skip_mode", False)
+        self.displayed_chars = self._total_base_chars if skipping else 0
+        self.is_text_complete = skipping or not self.current_text
+        self.text_complete_time = self.last_char_time if self.is_text_complete else 0
+        self.reset_auto_timer()
 
     def get_current_dialogue_last_line_y(self):
         """Return the Y of the newest row currently visible in the text area."""
@@ -1065,8 +1090,21 @@ class TextRenderer:
         return self.text_start_y + (visible_line_count - 1) * self.text_line_height
     
     def update(self):
+        if self.skip_mode:
+            # SKIP reveals a complete paragraph in one update, independent of
+            # frame rate. Character/CG transitions are still gated by the controller.
+            if not self.is_text_complete:
+                self.skip_text()
+            self.punctuation_waiting = False
+            self.paragraph_transition_waiting = False
+            self.scroll_just_ended = False
+            self.is_ready_for_next = True
+            return
         if not self.current_text:
-            return 
+            # AUTO/SKIP must also cross explicit textless scenario steps.
+            self.is_text_complete = True
+            self.is_ready_for_next = self.auto_mode
+            return
         current_time = pygame.time.get_ticks()
 
         # 段落切り替え遅延中の処理
@@ -1088,15 +1126,10 @@ class TextRenderer:
             return
 
         if not self.is_text_complete:
-            char_delay_to_use = self.char_delay
+            char_delay_to_use = max(1, self.char_delay)
             
-            # skipモードの場合は表示速度を40倍にする（char_delayを1/6にする）
-            if self.skip_mode:
-                char_delay_to_use = self.char_delay // 40
-                if char_delay_to_use < 1:  # 最小値は1ms
-                    char_delay_to_use = 1
-            
-            if current_time - self.last_char_time >= char_delay_to_use:
+            while current_time - self.last_char_time >= char_delay_to_use:
+                self.last_char_time += char_delay_to_use
                 if self.displayed_chars < self._total_base_chars:
                     # 論理ベース文字を1つ進める
                     next_char = get_logical_char(self._current_tokens, self.displayed_chars)
@@ -1129,11 +1162,10 @@ class TextRenderer:
                         if self.debug:
                             print(f"[DELAY] 文末記号「{next_char}」の後で追加遅延開始")
                         return  # 句読点遅延開始時は処理を中断
-                    else:
-                        self.last_char_time = current_time
                 else:
                     self.is_text_complete = True
                     self.text_complete_time = current_time
+                    break
                     
                     # バックログへの追加処理は skip_text() でのみ実行するよう変更（重複防止）
                     # update()での自動追加は無効化

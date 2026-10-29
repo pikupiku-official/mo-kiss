@@ -6,7 +6,7 @@ SubsystemBase を継承し、既存の dialogue システム（game_state 辞書
 
 追加問題A対応:
     handle_events(events) は events 引数を無視する。
-    内部で controller2.handle_events() が pygame.event.get() を直接呼ぶため。
+    内部で pygame.event.get() を一度だけ呼び、順序を保って controller2 に渡す。
 
 追加問題B対応:
     on_enter()  : config.OFFSET_X/Y/SCALE を退避し 0/0/1.0 にリセット
@@ -212,35 +212,32 @@ class DialogueSubsystem(SubsystemBase):
         """
         import pygame
 
+        # Drain once, including during the ending fade. Leaving events queued
+        # here replays a visitor's Enter burst in the next scene. Keep key-up,
+        # IME and text input in their original order when checking ESC.
+        queued_events = pygame.event.get()
+        if any(e.type == pygame.QUIT for e in queued_events):
+            return "quit"
+        if any(e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE
+               for e in queued_events):
+            return "show_option"
+
         if self._ending_bgm_deadline is not None:
             if pygame.time.get_ticks() < self._ending_bgm_deadline:
                 return None
             self._ending_bgm_deadline = None
             return "dialogue_ended"
 
-        # ESC は常に OPTION を開く（バックログの表示状態に関わらず OPTION が優先）
-        esc_pressed = False
-        other_events = []
-        for e in pygame.event.get(pygame.KEYDOWN):
-            if e.key == pygame.K_ESCAPE:
-                esc_pressed = True
-            else:
-                other_events.append(e)
-        for e in other_events:
-            try:
-                pygame.event.post(e)
-            except Exception:
-                pass
-        if esc_pressed:
-            return "show_option"
-
         from dialogue.controller2 import handle_events as _ctrl_events
 
         try:
-            continue_dialogue = _ctrl_events(self.game_state, self.screen)
+            continue_dialogue = _ctrl_events(self.game_state, self.screen, events=queued_events)
         except Exception as e:
+            import traceback
             print(f"⚠️ DialogueSubsystem handle_events エラー: {e}")
-            return "dialogue_ended"
+            traceback.print_exc()
+            # An input failure is not a completed KS; never skip the scene.
+            return None
 
         # 最後のEnterでks_finishedになった同じフレームに終了遷移する。
         # 次フレームまで残すと、末尾のevent_control辞書を通常台詞として
@@ -562,6 +559,10 @@ class DialogueSubsystem(SubsystemBase):
             seed_answer_overlay is not None
             and not getattr(seed_answer_overlay, "suspended", False)
         )
+        if (gs.get("show_text", True) and seed_answer_overlay is None and not choice_showing
+                and not gs["backlog_manager"].is_showing_backlog()):
+            from dialogue.controller2 import draw_playback_controls
+            draw_playback_controls(gs, self.virtual_screen)
         if 'text_renderer' in gs:
             if seed_input_active:
                 gs['text_renderer'].render_date()

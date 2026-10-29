@@ -301,6 +301,7 @@ def test_ks_finished_on_enter_returns_dialogue_ended_in_same_frame(monkeypatch):
     from dialogue.dialogue_subsystem import DialogueSubsystem
 
     subsystem = DialogueSubsystem.__new__(DialogueSubsystem)
+    subsystem.screen = None
     subsystem._ending_bgm_deadline = None
     subsystem._last_saved_paragraph = -1
     subsystem.game_state = {
@@ -310,11 +311,12 @@ def test_ks_finished_on_enter_returns_dialogue_ended_in_same_frame(monkeypatch):
     }
     subsystem._save_dialogue_state = lambda paragraph: None
 
-    def finish_on_this_enter(game_state, screen):
+    def finish_on_this_enter(game_state, screen, events=None):
         game_state["ks_finished"] = True
         return True
 
     monkeypatch.setattr(controller2, "handle_events", finish_on_this_enter)
+    monkeypatch.setattr(pygame.event, "get", lambda: [])
 
     assert subsystem.handle_events() == "dialogue_ended"
 

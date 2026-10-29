@@ -57,7 +57,7 @@ def test_script_end_waits_for_bgm_fade_before_returning(monkeypatch):
     monkeypatch.setattr(pygame.event, "get", lambda *args: [])
     ticks = iter((100, 500, 1100))
     monkeypatch.setattr(pygame.time, "get_ticks", lambda: next(ticks))
-    monkeypatch.setattr("dialogue.controller2.handle_events", lambda *args: False)
+    monkeypatch.setattr("dialogue.controller2.handle_events", lambda *args, **kwargs: False)
 
     assert DialogueSubsystem.handle_events(subsystem, []) is None
     assert fades == [1.0]
