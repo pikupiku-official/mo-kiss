@@ -280,11 +280,15 @@ class TextRenderer:
             char = glyph.source
             if char.index >= count:
                 continue
-            seed_enabled = char.seed_id and self._seed_enabled(char.seed_id)
+            seed_enabled = char.seed_highlight and (
+                char.seed_id is None or self._seed_enabled(char.seed_id)
+            )
             glyph_color = color
             if seed_enabled:
-                glyph_color = (SEED_TEXT_HOVER_COLOR if char.seed_id == self.hovered_seed_id
-                               else SEED_TEXT_COLOR)
+                hovered = char.seed_id is not None and char.seed_id == self.hovered_seed_id
+                glyph_color = (
+                    SEED_TEXT_HOVER_COLOR if hovered else SEED_TEXT_COLOR
+                )
             if not char.char.isspace():
                 outline, body, border = self._render_outline_layers(
                     font, char.char, glyph_color, source_padding=source_padding)
@@ -700,12 +704,18 @@ class TextRenderer:
             elif isinstance(token, SeedSpan):
                 span_chars = min(len(token.base), self.max_chars_per_line - char_count)
                 grid_x = char_count * grid_char_width
-                enabled = self._seed_enabled(token.seed_id)
+                enabled = (
+                    token.seed_id is None or self._seed_enabled(token.seed_id)
+                )
                 seed_color = color
                 if enabled:
+                    hovered = (
+                        token.seed_id is not None
+                        and token.seed_id == self.hovered_seed_id
+                    )
                     seed_color = (
                         SEED_TEXT_HOVER_COLOR
-                        if token.seed_id == self.hovered_seed_id
+                        if hovered
                         else SEED_TEXT_COLOR
                     )
                 for i, ch in enumerate(token.base[:span_chars]):
@@ -953,7 +963,8 @@ class TextRenderer:
         )
         if self.seed_manager and self.seed_event_id:
             for token in self._current_tokens:
-                if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
+                if (isinstance(token, SeedSpan) and token.seed_id is not None
+                        and self._seed_enabled(token.seed_id)):
                     self.seed_manager.encounter(
                         self.seed_event_id, token.seed_id,
                         speaker=self.current_character_name,
@@ -1310,7 +1321,8 @@ class TextRenderer:
                 char_count += 1
                 continue
             span_length = len(token.base)
-            if isinstance(token, SeedSpan) and self._seed_enabled(token.seed_id):
+            if (isinstance(token, SeedSpan) and token.seed_id is not None
+                    and self._seed_enabled(token.seed_id)):
                 rect = pygame.Rect(
                     pos_x + char_count * grid_width,
                     base_y,

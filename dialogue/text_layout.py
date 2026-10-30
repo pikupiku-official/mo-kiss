@@ -21,6 +21,7 @@ class BaseChar:
     char: str
     index: int
     seed_id: str | None = None
+    seed_highlight: bool = False
     ruby: str | None = None
     group: int | None = None
     boten: bool = False
@@ -69,6 +70,7 @@ def base_characters(text: str) -> tuple[BaseChar, ...]:
             result.append(BaseChar(
                 char, len(result),
                 seed_id=token.seed_id if isinstance(token, SeedSpan) else None,
+                seed_highlight=isinstance(token, SeedSpan),
                 ruby=token.ruby if isinstance(token, RubySpan) else None,
                 group=group if isinstance(token, (RubySpan, BotenSpan)) else None,
                 boten=isinstance(token, BotenSpan),
@@ -134,16 +136,21 @@ def _markup(chars: list[BaseChar]) -> str:
         if first.group is not None:
             while j < len(chars) and chars[j].group == first.group:
                 j += 1
-        elif first.seed_id:
-            while j < len(chars) and chars[j].seed_id == first.seed_id:
+        elif first.seed_highlight:
+            while (j < len(chars) and chars[j].seed_highlight
+                   and chars[j].seed_id == first.seed_id):
                 j += 1
         content = "".join(c.char for c in chars[i:j])
         if first.ruby is not None:
             content = "{" + content + "|" + first.ruby + "}"
         elif first.boten:
             content = "{boten:" + content + "}"
-        elif first.seed_id:
-            content = f'[seed id="{first.seed_id}"]{content}[/seed]'
+        elif first.seed_highlight:
+            seed_open = (
+                f'[seed id="{first.seed_id}"]'
+                if first.seed_id is not None else '[seed]'
+            )
+            content = f'{seed_open}{content}[/seed]'
         result.append(content)
         i = j
     return "".join(result)
