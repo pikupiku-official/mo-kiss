@@ -6,34 +6,33 @@
 ;----------------------------------------------
 
 *sceneGD1
-[resetlaypos]
 
+[resetlaypos]
 [SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
-[bg_show storage="車窓①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-	// //
+[bg_show storage="改車窓①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 	「――」
 	「――」
 	「見慣れた中央線の車窓から流れる風景。」
-[bg_show storage="車窓②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 	「いつだってこんな景色ばかり。」
 	「やっぱりなんか物足りないな。西新宿みたいな高層ビルもないし。」
-[bg_show storage="車窓テニス" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓テニス" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 	「そんなことを考えていると、停車のアナウンスが響く。」
-[bg_show storage="車窓線路" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓線路" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 	「僕を車内の隅に押し込んでいる周りの人たちも降りる支度をし始める。」
 	「向かいの大学生らしき男がカバンに突っ込んだのはカーグラフィック。表紙はジャガー。」
 	「僕もいつか、日曜洋画劇場で見たジェームズボンドみたいに、流麗なセダンを乗り回してみたい、と思った。」
-[bg_show storage="車窓③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 ;@standalone-step
-[bg_show storage="車窓④" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓④" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 ;@standalone-step
-[bg_show storage="車窓⑤" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓⑤" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 ;@standalone-step
 [sestop]
-[bg_show storage="車窓⑥" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓⑥" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [SE se="電車停車.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
-[bg_show storage="車窓⑦" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改車窓⑦v2" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [sestop]
 [SE se="電車蒸気噴出.mp3" volume="0.5" frequency="1"]
 ;@standalone-step
@@ -47,13 +46,13 @@
 	「ドアが開くといつものようにあっという間に車内から押し出される。」
 [sestop]
 [fadein time="0"]
-[bg_show storage="国分寺駅構内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改国分寺駅構内v2" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [SE se="休日でごった返す駅構内.mp3" volume="0.5" frequency="5"]
-	// //
 	「――」
 	「やはり外の空気は最⾼だ。」
 	「緑⾵が僕の周りにまとわりついていたすべての湿気を流し去ってくれる。」
 	「僕は、朝の電⾞にはあるものが充満していると思う。」
+[bg_show storage="改混んでいる国分寺駅ホームv2" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 	「それは通勤、通学を“しなければいけない⼈々”のネガティブな感情だ。」
 	「そんな⼈々に流されながら階段を登る。」
 
@@ -62,10 +61,9 @@
 ;@standalone-step
 
 [sestop]
-[bg_show storage="混んでいる国分寺駅改札内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改混んでいる国分寺駅改札内v2" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [SE se="station_ticket_gate1" volume="0.5" frequency="5"]
 [fadein time="1.0"]
-	// //
 	「――」
 	「階段を上り切ると、⼈混みの３割ほどは⻄武線の⽅へ吸い込まれていった。」
 	「――」
@@ -335,11 +333,11 @@
 	「（・・・？）」
 	「（ん、いや、これはちょっと違う気がするな。）」
 	「（もう一度状況を整理しよう。）」
-	「（[seed]桃子は特別多くない小遣いで日々やりくりしている[/seed]。）」
-	「（しかし、[seed]最近はお土産やプレゼントで出費が増えた[/seed]。）」
-	「（そこに、[seed]近日中のディズニーランドへの誘い[/seed]。）」
-	「（[seed]あの行楽地は入園料が安くない[/seed]。）」
-	「（[seed]舞浜までの交通費も馬鹿にならない[/seed]。）」
+	「（桃子は特別多くない小遣いで日々やりくりしている。）」
+	「（しかし、お土産やプレゼントで[seed]最近は出費が増えた[/seed]。）」
+	「（そこに、[seed]近日中のディズニーランドへの誘い[/seed]だ。）」
+	「（あの行楽地は[seed]入園料が安くない[/seed]。）」
+	「（舞浜までの交通費も馬鹿にならないだろう。）」
 	「（となると、桃子が誘いを渋る理由としてわかることは――）」
 [seed_retry]
 [endif]
@@ -350,11 +348,11 @@
 	「（・・・？）」
 	「（ん、いや、これはちょっと違う気がするな。）」
 	「（もう一度状況を整理しよう。）」
-	「（[seed]桃子は特別多くない小遣いで日々やりくりしている[/seed]）」
-	「（しかし、[seed]最近はお土産やプレゼントで出費が増えた[/seed]。）」
-	「（そこに、[seed]近日中のディズニーランドへの誘い[/seed]。）」
-	「（[seed]あの行楽地は入園料が安くない[/seed]。）」
-	「（[seed]舞浜までの交通費も馬鹿にならない[/seed]。）」
+	「（桃子は特別多くない小遣いで日々やりくりしている。）」
+	「（しかし、お土産やプレゼントで[seed]最近は出費が増えた[/seed]。）」
+	「（そこに、[seed]近日中のディズニーランドへの誘い[/seed]だ。）」
+	「（あの行楽地は[seed]入園料が安くない[/seed]。）」
+	「（舞浜までの交通費も馬鹿にならないだろう。）」
 	「（となると、桃子が誘いを渋る理由としてわかることは――）」
 [seed_retry]
 
@@ -416,7 +414,7 @@
 [chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 [bgmend time="1.0"]
 	//増田//
-	「・・・。」
+	「・・・」
 	「結局、俺ら⼆⼈ってことだ。なあ純⼀。」
 	//純一//
 	「そうだね・・・」
@@ -520,7 +518,7 @@
 	「早く教えろよ。」
 	//純一//
 	「（僕は⽌めていた⾜を踏み出しながら、整理した答えを増⽥に返す。）」
-	「朝も捨てたもんじゃないってこと。」
+	「朝も捨てたもんじゃないってこと!」
 
 [SE se="風が流れる音。.mp3" volume="0.5" frequency="5"]
 

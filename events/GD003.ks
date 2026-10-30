@@ -10,7 +10,7 @@
 	
 
 [resetlaypos]
-[bg_show storage="教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.1"]
+[bg_show storage="改教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.1" fade="0.0"]
 [se se="学校のチャイム" volume="1" frequency="1" block="false"]
 	//純一//
 	「さて、今日も帰るかな。」

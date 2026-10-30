@@ -9,7 +9,7 @@
 
 
 [resetlaypos]
-[bg_show storage="教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.1"]
+[bg_show storage="改教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.1" fade="0.0"]
 [bgm bgm="MokLap1" volume="0.5" loop="true"]
 [chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.5" y="0.9" size="2.3" fade="0.3"]
 	//純一//
