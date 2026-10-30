@@ -1,0 +1,22 @@
+[
+  {
+    "progress": 0,
+    "max_channel_difference": 0
+  },
+  {
+    "progress": 0.25,
+    "max_channel_difference": 2
+  },
+  {
+    "progress": 0.5,
+    "max_channel_difference": 1
+  },
+  {
+    "progress": 0.75,
+    "max_channel_difference": 2
+  },
+  {
+    "progress": 1,
+    "max_channel_difference": 0
+  }
+]

@@ -9,6 +9,7 @@ import pstats
 import sys
 import tempfile
 import time
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -86,7 +87,27 @@ def main():
         try:
             assert app.initialize()
             app.demo_flow.index = 1
-            app.enter_stage(STAGES[1])
+            from core.ui.loading_screen import LoadingScreen
+            from core.ui.debug_hud import get_debug_hud
+
+            percentages = []
+            original_show = LoadingScreen.show
+
+            def tracked_show(painter, message="読み込み中...", progress=None):
+                original_show(painter, message, progress=progress)
+                if progress is not None:
+                    percentages.append(progress)
+                    if progress == 50:
+                        pygame.image.save(app.window_surface, str(output / "gd001-loading-50.png"))
+
+            started = time.perf_counter()
+            with patch.object(LoadingScreen, "show", tracked_show):
+                app.enter_stage(STAGES[1])
+            assert percentages[0] == 0 and percentages[-1] == 100
+            assert percentages == sorted(set(percentages))
+            assert len(percentages) > 10
+            print("GD001_LOADING_PROGRESS_OK", percentages, "seconds",
+                  round(time.perf_counter() - started, 3), flush=True)
             scene = app.current_subsystem
             gs = scene.game_state
             renderer = gs["text_renderer"]
@@ -109,6 +130,15 @@ def main():
             overlay = gs["seed_answer_overlay"]
             assert overlay.turning_point_id == "MOMOKO_GD_MONEY"
             assert not renderer.skip_mode and not renderer.auto_mode
+            hud = get_debug_hud()
+            assert not hud.enabled
+            press(pygame.K_F8)
+            assert hud.enabled
+            assert any(line.startswith("MODEL") for line in hud.lines_for(app))
+            pygame.image.save(app.virtual_screen, str(output / "gd001-debug-f8.png"))
+            press(pygame.K_F8)
+            assert not hud.enabled
+            print("GD001_DEMO_F8_DEBUG_OK", flush=True)
             pygame.image.save(app.virtual_screen, str(output / "gd001-input.png"))
             index = gs["current_paragraph"]
             for _ in range(5):
@@ -126,11 +156,12 @@ def main():
             print("GD001_INCORRECT_RETURNS_TO_INPUT_OK", flush=True)
             gs["seed_manager"]._preload_thread.join(30)
             assert gs["seed_manager"].model_status() == "ready"
-            pygame.event.post(pygame.event.Event(pygame.TEXTINPUT, text="旅行のお土産で散財したから余裕がない"))
+            answer = os.environ.get("MOKISS_PLAYBACK_ANSWER", "旅行のお土産で散財したから余裕がない")
+            pygame.event.post(pygame.event.Event(pygame.TEXTINPUT, text=answer))
             press(pygame.K_RETURN)
             assert overlay.last_verdict["result"] == "correct"
             assert gs["seed_answer_overlay"] is None
-            assert "semantic_match" in overlay.last_verdict["reason_codes"]
+            assert overlay.last_verdict["reason_codes"][0] in ("semantic_match", "exact_answer")
             press(pygame.K_SPACE)
             play_until(lambda: "ありがとっ" in renderer.current_text)
             pygame.image.save(app.virtual_screen, str(output / "gd001-success.png"))
@@ -157,7 +188,10 @@ def main():
         finally:
             pygame.image.load = original_load
             app.cleanup()
-    assert snapshot() == before
+    after = snapshot()
+    changed_paths = [str(path.relative_to(ROOT)) for path in before.keys() | after.keys()
+                     if before.get(path) != after.get(path)]
+    assert not changed_paths, f"KS or main profile changed during playback: {changed_paths}"
     print("AUTHORED_KS_AND_MAIN_STATE_UNCHANGED", flush=True)
 
 

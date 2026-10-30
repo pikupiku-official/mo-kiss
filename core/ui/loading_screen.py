@@ -6,6 +6,8 @@
 import pygame
 import os
 import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
 from core.path_utils import get_project_root
 
 class LoadingScreen:
@@ -100,7 +102,7 @@ class LoadingScreen:
                 default_font = pygame.font.get_default_font()
                 self.font = pygame.font.Font(default_font, self.font_size)
     
-    def show(self, message="読み込み中..."):
+    def show(self, message="読み込み中...", progress=None):
         """
         ローディング画面を表示
         
@@ -119,9 +121,21 @@ class LoadingScreen:
             text_rect = text_surface.get_rect(center=screen_rect.center)
             
             self.screen.blit(text_surface, text_rect)
+
+            if progress is not None:
+                percent = max(0, min(100, int(progress)))
+                progress_surface = self.font.render(f"{percent}%", True, self.text_color)
+                progress_rect = progress_surface.get_rect(
+                    midtop=(screen_rect.centerx, text_rect.bottom + 20)
+                )
+                self.screen.blit(progress_surface, progress_rect)
         
         # 画面更新
         pygame.display.flip()
+        # Keep the window responsive during synchronous image preparation.
+        # Pumping preserves QUIT and window events for the application loop.
+        if progress is not None:
+            pygame.event.pump()
     
     def hide(self):
         """ローディング画面を終了（画面をクリア）"""
@@ -140,13 +154,52 @@ def get_loading_screen(screen=None):
     global _loading_screen
     if _loading_screen is None and screen is not None:
         _loading_screen = LoadingScreen(screen)
+    elif _loading_screen is not None and screen is not None:
+        _loading_screen.screen = screen
     return _loading_screen
 
-def show_loading(message="読み込み中...", screen=None):
+def show_loading(message="読み込み中...", screen=None, progress=None):
     """簡単にローディング画面を表示する便利関数"""
     loading_screen = get_loading_screen(screen)
     if loading_screen:
-        loading_screen.show(message)
+        loading_screen.show(message, progress=progress)
+
+
+class _LoadingProgress:
+    def __init__(self, screen, message):
+        self.screen = screen
+        self.message = message
+        self.percent = -1
+
+    def update(self, percent):
+        percent = max(self.percent, max(0, min(100, int(percent))))
+        if percent != self.percent:
+            self.percent = percent
+            if self.screen is not None:
+                self.screen.show(self.message, progress=percent)
+
+
+_active_progress = ContextVar("loading_progress", default=None)
+
+
+@contextmanager
+def loading_progress(message="読み込み中...", screen=None):
+    """Show measured progress only for the active loading transition."""
+    progress = _LoadingProgress(get_loading_screen(screen), message)
+    token = _active_progress.set(progress)
+    try:
+        progress.update(0)
+        yield progress
+        progress.update(100)
+    finally:
+        _active_progress.reset(token)
+
+
+def report_loading_progress(percent):
+    """Report completed preparation work; inactive during ordinary playback."""
+    progress = _active_progress.get()
+    if progress is not None:
+        progress.update(percent)
 
 def hide_loading():
     """ローディング画面を非表示にする便利関数"""

@@ -1,0 +1,16 @@
+[
+  {
+    "ks": "events/E066.ks",
+    "scan_ms": 17.268700001295656,
+    "parse_ms": 8.77559999935329,
+    "prepare_ms": 6.514200009405613,
+    "decode_ms": 0.0,
+    "decodes": 0,
+    "unique_images": 0,
+    "duplicate_decodes": {},
+    "renditions": 0,
+    "cache_mib": 0.0,
+    "pixels": {},
+    "profile": "         1444 function calls (1427 primitive calls) in 0.006 seconds\n\n   Ordered by: cumulative time\n   List reduced from 163 to 18 due to restriction <18>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.006    0.006 character_images.py:170(prepare_character_images)\n      2/1    0.000    0.000    0.006    0.006 <frozen importlib._bootstrap>:1349(_find_and_load)\n      2/1    0.000    0.000    0.006    0.006 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)\n      2/1    0.000    0.000    0.005    0.005 <frozen importlib._bootstrap>:911(_load_unlocked)\n      2/1    0.000    0.000    0.005    0.005 <frozen importlib._bootstrap_external>:989(exec_module)\n        2    0.000    0.000    0.004    0.002 <frozen importlib._bootstrap_external>:1062(get_code)\n      4/2    0.000    0.000    0.004    0.002 <frozen importlib._bootstrap>:480(_call_with_frames_removed)\n      2/1    0.000    0.000    0.004    0.004 {built-in method builtins.exec}\n        1    0.000    0.000    0.004    0.004 cg_manager.py:1(<module>)\n        2    0.000    0.000    0.003    0.001 <frozen importlib._bootstrap_external>:1183(get_data)\n        2    0.002    0.001    0.002    0.001 {built-in method _io.open_code}\n        1    0.000    0.000    0.001    0.001 __init__.py:226(compile)\n        1    0.000    0.000    0.001    0.001 __init__.py:280(_compile)\n        2    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:751(_compile_bytecode)\n        2    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap>:1240(_find_spec)\n        2    0.001    0.000    0.001    0.000 {built-in method marshal.loads}\n        1    0.000    0.000    0.001    0.001 _compiler.py:740(compile)\n        2    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:1520(find_spec)\n\n\n"
+  }
+]
