@@ -248,7 +248,10 @@ def _action_for_expression(
     previous = last_expressions.get(target, {})
     params: Dict[str, Any] = {}
     for key, value in incoming.items():
-        if previous.get(key) != value:
+        # An unset part is already empty. Emitting an empty shift for a
+        # dialogue-only speaker would activate them as a character, allowing
+        # names such as A/C to resolve to unrelated torso images.
+        if previous.get(key, "") != value:
             params[key] = value
     if not params:
         return None
