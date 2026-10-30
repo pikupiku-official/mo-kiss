@@ -33,7 +33,7 @@
 	「ちょっと！！やめなさいよ、縁起でもない！」
 [chara_shift name="杏" effect="" x="0.83540373" y="0.68322981" size="1.5" fade="0.15"]
 	//B//
-	「そもそも予言なんてマヤカシだから。でしょ？」
+	「そもそも予言なんてマヤカシだから。でしょ、純一？」
 	//純一//
 	「・・・いや、僕だってわからないよ。」
 	「けど、あんまり悲観的になっても仕方ないんじゃないか。」
@@ -98,7 +98,7 @@
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//純一//
 	「僕は遠慮するよ。」
-[chara_shift name="杏" x="0.85170808" y="0.68322981"]
+[chara_shift name="杏" x="0.85170808" y="0.68322981" fade="0.30"]
 	//B//
 	「あたしもパス。彼氏と約束あるし。」
 [chara_shift name="増田" effect="" y="0.7" size="1.5" fade="0.15"]
@@ -125,7 +125,8 @@
 [chara_shift]
 	//B//
 	「あのねぇ、この子だって疲れてんの！」
-	//C//
+[chara_shift name="桃子" effect="" fade="0.15"]
+	//B//
 	「桃子は部活だから空いてないんでしょ？」
 [chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" accessory="" effect="" blink="true" fade="0.15"]
 	//桃子//
@@ -135,7 +136,7 @@
 	「ごめんね。」
 [chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
 	//純一//
-	「・・・」
+	「・・・」[scroll-stop]
 [chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
 	//B//
 	「謝らなくていいのよ、コイツの暇つぶしなんだから。」
@@ -150,7 +151,6 @@
 [chara_hide]
 	//B//
 	「・・・」
-[chara_hide name="桃子" fade="0.15"]
 	//B//
 	「まるでコドモね・・・」
 [chara_shift name="杏" x="0.60248448" y="0.65838509" size="1.2" fade="0.15"]
