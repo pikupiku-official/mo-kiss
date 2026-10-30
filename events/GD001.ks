@@ -1,5 +1,5 @@
 *start
-;@expression-status: human_confirmed
+;@expression-status: ai_draft
 
 ;----------------------------------------------
 ;◆GD用シナリオ
@@ -470,52 +470,52 @@
 [bg_show]
 	//{name}//
 	「（増⽥の声の後、桃⼦が校⾨の中に駆け込んでいく姿が⼩さく⾒えた。）」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「あいつたまにああいうことするよな。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「素直というか大胆というかさあ。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//{name}//
 	「・・・」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0004" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0004" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「人を惹きつけるものがあるよな、あの性格。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0004" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0006" brow="MST_F01_BRO_0004" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//{name}//
 	「・・・」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「なあ、純⼀。」
 	//{name}//
 	「・・・」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「純⼀？おい、どうしたんだよ。」
 	//{name}//
 	「あ、ああ・・・えーと・・・」
 「なんだっけ。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「なんだよ全く。」
 	「俺の話も聞かず、⽴ち⽌まってボーッとしやがって。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「ホントにお前は朝が弱いんだからさ、呆れるよ。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0002" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0002" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//{name}//
 	「（増⽥の⾔う通り、全く彼の話が頭に⼊ってこなかった。）」
 	「（正直に⾔うと、坂上に⽴ち笑顔で⼿を振る彼⼥の姿、彼⼥を照らす朝の光。）」
 	「（その景⾊に⽬が離せなかったからだ。）」
 	「（それは映画の導⼊シーンみたいだった。）」
 	「増田。」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「はあ。」
 	//{name}//
 	「僕が今考えていたことを知りたい？」
-[chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0002" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「早く教えろよ。」
 	//{name}//
