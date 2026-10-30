@@ -56,11 +56,13 @@ def _classify_stem(stem: str):
     return None
 
 class ImageManager:
-    def __init__(self, debug=False, cache_size=50):
+    def __init__(self, debug=False, cache_size=50, cache_bytes=None):
         self.debug = debug
         self.images = {}
         self.image_cache = OrderedDict()  # LRUキャッシュ
         self.cache_size = cache_size
+        self.cache_bytes = cache_bytes
+        self._cache_bytes = 0
         self.image_paths = {}  # パス情報を保存
         self.default_sizes = {
             'character': None,  # キャラクター画像は元サイズを維持
@@ -87,11 +89,16 @@ class ImageManager:
             else:
                 # 新しいアイテムを追加
                 self.image_cache[cache_key] = image
+                self._cache_bytes += image.get_pitch() * image.get_height()
                 
                 # キャッシュサイズを超えた場合、最も古いアイテムを削除
-                if len(self.image_cache) > self.cache_size:
-                    oldest_key = next(iter(self.image_cache))
-                    del self.image_cache[oldest_key]
+                while len(self.image_cache) > self.cache_size or (
+                    self.cache_bytes is not None
+                    and self._cache_bytes > self.cache_bytes
+                    and len(self.image_cache) > 1
+                ):
+                    oldest_key, oldest = self.image_cache.popitem(last=False)
+                    self._cache_bytes -= oldest.get_pitch() * oldest.get_height()
                     if self.debug:
                         print(f"キャッシュから削除: {oldest_key}")
     

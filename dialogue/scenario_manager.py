@@ -19,6 +19,7 @@ from .cg_manager import (
     cg_transition_duration_ms,
 )
 from .render_monitor import trace_event
+from .character_images import character_images, character_scale
 
 def advance_dialogue(game_state):
     """次の対話に進む"""
@@ -385,7 +386,8 @@ def _ir_handle_character_show(game_state, target, params):
     image_manager = game_state.get("image_manager")
     if not image_manager:
         return
-    char_img = image_manager.get_image("torso", torso_id)
+    cache = character_images(game_state)
+    char_img = cache.geometry("torso", torso_id)
     if not char_img:
         return
 
@@ -437,7 +439,8 @@ def _ir_handle_character_show(game_state, target, params):
     for part_type in ("brow", "eye", "mouth", "cheek", "effect", "accessory"):
         part_id = params.get(part_type)
         if part_id:
-            image_manager.get_image(part_type, part_id)
+            scale = character_scale(char_img, size)
+            cache.get(part_type, part_id, scale)
 
 def _ir_handle_character_shift(game_state, target, params):
     if not target:
@@ -465,18 +468,11 @@ def _ir_handle_character_shift(game_state, target, params):
 
     torso_id = params.get("torso")
     image_manager = game_state.get("image_manager")
-    # Load incoming layers before publishing the new expression state.
-    if image_manager:
-        if torso_id:
-            image_manager.get_image("torso", torso_id)
-        for part_type in ("brow", "eye", "mouth", "cheek", "effect", "accessory"):
-            part_id = params.get(part_type)
-            if part_id:
-                image_manager.get_image(part_type, part_id)
+    cache = character_images(game_state) if image_manager else None
 
     target_torso = torso_id or old_torso
     placement_img = (
-        image_manager.get_image("torso", target_torso)
+        cache.geometry("torso", target_torso)
         if image_manager else None
     )
     if torso_id and placement_img is None and old_torso:
@@ -493,7 +489,7 @@ def _ir_handle_character_shift(game_state, target, params):
             current_center_x = 0.5
             current_center_y = 0.5
             if old_pos:
-                old_img = image_manager.get_image("torso", old_torso) if image_manager else None
+                old_img = cache.geometry("torso", old_torso) if cache else None
                 center_img = old_img or placement_img
                 old_base_scale = VIRTUAL_HEIGHT / center_img.get_height()
                 virtual_left = (old_pos[0] - OFFSET_X) / SCALE
@@ -529,11 +525,13 @@ def _ir_handle_character_shift(game_state, target, params):
     # nothing, and the character can visibly blink during a simultaneous
     # shift. Keep the last drawable part, just as we do for a missing torso.
     if image_manager:
+        geometry = placement_img or cache.geometry('torso', old_torso)
+        face_scale = character_scale(geometry, target_zoom) if geometry else 1.0
         for part_type in ("eye", "mouth", "brow", "cheek", "effect", "accessory"):
             requested_part = target_expressions.get(part_type)
             if (
                 requested_part
-                and image_manager.get_image(part_type, requested_part) is None
+                and cache.get(part_type, requested_part, face_scale) is None
             ):
                 target_expressions[part_type] = old_expressions.get(part_type, "")
 
@@ -581,6 +579,9 @@ def _ir_handle_character_shift(game_state, target, params):
         character_expressions[target] = target_expressions
         game_state.get("character_transitions", {}).pop(target, None)
         if position_changed and move_ms > 0:
+            if changed_parts and fade_ms > 0:
+                from .character_manager import _prepare_character_zoom
+                _prepare_character_zoom(game_state, target, target_zoom, changed_parts)
             move_character_to(
                 game_state, target, target_pos, move_ms, target_zoom
             )

@@ -1,4 +1,5 @@
 ﻿import pygame
+import weakref
 from core.config import *
 
 # 背景画像スケーリングキャッシュ
@@ -26,8 +27,10 @@ def get_background_display_size(image_width, image_height, zoom=1.0):
 def get_scaled_background(image, new_width, new_height):
     """背景をキャッシュ付きでスケーリング"""
     # キャッシュキーを作成
-    image_id = id(image)
-    cache_key = (image_id, new_width, new_height)
+    # Native images can leave the byte-bounded source cache. An integer id
+    # may then be reused by another background; a weak identity avoids both
+    # returning its predecessor's pixels and retaining a large native image.
+    cache_key = (weakref.ref(image), new_width, new_height)
     
     # キャッシュから取得を試行
     if cache_key in _bg_scaled_cache:

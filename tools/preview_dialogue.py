@@ -167,7 +167,7 @@ def create_step_preview_runtime():
     cfg.SCALE = 1.0
 
     virtual_screen = pygame.Surface((VIRTUAL_WIDTH, VIRTUAL_HEIGHT))
-    image_manager = ImageManager(DEBUG, cache_size=200)
+    image_manager = ImageManager(DEBUG, cache_size=200, cache_bytes=64 * 1024 * 1024)
     image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
     images = image_manager.load_essential_images(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
     return {
@@ -641,7 +641,7 @@ def preview_ks_file(ks_file_path, start_step=1):
         bgm_manager = BGMManager(PREVIEW_DEBUG)
         se_manager = SEManager(PREVIEW_DEBUG)
         dialogue_loader = DialogueLoader(PREVIEW_DEBUG)
-        image_manager = ImageManager(DEBUG)
+        image_manager = ImageManager(DEBUG, cache_bytes=64 * 1024 * 1024)
         text_renderer = TextRenderer(virtual_screen, PREVIEW_DEBUG)
         apply_event_datetime(text_renderer, ks_file_path=ks_file_path)
         choice_renderer = ChoiceRenderer(virtual_screen, PREVIEW_DEBUG)
@@ -765,6 +765,8 @@ def preview_ks_file(ks_file_path, start_step=1):
             },
         }
 
+        from dialogue.character_images import prepare_character_images
+        prepare_character_images(game_state)
         configure_seed_preview(game_state, ks_file_path)
         print("[INIT] ゲーム状態初期化完了")
 

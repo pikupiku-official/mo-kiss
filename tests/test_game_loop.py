@@ -143,6 +143,7 @@ def test_dialogue_frame_requeues_events_for_legacy_input(monkeypatch):
         "dialogue.update",
         "dialogue.render",
     ]
+    assert calls[-1] == ("tick", 60)
 
 
 def test_f8_toggles_global_debug_hud_and_is_consumed(monkeypatch):

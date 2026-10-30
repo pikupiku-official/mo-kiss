@@ -1,7 +1,31 @@
 import pygame
+import gc
+import weakref
 
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH
 from dialogue.background_manager import draw_background, show_background
+from dialogue.background_manager import _bg_scaled_cache, get_scaled_background
+
+
+def test_background_scale_cache_does_not_pin_evicted_native_images():
+    source = pygame.Surface((20, 20))
+    source.fill((12, 34, 56))
+    reference = weakref.ref(source)
+    scaled = get_scaled_background(source, 10, 10)
+    del source
+    gc.collect()
+    assert reference() is None
+    assert scaled.get_at((0, 0))[:3] == (12, 34, 56)
+
+
+def test_background_scale_cache_uses_image_identity_after_source_eviction():
+    red = pygame.Surface((20, 20))
+    blue = pygame.Surface((20, 20))
+    red.fill((255, 0, 0))
+    blue.fill((0, 0, 255))
+    assert get_scaled_background(red, 10, 10).get_at((0, 0)).r == 255
+    assert get_scaled_background(blue, 10, 10).get_at((0, 0)).b == 255
+    assert any(key[0]() is blue for key in _bg_scaled_cache)
 
 
 class StubImageManager:
