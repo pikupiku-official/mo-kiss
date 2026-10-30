@@ -301,6 +301,7 @@ def test_ks_finished_on_enter_returns_dialogue_ended_in_same_frame(monkeypatch):
     from dialogue.dialogue_subsystem import DialogueSubsystem
 
     subsystem = DialogueSubsystem.__new__(DialogueSubsystem)
+    subsystem.screen = None
     subsystem._ending_bgm_deadline = None
     subsystem._last_saved_paragraph = -1
     subsystem.game_state = {
@@ -310,11 +311,12 @@ def test_ks_finished_on_enter_returns_dialogue_ended_in_same_frame(monkeypatch):
     }
     subsystem._save_dialogue_state = lambda paragraph: None
 
-    def finish_on_this_enter(game_state, screen):
+    def finish_on_this_enter(game_state, screen, events=None):
         game_state["ks_finished"] = True
         return True
 
     monkeypatch.setattr(controller2, "handle_events", finish_on_this_enter)
+    monkeypatch.setattr(pygame.event, "get", lambda: [])
 
     assert subsystem.handle_events() == "dialogue_ended"
 
@@ -486,7 +488,7 @@ def test_borderline_answer_enters_authored_retry_branch(monkeypatch):
     assert seeds.recorded is False
 
 
-def test_model_unavailable_shows_dialogue_message_then_next_submit_fails_open(monkeypatch):
+def test_model_unavailable_never_accepts_an_unjudged_answer(monkeypatch):
     from dialogue.controller2 import _submit_seed_answer
 
     class Overlay:
@@ -494,26 +496,13 @@ def test_model_unavailable_shows_dialogue_message_then_next_submit_fails_open(mo
 
         def __init__(self):
             self.suspended = False
-            self.fallback_armed = False
             self.closed = False
 
         def suspend(self):
             self.suspended = True
 
-        def arm_model_fallback(self):
-            self.fallback_armed = True
-
         def close(self):
             self.closed = True
-
-        @staticmethod
-        def fallback_verdict():
-            return {
-                "result": "correct",
-                "confidence": 0.0,
-                "judge_version": "model-unavailable-fallback-v1",
-                "reason_codes": ("model_unavailable_fallback",),
-            }
 
     class Seeds:
         def __init__(self):
@@ -553,7 +542,6 @@ def test_model_unavailable_shows_dialogue_message_then_next_submit_fails_open(mo
     _submit_seed_answer(game_state, "推理")
 
     assert overlay.suspended is True
-    assert overlay.fallback_armed is True
     assert game_state["seed_system_message"] in renderer.dialogue[0]
 
     fake_time = type(
@@ -568,11 +556,12 @@ def test_model_unavailable_shows_dialogue_message_then_next_submit_fails_open(mo
     game_state["seed_system_message"] = None
     _submit_seed_answer(game_state, "推理")
 
-    assert seeds.judge_calls == 1
-    assert overlay.closed is True
-    assert loader.flag == ("MASUDA_TP1_RESULT", "correct")
-    assert seeds.recorded[2]["confidence"] == 0.0
-    assert seeds.recorded[2]["reason_codes"] == ("model_unavailable_fallback",)
+    assert seeds.judge_calls == 2
+    assert overlay.suspended is True
+    assert overlay.closed is False
+    assert game_state["seed_answer_overlay"] is overlay
+    assert not hasattr(loader, "flag")
+    assert seeds.recorded is None
 
 
 def test_home_diary_adds_one_visible_line_per_new_seed(monkeypatch):

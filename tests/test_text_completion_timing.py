@@ -108,3 +108,49 @@ def test_final_period_does_not_delay_input_wait(monkeypatch):
 
     assert renderer.is_text_complete is True
     assert renderer.punctuation_waiting is False
+
+
+def test_skip_completes_the_paragraph_without_waiting_for_another_frame(monkeypatch):
+    renderer = _renderer("最初の三文字だけで止まらず、最後まで表示する。", displayed_chars=3)
+    renderer.punctuation_waiting = True
+    renderer.punctuation_wait_start = 100
+    monkeypatch.setattr("pygame.time.get_ticks", lambda: 110)
+
+    renderer.toggle_skip_mode()
+    renderer.update()
+
+    assert renderer.displayed_chars == renderer._total_base_chars
+    assert renderer.is_text_complete
+    assert renderer.is_ready_for_auto_advance()
+    assert not renderer.punctuation_waiting
+
+
+def test_typewriter_catches_up_after_a_slow_frame(monkeypatch):
+    renderer = _renderer("あいうえおかきくけこ")
+    monkeypatch.setattr("pygame.time.get_ticks", lambda: 500)
+    renderer.update()
+    assert renderer.displayed_chars == 5
+
+
+def test_skip_displays_the_next_paragraph_before_its_first_render(monkeypatch):
+    from dialogue.scroll_manager import ScrollManager
+    from types import SimpleNamespace
+    renderer = _renderer("前の段落")
+    renderer.name_manager = SimpleNamespace(substitute_variables=lambda value: value or "")
+    renderer.seed_manager = None
+    renderer.backlog_manager = None
+    renderer.scroll_manager = ScrollManager()
+    renderer.skip_mode = True
+    monkeypatch.setattr("pygame.time.get_ticks", lambda: 100)
+
+    renderer.set_dialogue("次の段落も最初から全文を表示する。", "")
+
+    assert renderer.displayed_chars == renderer._total_base_chars
+    assert renderer.is_text_complete
+
+
+def test_automatic_playback_can_leave_a_textless_standalone_step():
+    renderer = _renderer("")
+    renderer.skip_mode = True
+    renderer.update()
+    assert renderer.is_ready_for_auto_advance()

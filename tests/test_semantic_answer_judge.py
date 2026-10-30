@@ -23,6 +23,40 @@ def manager():
     return SeedManager()
 
 
+@pytest.mark.parametrize("turning_point", ["MOMOKO_GD_MONEY", "MOMOKO_TORO"])
+@pytest.mark.parametrize("answer", ["バナナ", "うんこ", "あいうえお", "こんにちは", "a", "123", "わからない", "今日はいい天気"])
+def test_demo_rejects_unrelated_answers(manager, turning_point, answer):
+    verdict = manager.judge_answer(turning_point, answer)
+    assert verdict["result"] == "incorrect", (answer, verdict)
+    assert verdict["reason_codes"] == ("missing_topic_anchor",)
+
+
+@pytest.mark.parametrize("answer", [
+    "桃子は家族とうまくいっていない", "家族と不仲", "家庭の問題",
+    "お父さんとお母さんが喧嘩している", "家族のことで悩んでいるから帰りたくない",
+    "家で両親がもめている",
+])
+def test_demo_accepts_family_problem_deductions(manager, answer):
+    verdict = manager.judge_answer("MOMOKO_TORO", answer)
+    assert verdict["result"] == "correct", (answer, verdict)
+
+
+@pytest.mark.parametrize("answer", [
+    "桃子は家族が好き", "家族と旅行に行きたい", "家族が病気になった",
+    "両親が亡くなった", "家族と不仲なわけではない", "妹と遊びたい",
+    "桃子の父は宇宙人", "家族はバナナ", "家族", "父", "妹",
+])
+def test_demo_retries_wrong_family_explanations(manager, answer):
+    verdict = manager.judge_answer("MOMOKO_TORO", answer)
+    assert verdict["result"] in ("incorrect", "borderline"), (answer, verdict)
+
+
+@pytest.mark.parametrize("answer", ["お金はバナナ", "財布", "お金がある", "お金があります", "桃子は余裕がある"])
+def test_demo_rejects_money_words_without_the_deduction(manager, answer):
+    verdict = manager.judge_answer("MOMOKO_GD_MONEY", answer)
+    assert verdict["result"] in ("incorrect", "borderline"), (answer, verdict)
+
+
 @pytest.mark.parametrize(
     "answer",
     [

@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+from types import SimpleNamespace
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
@@ -49,20 +50,61 @@ def test_sequence_and_dates():
         ("1999-05-31", "昼"), ("1999-05-31", "放課後"), ("1999-05-31", "夜"),
     ]
     assert [(s.date, s.period) for s in STAGES[8:10]] == [
-        ("1999-06-15", "朝"), ("1999-06-15", "昼"),
+        ("1999-06-15", "朝"), ("1999-06-15", "放課後"),
     ]
+    assert STAGES[9].source == "GD006.ks"
     assert TITLE_IDLE_MS == 20_000
     flow.reset()
     assert flow.stage is None
 
 
-def test_map_and_pv_choices_use_real_input(screen):
-    field = GDMap(screen)
-    assert field.choices.choices == ["教室"]
-    assert field.handle_events([key(pygame.K_RETURN)]) == "demo_next"
+def test_pv_choices_use_real_input(screen):
     choice = ChoiceScreen(screen, ("進む", "映像"), ("demo_next", "demo_pv"))
     assert choice.handle_events([key(pygame.K_DOWN), key(pygame.K_RETURN)]) == "demo_pv"
     assert choice.handle_events([key(pygame.K_ESCAPE)]) == "show_settings"
+
+
+@pytest.mark.parametrize("size", [(640, 480), (1440, 1080)])
+def test_map_hover_render_and_classroom_click(screen, size):
+    canvas = pygame.Surface(size)
+    field = GDMap(canvas)
+
+    def pos(x, y):
+        return (round(x * size[0] / 640), round(y * size[1] / 480))
+
+    def move(x, y):
+        return pygame.event.Event(pygame.MOUSEMOTION, pos=pos(x, y))
+
+    def click(x, y, button=1):
+        return pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=button, pos=pos(x, y))
+
+    def assert_image(filename):
+        source = pygame.image.load(str(Path(__file__).resolve().parents[1] / "images/maps" / filename))
+        expected = pygame.transform.smoothscale(source.convert(), size)
+        field.render()
+        assert pygame.image.tostring(canvas, "RGB") == pygame.image.tostring(expected, "RGB")
+
+    assert_image("demo01.png")
+    assert field.handle_events([key(pygame.K_RETURN)]) is None
+    # These points lie in the bounding rectangle but outside the slanted room.
+    for point in ((390, 215), (530, 274), (450, 200), (600, 400), (270, 435)):
+        assert field.handle_events([move(*point), click(*point)]) is None
+        assert not field.hovered
+    assert field.handle_events([move(460, 245)]) is None
+    assert field.hovered
+    assert_image("demo02.png")
+    assert field.handle_events([click(460, 245, button=3)]) is None
+    assert field.handle_events([click(530, 274)]) is None
+    assert not field.hovered
+    assert_image("demo01.png")
+    assert field.handle_events([move(460, 245), move(100, 100)]) is None
+    assert_image("demo01.png")
+    assert field.handle_events([move(460, 245), pygame.event.Event(pygame.WINDOWLEAVE)]) is None
+    assert not field.hovered
+    # Use the click's coordinates, including when no motion event preceded it.
+    assert field.handle_events([click(460, 245)]) == "demo_next"
+    assert field.handle_events([key(pygame.K_ESCAPE)]) == "show_settings"
+    assert field.handle_events([pygame.event.Event(pygame.QUIT)]) == "quit"
 
 
 def test_home_disables_other_actions_and_sleep_never_advances_calendar(screen, monkeypatch):
@@ -174,3 +216,70 @@ def test_real_pv_audio_decode_letterbox_end_and_attract_cancel(screen, tmp_path,
     )]) == "demo_title"
     assert attract.handle_events([key(pygame.K_RETURN)]) == "demo_title"
     attract.cleanup()
+
+
+def test_loading_is_presented_before_construction_and_drops_stale_input(screen, monkeypatch):
+    import demo.application as module
+    from core.ui import loading_screen
+
+    # Use this test's actual display surface, independent of earlier tests.
+    monkeypatch.setattr(loading_screen, "_loading_screen", None)
+    monkeypatch.setattr(module, "get_time_manager", lambda: SimpleNamespace(save_time_state=lambda: None))
+    app = module.DemoApplication()
+    app.screen = app.virtual_screen = app.window_surface = screen
+    screen.fill((255, 0, 0))
+    observed = []
+
+    class Scene:
+        def __init__(self, surface):
+            assert surface.get_at((0, 0))[:3] == (0, 0, 0)
+            assert pygame.surfarray.array3d(surface).any(), "loading text was not painted"
+            observed.append("constructed")
+            pygame.event.post(key(pygame.K_RETURN))
+            pygame.event.post(pygame.event.Event(pygame.QUIT))
+
+        def on_enter(self):
+            pygame.event.post(key(pygame.K_RETURN))
+
+    monkeypatch.setattr(module, "GDMap", Scene)
+    try:
+        app.enter_stage(STAGES[3])
+        assert observed == ["constructed"]
+        assert app.current_mode == "demo_map"
+        assert [e.type for e in pygame.event.get()] == [pygame.QUIT]
+    finally:
+        app.audio_cache.cleanup()
+
+
+def test_morning_requires_answer_before_money_result_branches(screen, monkeypatch):
+    import demo.application as module
+    from dialogue.dialogue_loader import DialogueLoader
+    from dialogue.data_normalizer import normalize_dialogue_data
+    from dialogue.ir_builder import build_ir_from_normalized
+
+    source = Path("events/GD001.ks")
+    before = source.read_bytes()
+    data = normalize_dialogue_data(DialogueLoader().load_dialogue_from_ks(str(source)))
+    preloads = []
+    scene = SimpleNamespace(
+        game_state={"dialogue_data": data, "use_ir": True,
+                    "ir_data": build_ir_from_normalized(data),
+                    "text_renderer": SimpleNamespace(set_event_datetime=lambda value: None)},
+        seed_manager=SimpleNamespace(preload_answer_model=lambda: preloads.append(True)),
+        on_enter=lambda: None,
+    )
+    monkeypatch.setattr(module, "DialogueSubsystem", lambda *args: scene)
+    monkeypatch.setattr(module, "get_time_manager", lambda: SimpleNamespace(save_time_state=lambda: None))
+    app = module.DemoApplication()
+    app.screen = app.virtual_screen = app.window_surface = screen
+    try:
+        app.enter_stage(STAGES[1])
+        actions = [a for s in scene.game_state["ir_data"]["steps"] for a in s.get("actions", [])]
+        question = next(i for i, a in enumerate(actions) if a["action"] == "seed_answer")
+        branch = next(i for i, a in enumerate(actions)
+                      if a["action"] == "if_start" and "MOMOKO_GD_MONEY_RESULT" in a["params"]["condition"])
+        assert question < branch
+        assert preloads == [True]
+        assert source.read_bytes() == before
+    finally:
+        app.audio_cache.cleanup()

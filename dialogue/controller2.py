@@ -47,6 +47,30 @@ def is_point_in_rect(point, rect_pos, rect_size):
     return (rect_x <= x <= rect_x + rect_width and 
             rect_y <= y <= rect_y + rect_height)
 
+
+def draw_playback_controls(game_state, screen):
+    """Show the same buttons used by mouse hit tests, with active feedback."""
+    from core.config import UI_BUTTON_SCALE
+    images = game_state.get("images", {}).get("ui", {})
+    renderer = game_state["text_renderer"]
+    positions = get_ui_button_positions(screen)
+    cache = game_state.setdefault("_playback_button_surfaces", {})
+    for name in ("auto", "skip"):
+        source = images.get(name)
+        if source is None or name not in positions:
+            continue
+        size = (int(source.get_width() * UI_BUTTON_SCALE),
+                int(source.get_height() * UI_BUTTON_SCALE))
+        cached = cache.get(name)
+        if cached is None or cached[0] is not source or cached[1].get_size() != size:
+            cached = (source, pygame.transform.scale(source, size))
+            cache[name] = cached
+        button = cached[1]
+        rect = button.get_rect(topleft=positions[name])
+        screen.blit(button, rect)
+        if getattr(renderer, f"{name}_mode", False):
+            pygame.draw.rect(screen, (255, 220, 110), rect.inflate(6, 6), 2)
+
 def setup_text_renderer_settings(game_state):
     """TextRendererの新しい遅延設定を初期化"""
     text_renderer = game_state.get('text_renderer')
@@ -74,15 +98,11 @@ def handle_mouse_click(game_state, mouse_pos, screen):
         print(f"[SEED] 会話分岐を開始: {seed_id}")
         return
 
-    # Seed links are an independent overlay action. Ordinary clicks stay
-    # blocked while the current character step owns the transition.
-    if is_input_blocked(game_state):
-        print("[CLICK] 入力ブロック中のため無効")
-        return
-
     # 選択肢が表示中の場合、選択肢をクリック処理
     choice_renderer = game_state['choice_renderer']
     if choice_renderer.is_choice_showing():
+        if is_input_blocked(game_state):
+            return
         selected_choice = choice_renderer.handle_mouse_click(mouse_pos)
         if selected_choice >= 0:
             # 選択された選択肢をバックログに追加
@@ -139,6 +159,10 @@ def handle_mouse_click(game_state, mouse_pos, screen):
     
     # 選択肢が表示中でない場合のみ、UI以外の場所をクリックした場合にEnterキーと同じ処理を実行
     if not game_state['choice_renderer'].is_choice_showing():
+        # Playback toggles above remain responsive during a fade. Only the
+        # advance action waits for the visual step to finish.
+        if is_input_blocked(game_state):
+            return
         print("[CLICK] 通常クリック処理（Enterキーと同様）")
         handle_enter_key(game_state)
     else:
@@ -198,6 +222,7 @@ def _discard_blocked_gameplay_events(game_state, events):
     filtered = []
     advance_keys = (pygame.K_RETURN, pygame.K_KP_ENTER)
     advance_key_held = game_state.get("_advance_key_held", False)
+    advance_seen = False
     for event in events:
         if event.type == pygame.KEYUP and event.key in advance_keys:
             # KEYUP is consumed here only to release the held-key gate. A
@@ -205,32 +230,26 @@ def _discard_blocked_gameplay_events(game_state, events):
             advance_key_held = False
             continue
         if event.type == pygame.KEYDOWN and event.key in advance_keys:
-            if blocked or advance_key_held or getattr(event, "repeat", False):
+            if blocked or advance_key_held or advance_seen or getattr(event, "repeat", False):
                 advance_key_held = True
                 continue
             advance_key_held = True
+            advance_seen = True
             filtered.append(event)
-            continue
-        if blocked and event.type == pygame.KEYDOWN and event.key in (
-            pygame.K_SPACE,
-            pygame.K_a,
-        ):
-            # Skip/auto toggles would otherwise become a delayed advance after
-            # the transition ends.
             continue
         filtered.append(event)
     game_state["_advance_key_held"] = advance_key_held
     return filtered
 
 
-def handle_events(game_state, screen):
+def handle_events(game_state, screen, events=None):
     """イベント処理を行う"""
     # KSファイル終了チェック
     if game_state.get('ks_finished', False):
         print("[EVENTS] KSファイル終了フラグ検知")
         return False  # KSファイル終了を通知
 
-    events = pygame.event.get()
+    events = pygame.event.get() if events is None else events
     seed_answer_overlay = game_state.get("seed_answer_overlay")
     seed_list_overlay = game_state.get("seed_list_overlay")
 
@@ -375,12 +394,12 @@ def handle_events(game_state, screen):
                     game_state['show_text'] = not game_state['show_text']
                     print(f"テキストを{'表示' if game_state['show_text'] else '非表示に'}しました")
 
-            elif event.key == pygame.K_a:
+            elif event.key == pygame.K_a and not getattr(event, "repeat", False):
                 if not game_state['backlog_manager'].is_showing_backlog():
                     auto_mode = game_state['text_renderer'].toggle_auto_mode()
                     print(f"自動モード: {'ON' if auto_mode else 'OFF'}")
                     
-            elif event.key == pygame.K_SPACE and game_state['show_text']:
+            elif event.key == pygame.K_SPACE and game_state['show_text'] and not getattr(event, "repeat", False):
                 # バックログが開いている時は無効化
                 if not game_state['backlog_manager'].is_showing_backlog():
                     skip_mode = game_state['text_renderer'].toggle_skip_mode()
@@ -498,10 +517,7 @@ def _submit_seed_answer(game_state, answer_text):
         game_state["seed_answer_overlay"] = None
         return
 
-    if getattr(overlay, "fallback_armed", False):
-        verdict = overlay.fallback_verdict()
-    else:
-        verdict = seed_manager.judge_answer(turning_point_id, answer_text)
+    verdict = seed_manager.judge_answer(turning_point_id, answer_text)
     overlay.last_verdict = verdict
     result = verdict.get("result", "error")
     if result == "error":
@@ -511,8 +527,6 @@ def _submit_seed_answer(game_state, answer_text):
             if unavailable
             else "判定中に問題が発生しました。もう一度試してください。"
         )
-        if unavailable and hasattr(overlay, "arm_model_fallback"):
-            overlay.arm_model_fallback()
         overlay.suspend()
         game_state["seed_system_message"] = message
         game_state["text_renderer"].set_dialogue(message, "")
@@ -792,7 +806,7 @@ def _ir_fast_forward_animations(game_state, duration_ms):
 def update_game(game_state):
     """ゲーム状態の更新"""
     # TextRendererの初期設定が完了していない場合は実行
-    if not hasattr(game_state, 'text_renderer_initialized') or not game_state['text_renderer_initialized']:
+    if not game_state.get('text_renderer_initialized', False):
         setup_text_renderer_settings(game_state)
         game_state['text_renderer_initialized'] = True
     
@@ -860,9 +874,11 @@ def update_game(game_state):
         # 自動進行タイマーをリセット
         game_state['text_renderer'].reset_auto_timer()
 
-        # 最後の段落に到達した場合は自動モードを無効化
+        # AUTO/SKIP reaches the same completion route as an Enter at EOF.
         if not success:
             game_state['text_renderer'].auto_mode = False
+            game_state['text_renderer'].skip_mode = False
+            game_state['ks_finished'] = True
             if game_state['text_renderer'].debug:
                 print("最後の段落に到達したため自動モードを無効化しました")
     

@@ -18,16 +18,17 @@ def main():
         Path(profile, "current_state").mkdir()
         os.chdir(ROOT)
         try:
+            # On Windows even importing the PyQt5 package changes DLL lookup.
+            # Load ORT before Qt so its native runtime can initialize.
+            try:
+                import onnxruntime
+            except ImportError:
+                pass
             # Windows venvs below a Japanese path need an explicit Qt path.
             import PyQt5
             plugins = Path(PyQt5.__file__).parent / "Qt5" / "plugins"
             os.environ.setdefault("QT_PLUGIN_PATH", str(plugins))
             os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", str(plugins / "platforms"))
-            # Load ORT's DLLs before pygame/OpenCV when semantic KS is authored.
-            try:
-                import onnxruntime
-            except ImportError:
-                pass
             from demo.application import DemoApplication
             return 0 if DemoApplication().run() else 1
         finally:

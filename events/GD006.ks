@@ -397,6 +397,7 @@
 	「（この三つをつなげれば、桃子が隠していることが分かるはずだ。）」
 [scroll-stop]
 
+[seed_answer turning_point="MOMOKO_TORO" prompt="桃子が家に帰りたくない理由は何だろう？"]
 [if condition="MOMOKO_TORO_RESULT==correct"]
 	//純一//
 	「――そうだろ？」
