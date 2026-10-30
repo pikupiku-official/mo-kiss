@@ -2,6 +2,7 @@ import gc
 import weakref
 
 import pygame
+import pytest
 
 from dialogue.character_images import CharacterImages, image_pixels, prepare_character_images
 from core.services.image_manager import ImageManager
@@ -79,6 +80,76 @@ def test_native_image_cache_evicts_by_bytes():
         assert manager._cache_bytes == 800
     finally:
         manager.cleanup()
+
+
+@pytest.mark.parametrize('extension', ['png', 'webp', 'jpg'])
+def test_geometry_reads_asset_dimensions_without_decoding_pixels(tmp_path, monkeypatch, extension):
+    from PyQt5.QtGui import QImage
+
+    path = tmp_path / f'body.{extension}'
+    source = QImage(8, 1080, QImage.Format_ARGB32)
+    source.fill(0xffffffff)
+    assert source.save(str(path))
+    manager = ImageManager(cache_bytes=1)
+    manager.image_paths = {'torso': {'body': str(path)}}
+    decodes = []
+    monkeypatch.setattr(manager, 'get_image', lambda *args: decodes.append(args))
+    try:
+        geometry = CharacterImages(manager).geometry('torso', 'body')
+        assert geometry is not None
+        assert (geometry.width, geometry.height) == (8, 1080)
+        assert decodes == []
+    finally:
+        manager.cleanup()
+
+
+def test_invalid_header_falls_back_to_existing_image_resolution(tmp_path, monkeypatch):
+    path = tmp_path / 'body.png'
+    path.write_bytes(b'unsupported header')
+    manager = ImageManager()
+    manager.image_paths = {'torso': {'body': str(path)}}
+    monkeypatch.setattr(manager, 'get_image', lambda *args: pygame.Surface((8, 1080)))
+    try:
+        assert CharacterImages(manager).geometry('torso', 'body') == (8, 1080)
+    finally:
+        manager.cleanup()
+
+
+def test_parallel_preparation_preserves_lru_order_and_stores_on_caller_thread(monkeypatch):
+    from threading import Event, get_ident
+
+    second_started = Event()
+    source = Images()
+    original = source.get_image
+    worker_threads = set()
+
+    def load(category, key):
+        worker_threads.add(get_ident())
+        if key == 'first':
+            assert second_started.wait(5), 'second asset was not prepared concurrently'
+        elif key == 'second':
+            second_started.set()
+        return original(category, key)
+
+    source.get_image = load
+    cache = CharacterImages(source, budget=4 * 540 * 4 * 2)
+    # Metadata is already available, as with real assets' header dimensions.
+    from dialogue.character_images import ImageGeometry
+    for key in ('first', 'second', 'third'):
+        cache.dimensions[('eye', key)] = ImageGeometry(8, 1080)
+    caller = get_ident()
+    store = cache._store
+
+    def store_on_caller(identity, image):
+        assert get_ident() == caller
+        store(identity, image)
+
+    monkeypatch.setattr(cache, '_store', store_on_caller)
+    assert len(list(cache.prepare_many({('eye', key): {0.5}
+                                      for key in ('first', 'second', 'third')}))) == 3
+    assert len(worker_threads) == 2 and caller not in worker_threads
+    assert list(cache.images) == [('eye', 'second', (4, 540)), ('eye', 'third', (4, 540))]
+    assert cache.bytes <= cache.budget
 
 
 def test_fixed_pose_sampling_is_independent_of_cached_larger_sizes():

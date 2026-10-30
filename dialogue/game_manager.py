@@ -10,6 +10,7 @@ from .notification_manager import NotificationManager
 from core.config import *
 from .data_normalizer import normalize_dialogue_data
 from .ir_builder import build_ir_from_normalized, dump_ir_json, get_ir_dump_path
+from core.ui.loading_screen import report_loading_progress
 
 def initialize_game(dialogue_file="events/E001.ks"):
     """ゲームの初期化を行う
@@ -26,6 +27,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
         pygame.init()
     if not pygame.mixer.get_init():
         pygame.mixer.init()
+    report_loading_progress(2)
 
     # 仮想画面サーフェスを作成（表示ウィンドウは作らない）
     # 呼び出し側で適切なサーフェスに差し替えることを想定
@@ -60,6 +62,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
         image_manager.scan_image_paths(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
         print("必須画像ロード中...")
         images = image_manager.load_essential_images(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+        report_loading_progress(8)
     except Exception as e:
         print(f"画像の初期化に失敗しました： {e}")
         return None
@@ -99,6 +102,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
     # キャラクター画像は元サイズで表示（自動スケーリング無効）
     # IR data (normalized dialogue -> IR)
     ir_data = build_ir_from_normalized(dialogue_data)
+    report_loading_progress(10)
     if IR_DUMP_JSON:
         try:
             dump_ir_json(ir_data, get_ir_dump_path(dialogue_file, IR_DUMP_DIR))

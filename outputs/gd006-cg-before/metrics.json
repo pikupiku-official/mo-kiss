@@ -1,0 +1,253 @@
+{
+  "cg_draw": {
+    "show": {
+      "frames": 1,
+      "median_ms": 22.428099997341633,
+      "p95_ms": 22.428099997341633,
+      "max_ms": 22.428099997341633
+    },
+    "crossfade": {
+      "frames": 20,
+      "median_ms": 37.56040000007488,
+      "p95_ms": 39.10380002344027,
+      "max_ms": 41.87889996683225
+    },
+    "static": {
+      "frames": 14,
+      "median_ms": 22.63824999681674,
+      "p95_ms": 30.251800024416298,
+      "max_ms": 31.820999982301146
+    }
+  },
+  "scene_render": {
+    "frames": 35,
+    "median_ms": 564.2846999689937,
+    "p95_ms": 616.926799993962,
+    "max_ms": 694.8466000030749
+  },
+  "transitions": [
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 500,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_006",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_005",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_003",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_002",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_006",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_005",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_003",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_002",
+      "duration_ms": 300,
+      "frames": 1
+    },
+    {
+      "storage": "MMK_03_001",
+      "duration_ms": 300,
+      "frames": 1
+    }
+  ],
+  "playback_image_loads": [
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_005.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_005.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_005.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_002.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_002.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_002.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_006.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_005.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_005.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_005.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_003.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_011.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_000.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_002.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_012.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_002.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_001.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_002.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_001.png",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\BG\\\u591c\u6559\u5ba4.JPG",
+    "C:\\Users\\nachi\\Downloads\\soft\\GitHub\\mo-kiss\\images\\01MMK\\MMK_03_001.png"
+  ],
+  "scene_image_cache_mib": 53.62691116333008,
+  "real_clock": true,
+  "keyboard_skip": true,
+  "reference": true,
+  "authored_ks_and_main_state_unchanged": true
+}

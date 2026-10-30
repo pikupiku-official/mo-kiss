@@ -9,11 +9,13 @@ ID while keeping the image centered and cropped to the game's 4:3 viewport.
 from __future__ import annotations
 
 import re
+import weakref
 
 import pygame
 
 from core.config import VIRTUAL_HEIGHT, VIRTUAL_WIDTH, SCALE, scale_pos
-from .character_manager import _blit_crossfade, get_scaled_image
+from .character_manager import _blit_crossfade
+from .character_images import character_images, image_pixels
 
 
 CG_STORAGE_RE = re.compile(r"^[A-Z]{3}_\d{2}_\d{3}$", re.IGNORECASE)
@@ -21,6 +23,7 @@ DEFAULT_CG_FADE_MS = 300
 DEFAULT_CG_MOVE_MS = 600
 MIN_CG_ZOOM = 0.1
 MAX_CG_ZOOM = 4.0
+_opaque_cg_cache = weakref.WeakKeyDictionary()
 
 
 def _to_float(value, default):
@@ -60,7 +63,7 @@ def _has_asset(game_state, storage):
     manager = _image_manager(game_state)
     if not manager:
         return False
-    return manager.get_image("cg", storage) is not None
+    return character_images(game_state).geometry("cg", storage) is not None
 
 
 def _current_values(game_state):
@@ -104,11 +107,11 @@ def _current_values(game_state):
 
 
 def _image_size(game_state, storage):
-    manager = _image_manager(game_state)
-    image = manager.get_image("cg", storage) if manager and storage else None
+    image = (character_images(game_state).geometry("cg", storage)
+             if _image_manager(game_state) and storage else None)
     if image is None:
         return 720, 480
-    return image.get_size()
+    return image.get_width(), image.get_height()
 
 
 def _offset_limits(game_state, storage, zoom):
@@ -156,6 +159,10 @@ def _start_transition(
 ):
     state = _state(game_state)
     duration_ms = max(int(duration_ms), 0)
+    # Decode/resize endpoints before starting the fade clock. Drawing must
+    # not fetch native CGs: an oversized BG can evict them every frame.
+    _cg_surface_and_pos(game_state, from_storage, from_offset_x, from_offset_y, from_zoom)
+    _cg_surface_and_pos(game_state, to_storage, to_offset_x, to_offset_y, to_zoom)
     if duration_ms <= 0:
         state.update(
             {
@@ -308,27 +315,98 @@ def is_cg_visible(game_state):
     return bool(state.get("storage") or state.get("transition"))
 
 
-def _scaled_cg_surface(image, zoom):
-    if image is None:
-        return None
-    target_height = max(1, round(VIRTUAL_HEIGHT * max(float(zoom), MIN_CG_ZOOM) * SCALE))
-    return get_scaled_image(image, target_height / max(image.get_height(), 1))
-
-
 def _cg_surface_and_pos(game_state, storage, offset_x, offset_y, zoom):
-    manager = _image_manager(game_state)
-    image = manager.get_image("cg", storage) if manager and storage else None
-    if image is None:
+    if not storage or not _image_manager(game_state):
         return None, (0, 0)
-    surface = _scaled_cg_surface(image, zoom)
+    cache = character_images(game_state)
+    geometry = cache.geometry("cg", storage)
+    if geometry is None:
+        return None, (0, 0)
+    target_height = max(1, round(VIRTUAL_HEIGHT * max(float(zoom), MIN_CG_ZOOM) * SCALE))
+    surface = cache.get("cg", storage, target_height / max(geometry.get_height(), 1))
+    if surface is None:
+        return None, (0, 0)
     center_x, center_y = scale_pos(
         VIRTUAL_WIDTH / 2 + offset_x,
         VIRTUAL_HEIGHT / 2 + offset_y,
     )
-    return surface, (
+    return image_pixels(surface, (
         round(center_x - surface.get_width() / 2),
         round(center_y - surface.get_height() / 2),
-    )
+    ))
+
+
+def prepare_cg_images(game_state):
+    """Prepare authored CG endpoints during scene loading, before BG playback.
+
+    Keeping only drawing-size pixels in the scene's bounded cache prevents
+    first-use variants from evicting an oversized native background mid-SKIP.
+    """
+    cache = character_images(game_state)
+    storage, zoom = None, 1.0
+    requests = {}
+    for step in (game_state.get("ir_data") or {}).get("steps", []):
+        for action in step.get("actions") or []:
+            kind = action.get("action")
+            if kind not in ("cg_show", "cg_shift", "cg_hide"):
+                continue
+            params = action.get("params") or {}
+            if kind == "cg_hide":
+                storage = None
+                continue
+            if kind == "cg_show":
+                storage, zoom = params.get("storage"), 1.0
+            else:
+                storage = params.get("storage") or storage
+                zoom = max(MIN_CG_ZOOM, min(MAX_CG_ZOOM, _to_float(params.get("zoom"), zoom)))
+            geometry = cache.geometry("cg", storage)
+            if geometry is None:
+                continue
+            height = max(1, round(VIRTUAL_HEIGHT * zoom * SCALE))
+            requests.setdefault(storage, set()).add(height / max(geometry.get_height(), 1))
+    ordered = {("cg", storage): requests[storage] for storage in reversed(requests)}
+    for _ in cache.prepare_many(ordered):
+        pass
+
+
+def _opaque_cg_surface(image):
+    """Cache an RGB rendition only when every source pixel is fully opaque."""
+    if image.get_colorkey() is not None or image.get_alpha() not in (None, 255):
+        return None
+    if not image.get_flags() & pygame.SRCALPHA:
+        return image
+    if image not in _opaque_cg_cache:
+        opaque = None
+        if pygame.mask.from_surface(image, 254).count() == image.get_width() * image.get_height():
+            opaque = pygame.Surface(image.get_size(), depth=32)
+            opaque.blit(image, (0, 0))
+        # Weak keys avoid retaining CGs after the scale cache releases them.
+        _opaque_cg_cache[image] = opaque
+    return _opaque_cg_cache[image]
+
+
+def _blit_cg_crossfade(screen, from_image, from_pos, to_image, to_pos, progress):
+    # For matching opaque rectangles, source-over is exactly the linear
+    # (1-p)*old + p*new blend. Avoid the transparent-character compositor's
+    # full-screen premultiplication and channel multiplication each frame.
+    if (from_image is not None and to_image is not None
+            and from_pos == to_pos and from_image.get_size() == to_image.get_size()):
+        old = _opaque_cg_surface(from_image)
+        new = _opaque_cg_surface(to_image)
+        if old is not None and new is not None:
+            alpha = round(255 * max(0.0, min(float(progress), 1.0)))
+            screen.blit(old, from_pos)
+            if alpha > 0:
+                if alpha == 255:
+                    screen.blit(new, to_pos)
+                else:
+                    layer = new.copy()
+                    layer.set_alpha(alpha)
+                    screen.blit(layer, to_pos)
+            return
+    # Transparency, differing geometry, and show/hide retain their original
+    # compositing rules, including fading silhouette pixels to the background.
+    _blit_crossfade(screen, from_image, from_pos, to_image, to_pos, progress)
 
 
 def draw_cg(game_state):
@@ -361,7 +439,7 @@ def draw_cg(game_state):
             transition.get("to_offset_y", 0.0),
             transition.get("to_zoom", 1.0),
         )
-        _blit_crossfade(screen, from_surface, from_pos, to_surface, to_pos, progress)
+        _blit_cg_crossfade(screen, from_surface, from_pos, to_surface, to_pos, progress)
         return
 
     surface, pos = _cg_surface_and_pos(

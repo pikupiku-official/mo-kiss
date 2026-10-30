@@ -1,0 +1,225 @@
+"""Scene-owned character images, cached at their actual drawing sizes.
+
+Keeping native 4K canvases as scale-cache keys pins tens of MB for each tiny
+expression part. Cache by asset name instead, and retain only the resized
+pixels and source dimensions. Preparation runs while the loading screen is up.
+"""
+
+from collections import OrderedDict
+from typing import NamedTuple
+from dataclasses import dataclass
+import math
+
+import pygame
+
+from core.config import SCALE, VIRTUAL_HEIGHT
+from core.ui.loading_screen import report_loading_progress
+
+
+PARTS = ('brow', 'eye', 'mouth', 'cheek', 'effect', 'accessory')
+RENDER_CACHE_BYTES = 256 * 1024 * 1024
+
+
+class ImageGeometry(NamedTuple):
+    width: int
+    height: int
+
+    def get_width(self):
+        return self.width
+
+    def get_height(self):
+        return self.height
+
+
+@dataclass
+class CharacterImage:
+    pixels: pygame.Surface
+    bounds: pygame.Rect
+    size: tuple
+
+    def get_width(self):
+        return self.size[0]
+
+    def get_height(self):
+        return self.size[1]
+
+    def get_size(self):
+        return self.size
+
+    def get_bounding_rect(self, min_alpha=1):
+        return self.bounds.copy()
+
+
+def image_pixels(image, position):
+    """Resolve compact pixels to their original canvas placement."""
+    if isinstance(image, CharacterImage):
+        return image.pixels, (int(position[0]) + image.bounds.x,
+                              int(position[1]) + image.bounds.y)
+    return image, position
+
+
+def character_scale(geometry, zoom):
+    return float(zoom) * (VIRTUAL_HEIGHT / geometry.get_height()) * SCALE
+
+
+class CharacterImages:
+    def __init__(self, image_manager, budget=RENDER_CACHE_BYTES):
+        self.image_manager = image_manager
+        self.budget = budget
+        self.images = OrderedDict()
+        self.dimensions = {}
+        self.bytes = 0
+
+    def geometry(self, category, key):
+        if not key:
+            return None
+        identity = (category, key)
+        if identity not in self.dimensions:
+            image = self.image_manager.get_image(category, key)
+            if image is None:
+                self.dimensions[identity] = None
+                return None
+            self.dimensions[identity] = ImageGeometry(image.get_width(), image.get_height())
+        return self.dimensions[identity]
+
+    def get(self, category, key, scale, *, resample=False):
+        if not key:
+            return None
+        geometry = self.geometry(category, key)
+        if geometry is None:
+            return None
+        size = (max(1, int(geometry.width * scale)), max(1, int(geometry.height * scale)))
+        identity = (category, key, size)
+        image = self.images.get(identity)
+        if image is not None:
+            self.images.move_to_end(identity)
+            return image
+        # Continuous zoom sizes can reuse a larger prepared rendition. The
+        # transparent canvas is represented by geometry, so only visible
+        # pixels need scaling and native 4K assets never churn every frame.
+        candidates = [candidate for (kind, name, candidate_size), candidate in self.images.items()
+                      if resample and (kind, name) == (category, key)
+                      and candidate_size[0] >= size[0] and candidate_size[1] >= size[1]]
+        if candidates:
+            candidate = max(candidates, key=lambda item: item.get_width() * item.get_height())
+            candidate_size = candidate.size
+            x_ratio = size[0] / candidate_size[0]
+            y_ratio = size[1] / candidate_size[1]
+            left = math.floor(candidate.bounds.left * x_ratio)
+            top = math.floor(candidate.bounds.top * y_ratio)
+            right = math.ceil(candidate.bounds.right * x_ratio)
+            bottom = math.ceil(candidate.bounds.bottom * y_ratio)
+            bounds = pygame.Rect(left, top, max(1, right - left), max(1, bottom - top))
+            pixels = pygame.transform.smoothscale(candidate.pixels, bounds.size)
+            image = CharacterImage(pixels, bounds, size)
+            # Intermediate zoom frames are transient. Do not fill the LRU
+            # with them or repeatedly resample the previous frame.
+            return image
+        source = self.image_manager.get_image(category, key)
+        if source is None:
+            return None
+        image = self._resize(source, size)
+        self._store(identity, image)
+        return image
+
+    @staticmethod
+    def _resize(source, size):
+        scaled = source if size == source.get_size() else pygame.transform.smoothscale(source, size)
+        bounds = scaled.get_bounding_rect(min_alpha=1)
+        # One transparent border pixel preserves filtered edges when this
+        # rendition is used as the source for an intermediate zoom size.
+        bounds = bounds.inflate(2, 2).clip(scaled.get_rect()) if bounds else pygame.Rect(0, 0, 1, 1)
+        return CharacterImage(scaled.subsurface(bounds).copy(), bounds, size)
+
+    def _store(self, identity, image):
+        cost = image.pixels.get_pitch() * image.pixels.get_height()
+        # An unusually large authored zoom can still draw, without evicting
+        # the whole scene or permanently retaining an oversized canvas.
+        if cost <= self.budget:
+            while self.images and self.bytes + cost > self.budget:
+                _, oldest = self.images.popitem(last=False)
+                self.bytes -= oldest.pixels.get_pitch() * oldest.pixels.get_height()
+            self.images[identity] = image
+            self.bytes += cost
+
+    def prepare(self, category, key, scales):
+        geometry = self.geometry(category, key)
+        if geometry is None:
+            return
+        sizes = {(max(1, int(geometry.width * scale)), max(1, int(geometry.height * scale)))
+                 for scale in scales}
+        missing = [size for size in sizes if (category, key, size) not in self.images]
+        if not missing:
+            return
+        source = self.image_manager.get_image(category, key)
+        if source is None:
+            return
+        for size in sorted(missing):
+            self._store((category, key, size), self._resize(source, size))
+
+
+def character_images(game_state):
+    cache = game_state.get('_character_images')
+    manager = game_state['image_manager']
+    if cache is None or cache.image_manager is not manager:
+        cache = CharacterImages(manager)
+        game_state['_character_images'] = cache
+    return cache
+
+
+def prepare_character_images(game_state):
+    """Prepare the poses used by this scene before starting its animation clock.
+
+    Walk IR in authoring order to inherit torso, size and unchanged parts.
+    This is read-only: branches, flags and the live character state are untouched.
+    Small expressions are prepared before playback instead of decoded/scaled
+    on the first frame of every SKIP transition.
+    """
+    cache = character_images(game_state)
+    poses = {}
+    requests = {}
+    steps = (game_state.get('ir_data') or {}).get('steps', [])
+    for step_index, step in enumerate(steps):
+        for action in step.get('actions') or []:
+            kind = action.get('action')
+            if kind not in ('chara_show', 'chara_shift'):
+                continue
+            params = action.get('params') or {}
+            target = action.get('target') or params.get('name')
+            if not target:
+                continue
+            pose = poses.setdefault(target, {'torso': target, 'size': 1.0})
+            if kind == 'chara_show':
+                pose = {'torso': params.get('torso') or target, 'size': 1.0}
+                poses[target] = pose
+            pose.update({key: value for key, value in params.items()
+                         if key in ('torso', 'size') + PARTS})
+            torso = cache.geometry('torso', pose.get('torso'))
+            if torso is None or torso.height <= 0:
+                continue
+            try:
+                zoom = float(pose.get('size', 1.0))
+            except (TypeError, ValueError):
+                zoom = 1.0
+            scale = character_scale(torso, zoom)
+            requests.setdefault(('torso', pose['torso']), set()).add(scale)
+            for part in PARTS:
+                key = pose.get(part)
+                if key:
+                    requests.setdefault((part, key), set()).add(scale)
+                    if part == 'eye' and str(key).rsplit('_', 1)[-1] in ('00', '01'):
+                        base = str(key).rsplit('_', 1)[0]
+                        available = getattr(cache.image_manager, 'image_paths', {}).get('eye', {})
+                        for suffix in ('01', '02'):
+                            blink = f'{base}_{suffix}'
+                            if blink in available:
+                                requests.setdefault(('eye', blink), set()).add(scale)
+        report_loading_progress(10 + 15 * (step_index + 1) / len(steps))
+    # Keep the beginning of very large scenes warm if they exceed the budget.
+    report_loading_progress(25)
+    for index, (category, key) in enumerate(reversed(requests)):
+        cache.prepare(category, key, requests[(category, key)])
+        report_loading_progress(25 + 70 * (index + 1) / len(requests))
+    from .cg_manager import prepare_cg_images
+    prepare_cg_images(game_state)
+    report_loading_progress(95)

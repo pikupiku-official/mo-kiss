@@ -5,7 +5,8 @@ expression part. Cache by asset name instead, and retain only the resized
 pixels and source dimensions. Preparation runs while the loading screen is up.
 """
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
+from concurrent.futures import ThreadPoolExecutor
 from typing import NamedTuple
 from dataclasses import dataclass
 import math
@@ -13,6 +14,7 @@ import math
 import pygame
 
 from core.config import SCALE, VIRTUAL_HEIGHT
+from core.ui.loading_screen import report_loading_progress
 
 
 PARTS = ('brow', 'eye', 'mouth', 'cheek', 'effect', 'accessory')
@@ -74,6 +76,11 @@ class CharacterImages:
             return None
         identity = (category, key)
         if identity not in self.dimensions:
+            dimensions = getattr(self.image_manager, 'get_image_dimensions', None)
+            size = dimensions(category, key) if dimensions else None
+            if size is not None:
+                self.dimensions[identity] = ImageGeometry(*size)
+                return self.dimensions[identity]
             image = self.image_manager.get_image(category, key)
             if image is None:
                 self.dimensions[identity] = None
@@ -142,19 +149,52 @@ class CharacterImages:
             self.bytes += cost
 
     def prepare(self, category, key, scales):
+        for identity, image in self._prepare(category, key, scales):
+            self._store(identity, image)
+
+    def _prepare(self, category, key, scales):
         geometry = self.geometry(category, key)
         if geometry is None:
-            return
+            return []
         sizes = {(max(1, int(geometry.width * scale)), max(1, int(geometry.height * scale)))
                  for scale in scales}
         missing = [size for size in sizes if (category, key, size) not in self.images]
         if not missing:
-            return
+            return []
         source = self.image_manager.get_image(category, key)
         if source is None:
-            return
-        for size in sorted(missing):
-            self._store((category, key, size), self._resize(source, size))
+            return []
+        return [((category, key, size), self._resize(source, size))
+                for size in sorted(missing)]
+
+    def prepare_many(self, requests):
+        """Decode independent assets two at a time; retain the authored LRU order.
+
+        Only two jobs may be in flight, so large native canvases and completed
+        renditions cannot accumulate behind a slow asset. Cache writes and
+        progress reporting stay on the caller's thread.
+        """
+        pending = deque()
+        jobs = iter(requests.items())
+
+        def submit_next(executor):
+            item = next(jobs, None)
+            if item is not None:
+                (category, key), scales = item
+                # Read metadata on the caller, before a worker uses geometry.
+                self.geometry(category, key)
+                pending.append(executor.submit(self._prepare, category, key, scales))
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            submit_next(executor)
+            submit_next(executor)
+            while pending:
+                future = pending.popleft()
+                for identity, image in future.result():
+                    self._store(identity, image)
+                del future
+                yield
+                submit_next(executor)
 
 
 def character_images(game_state):
@@ -177,7 +217,8 @@ def prepare_character_images(game_state):
     cache = character_images(game_state)
     poses = {}
     requests = {}
-    for step in (game_state.get('ir_data') or {}).get('steps', []):
+    steps = (game_state.get('ir_data') or {}).get('steps', [])
+    for step_index, step in enumerate(steps):
         for action in step.get('actions') or []:
             kind = action.get('action')
             if kind not in ('chara_show', 'chara_shift'):
@@ -212,6 +253,12 @@ def prepare_character_images(game_state):
                             blink = f'{base}_{suffix}'
                             if blink in available:
                                 requests.setdefault(('eye', blink), set()).add(scale)
+        report_loading_progress(10 + 15 * (step_index + 1) / len(steps))
     # Keep the beginning of very large scenes warm if they exceed the budget.
-    for category, key in reversed(requests):
-        cache.prepare(category, key, requests[(category, key)])
+    report_loading_progress(25)
+    ordered = {identity: requests[identity] for identity in reversed(requests)}
+    for index, _ in enumerate(cache.prepare_many(ordered)):
+        report_loading_progress(25 + 70 * (index + 1) / len(requests))
+    from .cg_manager import prepare_cg_images
+    prepare_cg_images(game_state)
+    report_loading_progress(95)

@@ -13,7 +13,7 @@ from core.path_utils import get_current_state_dir, get_project_root
 from core.services.seed_manager import EMPTY_SEED_STATE, get_seed_manager
 from core.services.time_manager import get_time_manager
 from core.ui.title_subsystem import TitleSubsystem
-from core.ui.loading_screen import show_loading
+from core.ui.loading_screen import loading_progress
 from core.ui.debug_hud import get_debug_hud
 from core.runtime.game_loop import GameLoop
 from dialogue.dialogue_subsystem import DialogueSubsystem
@@ -38,9 +38,9 @@ class DemoApplication(GameApplication):
     @contextmanager
     def _loading_transition(self, message):
         # Paint on the real window before constructors preload images/audio.
-        show_loading(message, self.window_surface)
         try:
-            yield
+            with loading_progress(message, self.window_surface):
+                yield
         finally:
             # Input typed while loading belongs to the outgoing screen. Keep
             # QUIT/window events, but never advance the newly entered scene.

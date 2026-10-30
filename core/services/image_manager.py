@@ -267,6 +267,21 @@ class ImageManager:
                 print(f"画像読み込みエラー: {filepath}: {e}")
             return None
     
+    def get_image_dimensions(self, image_type, image_key):
+        """Read exact asset dimensions without decoding its full-size pixels.
+
+        Unknown aliases and unsupported headers fall back to get_image in the
+        scene cache, keeping the existing asset resolution behavior.
+        """
+        filepath = self.image_paths.get(image_type, {}).get(image_key)
+        if not filepath:
+            return None
+        from PyQt5.QtGui import QImageReader
+        size = QImageReader(filepath).size()
+        if size.isValid():
+            return size.width(), size.height()
+        return None
+
     def get_image(self, image_type, image_key, size=None):
         requested_key = image_key
         """画像を取得（必要に応じて遅延ロード）スレッドセーフ"""

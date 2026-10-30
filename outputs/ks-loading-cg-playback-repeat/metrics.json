@@ -1,0 +1,141 @@
+{
+  "cg_draw": {
+    "show": {
+      "frames": 14,
+      "median_ms": 10.93355001648888,
+      "p95_ms": 11.738000030163676,
+      "max_ms": 12.112799973692745
+    },
+    "crossfade": {
+      "frames": 283,
+      "median_ms": 6.107299996074289,
+      "p95_ms": 7.16789998114109,
+      "max_ms": 49.7907999670133
+    },
+    "static": {
+      "frames": 14,
+      "median_ms": 1.8697500054258853,
+      "p95_ms": 1.9459999748505652,
+      "max_ms": 2.033800003118813
+    }
+  },
+  "scene_render": {
+    "frames": 311,
+    "median_ms": 10.64689998747781,
+    "p95_ms": 14.90939996438101,
+    "max_ms": 64.2622000304982
+  },
+  "transitions": [
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 500,
+      "frames": 14
+    },
+    {
+      "storage": "MMK_03_006",
+      "duration_ms": 300,
+      "frames": 8
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 11
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 14
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_005",
+      "duration_ms": 300,
+      "frames": 14
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 16
+    },
+    {
+      "storage": "MMK_03_003",
+      "duration_ms": 300,
+      "frames": 14
+    },
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_002",
+      "duration_ms": 300,
+      "frames": 14
+    },
+    {
+      "storage": "MMK_03_006",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_005",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_003",
+      "duration_ms": 300,
+      "frames": 13
+    },
+    {
+      "storage": "MMK_03_011",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_000",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_012",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_002",
+      "duration_ms": 300,
+      "frames": 15
+    },
+    {
+      "storage": "MMK_03_001",
+      "duration_ms": 300,
+      "frames": 14
+    }
+  ],
+  "playback_image_loads": [],
+  "scene_image_cache_mib": 107.02046585083008,
+  "real_clock": true,
+  "keyboard_skip": true,
+  "reference": false,
+  "authored_ks_and_main_state_unchanged": true
+}
