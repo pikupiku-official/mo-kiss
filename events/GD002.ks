@@ -16,7 +16,7 @@
 	「俺がこの弁当、食べていいのか・・・？」
 [chara_shift name="桃子" torso="MMK_T00_ARM18_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU01_02" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
-	「だーかーらー。さっきから良いってゆってるでしょー！私はもうお腹いっぱいになっちゃったの！」
+	「だーかーらー。さっきから良いって言ってるでしょー！私はもうお腹いっぱいになっちゃったの！」
 [chara_shift name="桃子" eye="MMK_F00_EYE01_01" mouth="MMK_F00_MOU06_00" effect="MMK_E00_01" fade="0.15" move="linear"]
 	//純一//
 	「分かったよ。食べるよ。食べるからさ。」
