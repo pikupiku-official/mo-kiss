@@ -100,7 +100,15 @@ class PVScreen(SubsystemBase):
                 self.error = "PV音声の準備がタイムアウトしました"
         if self.started:
             self.movie.update()
-            self.finished = bool(self.movie.state.get("ended"))
+            error = self.movie.state.get("error")
+            if error:
+                self.error = f"PV再生エラー: {error}"
+                if self.channel is not None:
+                    self.channel.stop()
+                self.movie.stop()
+                self.started = False
+            else:
+                self.finished = bool(self.movie.state.get("ended"))
 
     def render(self):
         self.screen.fill((0, 0, 0))

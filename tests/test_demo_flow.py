@@ -171,6 +171,26 @@ def test_pv_missing_file_is_explicit_and_escape_returns_title(screen, tmp_path):
     pv.cleanup()
 
 
+def test_pv_decoder_failure_stays_on_error_screen_and_stops_audio(screen, tmp_path, monkeypatch):
+    pv = PVScreen(screen, "PV3min.mp4", tmp_path)
+    stopped = []
+    pv.channel = SimpleNamespace(stop=lambda: stopped.append(True))
+    pv.started = True
+    pv.movie.state.update(ended=True, error="FFmpeg movie decoding failed (exit code 1)")
+    monkeypatch.setattr(pv.movie, "update", lambda: None)
+    try:
+        pv.update()
+        assert "exit code 1" in pv.error
+        assert stopped == [True]
+        assert not pv.started
+        assert not pv.finished
+        assert pv.handle_events([]) is None
+        pv.render()
+        assert pv.handle_events([key(pygame.K_ESCAPE)]) == "demo_title"
+    finally:
+        pv.cleanup()
+
+
 def test_real_pv_audio_decode_letterbox_end_and_attract_cancel(screen, tmp_path, monkeypatch):
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -191,7 +211,7 @@ def test_real_pv_audio_decode_letterbox_end_and_attract_cancel(screen, tmp_path,
     try:
         pv.on_enter()
         deadline = time.monotonic() + 10
-        while not pv.started and not pv.error and time.monotonic() < deadline:
+        while (not pv.started or pv.movie.current_frame is None) and not pv.error and time.monotonic() < deadline:
             pv.update()
             pygame.event.pump()
             time.sleep(0.01)

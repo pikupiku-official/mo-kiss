@@ -246,7 +246,7 @@ class MovieManager:
                 "-an", "-sn", "-dn",
                 "-f", "rawvideo",
                 "-pix_fmt", "rgb24",
-                "-vsync", "0",
+                "-fps_mode", "passthrough",
                 "pipe:1",
             ]
         )
@@ -276,8 +276,15 @@ class MovieManager:
                     continue
                 if self._ffmpeg_stop.is_set():
                     break
+                returncode = process.wait(timeout=1.0)
+                if returncode or not self._ffmpeg_latest_seq or data:
+                    self.state["error"] = (
+                        f"FFmpeg movie decoding failed (exit code {returncode}): {path}"
+                    )
+                    print(f"[MOVIE] {self.state['error']}")
+                    self.state["ended"] = True
+                    break
                 if self.state.get("loop"):
-                    process.wait(timeout=1.0)
                     process.stdout.close()
                     process = None
                     self._ffmpeg_process = None
