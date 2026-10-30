@@ -195,7 +195,7 @@
 	「桃子ん家は相変わらず仲良しだよな。」
 [chara_shift name="桃子" torso="MMK_T03_ARM00_CLO00" eye="MMK_F03_EYE00_00" mouth="MMK_F03_MOU00_02" brow="MMK_F03_BRO01_00" cheek="MMK_F03_CHE01_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
-	「えへへ…」
+	「えへへ・・・」
 	//純一//
 	「最近だって、家族全員で旅行に行ってなかったっけ？」
 [chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
@@ -390,11 +390,13 @@
 	「桃⼦さんよ、早く⾏かないと遅刻するぞ？」
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE03_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
-	「うん…遅刻したら加藤先⽣に怒られちゃう。」
+	「うん・・・遅刻したら加藤先⽣に怒られちゃう。」
 [chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0003" mouth="MST_F00_MOU_0006" brow="MST_F00_BRO_0006" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//純一//
 	「(まるで久しぶりに運動させられている飼い⽝みたいだ。)」
-	「（けど、僕は桃⼦が他の⼈たちに笑われてる姿はあまり⾒たくないな。）」
+	//純一//
+	「（けど、僕は桃⼦が他の⼈たちに笑われてる姿はあまり⾒たくないな。）」[scroll-stop]
+//純一//
 	「今⾛っていけば間に合うと思うよ。」
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE03_00" mouth="MMK_F00_MOU05_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
 [chara_shift name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0011" brow="MST_F00_BRO_0006" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
@@ -417,7 +419,7 @@
 	「・・・。」
 	「結局、俺ら⼆⼈ってことだ。なあ純⼀。」
 	//純一//
-	「そうだね…」
+	「そうだね・・・」
 [chara_shift name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0010" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 [bgm bgm="MokMas42654.mp3" volume="0.5" loop="true" fade="0.0"]
 	//増田//
