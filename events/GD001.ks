@@ -10,9 +10,9 @@
 
 [SE se="電車走行中1.mp3" volume="0.5" frequency="5"]
 [bg_show storage="車窓①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-	//ナレ//
-	「＿＿＿」
-	「＿＿＿」
+	// //
+	「――」
+	「――」
 	「見慣れた中央線の車窓から流れる風景。」
 [bg_show storage="車窓②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 	「いつだってこんな景色ばかり。」
@@ -43,14 +43,14 @@
 ;@standalone-step
 [fadeout color="black" time="0"]
 [SE se="衣擦れ3" volume="0.5" frequency="1"]
-	//ナレ//
+	// //
 	「ドアが開くといつものようにあっという間に車内から押し出される。」
 [sestop]
 [fadein time="0"]
 [bg_show storage="国分寺駅構内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [SE se="休日でごった返す駅構内.mp3" volume="0.5" frequency="5"]
-	//ナレ//
-	「＿＿＿」
+	// //
+	「――」
 	「やはり外の空気は最⾼だ。」
 	「緑⾵が僕の周りにまとわりついていたすべての湿気を流し去ってくれる。」
 	「僕は、朝の電⾞にはあるものが充満していると思う。」
@@ -65,10 +65,10 @@
 [bg_show storage="混んでいる国分寺駅改札内" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [SE se="station_ticket_gate1" volume="0.5" frequency="5"]
 [fadein time="1.0"]
-	//ナレ//
-	「＿＿＿」
+	// //
+	「――」
 	「階段を上り切ると、⼈混みの３割ほどは⻄武線の⽅へ吸い込まれていった。」
-	「＿＿＿」
+	「――」
 	「僕は改札を抜け、いつもの通学路へ踏み出した。」
 	
 [event_control unlock="E002,E003,E004,E005"]
@@ -76,15 +76,17 @@
 
 [fadeout color="black"]
 ;@standalone-step
-[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [fadein time="1.5"]
+[bg_show]
 ;@standalone-step
 	//？？//
 	「君に触れたい〜♪君に触れたい〜♪」
 	//純一//
 	「（うげっ、朝からこの声はきっと・・・）」
-[bg_show storage="通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [chara_show name="増田" torso="MST_T00_ARM_0007" eye="MST_F00_EYE_0003" mouth="MST_F00_MOU_0009" brow="MST_F00_BRO_0007" blink="true" x="0.77006507" y="0.66919739" size="0.7" fade="0.15"]
+[bg_show]
 	//？？//
 	「⽇向の窓でぇ〜へ〜♪」
 	//純一//
@@ -95,8 +97,9 @@
 	「おっ！純⼀じゃんかあ！」
 	//純一//
 	「（こ、ここはあえて放っておこう・・・）」
-[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [chara_hide name="増田" fade="0"]
+[bg_show]
 	//純一//
 	「（さ、僕は一人で学校へ・・・）」
 [chara_show name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0014" brow="MST_F01_BRO_0008" blink="true" x="0.30639913" y="1.28958785" size="3.1" fade="0.15"]
@@ -133,14 +136,15 @@
 	//純一//
 	「・・・ん？」
 	//？？//
-	「はぁ……はぁ……」[female]
+	「はぁ・・・はぁ・・・」[female]
 [fadeout color="black" time="1.0"]
-[bg_show storage="通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改通学路②" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [chara_hide name="増田" fade="0"]
 [chara_show name="桃子" torso="MMK_T00_ARM12_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0"]
 [bgmend time="1.0"]
 [fadein time="1.0"]
 [chara_shift name="桃子" torso="MMK_T03_ARM05_CLO00" eye="MMK_F03_EYE01_01" mouth="MMK_F03_MOU04_02" brow="MMK_F03_BRO01_00" cheek="MMK_F03_CHE01_00" effect="MMK_E03_01" fade="0.15"]
+[bg_show]
 //？？//
 「つ、疲れたあ・・・いったん休憩・・・」[female]
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" effect="" blink="true" x="0.42841648" y="0.63882864" size="0.75" fade="0.15"]
@@ -150,11 +154,12 @@
 	//？？//
 	「じゅんいち～～～～！」[female]
 [fadeout color="black" time="2.0"]
-[bg storage="通学路①"]
+[bg storage="改通学路①"]
 [chara_show name="増田" torso="MST_T00_ARM_0006" eye="MST_F00_EYE_0001" mouth="MST_F00_MOU_0001" brow="MST_F00_BRO_0004" blink="true" x="0.25" y="1.0" size="2.3" fade="0.15"]
 [chara_show name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" blink="true" x="0.75" y="1.0" size="2.3" fade="0.15"]
 [bgm bgm="MokLap1.mp3" volume="0.5" loop="true" fade="0.0"]
 [fadein time="2.0"]
+[bg]
 	//？？//
 	「おはよう！」[female]
 	//純一//
@@ -237,7 +242,7 @@
 [chara_shift name="増田" mouth="MST_F00_MOU_0017" fade="0.15"]
 [chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//純一//
-	「うおっ！？」
+	「うおっ！」
 	「なんだよいきなり・・・」
 [chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0006" mouth="MST_F01_MOU_0004" brow="MST_F01_BRO_0006" effect="" fade="0.15"]
 	//増田//
@@ -301,7 +306,7 @@
 	「えへへ・・・」
 [chara_shift name="桃子" torso="MMK_T00_ARM08_CLO00" eye="MMK_F00_EYE01_01" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
-	「ﾁｮｯﾄﾀﾞｹ、使いすぎちゃった。」
+	「ちょっとダケ、使いすぎちゃった。」
 	//純一//
 	「まあ、そういうことだ。」
 	「桃子の懐が温まるまで、待ってもいいんじゃないか？」
@@ -330,12 +335,12 @@
 	「（・・・？）」
 	「（ん、いや、これはちょっと違う気がするな。）」
 	「（もう一度状況を整理しよう。）」
-	「桃子は特別多くない小遣いで日々やりくりしている。」
-	「しかし、最近はお土産やプレゼントで出費が増えた。」
-	「そこに、近日中のディズニーランドへの誘い。」
-	「あの行楽地は入園料が安くない。」
-	「舞浜までの交通費も馬鹿にならない。」
-	「となると、桃子が誘いを渋る理由としてわかることは――」
+	「（桃子は特別多くない小遣いで日々やりくりしている。）」
+	「（しかし、最近はお土産やプレゼントで出費が増えた。）」
+	「（そこに、近日中のディズニーランドへの誘い。）」
+	「（あの行楽地は入園料が安くない。）」
+	「（舞浜までの交通費も馬鹿にならない。）」
+	「（となると、桃子が誘いを渋る理由としてわかることは――）」
 [seed_retry]
 [endif]
 
@@ -345,12 +350,12 @@
 	「（・・・？）」
 	「（ん、いや、これはちょっと違う気がするな。）」
 	「（もう一度状況を整理しよう。）」
-	「桃子は特別多くない小遣いで日々やりくりしている。」
-	「しかし、最近はお土産やプレゼントで出費が増えた。」
-	「そこに、近日中のディズニーランドへの誘い。」
-	「あの行楽地は入園料が安くない。」
-	「舞浜までの交通費も馬鹿にならない。」
-	「となると、桃子が誘いを渋る理由としてわかることは――」
+	「（桃子は特別多くない小遣いで日々やりくりしている）」
+	「（しかし、最近はお土産やプレゼントで出費が増えた。）」
+	「（そこに、近日中のディズニーランドへの誘い。）」
+	「（あの行楽地は入園料が安くない。）」
+	「（舞浜までの交通費も馬鹿にならない。）」
+	「（となると、桃子が誘いを渋る理由としてわかることは――）」
 [seed_retry]
 
 [endif]
@@ -358,11 +363,11 @@
 	//純一//
 	「（ニコニコ笑う彼⼥の横を、リーボックのスニーカーを履いた⽣徒が通り過ぎていくのが⾒えた。）」
 	「（それを⾒て、桃⼦の部活を思い出す。）」
-	「……そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？」
+	「・・・そういえばさ桃⼦、テニス部は今⽇朝練じゃなかった？」
 [chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" x="0.75" y="1.0" size="2.3" fade="0.15"]
 [chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0012" brow="MST_F00_BRO_0005" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
-	「あっ…忘れてたぁ！」
+	「あっ・・・忘れてたぁ！」
 [chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0005" effect="MST_E00_02" x="0.25" y="1.0" size="2.3" fade="0.15"]
 	//純一//
 	「やっぱりそうだと思った。」
@@ -397,7 +402,7 @@
 	「そうかな？」
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_02" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
-	「……」
+	「・・・」
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.75" y="1.0" size="2.3" fade="0.15"]
 	//桃子//
 	「やっぱりせっかく純⼀が教えてくれたことだし、頑張ってみる！」
@@ -449,7 +454,8 @@
 
 [chara_show name="桃子" torso="MMK_T03_ARM03_CLO00" eye="MMK_F03_EYE04_00" mouth="MMK_F03_MOU07_00" brow="MMK_F03_BRO00_00" cheek="MMK_F03_CHE03_00" blink="true" x="0.23" y="0.54" size="0.6" fade="0.15"]
 [chara_hide name="増田" fade="0.15"]
-[bg_show storage="通学路③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改通学路③" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
+[bg_show]
 	//純一//
 	「(視線の先にはとびきりの笑顔の桃⼦がいる。)」
 	「(僕は正直⼾惑いつつも、急いで彼⼥に⼿を振る。)」
@@ -457,8 +463,9 @@
 	「頑張れよ～！」
 
 [chara_hide name="桃子"　eye="eye1" mouth="mouth1" x="0.5" y="0.5"]
-[bg_show storage="通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
+[bg_show storage="改通学路①" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 [chara_show name="増田" torso="MST_T01_ARM_0008" eye="MST_F01_EYE_0010" mouth="MST_F01_MOU_0015" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
+[bg_show]
 	//純一//
 	「（増⽥の声の後、桃⼦が校⾨の中に駆け込んでいく姿が⼩さく⾒えた。）」
 [chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0001" mouth="MST_F01_MOU_0009" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
@@ -485,7 +492,8 @@
 	//増田//
 	「純⼀？おい、どうしたんだよ。」
 	//純一//
-	「あ、ああ……えーと……なんだっけ。」
+	「あ、ああ・・・えーと・・・」
+「なんだっけ。」
 [chara_show name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" blink="true" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「なんだよ全く。」
