@@ -19,6 +19,7 @@ from core.runtime.game_loop import GameLoop
 from dialogue.dialogue_subsystem import DialogueSubsystem
 from dialogue.event_datetime import EventDateTime
 from dialogue.name_manager import get_name_manager
+from core.config import DIALOGUE_FPS
 from demo.flow import DemoFlow, TITLE_IDLE_MS
 from demo.GDhome import GDHome
 from demo.GDmap import GDMap
@@ -223,7 +224,7 @@ class DemoApplication(GameApplication):
         get_debug_hud().render(self.virtual_screen, self)
         self._present_virtual_screen()
         pygame.display.flip()
-        self.clock.tick(30)
+        self.clock.tick(DIALOGUE_FPS if isinstance(self.current_subsystem, DialogueSubsystem) else 30)
 
     def run(self):
         try:

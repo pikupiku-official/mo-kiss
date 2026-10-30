@@ -665,6 +665,8 @@ class DialogueSubsystem(SubsystemBase):
                 self.game_state['ir_step_index'] = -1
                 self.game_state['ir_waiting_for_anim'] = False
                 self.game_state['ir_active_anims'] = []
+                from dialogue.character_images import prepare_character_images
+                prepare_character_images(self.game_state)
 
             # advance_dialogue() は on_enter() で直前サブシステムの cleanup() 完了後に実行する
             print(f"✅ DialogueSubsystem: イベント読み込み完了: {event_file} "

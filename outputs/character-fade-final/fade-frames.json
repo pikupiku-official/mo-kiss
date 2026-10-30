@@ -1,0 +1,9 @@
+{
+  "fade_frames": 452,
+  "fade_frame_ms_median": 25.190799962729216,
+  "fade_frame_ms_p95": 58.71259997365996,
+  "fade_frame_ms_max": 104.52629998326302,
+  "fade_frame_image_loads": [],
+  "prepared_character_mib": 143.4189682006836,
+  "native_image_mib": 76.88671875
+}

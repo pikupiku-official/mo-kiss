@@ -4,7 +4,7 @@ import traceback
 
 import pygame
 
-from core.config import DEBUG, SEED_INPUT_CONFIG, get_configured_key
+from core.config import DEBUG, DIALOGUE_FPS, SEED_INPUT_CONFIG, get_configured_key
 from core.ui.debug_hud import get_debug_hud
 
 
@@ -46,7 +46,8 @@ class GameLoop:
         app._present_virtual_screen()
         pygame.display.flip()
         has_modal = app.option_subsystem or getattr(app, "slot_screen", None)
-        app.clock.tick(60 if has_modal else 30)
+        dialogue = isinstance(app.current_subsystem, self._dialogue_type)
+        app.clock.tick(DIALOGUE_FPS if dialogue else (60 if has_modal else 30))
 
     def _handle_debug_shortcut(self, events) -> None:
         """F8 is global, except while an IME composition owns that key."""

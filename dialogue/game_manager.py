@@ -35,7 +35,7 @@ def initialize_game(dialogue_file="events/E001.ks"):
     bgm_manager = BGMManager(DEBUG)
     se_manager = SEManager(DEBUG)
     dialogue_loader = DialogueLoader(DEBUG)
-    image_manager = ImageManager(DEBUG)
+    image_manager = ImageManager(DEBUG, cache_bytes=64 * 1024 * 1024)
     text_renderer = TextRenderer(screen, DEBUG)
     choice_renderer = ChoiceRenderer(screen, DEBUG)
     notification_manager = NotificationManager(screen, DEBUG)
@@ -85,17 +85,6 @@ def initialize_game(dialogue_file="events/E001.ks"):
             if not dialogue_data:
                 print("game_manager.py: 警告 - 正規化後のデータが空です")
                 dialogue_data = get_default_normalized_dialogue()
-            else:
-                # キャラクターを事前ロード
-                try:
-                    print("キャラクター事前ロード中...")
-                    image_manager.preload_characters_from_dialogue(dialogue_data)
-                    print("キャラクター事前ロード完了")
-                except Exception as e:
-                    print(f"キャラクター事前ロードエラー（続行）: {e}")
-                    if DEBUG:
-                        import traceback
-                        traceback.print_exc()
         else:
             print("game_manager.py: 警告 - 生データが空のためデフォルトデータを使用")
             dialogue_data = get_default_normalized_dialogue()
@@ -209,6 +198,8 @@ def initialize_game(dialogue_file="events/E001.ks"):
         'last_dialogue_logged': False
     }
 
+    from .character_images import prepare_character_images
+    prepare_character_images(game_state)
     return game_state
 
 def initialize_first_scene(game_state):

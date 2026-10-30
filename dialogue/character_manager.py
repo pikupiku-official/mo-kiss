@@ -1,7 +1,9 @@
 import pygame
 import random
+import weakref
 from collections import OrderedDict
 from core.config import *
+from .character_images import CharacterImage, character_images, character_scale, image_pixels
 from .render_monitor import (
     capture_surface_bytes,
     changed_pixel_count,
@@ -14,7 +16,7 @@ from .render_monitor import (
 # 画像スケーリングキャッシュ
 _SCALED_IMAGE_CACHE_LIMIT = 100
 _scaled_image_cache = OrderedDict()
-_opaque_bounds_cache = OrderedDict()
+_opaque_bounds_cache = weakref.WeakKeyDictionary()
 _PREMULTIPLIED_CROP_CACHE_LIMIT = 12
 _premultiplied_crop_cache = OrderedDict()
 
@@ -221,18 +223,37 @@ def get_scaled_image(image, zoom_scale):
         _scaled_image_cache.popitem(last=False)
     return scaled_image
 
+def _opaque_bounds(image):
+    if isinstance(image, CharacterImage):
+        return image.bounds
+    bounds = _opaque_bounds_cache.get(image)
+    if bounds is None:
+        bounds = image.get_bounding_rect(min_alpha=1)
+        _opaque_bounds_cache[image] = bounds
+    return bounds
+
+
 def _blit_with_alpha(screen, image, pos, alpha):
     if image is None or alpha <= 0:
         return
+    image, pos = image_pixels(image, pos)
     if alpha >= 255:
-        screen.blit(image, pos)
+        bounds = _opaque_bounds(image)
+        screen.blit(image, bounds.move(pos), bounds)
         return
-    temp = image.copy()
+    bounds = _opaque_bounds(image)
+    destination = bounds.move(pos).clip(screen.get_clip())
+    if not destination:
+        return
+    source = destination.move(-int(pos[0]), -int(pos[1]))
+    temp = image.subsurface(source).copy()
     temp.set_alpha(alpha)
-    screen.blit(temp, pos)
+    screen.blit(temp, destination)
 
 def _blit_crossfade(screen, from_image, from_pos, to_image, to_pos, progress):
     """Blend two alpha surfaces linearly without dimming the overlap."""
+    from_image, from_pos = image_pixels(from_image, from_pos)
+    to_image, to_pos = image_pixels(to_image, to_pos)
     progress = max(0.0, min(float(progress), 1.0))
     if from_image is None:
         if to_image is not None:
@@ -248,17 +269,6 @@ def _blit_crossfade(screen, from_image, from_pos, to_image, to_pos, progress):
         screen.blit(to_image, to_pos)
         return
 
-    def get_opaque_bounds(image):
-        bounds = _opaque_bounds_cache.get(image)
-        if bounds is not None:
-            _opaque_bounds_cache.move_to_end(image)
-            return bounds
-        bounds = image.get_bounding_rect(min_alpha=1)
-        _opaque_bounds_cache[image] = bounds
-        while len(_opaque_bounds_cache) > _SCALED_IMAGE_CACHE_LIMIT:
-            _opaque_bounds_cache.popitem(last=False)
-        return bounds
-
     def get_premultiplied_crop(image, bounds):
         premultiplied = _premultiplied_crop_cache.get(image)
         if premultiplied is not None:
@@ -272,8 +282,8 @@ def _blit_crossfade(screen, from_image, from_pos, to_image, to_pos, progress):
             _premultiplied_crop_cache.popitem(last=False)
         return premultiplied
 
-    from_bounds = get_opaque_bounds(from_image)
-    to_bounds = get_opaque_bounds(to_image)
+    from_bounds = _opaque_bounds(from_image)
+    to_bounds = _opaque_bounds(to_image)
     weighted_sources = []
     if from_bounds.width > 0 and from_bounds.height > 0:
         weighted_sources.append(
@@ -360,7 +370,8 @@ def prewarm_character_fade_images(game_state, character_name, changed_parts):
         return
 
     torso_id = game_state.get('character_torso', {}).get(character_name, character_name)
-    torso_img = image_manager.get_image('torso', torso_id)
+    cache = character_images(game_state)
+    torso_img = cache.geometry('torso', torso_id)
     if not torso_img:
         return
 
@@ -391,17 +402,15 @@ def prewarm_character_fade_images(game_state, character_name, changed_parts):
             part_ids[part_type] = (current_id, current_id)
 
     for image_id in torso_ids:
-        image = image_manager.get_image('torso', image_id) if image_id else None
+        image = cache.geometry('torso', image_id) if image_id else None
         if image:
-            scale = zoom_scale * VIRTUAL_HEIGHT / image.get_height() * SCALE
-            get_scaled_image(image, scale)
+            scale = character_scale(image, zoom_scale)
+            cache.get('torso', image_id, scale)
 
-    face_scale = zoom_scale * (VIRTUAL_HEIGHT / torso_img.get_height()) * SCALE
+    face_scale = character_scale(torso_img, zoom_scale)
     for part_type, ids in part_ids.items():
         for image_id in ids:
-            image = image_manager.get_image(part_type, image_id) if image_id else None
-            if image:
-                get_scaled_image(image, face_scale)
+            cache.get(part_type, image_id, face_scale)
 
 
 _CHARACTER_EXPRESSION_PARTS = (
@@ -426,7 +435,8 @@ def _build_character_snapshot(
     image_manager = game_state.get('image_manager')
     if not image_manager or not torso_id or character_pos is None:
         return None, (0, 0)
-    torso_img = image_manager.get_image('torso', torso_id)
+    cache = character_images(game_state)
+    torso_img = cache.geometry('torso', torso_id)
     if not torso_img or torso_img.get_height() <= 0:
         return None, (0, 0)
 
@@ -435,23 +445,22 @@ def _build_character_snapshot(
     except (TypeError, ValueError):
         zoom = 1.0
     base_scale = VIRTUAL_HEIGHT / torso_img.get_height()
-    final_zoom = zoom * base_scale * SCALE
-    torso_surface = get_scaled_image(torso_img, final_zoom)
+    final_zoom = character_scale(torso_img, zoom)
+    torso_surface = cache.get('torso', torso_id, final_zoom)
     x, y = character_pos
-    layers = [(torso_surface, (round(x), round(y)))]
+    layers = [(torso_surface, (int(x), int(y)))]
 
     if game_state.get('show_face_parts', True):
-        center_x = round(x + torso_surface.get_width() / 2)
-        center_y = round(y + torso_surface.get_height() / 2)
+        center_x = int(x) + torso_surface.get_width() // 2
+        center_y = int(y) + torso_surface.get_height() // 2
         expressions = expressions or {}
         for part_type in _CHARACTER_EXPRESSION_PARTS:
             part_id = expressions.get(part_type)
             if not part_id:
                 continue
-            part_img = image_manager.get_image(part_type, part_id)
-            if not part_img:
+            scaled_img = cache.get(part_type, part_id, final_zoom)
+            if not scaled_img:
                 continue
-            scaled_img = get_scaled_image(part_img, final_zoom)
             layers.append(
                 (
                     scaled_img,
@@ -462,15 +471,21 @@ def _build_character_snapshot(
                 )
             )
 
-    bounds = pygame.Rect(layers[0][1], layers[0][0].get_size())
-    for image, pos in layers[1:]:
-        bounds.union_ip(pygame.Rect(pos, image.get_size()))
+    bounds = pygame.Rect(0, 0, 0, 0)
+    for image, pos in layers:
+        visible = _opaque_bounds(image).move(pos)
+        if visible:
+            bounds = bounds.union(visible) if bounds else visible
+    screen = game_state.get('screen')
+    if screen is not None:
+        bounds = bounds.clip(screen.get_rect())
     if bounds.width <= 0 or bounds.height <= 0:
-        return None, (0, 0)
+        return pygame.Surface((1, 1), pygame.SRCALPHA, 32), (int(x), int(y))
 
     snapshot = pygame.Surface(bounds.size, pygame.SRCALPHA, 32)
     for image, pos in layers:
-        snapshot.blit(image, (pos[0] - bounds.x, pos[1] - bounds.y))
+        pixels, pixel_pos = image_pixels(image, pos)
+        snapshot.blit(pixels, (pixel_pos[0] - bounds.x, pixel_pos[1] - bounds.y))
     return snapshot, (bounds.x, bounds.y)
 
 
@@ -690,6 +705,30 @@ def start_character_hide_fade(game_state, character_name, duration_ms):
     hide_pending = game_state.setdefault('character_hide_pending', {})
     hide_pending[character_name] = pygame.time.get_ticks() + duration_ms
 
+def _prepare_character_zoom(game_state, character_name, zoom, changed_parts=None):
+    cache = character_images(game_state)
+    torso_id = game_state.get('character_torso', {}).get(character_name, character_name)
+    geometry = cache.geometry('torso', torso_id)
+    if not geometry:
+        return
+    current_zoom = game_state.get('character_zoom', {}).get(character_name, 1.0)
+    scales = [character_scale(geometry, value) for value in (current_zoom, zoom)]
+    cache.prepare('torso', torso_id, scales)
+    expressions = game_state.get('character_expressions', {}).get(character_name, {})
+    for part in _CHARACTER_EXPRESSION_PARTS:
+        if expressions.get(part):
+            cache.prepare(part, expressions[part], scales)
+    for part, keys in (changed_parts or {}).items():
+        for key in keys:
+            if not key:
+                continue
+            part_geometry = cache.geometry('torso', key) if part == 'torso' else geometry
+            if part_geometry:
+                part_scales = [character_scale(part_geometry, value)
+                               for value in (current_zoom, zoom)]
+                cache.prepare(part, key, part_scales)
+
+
 def move_character(game_state, character_name, target_x, target_y, duration=600, zoom=1.0):
     """キャラクターを指定位置に移動するアニメーションを設定する"""
     if character_name not in game_state['character_pos']:
@@ -736,6 +775,8 @@ def move_character(game_state, character_name, target_x, target_y, duration=600,
     final_target_y = current_y + int(offset_y)
     
     # アニメーション情報を設定
+    if current_zoom != zoom:
+        _prepare_character_zoom(game_state, character_name, zoom)
     start_time = pygame.time.get_ticks()
     game_state['character_anim'][character_name] = {
         'start_x': current_x,
@@ -771,6 +812,8 @@ def move_character_to(game_state, character_name, target_pos, duration=0, zoom=1
         character_pos[character_name] = target
         character_zoom[character_name] = zoom
     else:
+        if current_zoom != zoom:
+            _prepare_character_zoom(game_state, character_name, zoom)
         character_anim[character_name] = {
             'start_x': current_pos[0],
             'start_y': current_pos[1],
@@ -1046,6 +1089,8 @@ def update_character_fades(game_state):
 
     hide_pending = game_state.get('character_hide_pending', {})
     for char_name, end_time in list(hide_pending.items()):
+        if pending.get(char_name):
+            continue
         if current_time >= end_time:
             hide_pending.pop(char_name, None)
             hide_character(game_state, char_name)
@@ -1071,6 +1116,8 @@ def _begin_character_fade_on_first_render(game_state, char_name, current_time):
     # an expensive preview frame could make the step look idle too early.
     if max_duration:
         end_time = current_time + max_duration
+        if char_name in game_state.get('character_hide_pending', {}):
+            game_state['character_hide_pending'][char_name] = end_time
         matched_animation = False
         for anim in game_state.get('ir_active_anims', []):
             if (
@@ -1081,7 +1128,10 @@ def _begin_character_fade_on_first_render(game_state, char_name, current_time):
                 matched_animation = True
         if matched_animation:
             game_state['ir_anim_pending'] = True
-            game_state['ir_anim_end_time'] = end_time
+            game_state['ir_anim_end_time'] = max(
+                anim.get('end_time', 0)
+                for anim in game_state.get('ir_active_anims', [])
+            )
 
 
 def _hold_character_fade_for_first_render(game_state, char_name, current_time):
@@ -1104,14 +1154,17 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
     image_manager = game_state['image_manager']
 
     torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
-    char_img = image_manager.get_image("torso", torso_id)
+    cache = character_images(game_state)
+    char_img = cache.geometry("torso", torso_id)
     if not char_img:
         return
 
-    actual_char_width = char_img.get_width() * zoom_scale
-    actual_char_height = char_img.get_height() * zoom_scale
-    char_center_x = character_pos[0] + actual_char_width // 2
-    char_center_y = character_pos[1] + actual_char_height // 2
+    actual_char_width = int(char_img.get_width() * zoom_scale)
+    actual_char_height = int(char_img.get_height() * zoom_scale)
+    char_center_x = int(character_pos[0]) + actual_char_width // 2
+    char_center_y = int(character_pos[1]) + actual_char_height // 2
+    movement = game_state.get('character_anim', {}).get(char_name, {})
+    resample = movement.get('start_zoom') != movement.get('target_zoom')
 
     def draw_part_image(part_img, alpha=255):
         part_pos = (
@@ -1136,9 +1189,8 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
                     status="empty_id",
                 )
             return False
-        part_img = image_manager.get_image(part_type, part_id)
-        if part_img:
-            scaled_img = get_scaled_image(part_img, zoom_scale)
+        scaled_img = cache.get(part_type, part_id, zoom_scale, resample=resample)
+        if scaled_img:
             draw_part_image(scaled_img, alpha)
             drawn = True
         else:
@@ -1177,18 +1229,21 @@ def render_face_parts(game_state, char_name, brow_type, eye_type, mouth_type, ch
             "duration": duration,
             "start_time": fade.get("start_time"),
         }
-        draw_part(
-            part_type,
-            fade.get('from'),
-            fade_info["from_alpha"],
-            fade_info=fade_info,
-        )
-        draw_part(
-            part_type,
-            fade.get('to'),
-            fade_info["to_alpha"],
-            fade_info=fade_info,
-        )
+        old_image = cache.get(part_type, fade.get('from'), zoom_scale, resample=resample)
+        new_image = cache.get(part_type, fade.get('to'), zoom_scale, resample=resample)
+
+        def position(image):
+            return (char_center_x - image.get_width() // 2,
+                    char_center_y - image.get_height() // 2) if image else (0, 0)
+
+        _blit_crossfade(screen, old_image, position(old_image),
+                        new_image, position(new_image), progress)
+        if trace_enabled():
+            trace_event('character_part_draw', ticks=now,
+                        frame_seq=game_state.get('_render_trace_frame_seq'),
+                        char_name=char_name, part_type=part_type,
+                        requested_id=current_id, drawn=bool(old_image or new_image),
+                        fade=fade_info, status='crossfade')
 
     final_eye_type = eye_type
     if char_name in game_state.get('character_blink_state', {}) and \
@@ -1268,6 +1323,8 @@ def _draw_characters_direct(game_state, character_names=None):
             _begin_character_transition_on_first_render(
                 game_state, char_name, now
             )
+        for char_name in list(game_state.get('character_fade_pending_render', {})):
+            _begin_character_fade_on_first_render(game_state, char_name, now)
         return
 
     current_dialogue = game_state['dialogue_data'][game_state['current_paragraph']] if game_state['dialogue_data'] else None
@@ -1288,6 +1345,8 @@ def _draw_characters_direct(game_state, character_names=None):
     )
     for char_name in characters_to_draw:
         if char_name not in game_state['character_pos']:
+            _begin_character_fade_on_first_render(
+                game_state, char_name, pygame.time.get_ticks())
             _trace_character_result(
                 game_state,
                 frame_id,
@@ -1335,8 +1394,11 @@ def _draw_characters_direct(game_state, character_names=None):
 
         torso_id = game_state.get('character_torso', {}).get(char_name, char_name)
 
-        char_img = image_manager.get_image("torso", torso_id)
+        cache = character_images(game_state)
+        char_img = cache.geometry("torso", torso_id)
         if not char_img:
+            _begin_character_fade_on_first_render(
+                game_state, char_name, current_time)
             if DEBUG:
                 print(f"??: ????????'{char_name}' ????????")
             _trace_character_result(
@@ -1354,15 +1416,55 @@ def _draw_characters_direct(game_state, character_names=None):
         zoom_scale = game_state['character_zoom'].get(char_name, 1.0)
 
         def get_torso_image(torso_key):
-            torso_img = image_manager.get_image("torso", torso_key)
+            torso_img = cache.geometry("torso", torso_key)
             if not torso_img:
                 return None
             base_scale = VIRTUAL_HEIGHT / torso_img.get_height()
-            final_zoom = zoom_scale * base_scale * SCALE
-            return get_scaled_image(torso_img, final_zoom)
+            final_zoom = character_scale(torso_img, zoom_scale)
+            movement = game_state.get('character_anim', {}).get(char_name, {})
+            resample = movement.get('start_zoom') != movement.get('target_zoom')
+            return cache.get("torso", torso_key, final_zoom, resample=resample)
 
         torso_fade = fade_map.get('torso')
         trace_region = None
+        if torso_fade and (torso_fade.get('from') is None or torso_fade.get('to') is None):
+            # Show/hide opacity belongs to the complete pose. Applying it to
+            # the torso and face separately exposes the body through the eyes
+            # and changes overlap brightness throughout the fade.
+            showing = torso_fade.get('from') is None
+            endpoint = 'to' if showing else 'from'
+            empty_endpoint = 'from' if showing else 'to'
+            group = all(
+                fade.get(empty_endpoint) is None
+                and fade.get('duration') == torso_fade.get('duration')
+                and fade.get('start_time') == torso_fade.get('start_time')
+                for fade in fade_map.values()
+            )
+            if group:
+                expressions = game_state.get('character_expressions', {}).get(char_name, {})
+                pose = {part: fade_map.get(part, {}).get(endpoint, expressions.get(part))
+                        for part in _CHARACTER_EXPRESSION_PARTS}
+                key = (id(torso_fade), torso_fade.get(endpoint), tuple(pose.items()), x, y, zoom_scale,
+                       game_state.get('show_face_parts', True))
+                snapshots = game_state.setdefault('_character_fade_snapshots', {})
+                cached = snapshots.get(char_name)
+                if cached is None or cached[0] != key:
+                    snapshot, position = _build_character_snapshot(
+                        game_state, char_name, torso_fade.get(endpoint), pose,
+                        (x, y), zoom_scale)
+                    cached = (key, snapshot, position)
+                    snapshots[char_name] = cached
+                duration = max(1, torso_fade.get('duration', 0))
+                progress = min(1.0, max(0, current_time - torso_fade.get('start_time', 0)) / duration)
+                alpha = round(255 * (progress if showing else 1.0 - progress))
+                _blit_with_alpha(screen, cached[1], cached[2], alpha)
+                if has_pending_fade:
+                    _begin_character_fade_on_first_render(
+                        game_state, char_name, pygame.time.get_ticks())
+                _trace_character_result(game_state, frame_id, char_name, trace_before,
+                                        'group_fade', True, current_time)
+                continue
+        game_state.get('_character_fade_snapshots', {}).pop(char_name, None)
         if torso_fade:
             duration = max(torso_fade.get('duration', 0), 0)
             elapsed = max(0, current_time - torso_fade.get('start_time', 0))
@@ -1391,7 +1493,7 @@ def _draw_characters_direct(game_state, character_names=None):
         else:
             torso_surface = get_torso_image(torso_id)
             if torso_surface:
-                screen.blit(torso_surface, (x, y))
+                _blit_with_alpha(screen, torso_surface, (x, y), 255)
                 trace_region = pygame.Rect(
                     x,
                     y,
@@ -1410,7 +1512,7 @@ def _draw_characters_direct(game_state, character_names=None):
             effect_type = expressions.get('effect', '')
             accessory_type = expressions.get('accessory', '')
 
-            face_final_zoom = zoom_scale * char_base_scale * SCALE
+            face_final_zoom = character_scale(char_img, zoom_scale)
             render_face_parts(
                 game_state,
                 char_name,
