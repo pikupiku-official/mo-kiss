@@ -449,7 +449,6 @@
 [chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0015" brow="MST_F01_BRO_0008" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「{name}もセンスがいいねぇ！」
-[chara_shift name="桃子" effect="" fade="0.15"]
 	//桃子//
 	「{name}〜〜〜〜〜！ありがとね〜〜〜！！」[scroll-stop]
 [chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0008" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
