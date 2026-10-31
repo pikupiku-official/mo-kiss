@@ -208,6 +208,7 @@
 ;@standalone-step
 
 [bg_show storage="改夜教室" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
+[fadein time="1.0"]
 	//{name}//
 	「・・・」
 	//{name}//
