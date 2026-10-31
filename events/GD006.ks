@@ -33,7 +33,7 @@
 	「ちょっと！！やめなさいよ、縁起でもない！」
 [chara_shift name="杏" effect="" x="0.83540373" y="0.68322981" size="1.5" fade="0.15"]
 	//B//
-	「そもそも予言なんてマヤカシだから。でしょ、{name}？」
+	「そもそも予言なんてマヤカシだから。そうでしょ、{name}？」
 	//{name}//
 	「・・・いや、僕だってわからないよ。」
 	「けど、あんまり悲観的になっても仕方ないんじゃないか。」
@@ -187,10 +187,10 @@
 	「（それにしても桃子のやつ、様子が変だったな。）」
 	「（どんな時も快活としていたのに、変わってしまった。）」
 	「（ぼーっとしているし、[seed]どこか上の空で元気がない[/seed]みたいだ。）」
-	「（・・・まぁ、あんな異星が現れたんだ。無理もない。）」
+	「（・・・まぁ、こんな異星が現れたんだ。無理もないか。）」
 	「（でも、そのわりには星の話題にも関心が薄いようだけど。）」
-	「（――ってしまった！明日提出のプリントを忘れた！）」
 	「（・・・）」
+	「（――ってしまった！明日提出のプリントを忘れた！）」
 	「（浮足立ってるのは僕も同じか・・・）」
 	「（出さないとマズいやつなんだよな・・・）」
 	「（・・・ちょっと面倒だけど、学校へ取りに戻ろう。）」
@@ -210,10 +210,14 @@
 [bg_show storage="改夜教室" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
 	//{name}//
 	「・・・」
+	//{name}//
 	「・・・おや？」
 [chara_show name="桃子" torso="MMK_T01_ARM21_CLO00" eye="MMK_F01_EYE01_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE03_00" blink="true" x="0.3" y="0.76" size="1.4" fade="0.15"]
 	//{name}//
 	「（あれは・・・桃子だ。）」
+[bgm bgm="◎_3_滅亡 SuperDemo.mp3" volume="0.5" loop="true" fade="0.0"]
+[bgm]
+	//{name}//
 	「（なんだ、まだいたのか。）」
 	//{name}//
 	「よっ。」
@@ -314,7 +318,7 @@
 	//桃子//
 	「・・・考え事？」
 	//{name}//
-	「考え事・・・？」
+	「考え事・・・？」[scroll-stop]
 	//{name}//
 	「（何か悩みでもあるのだろうか。）」
 	//{name}//
@@ -359,6 +363,7 @@
 	//{name}//
 	「そしたら頭もすっきりするし、その方が考え事だってすぐに――」
 [chara_shift name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU13_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
+[bgmend time="1.0"]
 	//桃子//
 	「いいからもうほっといてよ！！」
 [chara_shift name="桃子" mouth="MMK_F01_MOU12_00" effect="" fade="0.15"]
@@ -380,6 +385,8 @@
 [chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU21_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「・・・」
+[bgm bgm="◎_4_天星郷中間部 Demo.mp3" volume="0.5" loop="true" fade="0.0"]
+[bgm]
 	//{name}//
 	「何があったんだ。」
 [chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
@@ -430,6 +437,8 @@
 	//{name}//
 	「――そうだろ？」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" fade="0.15"]
+[bgmend time="1.0"]
+[bgmend time="1.0"]
 	//桃子//
 	「！！」
 	//桃子//
@@ -520,6 +529,8 @@
 	//{name}//
 	「・・・うん。」
 [cg_show storage="MMK_03_011" fade="0.5"]
+[bgm bgm="ainopaPiano_20251111.mp3" volume="0.5" loop="true" fade="0.0"]
+[bgm]
 	//桃子//
 	「あの日の夜・・・」
 [cg_shift storage="MMK_03_006" time="600" fade="0.3"]
@@ -603,6 +614,8 @@
 	//{name}//
 	「・・・」
 [cg_shift storage="MMK_03_002" time="600" fade="0.3"]
+[bgmend time="1.0"]
+[bgmend time="1.0"]
 	//桃子//
 	「ねぇ、{name}。」
 [cg_shift storage="MMK_03_001" time="600" fade="0.3"]

@@ -225,7 +225,7 @@
 [chara_shift name="桃子" torso="MMK_T00_ARM09_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
 	//桃子//
 	「楽しかった～！」
-	「[seed]お小遣いでい～っぱいお土産買って[/seed]、はしゃいじゃった！」
+	「もうね、[seed]お小遣いでい～っぱいお土産買って[/seed]、はしゃいじゃった！」
 	//{name}//
 	「あはは、存分に楽しんだみたいだね。」
 [chara_shift name="桃子" torso="MMK_T00_ARM05_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
@@ -449,14 +449,15 @@
 [chara_shift name="増田" torso="MST_T01_ARM_0007" eye="MST_F01_EYE_0003" mouth="MST_F01_MOU_0015" brow="MST_F01_BRO_0008" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
 	「{name}もセンスがいいねぇ！」
+[chara_shift name="桃子" effect="" fade="0.15"]
 	//桃子//
-	「{name}〜〜〜〜〜！ありがとね〜〜〜！！」
+	「{name}〜〜〜〜〜！ありがとね〜〜〜！！」[scroll-stop]
 [chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0008" mouth="MST_F01_MOU_0013" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//{name}//
 	「え？」
 [chara_shift name="増田" torso="MST_T01_ARM_0006" eye="MST_F01_EYE_0006" mouth="MST_F01_MOU_0010" brow="MST_F01_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
 	//増田//
-	「あ？」
+	「あ？」[scroll-stop]
 	//{name}//
 	「（僕らの声は同時だった。突然の⼤声に驚いて、⾜を⽌める。そして辺りを⾒回す。）」
 [chara_shift name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0004" mouth="MST_F00_MOU_0013" brow="MST_F00_BRO_0006" x="0.5" y="1.0" size="2.3" fade="0.15"]
