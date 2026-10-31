@@ -15,8 +15,9 @@
 	「（・・・今日も一日が終わった。）」
 	「（帰る支度をしよう。）」
 [chara_show name="増田" torso="MST_T01_ARM_9999" blink="true" x="0.5" y="0.7" size="1.5" fade="0.15"]
+[bgm bgm="◎_8_クリスマスイブの夜 Demo.mp3" volume="0.5" loop="true" fade="0.0"]
 [chara_show]
-[chara_show]
+[bgm volume="0.5" loop="true" fade="0.0"]
 	//A//
 	「ヤバッ！星、どんどんでかくなってね！？」
 	「おい見ろよ、{name}！」
@@ -183,6 +184,8 @@
 
 [fadein time="1.0"]
 [bg_show storage="改日暮れ住宅街巨星接近" bg_x="0.5" bg_y="0.5" bg_zoom="1.0" fade="0.0"]
+[bgmend time="1.0"]
+[bgmend time="1.0"]
 	//{name}//
 	「（それにしても桃子のやつ、様子が変だったな。）」
 	「（どんな時も快活としていたのに、変わってしまった。）」
