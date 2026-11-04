@@ -14,7 +14,7 @@
 [BGM bgm="school_daily" volume="0.5" loop="true"]
 
 ; 桃子登場
-[chara_show name="桃子" torso="MMK_T03_ARM00_CLO00" eye="MMK_F03_EYE00_00" mouth="MMK_F03_MOU00_00" brow="MMK_F03_BRO00_00" blink="true" x="0.7" y="0.65" size="1.2" fade="0.3"]
+[chara_show name="桃子" torso="MMK_T02_ARM00_CLO00" eye="MMK_F02_EYE00_00" mouth="MMK_F02_MOU00_00" brow="MMK_F02_BRO00_00" blink="true" x="0.7" y="0.65" size="1.2" fade="0.3"]
 
 //純一//
 「お、桃子じゃないか！」

@@ -5,7 +5,7 @@
 [bg_show storage="教室昼" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
 [bgm bgm="MokLap1.mp3" volume="0.55" loop="true" fade="0.0"]
 [chara_show name="増田" torso="MST_T00_ARM_0005" eye="MST_F00_EYE_0006" mouth="MST_F00_MOU_0016" brow="MST_F00_BRO_0005" effect="" blink="true" x="0.25" y="1.0" size="2.3" fade="0"]
-[chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" blink="true" x="0.75" y="1.0" size="2.3" fade="0"]
+[chara_show name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="" blink="true" x="0.75" y="1.0" size="2.3" fade="0"]
 	//桃子//
 	「えへへ・・・」
 	//純一//

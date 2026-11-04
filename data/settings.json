@@ -1,8 +1,8 @@
 {
-  "master_volume": 0.17754868270332194,
+  "master_volume": 0.23711340206185566,
   "music_volume": 1.0,
   "se_volume": 1.0,
   "voice_volume": 1.0,
-  "text_speed": 0.8,
-  "fullscreen": false
+  "text_speed": 0.5,
+  "fullscreen": true
 }

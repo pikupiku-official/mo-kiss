@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "623b7ee5ed9947428663e9eae6b9e773",
+      "name": "微笑",
+      "character": "桃子",
+      "parts": {
+        "torso": "T_SMILE",
+        "brow": "B_SMILE",
+        "cheek": "C_SMILE",
+        "eye": "E_SMILE",
+        "mouth": "M_SMILE",
+        "accessory": "A_SMILE",
+        "effect": ""
+      },
+      "blink": false
+    }
+  ]
+}

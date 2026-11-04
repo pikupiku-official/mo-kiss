@@ -7,8 +7,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU04_00",
         "accessory": "",
@@ -22,8 +22,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU02_02",
         "accessory": "",
@@ -37,9 +37,9 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
-        "eye": "MMK_F00_EYE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
+        "eye": "MMK_F00_EYE06_00",
         "mouth": "MMK_F00_MOU00_02",
         "accessory": "",
         "effect": ""
@@ -52,8 +52,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO01_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU05_02",
         "accessory": "",
@@ -67,8 +67,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE03_00",
         "mouth": "MMK_F00_MOU04_00",
         "accessory": "",
@@ -82,9 +82,9 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
-        "eye": "MMK_F00_EYE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
+        "eye": "MMK_F00_EYE06_00",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
         "effect": ""
@@ -97,9 +97,9 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
-        "eye": "MMK_F00_EYE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
+        "eye": "MMK_F00_EYE06_00",
         "mouth": "MMK_F00_MOU00_02",
         "accessory": "",
         "effect": ""
@@ -113,7 +113,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
@@ -127,8 +127,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE02_00",
         "mouth": "MMK_F00_MOU00_02",
         "accessory": "",
@@ -143,7 +143,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE02_00",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
@@ -157,10 +157,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
+        "brow": "MMK_F00_BRO01_00",
         "cheek": "MMK_F00_CHE01_00",
         "eye": "MMK_F00_EYE03_00",
-        "mouth": "MMK_F00_MOU14_00",
+        "mouth": "MMK_F00_MOU12_00",
         "accessory": "",
         "effect": ""
       },
@@ -173,7 +173,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO03_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU03_01",
         "accessory": "",
@@ -188,8 +188,8 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
-        "eye": "MMK_F00_EYE04_00",
+        "cheek": "MMK_F00_CHE00_00",
+        "eye": "MMK_F00_EYE06_00",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
         "effect": ""
@@ -203,7 +203,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
@@ -217,8 +217,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO01_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE03_01",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
@@ -232,10 +232,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE03_01",
-        "mouth": "MMK_F00_MOU11_00",
+        "mouth": "MMK_F00_MOU07_00",
         "accessory": "",
         "effect": ""
       },
@@ -248,7 +248,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE03_01",
         "mouth": "MMK_F00_MOU04_00",
         "accessory": "",
@@ -263,9 +263,9 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
-        "mouth": "MMK_F00_MOU06_00",
+        "mouth": "MMK_F00_MOU10_00",
         "accessory": "",
         "effect": ""
       },
@@ -278,9 +278,9 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
-        "mouth": "MMK_F00_MOU16_00",
+        "mouth": "MMK_F00_MOU14_00",
         "accessory": "",
         "effect": ""
       },
@@ -293,7 +293,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU05_02",
         "accessory": "",
@@ -308,9 +308,9 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
-        "mouth": "MMK_F00_MOU15_00",
+        "mouth": "MMK_F00_MOU11_00",
         "accessory": "",
         "effect": ""
       },
@@ -323,7 +323,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO03_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
@@ -337,8 +337,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO01_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
         "mouth": "MMK_F00_MOU05_00",
         "accessory": "",
@@ -352,10 +352,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE01_00",
-        "mouth": "MMK_F00_MOU04_02",
+        "mouth": "MMK_F00_MOU05_02",
         "accessory": "",
         "effect": "MMK_E00_01"
       },
@@ -367,10 +367,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO01_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE01_01",
-        "mouth": "MMK_F00_MOU13_00",
+        "mouth": "MMK_F00_MOU08_00",
         "accessory": "",
         "effect": "MMK_E00_01"
       },
@@ -383,9 +383,9 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO02_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_02",
-        "mouth": "MMK_F00_MOU15_00",
+        "mouth": "MMK_F00_MOU11_00",
         "accessory": "",
         "effect": "MMK_E00_01"
       },
@@ -397,8 +397,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE02_00",
         "mouth": "MMK_F00_MOU03_02",
         "accessory": "",
@@ -412,8 +412,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO01_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU05_00",
         "accessory": "",
@@ -426,9 +426,9 @@
       "name": "遠くを見る",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T01_ARM03_CLO00",
-        "brow": "MMK_F01_BRO01_00",
-        "cheek": "MMK_F01_CHE03_00",
+        "torso": "MMK_T01_ARM01_CLO00",
+        "brow": "MMK_F01_BRO00_00",
+        "cheek": "MMK_F01_CHE00_00",
         "eye": "MMK_F01_EYE01_00",
         "mouth": "MMK_F01_MOU03_00",
         "accessory": "",
@@ -442,10 +442,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T01_ARM00_CLO00",
-        "brow": "MMK_F01_BRO02_00",
-        "cheek": "MMK_F01_CHE03_00",
+        "brow": "MMK_F01_BRO03_00",
+        "cheek": "MMK_F01_CHE00_00",
         "eye": "MMK_F01_EYE00_00",
-        "mouth": "MMK_F01_MOU00_00",
+        "mouth": "MMK_F01_MOU02_00",
         "accessory": "",
         "effect": ""
       },
@@ -458,7 +458,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO03_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU04_00",
         "accessory": "",
@@ -472,8 +472,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE02_00",
         "mouth": "MMK_F00_MOU05_00",
         "accessory": "",
@@ -487,10 +487,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T01_ARM00_CLO00",
-        "brow": "MMK_F01_BRO01_00",
+        "brow": "MMK_F01_BRO00_00",
         "cheek": "MMK_F01_CHE01_00",
         "eye": "MMK_F01_EYE00_01",
-        "mouth": "MMK_F01_MOU04_01",
+        "mouth": "MMK_F01_MOU04_02",
         "accessory": "",
         "effect": ""
       },
@@ -502,8 +502,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T01_ARM00_CLO00",
-        "brow": "MMK_F01_BRO00_00",
-        "cheek": "MMK_F01_CHE03_00",
+        "brow": "MMK_F01_BRO01_00",
+        "cheek": "MMK_F01_CHE00_00",
         "eye": "MMK_F01_EYE00_01",
         "mouth": "MMK_F01_MOU07_00",
         "accessory": "",
@@ -517,10 +517,10 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T01_ARM00_CLO00",
-        "brow": "MMK_F01_BRO03_00",
-        "cheek": "MMK_F01_CHE03_00",
+        "brow": "MMK_F01_BRO02_00",
+        "cheek": "MMK_F01_CHE00_00",
         "eye": "MMK_F01_EYE00_02",
-        "mouth": "MMK_F01_MOU05_00",
+        "mouth": "MMK_F01_MOU10_00",
         "accessory": "",
         "effect": ""
       },
@@ -531,11 +531,11 @@
       "name": "本当かなあ？斜め",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T01_ARM01_CLO00",
-        "brow": "MMK_F01_BRO03_00",
-        "cheek": "MMK_F01_CHE03_00",
+        "torso": "MMK_T01_ARM02_CLO00",
+        "brow": "MMK_F01_BRO02_00",
+        "cheek": "MMK_F01_CHE00_00",
         "eye": "MMK_F01_EYE00_01",
-        "mouth": "MMK_F01_MOU04_01",
+        "mouth": "MMK_F01_MOU04_02",
         "accessory": "",
         "effect": ""
       },
@@ -547,8 +547,8 @@
       "character": "桃子",
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
-        "brow": "MMK_F00_BRO01_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "brow": "MMK_F00_BRO00_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_01",
         "mouth": "MMK_F00_MOU05_01",
         "accessory": "",
@@ -576,11 +576,11 @@
       "name": "照れ提案斜め",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T01_ARM01_CLO00",
-        "brow": "MMK_F01_BRO02_00",
+        "torso": "MMK_T01_ARM02_CLO00",
+        "brow": "MMK_F01_BRO03_00",
         "cheek": "MMK_F01_CHE01_00",
         "eye": "MMK_F01_EYE00_01",
-        "mouth": "MMK_F01_MOU04_01",
+        "mouth": "MMK_F01_MOU04_02",
         "accessory": "",
         "effect": ""
       },
@@ -591,8 +591,8 @@
       "name": "照れ驚き斜め",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T01_ARM01_CLO00",
-        "brow": "MMK_F01_BRO00_00",
+        "torso": "MMK_T01_ARM02_CLO00",
+        "brow": "MMK_F01_BRO01_00",
         "cheek": "MMK_F01_CHE02_00",
         "eye": "MMK_F01_EYE02_00",
         "mouth": "MMK_F01_MOU03_00",
@@ -606,11 +606,11 @@
       "name": "照れ微笑み斜め",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T01_ARM01_CLO00",
-        "brow": "MMK_F01_BRO02_00",
+        "torso": "MMK_T01_ARM02_CLO00",
+        "brow": "MMK_F01_BRO03_00",
         "cheek": "MMK_F01_CHE02_00",
         "eye": "MMK_F01_EYE00_00",
-        "mouth": "MMK_F01_MOU00_00",
+        "mouth": "MMK_F01_MOU02_00",
         "accessory": "",
         "effect": ""
       },
@@ -624,8 +624,8 @@
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO03_00",
         "cheek": "MMK_F00_CHE02_00",
-        "eye": "MMK_F00_EYE04_00",
-        "mouth": "MMK_F00_MOU11_00",
+        "eye": "MMK_F00_EYE06_00",
+        "mouth": "MMK_F00_MOU07_00",
         "accessory": "",
         "effect": ""
       },
@@ -651,11 +651,11 @@
       "name": "桃子困惑２",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T00_ARM17_CLO00",
+        "torso": "MMK_T00_ARM07_CLO00",
         "brow": "MMK_F00_BRO03_00",
         "cheek": "MMK_F00_CHE01_00",
         "eye": "MMK_F00_EYE02_00",
-        "mouth": "MMK_F00_MOU17_00",
+        "mouth": "MMK_F00_MOU15_00",
         "accessory": "",
         "effect": "MMK_E00_01"
       },
@@ -741,7 +741,7 @@
       "name": "桃子恥ずかしがる",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T00_ARM08_CLO00",
+        "torso": "MMK_T00_ARM02_CLO01",
         "brow": "MMK_F00_BRO02_00",
         "cheek": "MMK_F00_CHE01_00",
         "eye": "MMK_F00_EYE02_00",
@@ -788,7 +788,7 @@
       "parts": {
         "torso": "MMK_T00_ARM00_CLO00",
         "brow": "MMK_F00_BRO05_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE00_00",
         "mouth": "MMK_F00_MOU05_00",
         "accessory": "",
@@ -801,9 +801,9 @@
       "name": "桃子発見",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T00_ARM16_CLO00",
-        "brow": "MMK_F00_BRO00_00",
-        "cheek": "MMK_F00_CHE04_00",
+        "torso": "",
+        "brow": "MMK_F00_BRO01_00",
+        "cheek": "MMK_F00_CHE00_00",
         "eye": "MMK_F00_EYE02_00",
         "mouth": "MMK_F00_MOU00_00",
         "accessory": "",
@@ -861,7 +861,7 @@
       "name": "桃子恥ずかしがるバッグ無し",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T00_ARM03_CLO00",
+        "torso": "MMK_T00_ARM02_CLO00",
         "brow": "MMK_F00_BRO02_00",
         "cheek": "MMK_F00_CHE01_00",
         "eye": "MMK_F00_EYE02_00",
@@ -876,8 +876,8 @@
       "name": "桃子斜め照れ納得",
       "character": "桃子",
       "parts": {
-        "torso": "MMK_T01_ARM01_CLO00",
-        "brow": "MMK_F01_BRO00_00",
+        "torso": "MMK_T01_ARM02_CLO00",
+        "brow": "MMK_F01_BRO01_00",
         "cheek": "MMK_F01_CHE02_00",
         "eye": "MMK_F01_EYE01_00",
         "mouth": "MMK_F01_MOU03_00",

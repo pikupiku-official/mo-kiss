@@ -45,28 +45,28 @@
 	//B//
 	「だからやめて！！もおサイッアク！」
 	「ねえ、桃子からもなんか言ってやってよ！」
-[chara_show name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" blink="true" x="0.20186335" y="0.89689441" size="2.0" fade="0.3"]
+[chara_show name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" blink="true" x="0.20186335" y="0.89689441" size="2.0" fade="0.3"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「・・・」
 	//B//
 	「・・・」
 	//B//
 	「ちょっと、桃子！」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU19_00" effect="" fade="0.15" move="linear"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" effect="" fade="0.15" move="linear"]
 	//桃子//
 	「え・・・？」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「・・・ごめん、聞いてなかった、あはは。」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	//{name}//
 	「（・・・）」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「（・・・？）」
-[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU18_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//B//
 	「アンタは相変わらず呑気ねぇ。」
 	//A//
@@ -88,7 +88,7 @@
 [chara_shift name="増田" x="0.55357143" y="0.7"]
 	//{name}//
 	「（・・・）」
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" effect="" fade="0.15"]
 [chara_shift name="増田" x="0.38121118" y="0.7"]
 	//{name}//
 	「（もう予言の話題は聞きたくない。）」
@@ -116,10 +116,10 @@
 	「・・・」
 	//{name}//
 	「・・・桃子？」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO00_00" effect="" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU06_00" brow="MMK_F01_BRO01_00" effect="" fade="0.15"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_01" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM01_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_01" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「・・・へぇ？」
 [chara_shift name="杏" x="0.75621119" y="0.68322981"]
@@ -129,24 +129,24 @@
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//B//
 	「桃子は部活だから空いてないんでしょ？」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" accessory="" effect="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" accessory="" effect="" blink="true" fade="0.15"]
 	//桃子//
 	「え・・・あ、うん。」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「ごめんね。」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	//{name}//
 	「・・・」[scroll-stop]
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	//B//
 	「謝らなくていいのよ、コイツの暇つぶしなんだから。」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" fade="0.15"]
 	//B//
 	「テニス、頑張って！」
 	//A//
 	「ちぇっ！別にいいもんね。」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「じゃあまた明日！ふんっ。」
 [chara_hide name="増田" fade="0.15"]
 [chara_hide]
@@ -160,22 +160,22 @@
 [chara_hide]
 	//{name}//
 	「ああ。」
-[chara_shift name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15" blink="true"]
+[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15" blink="true"]
 	//{name}//
 	「・・・」
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//{name}//
 	「・・・じゃあ僕も行くよ。それじゃ。」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU19_00" effect="" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" effect="" fade="0.15"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE04_00" mouth="MMK_F01_MOU07_00" brow="MMK_F01_BRO05_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE06_00" mouth="MMK_F01_MOU07_00" brow="MMK_F01_BRO05_00" effect="" fade="0.15"]
 	//桃子//
 	「またね。」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU02_00" effect="" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" effect="" fade="0.15"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU18_00" effect="" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_00" effect="" fade="0.15"]
 	//桃子//
 	「・・・」
 [fadeout color="black" time="1.0"]
@@ -216,7 +216,7 @@
 	「・・・」
 	//{name}//
 	「・・・おや？」
-[chara_show name="桃子" torso="MMK_T01_ARM21_CLO00" eye="MMK_F01_EYE01_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE03_00" blink="true" x="0.3" y="0.76" size="1.4" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T01_ARM05_CLO00" eye="MMK_F01_EYE01_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE00_00" blink="true" x="0.3" y="0.76" size="1.4" fade="0.15"]
 	//{name}//
 	「（あれは・・・桃子だ。）」
 [bgm bgm="◎_3_滅亡 SuperDemo.mp3" volume="0.5" loop="true" fade="0.0"]
@@ -225,24 +225,24 @@
 	「（なんだ、まだいたのか。）」
 	//{name}//
 	「よっ。」
-[chara_show name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU04_01" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" blink="true" x="0.3" y="0.76" size="1.4" fade="0.15"]
+[chara_show name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" blink="true" x="0.3" y="0.76" size="1.4" fade="0.15"]
 	//桃子//
 	「・・・あぁっ、{name}！」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" x="0.5" y="0.9" size="2.3" fade="0.5"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" x="0.5" y="0.9" size="2.3" fade="0.5"]
 	//{name}//
 	「数２のプリント忘れちゃってさ。」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//{name}//
 	「・・・しかし、随分と遅くまで残ってるんだな。」
-[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「うーんと、まぁ、」
-[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU11_00" brow="MMK_F00_BRO05_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU07_00" brow="MMK_F00_BRO05_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「ちょっとね。」
 	//{name}//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU18_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「（やっぱりちょっと元気がないよな。）」
 	//{name}//
@@ -250,75 +250,75 @@
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//{name}//
 	「それにしても皆、大盛り上がりだよな、あの星の話で！」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU03_02" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU02_02" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「あはは、そうだねー。」
-[chara_shift name="桃子" template="取り繕った笑顔斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑顔斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU02_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	//{name}//
 	「騒々しくって堪らないよ。まあ帰っちゃえば静かだからいいけどさ。」
-[chara_shift name="桃子" template="取り繕った笑顔斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑顔斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU02_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「でも、僕と違って桃子んちは皆賑やかだろ？」
-[chara_shift name="桃子" template="取り繕った笑顔斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑顔斜め" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU02_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「どうだ、最近は。皆さんお元気？」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「えっ！？」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「う・・・うん、心配しなくても平気だから。」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「・・・」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	//{name}//
 	「・・・」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「・・・そりゃ何よりだ。」
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU02_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「うん。大丈夫だよ。」
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//{name}//
 	「・・・あっ、でも、妹の杏ちゃんとかまだ中学生だし、」
 	「深夜のオカルト特番とか絶対観たがるよな！」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU19_00" brow="MMK_F01_BRO01_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" brow="MMK_F01_BRO00_00" effect="" fade="0.15"]
 	//{name}//
 	「きっと夜になると元気になるだろ？姉貴ってのも大変だな。」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE04_00" mouth="MMK_F01_MOU00_01" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE06_00" mouth="MMK_F01_MOU02_02" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「あはは・・・」
-[chara_shift name="桃子" mouth="MMK_F01_MOU18_00" effect="" fade="0.15"]
+[chara_shift name="桃子" mouth="MMK_F01_MOU04_00" effect="" fade="0.15"]
 	//{name}//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_01" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「あっ！ねえねえ、それよりプリントは？」
-[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="" accessory="" blink="true" fade="0.15"]
+[chara_shift name="桃子" template="取り繕った笑み" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="" accessory="" blink="true" fade="0.15"]
 	「忘れないうちに回収しちゃいなよ。」
 	//{name}//
 	「・・・そうだな。」
 	「（空回ったかな？）」
 	「（・・・いや、やっぱり変だ。）」
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//{name}//
 	「（さっきの話題の変え方しかり。もしかして、）」
 	「（[seed]家族の話題を避けている[/seed]んじゃないだろうか・・・？）」
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//{name}//
 	「・・・あったあった。」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU19_00" effect="" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" effect="" fade="0.15"]
 	//{name}//
 	「・・・それにしても、こんな時間まで何をやってたんだ？」
-[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE04_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE06_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「え？ううん、別に何も。」
 	//{name}//
 	「いや、何もってことないだろう。」
 	//{name}//
 	「他のテニス部員はもうとっくに帰ってたろ？」
-[chara_shift name="桃子" torso="MMK_T01_ARM18_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_01" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM04_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「えーっと、強いて言うなら・・・」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU03_01" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_02" fade="0.15"]
 	//桃子//
 	「・・・考え事？」
 	//{name}//
@@ -329,14 +329,14 @@
 	「（あの桃子が[seed]放課後も家に帰らず、何か考え込んでいる[/seed]。）」
 	//{name}//
 	「（・・・珍しいこともあるもんだ。部類の家好きの癖に。）」
-[chara_shift name="桃子" mouth="MMK_F01_MOU18_00" brow="MMK_F01_BRO02_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" mouth="MMK_F01_MOU04_00" brow="MMK_F01_BRO03_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「・・・そうかい。」
 	//{name}//
 	「まっ、じゃあぼちぼち帰ろうぜ。」
 	//{name}//
 	「すっかり遅くなっちゃ――」
-[chara_shift name="桃子" torso="MMK_T00_ARM17_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU00_01" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM07_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「あ～あの、{name}、先に帰ってて！」
 [chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" mouth="MMK_F00_MOU02_00" fade="0.15"]
@@ -344,7 +344,7 @@
 	「私、もうちょっとしたら帰るから。」
 	//{name}//
 	「えっ？まだ居残るつもりか？何するんだよ。」
-[chara_shift name="桃子" torso="MMK_T00_ARM02_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU00_01" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE04_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM03_CLO00" eye="MMK_F00_EYE01_00" mouth="MMK_F00_MOU04_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" effect="MMK_E00_01" fade="0.15"]
 	//桃子//
 	「えーと・・・ほら、あれ！」
 [chara_shift name="桃子" eye="MMK_F00_EYE02_00" brow="MMK_F00_BRO02_00" fade="0.15"]
@@ -355,48 +355,48 @@
 	「ホントかよ。大体、あと３０分もしたら完全下校時間だぞ。」
 	//{name}//
 	「さっさと家に帰って風呂でも入った方がいいんじゃないか？」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO05_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU04_00" brow="MMK_F00_BRO05_00" cheek="MMK_F00_CHE00_00" effect="" fade="0.15"]
 	//桃子//
 	「大丈夫だから、気にしないで。」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO05_00" cheek="MMK_F00_CHE04_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU05_00" brow="MMK_F00_BRO05_00" cheek="MMK_F00_CHE00_00" effect="" fade="0.15"]
 	//{name}//
 	「いやいや、絶対その方がいいったら。」
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_01" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE01_01" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
 	//{name}//
 	「なんか食べてもいいんじゃないか？甘いものとかさ。」
 	//{name}//
 	「そしたら頭もすっきりするし、その方が考え事だってすぐに――」
-[chara_shift name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU13_00" brow="MMK_F01_BRO03_00" cheek="MMK_F01_CHE00_00" effect="" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU08_00" brow="MMK_F01_BRO02_00" cheek="MMK_F01_CHE03_00" effect="" fade="0.15"]
 [bgmend time="1.0"]
 	//桃子//
 	「いいからもうほっといてよ！！」
-[chara_shift name="桃子" mouth="MMK_F01_MOU12_00" effect="" fade="0.15"]
+[chara_shift name="桃子" mouth="MMK_F01_MOU01_00" effect="" fade="0.15"]
 	//桃子//
 	「・・・」
 	//{name}//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM03_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU16_00" brow="MMK_F01_BRO01_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE02_00" mouth="MMK_F01_MOU00_01" brow="MMK_F01_BRO00_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「・・・」
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU21_00" brow="MMK_F01_BRO05_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU16_00" brow="MMK_F01_BRO05_00" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU16_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_01" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「・・・ごめん。」
-[chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU21_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE01_00" mouth="MMK_F01_MOU16_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「・・・」
 [bgm bgm="◎_4_天星郷中間部 Demo.mp3" volume="0.5" loop="true" fade="0.0"]
 [bgm]
 	//{name}//
 	「何があったんだ。」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_01" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU04_02" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「え？」
-[chara_shift name="桃子" mouth="MMK_F01_MOU21_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" mouth="MMK_F01_MOU16_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「ここ最近、お前、ちょっと変だぞ。」
 	//{name}//
@@ -404,7 +404,7 @@
 [chara_shift name="桃子" eye="MMK_F01_EYE01_00" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" eye="MMK_F01_EYE01_02" mouth="MMK_F01_MOU04_01" brow="MMK_F01_BRO04_00" fade="0.15"]
+[chara_shift name="桃子" eye="MMK_F01_EYE01_02" mouth="MMK_F01_MOU04_02" brow="MMK_F01_BRO04_00" fade="0.15"]
 	//桃子//
 	「別に何もないから、心配しないで。」
 [chara_shift name="桃子" mouth="MMK_F01_MOU03_00" effect="MMK_E01_01" fade="0.15"]
@@ -440,7 +440,7 @@
 [if condition="MOMOKO_TORO_RESULT==correct"]
 	//{name}//
 	「――そうだろ？」
-[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T00_ARM00_CLO00" eye="MMK_F00_EYE02_00" mouth="MMK_F00_MOU03_02" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" fade="0.15"]
 [bgmend time="1.0"]
 [bgmend time="1.0"]
 	//桃子//
@@ -455,7 +455,7 @@
 [chara_shift name="桃子" effect="" fade="0.15"]
 	//{name}//
 	「・・・桃子のことなら、大体わかるんだ。」
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE01_01" mouth="MMK_F01_MOU21_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE01_01" mouth="MMK_F01_MOU16_00" brow="MMK_F01_BRO05_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「・・・」
 	//{name}//
@@ -466,7 +466,7 @@
 [endif]
 
 [if condition="MOMOKO_TORO_RESULT==incorrect"]
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO04_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO04_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「（・・・？）」
 	//{name}//
@@ -497,7 +497,7 @@
 [endif]
 
 [if condition="MOMOKO_TORO_RESULT==borderline"]
-[chara_shift name="桃子" torso="MMK_T01_ARM01_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO04_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" fade="0.15"]
+[chara_shift name="桃子" torso="MMK_T01_ARM02_CLO00" eye="MMK_F01_EYE00_02" mouth="MMK_F01_MOU03_00" brow="MMK_F01_BRO04_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" fade="0.15"]
 	//{name}//
 	「（・・・？）」
 	//{name}//
@@ -527,7 +527,7 @@
 [chara_shift name="桃子" eye="MMK_F01_EYE00_01" effect="MMK_E01_01" fade="0.15"]
 	//桃子//
 	「・・・」
-[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE01_01" mouth="MMK_F01_MOU04_01" cheek="MMK_F01_CHE01_00" x="0.3" y="0.8" size="1.6" fade="1.0" move="linear"]
+[chara_shift name="桃子" torso="MMK_T01_ARM00_CLO00" eye="MMK_F01_EYE01_01" mouth="MMK_F01_MOU04_02" cheek="MMK_F01_CHE01_00" x="0.3" y="0.8" size="1.6" fade="1.0" move="linear"]
 	//桃子//
 	「・・・実はね。」
 	//{name}//

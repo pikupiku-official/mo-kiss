@@ -7,7 +7,7 @@
 *scene1|&f.title+"スクショ１"
 [resetlaypos]
 [bg_show storage="connectingCorridor" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[chara_show name="桃子" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE01_01" mouth="MMK_F00_MOU06_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.5" y="0.9" size="2.2" fade="0.3"]
+[chara_show name="桃子" eye="MMK_F00_EYE01_01" mouth="MMK_F00_MOU10_00" brow="MMK_F00_BRO02_00" cheek="MMK_F00_CHE03_00" blink="true" x="0.5" y="0.9" size="2.2" fade="0.3"]
 	//桃子//
 	「最近スカートが苦しくなってきたかな〜…なんて。」
 	//久保田//
@@ -18,7 +18,7 @@
 *scen2|&f.title+"スクショ２"
 [resetlaypos]
 [bg_show storage="covenienceStore" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[chara_shift name="桃子" torso="MMK_T01_ARM10_CLO00" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU00_00" brow="MMK_F01_BRO00_00" cheek="MMK_F01_CHE00_00" effect="MMK_E01_01" x="0.60271739" y="0.95586957" size="2.2" fade="0.3"]
+[chara_shift name="桃子" torso="MMK_T01_ARM07_CLO01" eye="MMK_F01_EYE00_00" mouth="MMK_F01_MOU02_00" brow="MMK_F01_BRO01_00" cheek="MMK_F01_CHE03_00" effect="MMK_E01_01" x="0.60271739" y="0.95586957" size="2.2" fade="0.3"]
 //桃子//
 「何買う何買う〜？」
 	//久保田//
@@ -30,7 +30,7 @@
 [resetlaypos]
 [chara_hide name="桃子" fade="0.3"]
 [bg_show storage="libraryShelf" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[chara_show name="桃k" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" blink="true" x="0.5" y="1.12" size="3" fade="0.3"]
+[chara_show name="桃k" eye="MMK_F00_EYE00_01" mouth="MMK_F00_MOU02_00" brow="MMK_F00_BRO03_00" cheek="MMK_F00_CHE01_00" effect="MMK_E00_01" blink="true" x="0.5" y="1.12" size="3" fade="0.3"]
 //久保田//
 「女の子っていい匂いがするよな。」
 	//桃子//
@@ -42,7 +42,7 @@
 [resetlaypos]
 [chara_hide name="桃k" fade="0.3"]
 [bg_show storage="classroomBack" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[chara_show name="桃子" torso="MMK_T00_ARM10_CLO00" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO01_00" cheek="MMK_F00_CHE00_00" blink="true" x="0.5" y="1.3" size="3" fade="0.3"]
+[chara_show name="桃子" eye="MMK_F00_EYE00_00" mouth="MMK_F00_MOU00_00" brow="MMK_F00_BRO00_00" cheek="MMK_F00_CHE03_00" blink="true" x="0.5" y="1.3" size="3" fade="0.3"]
 	//桃子//
 	「そりゃそうだよ〜、坂井泉水とか宇多田ヒカルとか！大好き！」
       	//久保田//
@@ -55,7 +55,7 @@
 [resetlaypos]
 [chara_hide name="桃子" fade="0.3"]
 [bg_show storage="test.bg.schoolroute02" bg_x="0.5" bg_y="0.5" bg_zoom="1.0"]
-[chara_show name="桃o" torso="MMK_T03_ARM03_CLO00" eye="MMK_F03_EYE00_00" mouth="MMK_F03_MOU01_00" brow="MMK_F03_BRO03_00" cheek="MMK_F03_CHE01_00" blink="true" x="0.35" y="0.7" size="0.5" fade="0.3"]
+[chara_show name="桃o" torso="MMK_T02_ARM01_CLO01" eye="MMK_F02_EYE00_00" mouth="MMK_F02_MOU03_00" brow="MMK_F02_BRO01_00" cheek="MMK_F02_CHE01_00" blink="true" x="0.35" y="0.7" size="0.5" fade="0.3"]
 //桃子//
 「ねー！駅まで競走しよー！」
 	//桃子//
